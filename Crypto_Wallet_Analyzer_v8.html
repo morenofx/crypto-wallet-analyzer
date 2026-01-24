@@ -1160,22 +1160,25 @@
                             .filter(t => (t.valueUSD || 0) >= 0.01 && !isHidden(t))
                             .sort((a, b) => (b.valueUSD || 0) - (a.valueUSD || 0))
                             .slice(0, 30)
-                            .map(t => `
-                                <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:12px;border-bottom:1px solid rgba(255,255,255,0.05);">
-                                    <div style="display:flex;align-items:center;gap:10px;">
-                                        <img src="${t.logo || getTokenLogo(t.symbol)}" style="width:24px;height:24px;border-radius:50%;" onerror="this.src='https://via.placeholder.com/24/333/fff?text=${t.symbol?.charAt(0) || '?'}'">
-                                        <div>
-                                            <div style="font-weight:600;">${t.symbol} ${t.verified ? '<span style="color:#00ff88;font-size:10px;" title="Verificato CoinGecko">✓</span>' : ''}</div>
-                                            <div style="font-size:10px;color:#888;">${(t.chain || '').toUpperCase()} • ${t.balance?.toLocaleString('en-US', {maximumFractionDigits:4}) || 0}</div>
-                                            ${t.contractAddress && t.contractAddress !== 'native' ? \`<div style="font-size:9px;color:#666;font-family:monospace;">\${t.contractAddress.slice(0,10)}...\${t.contractAddress.slice(-6)} <a href="https://\${t.chain === 'polygon' ? 'polygonscan.com' : t.chain === 'bsc' ? 'bscscan.com' : t.chain === 'eth' ? 'etherscan.io' : t.chain + 'scan.io'}/token/\${t.contractAddress}" target="_blank" style="color:#00d4aa;">↗</a></div>\` : ''}
-                                        </div>
-                                    </div>
-                                    <div style="display:flex;align-items:center;gap:10px;">
-                                        <span style="color:#00ff88;font-weight:600;">$${(t.valueUSD || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</span>
-                                        <button onclick="hideTokenFromPreview('${t.symbol}', '${t.contractAddress || ''}')" style="background:rgba(255,71,87,0.2);border:none;color:#ff4757;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:10px;" title="Nascondi token">🚫</button>
-                                    </div>
-                                </div>
-                            `).join('') : '<div style="color:#666;font-size:11px;">Nessun token</div>'}
+                            .map(t => {
+                                const chainUrl = t.chain === 'polygon' ? 'polygonscan.com' : t.chain === 'bsc' ? 'bscscan.com' : t.chain === 'eth' ? 'etherscan.io' : t.chain === 'arbitrum' ? 'arbiscan.io' : t.chain === 'base' ? 'basescan.org' : 'etherscan.io';
+                                const contractLink = t.contractAddress && t.contractAddress !== 'native' ? '<div style="font-size:9px;color:#666;font-family:monospace;">' + t.contractAddress.slice(0,10) + '...' + t.contractAddress.slice(-6) + ' <a href="https://' + chainUrl + '/token/' + t.contractAddress + '" target="_blank" style="color:#00d4aa;">↗</a></div>' : '';
+                                const verifiedBadge = t.verified ? '<span style="color:#00ff88;font-size:10px;" title="Verificato CoinGecko">&#10003;</span>' : '';
+                                return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:12px;border-bottom:1px solid rgba(255,255,255,0.05);">' +
+                                    '<div style="display:flex;align-items:center;gap:10px;">' +
+                                        '<img src="' + (t.logo || getTokenLogo(t.symbol)) + '" style="width:24px;height:24px;border-radius:50%;" onerror="this.style.display=\'none\'">' +
+                                        '<div>' +
+                                            '<div style="font-weight:600;">' + t.symbol + ' ' + verifiedBadge + '</div>' +
+                                            '<div style="font-size:10px;color:#888;">' + (t.chain || '').toUpperCase() + ' • ' + (t.balance?.toLocaleString('en-US', {maximumFractionDigits:4}) || 0) + '</div>' +
+                                            contractLink +
+                                        '</div>' +
+                                    '</div>' +
+                                    '<div style="display:flex;align-items:center;gap:10px;">' +
+                                        '<span style="color:#00ff88;font-weight:600;">$' + (t.valueUSD || 0).toLocaleString('en-US', {minimumFractionDigits:2}) + '</span>' +
+                                        '<button onclick="hideTokenFromPreview(\'' + t.symbol + '\', \'' + (t.contractAddress || '') + '\')" style="background:rgba(255,71,87,0.2);border:none;color:#ff4757;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:10px;" title="Nascondi token">🚫</button>' +
+                                    '</div>' +
+                                '</div>';
+                            }).join('') : '<div style="color:#666;font-size:11px;">Nessun token</div>'}
                         ${w.tokens && w.tokens.filter(t => (t.valueUSD || 0) >= 0.01 && !isHidden(t)).length > 30 ? `<div style="color:#888;font-size:10px;text-align:center;margin-top:8px;">+ altri ${w.tokens.filter(t => (t.valueUSD || 0) >= 0.01 && !isHidden(t)).length - 30} token...</div>` : ''}
                     </div>
                 </div>
