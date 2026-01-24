@@ -1071,7 +1071,13 @@
                 syncStatus.innerHTML = '⏳ Caricamento da Firebase...';
                 syncStatus.style.color = '#fbbf24';
                 
-                const doc = await db.collection('users').doc('moreno').get();
+                // Timeout di 5 secondi
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Timeout')), 5000)
+                );
+                
+                const docPromise = db.collection('users').doc('moreno').get();
+                const doc = await Promise.race([docPromise, timeoutPromise]);
                 
                 if (doc.exists) {
                     const data = doc.data();
@@ -1101,8 +1107,8 @@
                 }
             } catch (e) {
                 console.error('Firebase load error:', e);
-                syncStatus.innerHTML = '❌ Errore Firebase: ' + e.message;
-                syncStatus.style.color = '#ff4757';
+                syncStatus.innerHTML = '⚠️ Firebase non disponibile, uso dati locali';
+                syncStatus.style.color = '#fbbf24';
                 return false;
             }
         }
@@ -2773,25 +2779,75 @@
         
         // ==================== INIT ====================
         document.addEventListener('DOMContentLoaded', async () => {
-            updateApiStatus();
-            await loadWallets();
-            renderWalletsPreview();
-            fetchEurUsdRate();
-            selectYear(2025); // Default year
-            renderStakingList();
+            console.log('🚀 Avvio inizializzazione...');
             
-            // Carica NFT dai wallet salvati
-            updateAllNfts();
-            renderNFTs();
+            try {
+                updateApiStatus();
+                console.log('✅ API status updated');
+            } catch(e) {
+                console.error('❌ updateApiStatus error:', e);
+            }
             
-            // Aggiorna totali in alto
-            updateDashboardTotals();
+            try {
+                await loadWallets();
+                console.log('✅ Wallets loaded:', wallets.length);
+            } catch(e) {
+                console.error('❌ loadWallets error:', e);
+                // Prova localStorage come fallback
+                const saved = localStorage.getItem('crypto_wallets_v8');
+                if (saved) wallets = JSON.parse(saved);
+            }
+            
+            try {
+                renderWalletsPreview();
+                console.log('✅ Wallets preview rendered');
+            } catch(e) {
+                console.error('❌ renderWalletsPreview error:', e);
+            }
+            
+            try {
+                fetchEurUsdRate();
+            } catch(e) {
+                console.error('❌ fetchEurUsdRate error:', e);
+            }
+            
+            try {
+                selectYear(2025);
+            } catch(e) {
+                console.error('❌ selectYear error:', e);
+            }
+            
+            try {
+                renderStakingList();
+            } catch(e) {
+                console.error('❌ renderStakingList error:', e);
+            }
+            
+            try {
+                // Carica NFT dai wallet salvati
+                updateAllNfts();
+                renderNFTs();
+            } catch(e) {
+                console.error('❌ NFT render error:', e);
+            }
+            
+            try {
+                // Aggiorna totali in alto
+                updateDashboardTotals();
+                console.log('✅ Dashboard totals updated');
+            } catch(e) {
+                console.error('❌ updateDashboardTotals error:', e);
+            }
             
             // Se ci sono wallet con token, mostra i risultati
             const hasScannedTokens = wallets.some(w => w.tokens && w.tokens.length > 0);
             if (hasScannedTokens) {
                 document.getElementById('resultsSection').classList.remove('hidden');
-                renderResults();
+                try {
+                    renderResults();
+                } catch(e) {
+                    console.error('❌ renderResults error:', e);
+                }
             }
             
             console.log('🚀 App inizializzata:', wallets.length, 'wallet caricati');
