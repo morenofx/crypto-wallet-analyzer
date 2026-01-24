@@ -5,6 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crypto Fiscal Manager v1</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDAmtceQc0m-KQC7xGmu0IH1cR4tnI8oCQ",
+            authDomain: "moreno-crypto-tools.firebaseapp.com",
+            projectId: "moreno-crypto-tools",
+            storageBucket: "moreno-crypto-tools.firebasestorage.app",
+            messagingSenderId: "875997322481",
+            appId: "1:875997322481:web:1a012bec2aff2cb5205d50"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+    </script>
+    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
         
@@ -380,9 +397,10 @@
             <div class="card">
                 <div class="card-header">
                     <div class="card-title">📈 Riepilogo Generale</div>
-                    <div>
-                        <button class="btn btn-primary btn-small" onclick="exportAllData()">💾 Salva su GitHub</button>
-                        <button class="btn btn-info btn-small" onclick="importAllData()">📂 Carica Backup</button>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <span id="syncStatus" style="font-size:11px;color:#888;">⏳ Connessione...</span>
+                        <button class="btn btn-primary btn-small" onclick="forceSaveToFirebase()">💾 Salva Ora</button>
+                        <button class="btn btn-info btn-small" onclick="importAllData()">📂 Importa JSON</button>
                         <input type="file" id="importBackupFile" class="file-input" accept=".json" onchange="handleImportBackup(event)">
                     </div>
                 </div>
@@ -686,11 +704,11 @@
                         Wallet On-Chain
                     </div>
                     <div>
-                        <a href="Crypto_Wallet_Analyzer_v7.html" class="btn btn-primary btn-small">🔗 Apri Analyzer</a>
+                        <a href="Crypto_Wallet_Analyzer_v8.html" class="btn btn-primary btn-small">🔗 Apri Analyzer</a>
                     </div>
                 </div>
                 <div class="alert alert-warning">
-                    Per i wallet on-chain, usa il <strong>Crypto Wallet Analyzer v7</strong> che scansiona automaticamente le blockchain.
+                    Per i wallet on-chain, usa il <strong>Crypto Wallet Analyzer v8</strong> che scansiona automaticamente le blockchain.
                 </div>
             </div>
         </div>
@@ -1244,39 +1262,103 @@
             return { transactions, buys, sells };
         }
         
-        // ==================== DATA PERSISTENCE ====================
-        const GITHUB_DATA_URL = 'data/fiscal_data.json';
+        // ==================== DATA PERSISTENCE (FIREBASE) ====================
+        let saveTimeout = null;
         
         function saveData() {
             localStorage.setItem('crypto_fiscal_data', JSON.stringify(exchangeData));
+            saveToFirebase();
+        }
+        
+        async function saveToFirebase() {
+            if (saveTimeout) clearTimeout(saveTimeout);
+            
+            saveTimeout = setTimeout(async () => {
+                try {
+                    const syncStatus = document.getElementById('syncStatus');
+                    syncStatus.innerHTML = '⏳ Salvataggio...';
+                    syncStatus.style.color = '#fbbf24';
+                    
+                    await db.collection('fiscal').doc('exchanges').set({
+                        exchanges: exchangeData,
+                        lastUpdate: new Date().toISOString()
+                    });
+                    
+                    syncStatus.innerHTML = '✅ Sincronizzato ' + new Date().toLocaleTimeString('it-IT');
+                    syncStatus.style.color = '#00ff88';
+                    console.log('✅ Salvato su Firebase');
+                } catch (e) {
+                    console.error('Firebase save error:', e);
+                    document.getElementById('syncStatus').innerHTML = '❌ Errore sync';
+                    document.getElementById('syncStatus').style.color = '#ff4757';
+                }
+            }, 2000);
+        }
+        
+        function forceSaveToFirebase() {
+            if (saveTimeout) clearTimeout(saveTimeout);
+            saveTimeout = null;
+            
+            const syncStatus = document.getElementById('syncStatus');
+            syncStatus.innerHTML = '⏳ Salvataggio...';
+            
+            db.collection('fiscal').doc('exchanges').set({
+                exchanges: exchangeData,
+                lastUpdate: new Date().toISOString()
+            }).then(() => {
+                syncStatus.innerHTML = '✅ Salvato! ' + new Date().toLocaleTimeString('it-IT');
+                syncStatus.style.color = '#00ff88';
+            }).catch(e => {
+                syncStatus.innerHTML = '❌ Errore: ' + e.message;
+                syncStatus.style.color = '#ff4757';
+            });
         }
         
         async function loadData() {
-            // Prima prova a caricare da GitHub
+            const syncStatus = document.getElementById('syncStatus');
+            
+            // Prima prova Firebase
             try {
-                const response = await fetch(GITHUB_DATA_URL + '?nocache=' + Date.now());
-                if (response.ok) {
-                    const data = await response.json();
+                syncStatus.innerHTML = '⏳ Caricamento...';
+                syncStatus.style.color = '#fbbf24';
+                
+                const doc = await db.collection('fiscal').doc('exchanges').get();
+                
+                if (doc.exists) {
+                    const data = doc.data();
                     if (data.exchanges) {
                         Object.assign(exchangeData, data.exchanges);
-                        console.log('✅ Dati caricati da GitHub');
-                        showGlobalAlert('✅ Dati caricati da GitHub (' + data.lastUpdate + ')', 'success');
+                        
+                        // Backup locale
+                        localStorage.setItem('crypto_fiscal_data', JSON.stringify(exchangeData));
+                        
+                        const totalTx = Object.values(exchangeData).reduce((s, arr) => s + arr.length, 0);
+                        const lastUpdate = data.lastUpdate ? new Date(data.lastUpdate).toLocaleString('it-IT') : 'N/A';
+                        syncStatus.innerHTML = '🔥 Firebase OK • ' + totalTx + ' transazioni';
+                        syncStatus.style.color = '#00ff88';
+                        console.log('✅ Caricato da Firebase');
+                    }
+                } else {
+                    syncStatus.innerHTML = '📭 Nessun dato Firebase';
+                    syncStatus.style.color = '#888';
+                    
+                    // Fallback localStorage
+                    const saved = localStorage.getItem('crypto_fiscal_data');
+                    if (saved) {
+                        Object.assign(exchangeData, JSON.parse(saved));
+                        syncStatus.innerHTML = '💾 Dati locali caricati';
                     }
                 }
             } catch (e) {
-                console.log('GitHub data not found, trying localStorage...');
-            }
-            
-            // Fallback a localStorage
-            const saved = localStorage.getItem('crypto_fiscal_data');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                // Merge: GitHub ha priorità, ma se localStorage ha dati più recenti...
-                Object.keys(parsed).forEach(exchange => {
-                    if (parsed[exchange].length > (exchangeData[exchange]?.length || 0)) {
-                        exchangeData[exchange] = parsed[exchange];
-                    }
-                });
+                console.error('Firebase load error:', e);
+                syncStatus.innerHTML = '❌ Errore Firebase';
+                syncStatus.style.color = '#ff4757';
+                
+                // Fallback localStorage
+                const saved = localStorage.getItem('crypto_fiscal_data');
+                if (saved) {
+                    Object.assign(exchangeData, JSON.parse(saved));
+                }
             }
             
             // Update UI per tutti gli exchange con dati
@@ -1286,16 +1368,9 @@
                     const statsEl = document.getElementById(`${exchange}-stats`);
                     if (statsEl) statsEl.classList.remove('hidden');
                     
-                    // Render tables
-                    if (exchange === 'binance') {
-                        updateBinanceUI();
-                    }
-                    if (exchange === 'revolut') {
-                        updateRevolutUI();
-                    }
-                    if (exchange === 'bitpanda') {
-                        updateBitpandaUI();
-                    }
+                    if (exchange === 'binance') updateBinanceUI();
+                    if (exchange === 'revolut') updateRevolutUI();
+                    if (exchange === 'bitpanda') updateBitpandaUI();
                 }
             });
             

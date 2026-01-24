@@ -5,6 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crypto Wallet Analyzer v8</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔗</text></svg>">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDAmtceQc0m-KQC7xGmu0IH1cR4tnI8oCQ",
+            authDomain: "moreno-crypto-tools.firebaseapp.com",
+            projectId: "moreno-crypto-tools",
+            storageBucket: "moreno-crypto-tools.firebasestorage.app",
+            messagingSenderId: "875997322481",
+            appId: "1:875997322481:web:1a012bec2aff2cb5205d50"
+        };
+        
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+    </script>
+    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
         
@@ -453,12 +473,12 @@
         
         <!-- Backup Section -->
         <div class="backup-section">
-            <div class="backup-title">💾 Sincronizzazione Dati GitHub</div>
+            <div class="backup-title">🔥 Sincronizzazione Firebase (Automatica)</div>
             <div class="backup-row">
-                <button class="btn btn-small btn-primary" onclick="exportJSON()">💾 Salva su GitHub</button>
-                <button class="btn btn-small btn-info" onclick="document.getElementById('importFile').click()">📂 Carica Backup</button>
+                <span id="syncStatus" style="font-size:12px;color:#888;">⏳ Connessione...</span>
+                <button class="btn btn-small btn-primary" onclick="forceSaveToFirebase()" style="margin-left:auto;">💾 Salva Ora</button>
+                <button class="btn btn-small btn-info" onclick="document.getElementById('importFile').click()">📂 Importa JSON</button>
                 <input type="file" id="importFile" class="file-input-hidden" accept=".json" onchange="importJSON(event)">
-                <span id="syncStatus" style="font-size:11px;color:#888;margin-left:10px;">Caricamento...</span>
             </div>
         </div>
         
@@ -898,59 +918,125 @@
         
         function saveWallets() {
             localStorage.setItem('crypto_wallets_v8', JSON.stringify(wallets));
+            // Auto-save to Firebase
+            saveToFirebase();
         }
         
-        const GITHUB_WALLET_URL = 'data/wallet_data.json';
+        // ==================== FIREBASE SYNC ====================
+        let saveTimeout = null;
         
-        async function loadWallets() {
+        async function saveToFirebase() {
+            // Debounce: aspetta 2 secondi prima di salvare
+            if (saveTimeout) clearTimeout(saveTimeout);
+            
+            saveTimeout = setTimeout(async () => {
+                try {
+                    const syncStatus = document.getElementById('syncStatus');
+                    syncStatus.innerHTML = '⏳ Salvataggio...';
+                    syncStatus.style.color = '#fbbf24';
+                    
+                    await db.collection('users').doc('moreno').set({
+                        wallets: wallets,
+                        hiddenTokens: hiddenTokens,
+                        stakingTokens: stakingTokens,
+                        selectedYear: selectedYear,
+                        eurUsdRate: EUR_USD,
+                        lastScanDate: lastScanDate,
+                        lastUpdate: new Date().toISOString()
+                    });
+                    
+                    syncStatus.innerHTML = '✅ Sincronizzato ' + new Date().toLocaleTimeString('it-IT');
+                    syncStatus.style.color = '#00ff88';
+                    console.log('✅ Salvato su Firebase');
+                } catch (e) {
+                    console.error('Firebase save error:', e);
+                    document.getElementById('syncStatus').innerHTML = '❌ Errore sync';
+                    document.getElementById('syncStatus').style.color = '#ff4757';
+                }
+            }, 2000);
+        }
+        
+        function forceSaveToFirebase() {
+            if (saveTimeout) clearTimeout(saveTimeout);
+            saveTimeout = null;
+            
+            const syncStatus = document.getElementById('syncStatus');
+            syncStatus.innerHTML = '⏳ Salvataggio...';
+            
+            db.collection('users').doc('moreno').set({
+                wallets: wallets,
+                hiddenTokens: hiddenTokens,
+                stakingTokens: stakingTokens,
+                selectedYear: selectedYear,
+                eurUsdRate: EUR_USD,
+                lastScanDate: lastScanDate,
+                lastUpdate: new Date().toISOString()
+            }).then(() => {
+                syncStatus.innerHTML = '✅ Salvato! ' + new Date().toLocaleTimeString('it-IT');
+                syncStatus.style.color = '#00ff88';
+            }).catch(e => {
+                syncStatus.innerHTML = '❌ Errore: ' + e.message;
+                syncStatus.style.color = '#ff4757';
+            });
+        }
+        
+        async function loadFromFirebase() {
             const syncStatus = document.getElementById('syncStatus');
             
-            // Prima prova a caricare da GitHub
             try {
-                syncStatus.textContent = 'Caricamento da GitHub...';
-                const response = await fetch(GITHUB_WALLET_URL + '?nocache=' + Date.now());
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.wallets && data.wallets.length > 0) {
-                        wallets = data.wallets;
-                        if (data.hiddenTokens) hiddenTokens = data.hiddenTokens;
-                        if (data.stakingTokens) stakingTokens = data.stakingTokens;
-                        
-                        // Salva anche in localStorage come backup
-                        localStorage.setItem('crypto_wallets_v8', JSON.stringify(wallets));
-                        localStorage.setItem('hidden_tokens_v8', JSON.stringify(hiddenTokens));
-                        localStorage.setItem('staking_tokens_v8', JSON.stringify(stakingTokens));
-                        
-                        syncStatus.innerHTML = '✅ Sincronizzato da GitHub (' + (data.lastUpdate || 'N/A').split('T')[0] + ')';
-                        syncStatus.style.color = '#00ff88';
-                        console.log('✅ Dati caricati da GitHub:', wallets.length, 'wallet');
-                        return;
-                    }
+                syncStatus.innerHTML = '⏳ Caricamento da Firebase...';
+                syncStatus.style.color = '#fbbf24';
+                
+                const doc = await db.collection('users').doc('moreno').get();
+                
+                if (doc.exists) {
+                    const data = doc.data();
+                    
+                    if (data.wallets) wallets = data.wallets;
+                    if (data.hiddenTokens) hiddenTokens = data.hiddenTokens;
+                    if (data.stakingTokens) stakingTokens = data.stakingTokens;
+                    if (data.selectedYear) selectedYear = data.selectedYear;
+                    if (data.eurUsdRate) EUR_USD = data.eurUsdRate;
+                    if (data.lastScanDate) lastScanDate = data.lastScanDate;
+                    
+                    // Salva anche in localStorage come backup
+                    localStorage.setItem('crypto_wallets_v8', JSON.stringify(wallets));
+                    localStorage.setItem('hidden_tokens_v8', JSON.stringify(hiddenTokens));
+                    localStorage.setItem('staking_tokens_v8', JSON.stringify(stakingTokens));
+                    
+                    const lastUpdate = data.lastUpdate ? new Date(data.lastUpdate).toLocaleString('it-IT') : 'N/A';
+                    syncStatus.innerHTML = '🔥 Firebase OK • ' + wallets.length + ' wallet • ' + lastUpdate;
+                    syncStatus.style.color = '#00ff88';
+                    
+                    console.log('✅ Caricato da Firebase:', wallets.length, 'wallet');
+                    return true;
+                } else {
+                    syncStatus.innerHTML = '📭 Nessun dato su Firebase';
+                    syncStatus.style.color = '#888';
+                    return false;
                 }
             } catch (e) {
-                console.log('GitHub wallet data not found, using localStorage...');
+                console.error('Firebase load error:', e);
+                syncStatus.innerHTML = '❌ Errore Firebase: ' + e.message;
+                syncStatus.style.color = '#ff4757';
+                return false;
             }
+        }
+        
+        async function loadWallets() {
+            // Prima prova Firebase
+            const firebaseLoaded = await loadFromFirebase();
             
-            // Fallback a localStorage
-            let saved = localStorage.getItem('crypto_wallets_v8');
-            if (!saved) {
-                // Migrazione da versioni precedenti
-                saved = localStorage.getItem('crypto_wallets_v7') || localStorage.getItem('crypto_wallets_v6');
-                if (saved) {
-                    const oldHidden = localStorage.getItem('hidden_tokens_v7') || localStorage.getItem('hidden_tokens_v6');
-                    if (oldHidden) {
-                        localStorage.setItem('hidden_tokens_v8', oldHidden);
-                        hiddenTokens = JSON.parse(oldHidden);
-                    }
+            if (!firebaseLoaded) {
+                // Fallback a localStorage
+                let saved = localStorage.getItem('crypto_wallets_v8');
+                if (!saved) {
+                    saved = localStorage.getItem('crypto_wallets_v7') || localStorage.getItem('crypto_wallets_v6');
                 }
-            }
-            if (saved) {
-                wallets = JSON.parse(saved);
-                syncStatus.innerHTML = '💾 Dati locali (' + wallets.length + ' wallet)';
-                syncStatus.style.color = '#fbbf24';
-            } else {
-                syncStatus.innerHTML = '📭 Nessun dato trovato';
-                syncStatus.style.color = '#888';
+                if (saved) {
+                    wallets = JSON.parse(saved);
+                    document.getElementById('syncStatus').innerHTML = '💾 Dati locali (' + wallets.length + ' wallet)';
+                }
             }
         }
         
@@ -1851,6 +1937,7 @@
         
         function saveStakingTokens() {
             localStorage.setItem('staking_tokens_v8', JSON.stringify(stakingTokens));
+            saveToFirebase();
         }
         
         function renderStakingList() {
