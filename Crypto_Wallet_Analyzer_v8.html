@@ -2332,17 +2332,26 @@
         
         function recalculateWithHistoricalPrices() {
             const hp = HISTORICAL_PRICES[selectedYear];
+            const isCurrentYear = selectedYear === 2025;
+            
+            console.log('📅 Recalculating for year:', selectedYear, 'Historical prices:', hp ? 'YES' : 'NO (using live)');
             
             // Recalculate values using historical prices
             wallets.forEach(wallet => {
-                if (wallet.tokens) {
+                if (wallet.tokens && wallet.tokens.length > 0) {
                     wallet.tokens.forEach(token => {
-                        const symbol = token.symbol.toUpperCase();
-                        if (hp && hp[symbol]) {
+                        const symbol = (token.symbol || '').toUpperCase();
+                        
+                        if (isCurrentYear) {
+                            // 2025 - usa prezzi live
+                            token.historicalPrice = token.price;
+                            token.historicalValueUSD = token.valueUSD;
+                        } else if (hp && hp[symbol]) {
+                            // Anno passato con prezzo storico
                             token.historicalPrice = hp[symbol];
                             token.historicalValueUSD = token.balance * hp[symbol];
                         } else {
-                            // Keep current price if no historical available
+                            // Nessun prezzo storico disponibile - usa prezzo corrente
                             token.historicalPrice = token.price;
                             token.historicalValueUSD = token.valueUSD;
                         }
@@ -2354,8 +2363,8 @@
             });
             
             // Aggiorna UI
-            renderResults();
             updateDashboardTotalsHistorical();
+            renderResults();
         }
         
         function updateDashboardTotalsHistorical() {
@@ -2365,13 +2374,13 @@
             const tokenValues = [];
             
             wallets.forEach(wallet => {
-                if (wallet.tokens) {
+                if (wallet.tokens && wallet.tokens.length > 0) {
                     wallet.tokens.forEach(token => {
                         if (!isHidden(token)) {
-                            const value = token.historicalValueUSD || token.valueUSD || 0;
+                            const value = token.historicalValueUSD !== undefined ? token.historicalValueUSD : (token.valueUSD || 0);
                             totalUSD += value;
                             totalTokens++;
-                            allChains.add(token.chain);
+                            if (token.chain) allChains.add(token.chain);
                             
                             if (value > 0) {
                                 tokenValues.push({
@@ -2384,6 +2393,8 @@
                     });
                 }
             });
+            
+            console.log('📊 Dashboard update:', { wallets: wallets.length, totalTokens, totalUSD, chains: allChains.size });
             
             // Aggiorna totali in alto
             const totalWalletsTopEl = document.getElementById('totalWalletsTop');
