@@ -476,21 +476,26 @@
         
         <!-- API Section - Compatto -->
         <div class="api-section" style="padding:10px 15px;">
-            <div style="display:flex;gap:15px;flex-wrap:wrap;align-items:center;">
-                <div style="display:flex;align-items:center;gap:6px;">
-                    <span style="font-size:11px;">🦊 Moralis:</span>
-                    <input type="password" id="moralisKey" class="api-input" placeholder="eyJ... (per tutti i token ERC-20)" style="width:180px;padding:5px 8px;font-size:11px;">
-                    <button class="btn btn-small" style="background:#00ff88;color:#000;padding:4px 8px;font-size:10px;" onclick="saveMoralisKey()">Salva</button>
-                    <button class="btn btn-small" style="background:#ff4757;color:#fff;padding:4px 6px;font-size:10px;" onclick="clearMoralisKey()">✕</button>
-                    <span id="moralisStatus" class="api-status off" style="font-size:10px;padding:2px 6px;">OFF</span>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+                <div style="display:flex;align-items:center;gap:4px;">
+                    <span style="font-size:10px;">🦊 Moralis:</span>
+                    <input type="password" id="moralisKey" class="api-input" placeholder="eyJ..." style="width:120px;padding:4px 6px;font-size:10px;">
+                    <button class="btn btn-small" style="background:#00ff88;color:#000;padding:3px 6px;font-size:9px;" onclick="saveMoralisKey()">Salva</button>
+                    <span id="moralisStatus" class="api-status off" style="font-size:9px;padding:2px 5px;">OFF</span>
                 </div>
-                <div style="display:flex;align-items:center;gap:6px;">
-                    <span style="font-size:11px;">🤖 Claude:</span>
-                    <input type="password" id="claudeKey" class="api-input" placeholder="sk-ant-... (per analisi AI)" style="width:180px;padding:5px 8px;font-size:11px;">
-                    <button class="btn btn-small" style="background:#a855f7;color:white;padding:4px 8px;font-size:10px;" onclick="saveClaudeKey()">Salva</button>
-                    <span id="claudeStatus" class="api-status off" style="font-size:10px;padding:2px 6px;">OFF</span>
+                <div style="display:flex;align-items:center;gap:4px;">
+                    <span style="font-size:10px;">⚗️ Alchemy:</span>
+                    <input type="password" id="alchemyKey" class="api-input" placeholder="API key..." style="width:120px;padding:4px 6px;font-size:10px;">
+                    <button class="btn btn-small" style="background:#0052ff;color:white;padding:3px 6px;font-size:9px;" onclick="saveAlchemyKey()">Salva</button>
+                    <span id="alchemyStatus" class="api-status off" style="font-size:9px;padding:2px 5px;">OFF</span>
                 </div>
-                <span style="font-size:10px;color:#666;">💡 Per Binance API → <a href="Crypto_Fiscal_Manager_v1.html" style="color:#f3ba2f;">Fiscal Manager</a></span>
+                <div style="display:flex;align-items:center;gap:4px;">
+                    <span style="font-size:10px;">🤖 Claude:</span>
+                    <input type="password" id="claudeKey" class="api-input" placeholder="sk-ant-..." style="width:120px;padding:4px 6px;font-size:10px;">
+                    <button class="btn btn-small" style="background:#a855f7;color:white;padding:3px 6px;font-size:9px;" onclick="saveClaudeKey()">Salva</button>
+                    <span id="claudeStatus" class="api-status off" style="font-size:9px;padding:2px 5px;">OFF</span>
+                </div>
+                <span style="font-size:9px;color:#666;">💡 <a href="Crypto_Fiscal_Manager_v1.html" style="color:#f3ba2f;">Fiscal Manager</a></span>
             </div>
         </div>
         
@@ -923,6 +928,16 @@
             alert('Moralis API rimossa!');
         }
         
+        function saveAlchemyKey() {
+            const key = document.getElementById('alchemyKey').value.trim();
+            if (key) {
+                localStorage.setItem('alchemy_key', key);
+                document.getElementById('alchemyKey').value = '';
+                updateApiStatus();
+                alert('Alchemy API salvata! Verrà usata come fallback.');
+            }
+        }
+        
         function saveClaudeKey() {
             const key = document.getElementById('claudeKey').value.trim();
             if (key.startsWith('sk-ant-')) {
@@ -934,12 +949,25 @@
         
         function updateApiStatus() {
             const moralis = localStorage.getItem('moralis_key');
+            const alchemy = localStorage.getItem('alchemy_key');
             const claude = localStorage.getItem('claude_key');
             
-            document.getElementById('moralisStatus').className = moralis ? 'api-status on' : 'api-status off';
-            document.getElementById('moralisStatus').textContent = moralis ? 'ON' : 'OFF';
-            document.getElementById('claudeStatus').className = claude ? 'api-status on' : 'api-status off';
-            document.getElementById('claudeStatus').textContent = claude ? 'ON' : 'OFF';
+            const moralisEl = document.getElementById('moralisStatus');
+            const alchemyEl = document.getElementById('alchemyStatus');
+            const claudeEl = document.getElementById('claudeStatus');
+            
+            if (moralisEl) {
+                moralisEl.className = moralis ? 'api-status on' : 'api-status off';
+                moralisEl.textContent = moralis ? 'ON' : 'OFF';
+            }
+            if (alchemyEl) {
+                alchemyEl.className = alchemy ? 'api-status on' : 'api-status off';
+                alchemyEl.textContent = alchemy ? 'ON' : 'OFF';
+            }
+            if (claudeEl) {
+                claudeEl.className = claude ? 'api-status on' : 'api-status off';
+                claudeEl.textContent = claude ? 'ON' : 'OFF';
+            }
         }
         
         // ==================== WALLET MANAGEMENT ====================
@@ -1545,15 +1573,163 @@
                    hiddenTokens.includes(nameId);
         }
         
+        // ==================== ALCHEMY API ====================
+        async function getAlchemyBalances(address) {
+            const alchemyKey = localStorage.getItem('alchemy_key');
+            const tokens = [];
+            
+            if (!alchemyKey) {
+                console.log('No Alchemy key');
+                return tokens;
+            }
+            
+            // Alchemy endpoints per chain
+            const alchemyChains = {
+                'eth': `https://eth-mainnet.g.alchemy.com/v2/${alchemyKey}`,
+                'polygon': `https://polygon-mainnet.g.alchemy.com/v2/${alchemyKey}`,
+                'arbitrum': `https://arb-mainnet.g.alchemy.com/v2/${alchemyKey}`,
+                'optimism': `https://opt-mainnet.g.alchemy.com/v2/${alchemyKey}`,
+                'base': `https://base-mainnet.g.alchemy.com/v2/${alchemyKey}`
+            };
+            
+            for (const [chain, endpoint] of Object.entries(alchemyChains)) {
+                try {
+                    console.log(`⚗️ Alchemy scanning ${chain}...`);
+                    
+                    // Get token balances
+                    const res = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            jsonrpc: '2.0',
+                            method: 'alchemy_getTokenBalances',
+                            params: [address, 'erc20'],
+                            id: 1
+                        })
+                    });
+                    
+                    if (res.ok) {
+                        const data = await res.json();
+                        const tokenBalances = data.result?.tokenBalances || [];
+                        
+                        // Get native balance
+                        const nativeRes = await fetch(endpoint, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                jsonrpc: '2.0',
+                                method: 'eth_getBalance',
+                                params: [address, 'latest'],
+                                id: 1
+                            })
+                        });
+                        
+                        if (nativeRes.ok) {
+                            const nativeData = await nativeRes.json();
+                            const nativeBalance = parseInt(nativeData.result, 16) / 1e18;
+                            if (nativeBalance > 0.0001) {
+                                const symbol = chain === 'polygon' ? 'MATIC' : 'ETH';
+                                tokens.push({
+                                    symbol, name: symbol, chain, balance: nativeBalance,
+                                    price: prices[symbol] || 0,
+                                    valueUSD: nativeBalance * (prices[symbol] || 0),
+                                    logo: getTokenLogo(symbol), contractAddress: 'native'
+                                });
+                            }
+                        }
+                        
+                        // Process ERC20 tokens
+                        for (const tb of tokenBalances) {
+                            if (tb.tokenBalance === '0x0000000000000000000000000000000000000000000000000000000000000000') continue;
+                            
+                            const balance = parseInt(tb.tokenBalance, 16);
+                            if (balance <= 0) continue;
+                            
+                            // Get token metadata
+                            const metaRes = await fetch(endpoint, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    jsonrpc: '2.0',
+                                    method: 'alchemy_getTokenMetadata',
+                                    params: [tb.contractAddress],
+                                    id: 1
+                                })
+                            });
+                            
+                            if (metaRes.ok) {
+                                const metaData = await metaRes.json();
+                                const meta = metaData.result;
+                                if (!meta || !meta.symbol) continue;
+                                
+                                const decimals = meta.decimals || 18;
+                                const tokenBalance = balance / Math.pow(10, decimals);
+                                const symbol = meta.symbol.toUpperCase();
+                                let price = prices[symbol] || 0;
+                                
+                                // Verifica token
+                                const verified = isVerifiedToken(chain, tb.contractAddress);
+                                const famousSymbols = ['AAVE', 'UNI', 'LINK', 'DAI', 'USDC', 'USDT', 'WBTC', 'WETH', 'CAKE', 'COMP', 'MKR', 'BAT', 'ARB'];
+                                if (famousSymbols.includes(symbol) && verified === false) {
+                                    console.log(`🚫 FAKE ${symbol} filtered`);
+                                    continue;
+                                }
+                                
+                                const valueUSD = tokenBalance * price;
+                                const isKnownToken = ['ETH','BNB','MATIC','AVAX','USDT','USDC','DAI'].includes(symbol);
+                                if (!isKnownToken && !verified && valueUSD > 100000) continue;
+                                
+                                tokens.push({
+                                    symbol,
+                                    name: meta.name || symbol,
+                                    chain,
+                                    balance: tokenBalance,
+                                    price,
+                                    valueUSD,
+                                    logo: meta.logo || getTokenLogo(symbol),
+                                    contractAddress: tb.contractAddress,
+                                    verified: verified ? true : false
+                                });
+                            }
+                        }
+                    }
+                    
+                    await new Promise(r => setTimeout(r, 200)); // Rate limit
+                } catch (e) {
+                    console.error(`Alchemy ${chain} error:`, e);
+                }
+            }
+            
+            console.log(`⚗️ Alchemy found ${tokens.length} tokens`);
+            return tokens;
+        }
+        
         // ==================== MORALIS API ====================
         async function getMoralisBalances(address) {
             const moralisKey = localStorage.getItem('moralis_key');
-            const tokens = [];
+            const alchemyKey = localStorage.getItem('alchemy_key');
+            let tokens = [];
             
-            if (!moralisKey) {
-                console.log('No Moralis key, usando fallback');
-                return await getFallbackBalances(address);
+            // Prima prova Moralis
+            if (moralisKey) {
+                tokens = await getMoralisBalancesInternal(address, moralisKey);
+                if (tokens.length > 0) return tokens;
             }
+            
+            // Fallback a Alchemy
+            if (alchemyKey) {
+                console.log('🔄 Moralis fallback -> Alchemy');
+                tokens = await getAlchemyBalances(address);
+                if (tokens.length > 0) return tokens;
+            }
+            
+            // Fallback finale a RPC pubblici
+            console.log('🔄 Fallback -> RPC pubblici');
+            return await getFallbackBalances(address);
+        }
+        
+        async function getMoralisBalancesInternal(address, moralisKey) {
+            const tokens = [];
             
             const chains = ['eth', 'bsc', 'polygon', 'arbitrum', 'base', 'optimism', 'avalanche'];
             
