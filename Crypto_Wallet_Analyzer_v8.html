@@ -453,12 +453,12 @@
         
         <!-- Backup Section -->
         <div class="backup-section">
-            <div class="backup-title">💾 Backup & Ripristino Dati</div>
+            <div class="backup-title">💾 Sincronizzazione Dati GitHub</div>
             <div class="backup-row">
-                <button class="btn btn-small btn-info" onclick="exportJSON()">📤 Esporta JSON</button>
-                <button class="btn btn-small btn-success" onclick="document.getElementById('importFile').click()">📥 Importa JSON</button>
+                <button class="btn btn-small btn-primary" onclick="exportJSON()">💾 Salva su GitHub</button>
+                <button class="btn btn-small btn-info" onclick="document.getElementById('importFile').click()">📂 Carica Backup</button>
                 <input type="file" id="importFile" class="file-input-hidden" accept=".json" onchange="importJSON(event)">
-                <span style="font-size:11px;color:#888;margin-left:10px;">Salva i tuoi dati per usarli su altri dispositivi</span>
+                <span id="syncStatus" style="font-size:11px;color:#888;margin-left:10px;">Caricamento...</span>
             </div>
         </div>
         
@@ -466,7 +466,7 @@
         <div class="card">
             <h2 style="margin-bottom:15px;">📍 Aggiungi Wallet</h2>
             <div class="input-group">
-                <input type="text" id="walletInput" class="input-wallet" placeholder="Inserisci indirizzo 0x...">
+                <input type="text" id="walletInput" class="input-wallet" placeholder="Indirizzo 0x... (EVM) o Solana">
                 <input type="text" id="walletName" class="input-wallet" placeholder="Nome (es. Wallet Principale)" style="max-width:200px;">
                 <button class="btn btn-primary" onclick="addWallet()">+ Aggiungi</button>
             </div>
@@ -731,22 +731,26 @@
         // ==================== BACKUP/RESTORE ====================
         function exportJSON() {
             const data = {
-                version: '7.0',
-                exportDate: new Date().toISOString(),
-                fiscalDate: document.getElementById('fiscalDate').value,
+                version: '8.0',
+                lastUpdate: new Date().toISOString(),
+                selectedYear: selectedYear,
                 eurUsdRate: EUR_USD,
                 wallets: wallets,
                 hiddenTokens: hiddenTokens,
+                stakingTokens: stakingTokens,
                 lastScanDate: lastScanDate
             };
             
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
-            link.download = `crypto_backup_${new Date().toISOString().split('T')[0]}.json`;
+            link.download = 'wallet_data.json';
             link.click();
             
-            alert('✅ Backup esportato con successo!');
+            // Update sync status
+            const syncStatus = document.getElementById('syncStatus');
+            syncStatus.innerHTML = '📥 File scaricato! Caricalo su GitHub in /data/';
+            syncStatus.style.color = '#fbbf24';
         }
         
         function importJSON(event) {
@@ -766,8 +770,12 @@
                         hiddenTokens = data.hiddenTokens;
                         localStorage.setItem('hidden_tokens_v8', JSON.stringify(hiddenTokens));
                     }
-                    if (data.fiscalDate) {
-                        document.getElementById('fiscalDate').value = data.fiscalDate;
+                    if (data.stakingTokens) {
+                        stakingTokens = data.stakingTokens;
+                        localStorage.setItem('staking_tokens_v8', JSON.stringify(stakingTokens));
+                    }
+                    if (data.selectedYear) {
+                        selectYear(data.selectedYear);
                     }
                     if (data.eurUsdRate) {
                         EUR_USD = data.eurUsdRate;
@@ -779,13 +787,16 @@
                     }
                     
                     renderWalletsPreview();
+                    renderStakingList();
                     
                     if (wallets.some(w => w.tokens && w.tokens.length > 0)) {
                         document.getElementById('resultsSection').classList.remove('hidden');
                         renderResults();
                     }
                     
-                    alert(`✅ Importati ${wallets.length} wallet con successo!`);
+                    const syncStatus = document.getElementById('syncStatus');
+                    syncStatus.innerHTML = `✅ Importati ${wallets.length} wallet!`;
+                    syncStatus.style.color = '#00ff88';
                 } catch (err) {
                     alert('❌ Errore nel file JSON: ' + err.message);
                 }
@@ -832,20 +843,27 @@
         function addWallet() {
             const addressInput = document.getElementById('walletInput');
             const nameInput = document.getElementById('walletName');
-            const address = addressInput.value.trim().toLowerCase();
+            let address = addressInput.value.trim();
             const name = nameInput.value.trim() || `Wallet ${wallets.length + 1}`;
             
-            if (!address || !address.startsWith('0x') || address.length !== 42) {
-                alert('Indirizzo non valido');
+            // Validate address (EVM or Solana)
+            const isEVM = address.startsWith('0x') && address.length === 42;
+            const isSolana = isSolanaAddress(address);
+            
+            if (!isEVM && !isSolana) {
+                alert('Indirizzo non valido. Usa 0x... per EVM o indirizzo Solana.');
                 return;
             }
+            
+            // Lowercase only for EVM addresses
+            if (isEVM) address = address.toLowerCase();
             
             if (wallets.find(w => w.address === address)) {
                 alert('Wallet già aggiunto');
                 return;
             }
             
-            wallets.push({ address, name, tokens: [], totalUSD: 0 });
+            wallets.push({ address, name, tokens: [], totalUSD: 0, type: isSolana ? 'solana' : 'evm' });
             addressInput.value = '';
             nameInput.value = '';
             saveWallets();
@@ -882,21 +900,58 @@
             localStorage.setItem('crypto_wallets_v8', JSON.stringify(wallets));
         }
         
-        function loadWallets() {
-            // Try v7 first, then migrate from v6
+        const GITHUB_WALLET_URL = 'data/wallet_data.json';
+        
+        async function loadWallets() {
+            const syncStatus = document.getElementById('syncStatus');
+            
+            // Prima prova a caricare da GitHub
+            try {
+                syncStatus.textContent = 'Caricamento da GitHub...';
+                const response = await fetch(GITHUB_WALLET_URL + '?nocache=' + Date.now());
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.wallets && data.wallets.length > 0) {
+                        wallets = data.wallets;
+                        if (data.hiddenTokens) hiddenTokens = data.hiddenTokens;
+                        if (data.stakingTokens) stakingTokens = data.stakingTokens;
+                        
+                        // Salva anche in localStorage come backup
+                        localStorage.setItem('crypto_wallets_v8', JSON.stringify(wallets));
+                        localStorage.setItem('hidden_tokens_v8', JSON.stringify(hiddenTokens));
+                        localStorage.setItem('staking_tokens_v8', JSON.stringify(stakingTokens));
+                        
+                        syncStatus.innerHTML = '✅ Sincronizzato da GitHub (' + (data.lastUpdate || 'N/A').split('T')[0] + ')';
+                        syncStatus.style.color = '#00ff88';
+                        console.log('✅ Dati caricati da GitHub:', wallets.length, 'wallet');
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.log('GitHub wallet data not found, using localStorage...');
+            }
+            
+            // Fallback a localStorage
             let saved = localStorage.getItem('crypto_wallets_v8');
             if (!saved) {
-                saved = localStorage.getItem('crypto_wallets_v6');
+                // Migrazione da versioni precedenti
+                saved = localStorage.getItem('crypto_wallets_v7') || localStorage.getItem('crypto_wallets_v6');
                 if (saved) {
-                    // Migrate hidden tokens too
-                    const oldHidden = localStorage.getItem('hidden_tokens_v6');
+                    const oldHidden = localStorage.getItem('hidden_tokens_v7') || localStorage.getItem('hidden_tokens_v6');
                     if (oldHidden) {
                         localStorage.setItem('hidden_tokens_v8', oldHidden);
                         hiddenTokens = JSON.parse(oldHidden);
                     }
                 }
             }
-            if (saved) wallets = JSON.parse(saved);
+            if (saved) {
+                wallets = JSON.parse(saved);
+                syncStatus.innerHTML = '💾 Dati locali (' + wallets.length + ' wallet)';
+                syncStatus.style.color = '#fbbf24';
+            } else {
+                syncStatus.innerHTML = '📭 Nessun dato trovato';
+                syncStatus.style.color = '#888';
+            }
         }
         
         function renderWalletsPreview() {
