@@ -426,10 +426,26 @@
                 <span id="moralisStatus" class="api-status off">OFF</span>
             </div>
             <div class="api-row">
+                <span style="font-size:12px;min-width:100px;">🟡 Binance:</span>
+                <input type="password" id="binanceApiKey" class="api-input" placeholder="API Key (solo lettura)" style="max-width:200px;">
+                <input type="password" id="binanceSecretKey" class="api-input" placeholder="Secret Key" style="max-width:200px;">
+                <button class="btn btn-small" style="background:#f3ba2f;color:#000;" onclick="saveBinanceKeys()">Salva</button>
+                <button class="btn btn-small" style="background:#ff4757;color:#fff;" onclick="clearBinanceKeys()">❌</button>
+                <span id="binanceStatus" class="api-status off">OFF</span>
+            </div>
+            <div class="api-row">
                 <span style="font-size:12px;min-width:100px;">🤖 Claude:</span>
                 <input type="password" id="claudeKey" class="api-input" placeholder="sk-ant-... (per analisi AI)" style="max-width:350px;">
                 <button class="btn btn-small" style="background:#a855f7;color:white;" onclick="saveClaudeKey()">Salva</button>
                 <span id="claudeStatus" class="api-status off">OFF</span>
+            </div>
+            <div id="binanceDataSection" class="hidden" style="margin-top:15px;padding-top:15px;border-top:1px solid rgba(243,186,47,0.3);">
+                <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <button class="btn btn-small" style="background:#f3ba2f;color:#000;" onclick="fetchBinanceSpot()">💰 Spot</button>
+                    <button class="btn btn-small" style="background:#f3ba2f;color:#000;" onclick="fetchBinanceEarn()">📈 Earn/Staking</button>
+                    <button class="btn btn-small" style="background:#f3ba2f;color:#000;" onclick="fetchBinanceAll()">🔄 Tutto</button>
+                    <span id="binanceLoadStatus" style="font-size:11px;color:#888;margin-left:auto;"></span>
+                </div>
             </div>
         </div>
         
@@ -850,13 +866,262 @@
             }
         }
         
+        // ==================== BINANCE API ====================
+        function saveBinanceKeys() {
+            const apiKey = document.getElementById('binanceApiKey').value.trim();
+            const secretKey = document.getElementById('binanceSecretKey').value.trim();
+            
+            if (apiKey && secretKey) {
+                localStorage.setItem('binance_api_key', apiKey);
+                localStorage.setItem('binance_secret_key', secretKey);
+                document.getElementById('binanceApiKey').value = '';
+                document.getElementById('binanceSecretKey').value = '';
+                updateApiStatus();
+                alert('✅ API Binance salvate! Ora puoi caricare i tuoi dati.');
+            } else {
+                alert('Inserisci sia API Key che Secret Key');
+            }
+        }
+        
+        function clearBinanceKeys() {
+            localStorage.removeItem('binance_api_key');
+            localStorage.removeItem('binance_secret_key');
+            updateApiStatus();
+            alert('API Binance rimosse!');
+        }
+        
+        // Binance API requires signature - we'll use a proxy or direct call
+        // For security, Binance API calls should ideally go through a backend
+        // But for personal use, we can use CORS proxy or direct calls
+        
+        let binanceBalances = { spot: [], earn: [], staking: [] };
+        
+        async function fetchBinanceSpot() {
+            const apiKey = localStorage.getItem('binance_api_key');
+            const secretKey = localStorage.getItem('binance_secret_key');
+            
+            if (!apiKey || !secretKey) {
+                alert('Inserisci prima le API Key di Binance');
+                return;
+            }
+            
+            const status = document.getElementById('binanceLoadStatus');
+            status.textContent = '⏳ Caricamento Spot...';
+            status.style.color = '#fbbf24';
+            
+            try {
+                // Create signature
+                const timestamp = Date.now();
+                const queryString = `timestamp=${timestamp}`;
+                const signature = await hmacSha256(secretKey, queryString);
+                
+                const response = await fetch(`https://api.binance.com/api/v3/account?${queryString}&signature=${signature}`, {
+                    headers: { 'X-MBX-APIKEY': apiKey }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Errore API: ' + response.status);
+                }
+                
+                const data = await response.json();
+                
+                // Filter balances > 0
+                binanceBalances.spot = data.balances.filter(b => parseFloat(b.free) > 0 || parseFloat(b.locked) > 0);
+                
+                // Add to wallets as "Binance Spot"
+                await addBinanceToWallets('spot');
+                
+                status.textContent = `✅ Spot: ${binanceBalances.spot.length} token`;
+                status.style.color = '#00ff88';
+                
+            } catch (e) {
+                console.error('Binance Spot error:', e);
+                status.textContent = '❌ Errore: ' + e.message;
+                status.style.color = '#ff4757';
+            }
+        }
+        
+        async function fetchBinanceEarn() {
+            const apiKey = localStorage.getItem('binance_api_key');
+            const secretKey = localStorage.getItem('binance_secret_key');
+            
+            if (!apiKey || !secretKey) {
+                alert('Inserisci prima le API Key di Binance');
+                return;
+            }
+            
+            const status = document.getElementById('binanceLoadStatus');
+            status.textContent = '⏳ Caricamento Earn/Staking...';
+            status.style.color = '#fbbf24';
+            
+            try {
+                // Simple Earn positions
+                const timestamp = Date.now();
+                const queryString = `timestamp=${timestamp}`;
+                const signature = await hmacSha256(secretKey, queryString);
+                
+                // Flexible products
+                const flexResponse = await fetch(`https://api.binance.com/sapi/v1/simple-earn/flexible/position?${queryString}&signature=${signature}`, {
+                    headers: { 'X-MBX-APIKEY': apiKey }
+                });
+                
+                if (flexResponse.ok) {
+                    const flexData = await flexResponse.json();
+                    if (flexData.rows) {
+                        binanceBalances.earn = flexData.rows.filter(r => parseFloat(r.totalAmount) > 0);
+                    }
+                }
+                
+                // Locked products
+                const lockedSignature = await hmacSha256(secretKey, queryString);
+                const lockedResponse = await fetch(`https://api.binance.com/sapi/v1/simple-earn/locked/position?${queryString}&signature=${lockedSignature}`, {
+                    headers: { 'X-MBX-APIKEY': apiKey }
+                });
+                
+                if (lockedResponse.ok) {
+                    const lockedData = await lockedResponse.json();
+                    if (lockedData.rows) {
+                        binanceBalances.staking = lockedData.rows.filter(r => parseFloat(r.amount) > 0);
+                    }
+                }
+                
+                await addBinanceToWallets('earn');
+                
+                const earnCount = binanceBalances.earn.length + binanceBalances.staking.length;
+                status.textContent = `✅ Earn/Staking: ${earnCount} posizioni`;
+                status.style.color = '#00ff88';
+                
+            } catch (e) {
+                console.error('Binance Earn error:', e);
+                status.textContent = '❌ Errore: ' + e.message;
+                status.style.color = '#ff4757';
+            }
+        }
+        
+        async function fetchBinanceAll() {
+            await fetchBinanceSpot();
+            await new Promise(r => setTimeout(r, 500));
+            await fetchBinanceEarn();
+        }
+        
+        async function addBinanceToWallets(type) {
+            // Find or create Binance wallet
+            let binanceWallet = wallets.find(w => w.address === 'binance-exchange');
+            
+            if (!binanceWallet) {
+                binanceWallet = {
+                    address: 'binance-exchange',
+                    name: '🟡 Binance Exchange',
+                    tokens: [],
+                    totalUSD: 0,
+                    type: 'exchange'
+                };
+                wallets.push(binanceWallet);
+            }
+            
+            // Clear existing Binance tokens and rebuild
+            binanceWallet.tokens = [];
+            
+            // Add Spot balances
+            for (const b of binanceBalances.spot) {
+                const symbol = b.asset;
+                const balance = parseFloat(b.free) + parseFloat(b.locked);
+                const price = prices[symbol] || 0;
+                
+                binanceWallet.tokens.push({
+                    symbol,
+                    name: symbol,
+                    chain: 'binance-spot',
+                    balance,
+                    locked: parseFloat(b.locked),
+                    price,
+                    valueUSD: balance * price,
+                    logo: getTokenLogo(symbol),
+                    contractAddress: 'binance-spot'
+                });
+            }
+            
+            // Add Earn (Flexible)
+            for (const e of binanceBalances.earn) {
+                const symbol = e.asset;
+                const balance = parseFloat(e.totalAmount);
+                const price = prices[symbol] || 0;
+                
+                binanceWallet.tokens.push({
+                    symbol,
+                    name: symbol + ' (Earn)',
+                    chain: 'binance-earn',
+                    balance,
+                    price,
+                    valueUSD: balance * price,
+                    logo: getTokenLogo(symbol),
+                    contractAddress: 'binance-earn',
+                    isEarn: true
+                });
+            }
+            
+            // Add Staking (Locked)
+            for (const s of binanceBalances.staking) {
+                const symbol = s.asset;
+                const balance = parseFloat(s.amount);
+                const price = prices[symbol] || 0;
+                
+                binanceWallet.tokens.push({
+                    symbol,
+                    name: symbol + ' (Staking)',
+                    chain: 'binance-staking',
+                    balance,
+                    price,
+                    valueUSD: balance * price,
+                    logo: getTokenLogo(symbol),
+                    contractAddress: 'binance-staking',
+                    isStaking: true
+                });
+            }
+            
+            // Calculate total
+            binanceWallet.totalUSD = binanceWallet.tokens.reduce((s, t) => s + (t.valueUSD || 0), 0);
+            
+            saveWallets();
+            renderWalletsPreview();
+            
+            if (document.getElementById('resultsSection').classList.contains('hidden') === false) {
+                renderResults();
+            }
+        }
+        
+        // HMAC-SHA256 for Binance signature
+        async function hmacSha256(key, message) {
+            const encoder = new TextEncoder();
+            const keyData = encoder.encode(key);
+            const messageData = encoder.encode(message);
+            
+            const cryptoKey = await crypto.subtle.importKey(
+                'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+            );
+            
+            const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+            return Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        
         function updateApiStatus() {
             const moralis = localStorage.getItem('moralis_key');
             const claude = localStorage.getItem('claude_key');
+            const binance = localStorage.getItem('binance_api_key');
+            
             document.getElementById('moralisStatus').className = moralis ? 'api-status on' : 'api-status off';
             document.getElementById('moralisStatus').textContent = moralis ? 'ON' : 'OFF';
             document.getElementById('claudeStatus').className = claude ? 'api-status on' : 'api-status off';
             document.getElementById('claudeStatus').textContent = claude ? 'ON' : 'OFF';
+            document.getElementById('binanceStatus').className = binance ? 'api-status on' : 'api-status off';
+            document.getElementById('binanceStatus').textContent = binance ? 'ON' : 'OFF';
+            
+            // Show/hide Binance data section
+            if (binance) {
+                document.getElementById('binanceDataSection').classList.remove('hidden');
+            } else {
+                document.getElementById('binanceDataSection').classList.add('hidden');
+            }
         }
         
         // ==================== WALLET MANAGEMENT ====================
