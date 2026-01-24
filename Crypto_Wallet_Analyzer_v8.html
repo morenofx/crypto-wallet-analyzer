@@ -1164,24 +1164,24 @@
                             .slice(0, 30)
                             .map(t => {
                                 const chainUrl = t.chain === 'polygon' ? 'polygonscan.com' : t.chain === 'bsc' ? 'bscscan.com' : t.chain === 'eth' ? 'etherscan.io' : t.chain === 'arbitrum' ? 'arbiscan.io' : t.chain === 'base' ? 'basescan.org' : 'etherscan.io';
-                                const contractLink = t.contractAddress && t.contractAddress !== 'native' ? '<div style="font-size:9px;color:#666;font-family:monospace;">' + t.contractAddress.slice(0,10) + '...' + t.contractAddress.slice(-6) + ' <a href="https://' + chainUrl + '/token/' + t.contractAddress + '" target="_blank" style="color:#00d4aa;">↗</a></div>' : '';
-                                const verifiedBadge = t.verified ? '<span style="color:#00ff88;font-size:10px;" title="Verificato CoinGecko">&#10003;</span>' : '';
-                                return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:12px;border-bottom:1px solid rgba(255,255,255,0.05);">' +
-                                    '<div style="display:flex;align-items:center;gap:10px;">' +
-                                        '<img src="' + (t.logo || getTokenLogo(t.symbol)) + '" style="width:24px;height:24px;border-radius:50%;" onerror="this.style.display=\'none\'">' +
-                                        '<div>' +
-                                            '<div style="font-weight:600;">' + t.symbol + ' ' + verifiedBadge + '</div>' +
-                                            '<div style="font-size:10px;color:#888;">' + (t.chain || '').toUpperCase() + ' • ' + (t.balance?.toLocaleString('en-US', {maximumFractionDigits:4}) || 0) + '</div>' +
-                                            contractLink +
-                                        '</div>' +
+                                const verifiedBadge = t.verified ? '<span style="color:#00ff88;font-size:9px;">✓</span>' : '';
+                                const priceStr = t.price ? '$' + t.price.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits: t.price < 0.01 ? 8 : 2}) : '';
+                                const contractShort = t.contractAddress && t.contractAddress !== 'native' ? t.contractAddress.slice(0,6) + '...' + t.contractAddress.slice(-4) : '';
+                                const contractLink = t.contractAddress && t.contractAddress !== 'native' ? '<a href="https://' + chainUrl + '/token/' + t.contractAddress + '" target="_blank" style="color:#666;font-size:9px;text-decoration:none;" title="' + t.contractAddress + '">' + contractShort + ' ↗</a>' : '';
+                                return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);">' +
+                                    '<div style="display:flex;align-items:center;gap:6px;flex:1;flex-wrap:wrap;">' +
+                                        '<button onclick="hideTokenFromPreview(\'' + t.symbol + '\', \'' + (t.contractAddress || '') + '\')" style="background:rgba(255,71,87,0.15);border:none;color:#ff4757;width:20px;height:20px;border-radius:4px;cursor:pointer;font-size:9px;flex-shrink:0;" title="Nascondi">✕</button>' +
+                                        '<img src="' + (t.logo || getTokenLogo(t.symbol)) + '" style="width:24px;height:24px;border-radius:50%;flex-shrink:0;" onerror="this.style.display=\'none\'">' +
+                                        '<span style="font-weight:600;font-size:12px;min-width:50px;">' + t.symbol + verifiedBadge + '</span>' +
+                                        '<span style="color:#fbbf24;font-size:11px;min-width:65px;">' + priceStr + '</span>' +
+                                        '<span style="font-size:10px;color:#888;">' + (t.chain || '').toUpperCase() + '</span>' +
+                                        '<span style="font-size:10px;color:#666;">' + (t.balance?.toLocaleString('en-US', {maximumFractionDigits:4}) || 0) + '</span>' +
+                                        contractLink +
                                     '</div>' +
-                                    '<div style="display:flex;align-items:center;gap:10px;">' +
-                                        '<span style="color:#00ff88;font-weight:600;">$' + (t.valueUSD || 0).toLocaleString('en-US', {minimumFractionDigits:2}) + '</span>' +
-                                        '<button onclick="hideTokenFromPreview(\'' + t.symbol + '\', \'' + (t.contractAddress || '') + '\')" style="background:rgba(255,71,87,0.2);border:none;color:#ff4757;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:10px;" title="Nascondi token">🚫</button>' +
-                                    '</div>' +
+                                    '<div style="color:#00ff88;font-weight:600;font-size:13px;text-align:right;min-width:90px;flex-shrink:0;">$' + (t.valueUSD || 0).toLocaleString('en-US', {minimumFractionDigits:2}) + '</div>' +
                                 '</div>';
                             }).join('') : '<div style="color:#666;font-size:11px;">Nessun token</div>'}
-                        ${w.tokens && w.tokens.filter(t => (t.valueUSD || 0) >= 0.01 && !isHidden(t)).length > 30 ? `<div style="color:#888;font-size:10px;text-align:center;margin-top:8px;">+ altri ${w.tokens.filter(t => (t.valueUSD || 0) >= 0.01 && !isHidden(t)).length - 30} token...</div>` : ''}
+                        ${w.tokens && w.tokens.filter(t => (t.valueUSD || 0) >= 0.01 && !isHidden(t)).length > 30 ? '<div style="color:#888;font-size:10px;text-align:center;margin-top:8px;">+ altri ' + (w.tokens.filter(t => (t.valueUSD || 0) >= 0.01 && !isHidden(t)).length - 30) + ' token...</div>' : ''}
                     </div>
                 </div>
             `).join('');
