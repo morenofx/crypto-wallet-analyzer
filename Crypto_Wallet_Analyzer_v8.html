@@ -1293,9 +1293,105 @@
                 }
             }
             
-            // PulseChain
-            const pulseTokens = await getPulseChainTokens(address);
-            tokens.push(...pulseTokens);
+            // PulseChain (solo per EVM)
+            if (address.startsWith('0x')) {
+                const pulseTokens = await getPulseChainTokens(address);
+                tokens.push(...pulseTokens);
+            }
+            
+            return tokens;
+        }
+        
+        // ==================== MORALIS SOLANA ====================
+        async function getMoralisSolanaBalances(address) {
+            const moralisKey = localStorage.getItem('moralis_key');
+            const tokens = [];
+            
+            if (!moralisKey) {
+                console.log('No Moralis key for Solana');
+                return tokens;
+            }
+            
+            console.log('🔍 Moralis Solana scan:', address);
+            
+            try {
+                // Get SOL balance
+                const solRes = await fetch(
+                    `https://solana-gateway.moralis.io/account/mainnet/${address}/balance`,
+                    { headers: { 'X-API-Key': moralisKey } }
+                );
+                
+                if (solRes.ok) {
+                    const data = await solRes.json();
+                    const balance = parseFloat(data.solana) || 0;
+                    console.log('💰 Moralis SOL balance:', balance);
+                    
+                    if (balance > 0) {
+                        tokens.push({
+                            symbol: 'SOL',
+                            name: 'Solana',
+                            chain: 'solana',
+                            balance,
+                            price: prices['SOL'] || 0,
+                            valueUSD: balance * (prices['SOL'] || 0),
+                            logo: getTokenLogo('SOL'),
+                            contractAddress: 'native'
+                        });
+                    }
+                } else {
+                    console.log('❌ Moralis SOL error:', solRes.status);
+                }
+                
+                // Get SPL tokens
+                const tokensRes = await fetch(
+                    `https://solana-gateway.moralis.io/account/mainnet/${address}/tokens`,
+                    { headers: { 'X-API-Key': moralisKey } }
+                );
+                
+                if (tokensRes.ok) {
+                    const data = await tokensRes.json();
+                    console.log('📦 Moralis SPL tokens:', data.length || 0);
+                    
+                    for (const t of data) {
+                        const balance = parseFloat(t.amount) || 0;
+                        if (balance <= 0) continue;
+                        
+                        const symbol = (t.symbol || 'UNKNOWN').toUpperCase();
+                        let price = prices[symbol] || 0;
+                        
+                        // Prova a ottenere il prezzo da Moralis
+                        if (price === 0 && t.mint) {
+                            try {
+                                const priceRes = await fetch(
+                                    `https://solana-gateway.moralis.io/token/mainnet/${t.mint}/price`,
+                                    { headers: { 'X-API-Key': moralisKey } }
+                                );
+                                if (priceRes.ok) {
+                                    const priceData = await priceRes.json();
+                                    price = priceData.usdPrice || 0;
+                                }
+                            } catch (e) {}
+                        }
+                        
+                        tokens.push({
+                            symbol,
+                            name: t.name || symbol,
+                            chain: 'solana',
+                            balance,
+                            price,
+                            valueUSD: balance * price,
+                            logo: t.logo || getTokenLogo(symbol),
+                            contractAddress: t.mint || 'unknown'
+                        });
+                        
+                        console.log(`✅ Found ${symbol}: ${balance} ($${(balance * price).toFixed(2)})`);
+                    }
+                } else {
+                    console.log('❌ Moralis tokens error:', tokensRes.status);
+                }
+            } catch (e) {
+                console.error('Moralis Solana error:', e);
+            }
             
             return tokens;
         }
@@ -1366,9 +1462,9 @@
         
         // ==================== SOLANA ====================
         const SOLANA_RPCS = [
-            'https://api.mainnet-beta.solana.com',
-            'https://solana-mainnet.g.alchemy.com/v2/demo',
             'https://rpc.ankr.com/solana',
+            'https://solana-mainnet.g.alchemy.com/v2/demo',
+            'https://api.mainnet-beta.solana.com',
             'https://solana.public-rpc.com'
         ];
         
@@ -1377,6 +1473,7 @@
             
             // Check if it's a Solana address (base58, 32-44 chars, no 0x)
             if (address.startsWith('0x') || address.length < 32 || address.length > 44) {
+                console.log('❌ Not a Solana address:', address);
                 return tokens;
             }
             
@@ -1388,9 +1485,12 @@
                 if (rpcWorked) break;
                 
                 try {
-                    console.log('Trying RPC:', rpc);
+                    console.log('🌐 Trying RPC:', rpc);
                     
-                    // Get SOL balance
+                    // Get SOL balance with timeout
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 10000);
+                    
                     const solRes = await fetch(rpc, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -1399,43 +1499,49 @@
                             id: 1,
                             method: 'getBalance',
                             params: [address]
-                        })
+                        }),
+                        signal: controller.signal
                     });
                     
+                    clearTimeout(timeoutId);
+                    
                     if (!solRes.ok) {
-                        console.log('RPC failed:', rpc, solRes.status);
+                        console.log('❌ RPC HTTP error:', rpc, solRes.status);
                         continue;
                     }
                     
                     const solData = await solRes.json();
-                    console.log('SOL response:', solData);
+                    console.log('📦 SOL response:', solData);
                     
                     if (solData.error) {
-                        console.log('RPC error:', solData.error);
+                        console.log('❌ RPC error:', solData.error);
                         continue;
                     }
                     
                     rpcWorked = true;
+                    console.log('✅ RPC working:', rpc);
                     
-                    if (solData.result && solData.result.value > 0) {
-                        const balance = solData.result.value / 1e9; // SOL has 9 decimals
+                    // SOL balance (anche se 0, teniamo traccia)
+                    const solBalance = (solData.result?.value || 0) / 1e9;
+                    console.log('💰 SOL balance:', solBalance);
+                    
+                    if (solBalance > 0) {
                         const price = prices['SOL'] || 0;
                         tokens.push({
                             symbol: 'SOL',
                             name: 'Solana',
                             chain: 'solana',
-                            balance,
+                            balance: solBalance,
                             price,
-                            valueUSD: balance * price,
+                            valueUSD: solBalance * price,
                             logo: getTokenLogo('SOL'),
                             contractAddress: 'native'
                         });
-                        console.log('✅ Found SOL:', balance);
-                    } else {
-                        console.log('SOL balance is 0 or not found');
+                        console.log('✅ Added SOL:', solBalance);
                     }
                     
                     // Get SPL token accounts
+                    console.log('🔍 Fetching SPL tokens...');
                     const tokenRes = await fetch(rpc, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -1452,7 +1558,8 @@
                     });
                     
                     const tokenData = await tokenRes.json();
-                    console.log('Token accounts:', tokenData.result?.value?.length || 0);
+                    const tokenCount = tokenData.result?.value?.length || 0;
+                    console.log('📦 SPL Token accounts found:', tokenCount);
                     
                     if (tokenData.result && tokenData.result.value) {
                         // Known Solana tokens mapping
@@ -1597,6 +1704,8 @@
             document.getElementById('loadingText').textContent = 'Caricamento prezzi...';
             await fetchPrices();
             
+            const moralisKey = localStorage.getItem('moralis_key');
+            
             for (let i = 0; i < wallets.length; i++) {
                 const wallet = wallets[i];
                 document.getElementById('loadingText').textContent = `Scansione ${i + 1}/${wallets.length}: ${wallet.name}...`;
@@ -1604,7 +1713,18 @@
                 // Check if it's a Solana address
                 if (isSolanaAddress(wallet.address)) {
                     document.getElementById('loadingText').textContent = `Scansione Solana ${i + 1}/${wallets.length}: ${wallet.name}...`;
-                    wallet.tokens = await getSolanaTokens(wallet.address);
+                    
+                    // Prova prima Moralis (più affidabile)
+                    if (moralisKey) {
+                        console.log('🔍 Using Moralis for Solana');
+                        wallet.tokens = await getMoralisSolanaBalances(wallet.address);
+                    }
+                    
+                    // Se Moralis non ha trovato nulla, prova RPC diretto
+                    if (!wallet.tokens || wallet.tokens.length === 0) {
+                        console.log('🔍 Fallback to direct RPC for Solana');
+                        wallet.tokens = await getSolanaTokens(wallet.address);
+                    }
                 } else {
                     // EVM chains (Ethereum, BSC, etc.)
                     wallet.tokens = await getMoralisBalances(wallet.address);
