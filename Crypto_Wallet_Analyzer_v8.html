@@ -2100,11 +2100,14 @@
             selectYear(2024); // Default year
             renderStakingList();
             
+            // Se ci sono wallet con token, mostra i risultati
             const hasScannedTokens = wallets.some(w => w.tokens && w.tokens.length > 0);
             if (hasScannedTokens) {
                 document.getElementById('resultsSection').classList.remove('hidden');
                 renderResults();
             }
+            
+            console.log('🚀 App inizializzata:', wallets.length, 'wallet caricati');
         });
         
         document.getElementById('walletInput')?.addEventListener('keypress', e => {

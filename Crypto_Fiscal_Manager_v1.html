@@ -1880,10 +1880,10 @@
         
         // ==================== INIT ====================
         document.addEventListener('DOMContentLoaded', async () => {
-            updateBinanceApiStatus();
             await loadData();
             await loadBinanceFromFirebase();
             await loadWalletDataFromFirebase();
+            checkServerStatus();
             updateDashboard();
         });
         
