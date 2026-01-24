@@ -205,6 +205,7 @@
         
         /* Wallet Preview */
         .wallet-preview-item {
+            display: flex; justify-content: space-between; align-items: center;
             padding: 12px 16px; background: rgba(255,255,255,0.02);
             border: 1px dashed rgba(0,255,136,0.3); border-radius: 8px;
             margin-bottom: 8px; animation: fadeIn 0.3s ease;
@@ -231,10 +232,6 @@
             margin-left: 10px; opacity: 0.7;
         }
         .wallet-preview-remove:hover { opacity: 1; }
-        .wallet-tokens-dropdown {
-            max-height: 400px;
-            overflow-y: auto;
-        }
         
         /* Wallet Cards */
         .wallet-card {
@@ -1141,47 +1138,19 @@
             document.getElementById('walletsPreview').classList.remove('hidden');
             document.getElementById('walletsPreviewList').innerHTML = wallets.map((w, idx) => `
                 <div class="wallet-preview-item" id="wallet-item-${idx}">
-                    <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
-                        <div class="wallet-preview-left" style="cursor:pointer;" onclick="toggleWalletTokens(${idx})">
-                            <div class="wallet-preview-icon">💼</div>
-                            <div>
-                                <div class="wallet-preview-name">${w.name} ${w.tokens && w.tokens.length > 0 ? `<span style="font-size:10px;color:#888;">(${w.tokens.length} token)</span>` : ''}</div>
-                                <div class="wallet-preview-address">${w.address.slice(0,10)}...${w.address.slice(-6)}</div>
-                            </div>
-                        </div>
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            ${w.tokens && w.tokens.length > 0 
-                                ? `<span style="color:#00ff88;font-weight:600;cursor:pointer;" onclick="toggleWalletTokens(${idx})">$${(w.totalUSD || 0).toLocaleString('en-US', {minimumFractionDigits:2})} ▼</span>` 
-                                : `<span class="wallet-preview-status" id="wallet-status-${idx}">⏳ Pronto</span>`}
-                            <button class="btn btn-small" style="background:#00ff88;color:#000;padding:4px 10px;font-size:11px;" onclick="scanSingleWallet(${idx})" id="scan-btn-${idx}">🔍</button>
-                            <button class="wallet-preview-remove" onclick="removeWallet('${w.address}')">✕</button>
+                    <div class="wallet-preview-left">
+                        <div class="wallet-preview-icon">💼</div>
+                        <div>
+                            <div class="wallet-preview-name">${w.name} ${w.tokens && w.tokens.length > 0 ? `<span style="font-size:10px;color:#888;">(${w.tokens.length} token)</span>` : ''}</div>
+                            <div class="wallet-preview-address">${w.address.slice(0,10)}...${w.address.slice(-6)}</div>
                         </div>
                     </div>
-                    <div id="wallet-tokens-${idx}" class="wallet-tokens-dropdown hidden" style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.1);display:none;">
-                        ${w.tokens && w.tokens.length > 0 ? w.tokens
-                            .filter(t => (t.valueUSD || 0) >= 0.01 && !isHidden(t))
-                            .sort((a, b) => (b.valueUSD || 0) - (a.valueUSD || 0))
-                            .slice(0, 30)
-                            .map(t => {
-                                const chainUrl = t.chain === 'polygon' ? 'polygonscan.com' : t.chain === 'bsc' ? 'bscscan.com' : t.chain === 'eth' ? 'etherscan.io' : t.chain === 'arbitrum' ? 'arbiscan.io' : t.chain === 'base' ? 'basescan.org' : 'etherscan.io';
-                                const verifiedBadge = t.verified ? '<span style="color:#00ff88;font-size:9px;">✓</span>' : '';
-                                const priceStr = t.price ? '$' + t.price.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits: t.price < 0.01 ? 8 : 2}) : '';
-                                const contractShort = t.contractAddress && t.contractAddress !== 'native' ? t.contractAddress.slice(0,6) + '...' + t.contractAddress.slice(-4) : '';
-                                const contractLink = t.contractAddress && t.contractAddress !== 'native' ? '<a href="https://' + chainUrl + '/token/' + t.contractAddress + '" target="_blank" style="color:#666;font-size:9px;text-decoration:none;" title="' + t.contractAddress + '">' + contractShort + ' ↗</a>' : '';
-                                return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);">' +
-                                    '<div style="display:flex;align-items:center;gap:6px;flex:1;flex-wrap:wrap;">' +
-                                        '<button onclick="hideTokenFromPreview(\'' + t.symbol + '\', \'' + (t.contractAddress || '') + '\')" style="background:rgba(255,71,87,0.15);border:none;color:#ff4757;width:20px;height:20px;border-radius:4px;cursor:pointer;font-size:9px;flex-shrink:0;" title="Nascondi">✕</button>' +
-                                        '<img src="' + (t.logo || getTokenLogo(t.symbol)) + '" style="width:24px;height:24px;border-radius:50%;flex-shrink:0;" onerror="this.style.display=\'none\'">' +
-                                        '<span style="font-weight:600;font-size:12px;min-width:50px;">' + t.symbol + verifiedBadge + '</span>' +
-                                        '<span style="color:#fbbf24;font-size:11px;min-width:65px;">' + priceStr + '</span>' +
-                                        '<span style="font-size:10px;color:#888;">' + (t.chain || '').toUpperCase() + '</span>' +
-                                        '<span style="font-size:10px;color:#666;">' + (t.balance?.toLocaleString('en-US', {maximumFractionDigits:4}) || 0) + '</span>' +
-                                        contractLink +
-                                    '</div>' +
-                                    '<div style="color:#00ff88;font-weight:600;font-size:13px;text-align:right;min-width:90px;flex-shrink:0;">$' + (t.valueUSD || 0).toLocaleString('en-US', {minimumFractionDigits:2}) + '</div>' +
-                                '</div>';
-                            }).join('') : '<div style="color:#666;font-size:11px;">Nessun token</div>'}
-                        ${w.tokens && w.tokens.filter(t => (t.valueUSD || 0) >= 0.01 && !isHidden(t)).length > 30 ? '<div style="color:#888;font-size:10px;text-align:center;margin-top:8px;">+ altri ' + (w.tokens.filter(t => (t.valueUSD || 0) >= 0.01 && !isHidden(t)).length - 30) + ' token...</div>' : ''}
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        ${w.tokens && w.tokens.length > 0 
+                            ? `<span style="color:#00ff88;font-weight:600;">$${(w.totalUSD || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</span>` 
+                            : `<span class="wallet-preview-status" id="wallet-status-${idx}">⏳ Pronto</span>`}
+                        <button class="btn btn-small" style="background:#00ff88;color:#000;padding:4px 10px;font-size:11px;" onclick="scanSingleWallet(${idx})" id="scan-btn-${idx}">🔍</button>
+                        <button class="wallet-preview-remove" onclick="removeWallet('${w.address}')">✕</button>
                     </div>
                 </div>
             `).join('');
@@ -2280,30 +2249,36 @@
                                         </div>
                                         <div class="chain-content" id="chain-content-${wIdx}-${cIdx}">
                                             <div class="token-list">
-                                                ${chainData.tokens.map(token => `
+                                                ${chainData.tokens.map(token => {
+                                                    const chainUrl = token.chain === 'polygon' ? 'polygonscan.com' : token.chain === 'bsc' ? 'bscscan.com' : token.chain === 'eth' ? 'etherscan.io' : token.chain === 'arbitrum' ? 'arbiscan.io' : token.chain === 'base' ? 'basescan.org' : token.chain === 'pulse' ? 'scan.pulsechain.com' : 'etherscan.io';
+                                                    const contractLink = token.contractAddress && token.contractAddress !== 'native' 
+                                                        ? `<a href="https://${chainUrl}/token/${token.contractAddress}" target="_blank" style="color:#666;font-size:9px;text-decoration:none;margin-left:4px;" title="${token.contractAddress}">${token.contractAddress.slice(0,6)}...${token.contractAddress.slice(-4)} ↗</a>` 
+                                                        : '';
+                                                    const verifiedBadge = token.verified ? '<span style="color:#00ff88;font-size:10px;margin-left:4px;" title="Verificato CoinGecko">✓</span>' : '';
+                                                    return `
                                                     <div class="token-item ${token._isScam ? 'scam' : ''}" id="token-${token.chain}-${token.contractAddress}">
                                                         <div class="token-left">
-                                                            <button class="hide-btn" onclick="event.stopPropagation(); hideTokenKeepOpen('${token.chain}', '${token.contractAddress}', '${token.symbol}', '${(token.name || '').replace(/'/g, "\\'")}', ${wIdx}, ${cIdx})" title="Elimina per sempre">🗑️</button>
+                                                            <button class="hide-btn" onclick="event.stopPropagation(); hideTokenKeepOpen('${token.chain}', '${token.contractAddress}', '${token.symbol}', '${(token.name || '').replace(/'/g, "\\'")}', ${wIdx}, ${cIdx})" title="Nascondi token">✕</button>
                                                             ${token.logo 
                                                                 ? `<img src="${token.logo}" class="token-logo" onerror="this.style.display='none'">`
                                                                 : `<div class="token-logo">${token.symbol.slice(0, 3)}</div>`}
                                                             <div>
                                                                 <div class="token-symbol">
-                                                                    ${token.symbol}
+                                                                    ${token.symbol}${verifiedBadge}
                                                                     ${token._isScam ? '<span class="token-badge scam">⚠️ SCAM</span>' : ''}
                                                                 </div>
-                                                                <div class="token-name">${token.name}</div>
+                                                                <div class="token-name">${token.name}${contractLink}</div>
                                                             </div>
                                                         </div>
                                                         <div style="display:flex;align-items:center;gap:15px;">
                                                             <div style="text-align:right;">
                                                                 <div class="token-balance">${formatBalance(token.balance)}</div>
-                                                                <div class="token-price">@$${(token.price || 0).toFixed(6)}</div>
+                                                                <div class="token-price">@$${(token.price || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits: (token.price || 0) < 0.01 ? 8 : 2})}</div>
                                                             </div>
                                                             <div class="token-value">$${(token.valueUSD || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
                                                         </div>
                                                     </div>
-                                                `).join('')}
+                                                `}).join('')}
                                             </div>
                                         </div>
                                     </div>
