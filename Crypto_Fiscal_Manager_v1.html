@@ -325,6 +325,15 @@
         .badge-reward { background: rgba(168,85,247,0.2); color: #a855f7; }
         .badge-transfer { background: rgba(236,72,153,0.2); color: #ec4899; }
         
+        .api-status {
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .api-status.on { background: rgba(0,255,136,0.2); color: #00ff88; }
+        .api-status.off { background: rgba(255,71,87,0.2); color: #ff4757; }
+        
         .hidden { display: none; }
         
         .footer {
@@ -450,6 +459,53 @@
                     </div>
                 </div>
                 
+                <!-- API Section -->
+                <div class="api-section" style="margin-bottom:20px;padding:15px;background:rgba(243,186,47,0.1);border:1px solid rgba(243,186,47,0.3);border-radius:8px;">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                        <span style="font-weight:600;color:#f3ba2f;">🔌 Collega API Binance</span>
+                        <span id="binanceApiStatus" class="api-status off" style="margin-left:auto;">OFF</span>
+                    </div>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+                        <input type="password" id="binanceApiKey" placeholder="API Key (solo lettura)" style="flex:1;min-width:200px;padding:8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:#fff;font-family:inherit;font-size:12px;">
+                        <input type="password" id="binanceSecretKey" placeholder="Secret Key" style="flex:1;min-width:200px;padding:8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:#fff;font-family:inherit;font-size:12px;">
+                        <button class="btn btn-small" style="background:#f3ba2f;color:#000;" onclick="saveBinanceKeys()">💾 Salva</button>
+                        <button class="btn btn-small btn-danger" onclick="clearBinanceKeys()">❌</button>
+                    </div>
+                    <div id="binanceApiButtons" class="hidden" style="display:flex;gap:10px;flex-wrap:wrap;padding-top:10px;border-top:1px solid rgba(243,186,47,0.2);">
+                        <button class="btn btn-small" style="background:#f3ba2f;color:#000;" onclick="fetchBinanceSpot()">💰 Carica Spot</button>
+                        <button class="btn btn-small" style="background:#f3ba2f;color:#000;" onclick="fetchBinanceEarn()">📈 Carica Earn/Staking</button>
+                        <button class="btn btn-small" style="background:#f3ba2f;color:#000;" onclick="fetchBinanceAll()">🔄 Carica Tutto</button>
+                        <span id="binanceLoadStatus" style="font-size:11px;color:#888;margin-left:auto;align-self:center;"></span>
+                    </div>
+                    <div style="font-size:10px;color:#888;margin-top:8px;">
+                        ⚠️ Usa API con permessi SOLO LETTURA • I dati vengono salvati su Firebase
+                    </div>
+                </div>
+                
+                <!-- Binance Live Balances -->
+                <div id="binanceLiveSection" class="hidden" style="margin-bottom:20px;">
+                    <h4 style="color:#f3ba2f;margin-bottom:10px;">💰 Saldo Attuale Binance</h4>
+                    <div class="stats-grid" id="binanceLiveStats">
+                        <div class="stat-box">
+                            <div class="stat-label">Spot</div>
+                            <div class="stat-value" id="binance-spot-total">€0</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Earn Flexible</div>
+                            <div class="stat-value" id="binance-earn-total">€0</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Staking Locked</div>
+                            <div class="stat-value" id="binance-staking-total">€0</div>
+                        </div>
+                        <div class="stat-box" style="background:rgba(243,186,47,0.2);">
+                            <div class="stat-label">TOTALE BINANCE</div>
+                            <div class="stat-value" style="color:#f3ba2f;" id="binance-total-value">€0</div>
+                        </div>
+                    </div>
+                    <div id="binanceTokensList" style="margin-top:15px;"></div>
+                </div>
+                
                 <div class="drop-zone" id="dropzone-binance" onclick="document.getElementById('file-binance').click()">
                     <div class="drop-zone-icon">📁</div>
                     <div class="drop-zone-text">Trascina qui i CSV di Binance</div>
@@ -458,6 +514,7 @@
                 <input type="file" id="file-binance" class="file-input" accept=".csv" onchange="handleFileUpload(event, 'binance')">
                 
                 <div id="binance-stats" class="hidden" style="margin-top:20px;">
+                    <h4 style="color:#888;margin-bottom:10px;">📜 Storico Transazioni (da CSV)</h4>
                     <div class="stats-grid">
                         <div class="stat-box">
                             <div class="stat-label">Transazioni</div>
@@ -1173,9 +1230,32 @@
                 });
             });
             
+            // Add Binance API tokens to coins
+            binanceBalances.spot.forEach(t => allCoins.add(t.symbol));
+            binanceBalances.earn.forEach(t => allCoins.add(t.symbol));
+            binanceBalances.staking.forEach(t => allCoins.add(t.symbol));
+            
+            // Add wallet tokens
+            if (walletData.wallets) {
+                walletData.wallets.forEach(w => {
+                    if (w.tokens) w.tokens.forEach(t => allCoins.add(t.symbol));
+                });
+            }
+            
+            // Count exchanges with API data
+            if (binanceTotals.spot > 0 || binanceTotals.earn > 0) activeExchanges = Math.max(activeExchanges, 1);
+            if (walletData.totalEur > 0) activeExchanges++;
+            
             document.getElementById('total-transactions').textContent = totalTx.toLocaleString();
             document.getElementById('total-exchanges').textContent = activeExchanges;
             document.getElementById('total-coins').textContent = allCoins.size;
+            
+            // Calculate total volume
+            const binanceTotal = binanceTotals.spot + binanceTotals.earn + binanceTotals.staking;
+            const walletTotal = walletData.totalEur || 0;
+            const totalValue = binanceTotal + walletTotal;
+            
+            document.getElementById('total-volume').textContent = '€' + totalValue.toLocaleString('it-IT', {maximumFractionDigits: 0});
             
             updateFiscalSummary();
         }
@@ -1505,9 +1585,346 @@
             setTimeout(() => alertDiv.remove(), 5000);
         }
         
+        // ==================== BINANCE API ====================
+        let binanceBalances = { spot: [], earn: [], staking: [] };
+        let binanceTotals = { spot: 0, earn: 0, staking: 0 };
+        let prices = {};
+        
+        // CoinGecko IDs for price lookup
+        const COINGECKO_IDS = {
+            'BTC': 'bitcoin', 'ETH': 'ethereum', 'BNB': 'binancecoin', 'SOL': 'solana',
+            'XRP': 'ripple', 'ADA': 'cardano', 'DOGE': 'dogecoin', 'DOT': 'polkadot',
+            'MATIC': 'matic-network', 'AVAX': 'avalanche-2', 'LINK': 'chainlink',
+            'UNI': 'uniswap', 'ATOM': 'cosmos', 'LTC': 'litecoin', 'NEAR': 'near',
+            'CAKE': 'pancakeswap-token', 'USDT': 'tether', 'USDC': 'usd-coin'
+        };
+        
+        async function fetchPrices() {
+            const ids = Object.values(COINGECKO_IDS).join(',');
+            try {
+                const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=eur`);
+                const data = await res.json();
+                for (const [symbol, id] of Object.entries(COINGECKO_IDS)) {
+                    if (data[id]) prices[symbol] = data[id].eur;
+                }
+                // Stablecoins
+                prices['USDT'] = 0.96;
+                prices['USDC'] = 0.96;
+                prices['BUSD'] = 0.96;
+                prices['EUR'] = 1;
+                console.log('✅ Prezzi caricati');
+            } catch (e) {
+                console.error('CoinGecko error:', e);
+            }
+        }
+        
+        function saveBinanceKeys() {
+            const apiKey = document.getElementById('binanceApiKey').value.trim();
+            const secretKey = document.getElementById('binanceSecretKey').value.trim();
+            
+            if (apiKey && secretKey) {
+                localStorage.setItem('binance_api_key', apiKey);
+                localStorage.setItem('binance_secret_key', secretKey);
+                document.getElementById('binanceApiKey').value = '';
+                document.getElementById('binanceSecretKey').value = '';
+                updateBinanceApiStatus();
+                showGlobalAlert('✅ API Binance salvate!', 'success');
+            } else {
+                showGlobalAlert('⚠️ Inserisci sia API Key che Secret Key', 'warning');
+            }
+        }
+        
+        function clearBinanceKeys() {
+            localStorage.removeItem('binance_api_key');
+            localStorage.removeItem('binance_secret_key');
+            binanceBalances = { spot: [], earn: [], staking: [] };
+            binanceTotals = { spot: 0, earn: 0, staking: 0 };
+            updateBinanceApiStatus();
+            document.getElementById('binanceLiveSection').classList.add('hidden');
+            showGlobalAlert('API Binance rimosse', 'warning');
+        }
+        
+        function updateBinanceApiStatus() {
+            const apiKey = localStorage.getItem('binance_api_key');
+            const status = document.getElementById('binanceApiStatus');
+            const buttons = document.getElementById('binanceApiButtons');
+            
+            if (apiKey) {
+                status.textContent = 'ON';
+                status.className = 'api-status on';
+                status.style.background = 'rgba(0,255,136,0.2)';
+                status.style.color = '#00ff88';
+                buttons.classList.remove('hidden');
+                buttons.style.display = 'flex';
+            } else {
+                status.textContent = 'OFF';
+                status.className = 'api-status off';
+                status.style.background = 'rgba(255,71,87,0.2)';
+                status.style.color = '#ff4757';
+                buttons.classList.add('hidden');
+            }
+        }
+        
+        async function hmacSha256(key, message) {
+            const encoder = new TextEncoder();
+            const keyData = encoder.encode(key);
+            const messageData = encoder.encode(message);
+            
+            const cryptoKey = await crypto.subtle.importKey(
+                'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+            );
+            
+            const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+            return Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        
+        async function fetchBinanceSpot() {
+            const apiKey = localStorage.getItem('binance_api_key');
+            const secretKey = localStorage.getItem('binance_secret_key');
+            
+            if (!apiKey || !secretKey) {
+                showGlobalAlert('⚠️ Inserisci prima le API Key', 'warning');
+                return;
+            }
+            
+            const status = document.getElementById('binanceLoadStatus');
+            status.textContent = '⏳ Caricamento Spot...';
+            status.style.color = '#fbbf24';
+            
+            try {
+                await fetchPrices();
+                
+                const timestamp = Date.now();
+                const queryString = `timestamp=${timestamp}`;
+                const signature = await hmacSha256(secretKey, queryString);
+                
+                const response = await fetch(`https://api.binance.com/api/v3/account?${queryString}&signature=${signature}`, {
+                    headers: { 'X-MBX-APIKEY': apiKey }
+                });
+                
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.msg || 'API Error ' + response.status);
+                }
+                
+                const data = await response.json();
+                
+                binanceBalances.spot = data.balances.filter(b => 
+                    parseFloat(b.free) > 0 || parseFloat(b.locked) > 0
+                ).map(b => ({
+                    symbol: b.asset,
+                    free: parseFloat(b.free),
+                    locked: parseFloat(b.locked),
+                    total: parseFloat(b.free) + parseFloat(b.locked),
+                    price: prices[b.asset] || 0,
+                    valueEur: (parseFloat(b.free) + parseFloat(b.locked)) * (prices[b.asset] || 0)
+                }));
+                
+                binanceTotals.spot = binanceBalances.spot.reduce((s, b) => s + b.valueEur, 0);
+                
+                status.textContent = `✅ Spot: ${binanceBalances.spot.length} token`;
+                status.style.color = '#00ff88';
+                
+                updateBinanceLiveUI();
+                saveBinanceToFirebase();
+                
+            } catch (e) {
+                console.error('Binance Spot error:', e);
+                status.textContent = '❌ ' + e.message;
+                status.style.color = '#ff4757';
+            }
+        }
+        
+        async function fetchBinanceEarn() {
+            const apiKey = localStorage.getItem('binance_api_key');
+            const secretKey = localStorage.getItem('binance_secret_key');
+            
+            if (!apiKey || !secretKey) return;
+            
+            const status = document.getElementById('binanceLoadStatus');
+            status.textContent = '⏳ Caricamento Earn...';
+            status.style.color = '#fbbf24';
+            
+            try {
+                await fetchPrices();
+                
+                const timestamp = Date.now();
+                const queryString = `timestamp=${timestamp}`;
+                const signature = await hmacSha256(secretKey, queryString);
+                
+                // Flexible Earn
+                const flexResponse = await fetch(`https://api.binance.com/sapi/v1/simple-earn/flexible/position?${queryString}&signature=${signature}`, {
+                    headers: { 'X-MBX-APIKEY': apiKey }
+                });
+                
+                if (flexResponse.ok) {
+                    const flexData = await flexResponse.json();
+                    if (flexData.rows) {
+                        binanceBalances.earn = flexData.rows.filter(r => parseFloat(r.totalAmount) > 0).map(r => ({
+                            symbol: r.asset,
+                            amount: parseFloat(r.totalAmount),
+                            price: prices[r.asset] || 0,
+                            valueEur: parseFloat(r.totalAmount) * (prices[r.asset] || 0),
+                            type: 'flexible'
+                        }));
+                    }
+                }
+                
+                // Locked Earn
+                const lockedTimestamp = Date.now();
+                const lockedQuery = `timestamp=${lockedTimestamp}`;
+                const lockedSignature = await hmacSha256(secretKey, lockedQuery);
+                
+                const lockedResponse = await fetch(`https://api.binance.com/sapi/v1/simple-earn/locked/position?${lockedQuery}&signature=${lockedSignature}`, {
+                    headers: { 'X-MBX-APIKEY': apiKey }
+                });
+                
+                if (lockedResponse.ok) {
+                    const lockedData = await lockedResponse.json();
+                    if (lockedData.rows) {
+                        binanceBalances.staking = lockedData.rows.filter(r => parseFloat(r.amount) > 0).map(r => ({
+                            symbol: r.asset,
+                            amount: parseFloat(r.amount),
+                            price: prices[r.asset] || 0,
+                            valueEur: parseFloat(r.amount) * (prices[r.asset] || 0),
+                            type: 'locked'
+                        }));
+                    }
+                }
+                
+                binanceTotals.earn = binanceBalances.earn.reduce((s, b) => s + b.valueEur, 0);
+                binanceTotals.staking = binanceBalances.staking.reduce((s, b) => s + b.valueEur, 0);
+                
+                const count = binanceBalances.earn.length + binanceBalances.staking.length;
+                status.textContent = `✅ Earn/Staking: ${count} posizioni`;
+                status.style.color = '#00ff88';
+                
+                updateBinanceLiveUI();
+                saveBinanceToFirebase();
+                
+            } catch (e) {
+                console.error('Binance Earn error:', e);
+                status.textContent = '❌ ' + e.message;
+                status.style.color = '#ff4757';
+            }
+        }
+        
+        async function fetchBinanceAll() {
+            await fetchBinanceSpot();
+            await new Promise(r => setTimeout(r, 500));
+            await fetchBinanceEarn();
+        }
+        
+        function updateBinanceLiveUI() {
+            document.getElementById('binanceLiveSection').classList.remove('hidden');
+            
+            document.getElementById('binance-spot-total').textContent = '€' + binanceTotals.spot.toLocaleString('it-IT', {maximumFractionDigits: 2});
+            document.getElementById('binance-earn-total').textContent = '€' + binanceTotals.earn.toLocaleString('it-IT', {maximumFractionDigits: 2});
+            document.getElementById('binance-staking-total').textContent = '€' + binanceTotals.staking.toLocaleString('it-IT', {maximumFractionDigits: 2});
+            
+            const total = binanceTotals.spot + binanceTotals.earn + binanceTotals.staking;
+            document.getElementById('binance-total-value').textContent = '€' + total.toLocaleString('it-IT', {maximumFractionDigits: 2});
+            
+            // Token list
+            const allTokens = [
+                ...binanceBalances.spot.map(t => ({...t, source: 'Spot'})),
+                ...binanceBalances.earn.map(t => ({...t, total: t.amount, source: 'Earn'})),
+                ...binanceBalances.staking.map(t => ({...t, total: t.amount, source: 'Staking'}))
+            ].sort((a, b) => b.valueEur - a.valueEur);
+            
+            if (allTokens.length > 0) {
+                document.getElementById('binanceTokensList').innerHTML = `
+                    <table class="data-table" style="font-size:12px;">
+                        <thead>
+                            <tr>
+                                <th>Token</th>
+                                <th>Tipo</th>
+                                <th>Quantità</th>
+                                <th>Valore EUR</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${allTokens.slice(0, 20).map(t => `
+                                <tr>
+                                    <td><strong>${t.symbol}</strong></td>
+                                    <td><span class="badge badge-${t.source === 'Spot' ? 'buy' : t.source === 'Earn' ? 'reward' : 'deposit'}">${t.source}</span></td>
+                                    <td>${t.total?.toLocaleString('en-US', {maximumFractionDigits: 6}) || t.amount?.toLocaleString('en-US', {maximumFractionDigits: 6})}</td>
+                                    <td style="color:#00ff88;font-weight:600;">€${t.valueEur.toLocaleString('it-IT', {maximumFractionDigits: 2})}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    ${allTokens.length > 20 ? `<div style="text-align:center;color:#888;margin-top:10px;font-size:11px;">+ altri ${allTokens.length - 20} token</div>` : ''}
+                `;
+            }
+            
+            // Update dashboard
+            updateDashboard();
+        }
+        
+        async function saveBinanceToFirebase() {
+            try {
+                await db.collection('fiscal').doc('binance_live').set({
+                    balances: binanceBalances,
+                    totals: binanceTotals,
+                    lastUpdate: new Date().toISOString()
+                });
+                console.log('✅ Binance live data saved to Firebase');
+            } catch (e) {
+                console.error('Firebase save error:', e);
+            }
+        }
+        
+        async function loadBinanceFromFirebase() {
+            try {
+                const doc = await db.collection('fiscal').doc('binance_live').get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    binanceBalances = data.balances || { spot: [], earn: [], staking: [] };
+                    binanceTotals = data.totals || { spot: 0, earn: 0, staking: 0 };
+                    
+                    if (binanceTotals.spot > 0 || binanceTotals.earn > 0 || binanceTotals.staking > 0) {
+                        updateBinanceLiveUI();
+                    }
+                }
+            } catch (e) {
+                console.error('Firebase load error:', e);
+            }
+        }
+        
+        // ==================== WALLET INTEGRATION ====================
+        let walletData = { wallets: [], totalEur: 0 };
+        
+        async function loadWalletDataFromFirebase() {
+            try {
+                const doc = await db.collection('users').doc('moreno').get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    if (data.wallets && data.wallets.length > 0) {
+                        walletData.wallets = data.wallets;
+                        
+                        // Calcola totale EUR (usa rate 0.96)
+                        const eurRate = 0.96;
+                        walletData.totalEur = data.wallets.reduce((sum, w) => {
+                            return sum + (w.totalUSD || 0) * eurRate;
+                        }, 0);
+                        
+                        document.getElementById('count-wallet').textContent = data.wallets.length;
+                        console.log('✅ Wallet data loaded:', data.wallets.length, 'wallets, €' + walletData.totalEur.toFixed(2));
+                    }
+                }
+            } catch (e) {
+                console.error('Wallet data load error:', e);
+            }
+        }
+        
         // ==================== INIT ====================
-        document.addEventListener('DOMContentLoaded', () => {
-            loadData();
+        document.addEventListener('DOMContentLoaded', async () => {
+            updateBinanceApiStatus();
+            await loadData();
+            await loadBinanceFromFirebase();
+            await loadWalletDataFromFirebase();
+            updateDashboard();
         });
         
         // ==================== ALERT SYSTEM ====================
