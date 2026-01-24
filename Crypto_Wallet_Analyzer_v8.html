@@ -2671,6 +2671,9 @@
             updateAllNfts();
             renderNFTs();
             
+            // Aggiorna totali in alto
+            updateDashboardTotals();
+            
             // Se ci sono wallet con token, mostra i risultati
             const hasScannedTokens = wallets.some(w => w.tokens && w.tokens.length > 0);
             if (hasScannedTokens) {
