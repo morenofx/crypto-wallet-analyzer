@@ -205,7 +205,6 @@
         
         /* Wallet Preview */
         .wallet-preview-item {
-            display: flex; justify-content: space-between; align-items: center;
             padding: 12px 16px; background: rgba(255,255,255,0.02);
             border: 1px dashed rgba(0,255,136,0.3); border-radius: 8px;
             margin-bottom: 8px; animation: fadeIn 0.3s ease;
@@ -232,6 +231,10 @@
             margin-left: 10px; opacity: 0.7;
         }
         .wallet-preview-remove:hover { opacity: 1; }
+        .wallet-tokens-dropdown {
+            max-height: 400px;
+            overflow-y: auto;
+        }
         
         /* Wallet Cards */
         .wallet-card {
@@ -802,7 +805,8 @@
         
         // ==================== EUR/USD RATE ====================
         async function fetchEurUsdRate() {
-            document.getElementById('rateDisplay').textContent = 'EUR/USD: caricamento...';
+            const rateDisplayEl = document.getElementById('rateDisplay');
+            if (rateDisplayEl) rateDisplayEl.textContent = 'EUR/USD: caricamento...';
             
             try {
                 // Try exchangerate-api (free, no key needed)
@@ -812,8 +816,7 @@
                     EUR_USD = data.rates.EUR;
                     localStorage.setItem('eur_usd_rate', EUR_USD);
                     localStorage.setItem('eur_usd_date', new Date().toISOString());
-                    document.getElementById('rateDisplay').textContent = `EUR/USD: ${EUR_USD.toFixed(4)} (live)`;
-                    document.getElementById('rateUsed').textContent = `@${EUR_USD.toFixed(4)}`;
+                    if (rateDisplayEl) rateDisplayEl.textContent = `EUR/USD: ${EUR_USD.toFixed(4)} (live)`;
                     return;
                 }
             } catch (e) {
@@ -824,11 +827,10 @@
             const cached = localStorage.getItem('eur_usd_rate');
             if (cached) {
                 EUR_USD = parseFloat(cached);
-                document.getElementById('rateDisplay').textContent = `EUR/USD: ${EUR_USD.toFixed(4)} (cache)`;
+                if (rateDisplayEl) rateDisplayEl.textContent = `EUR/USD: ${EUR_USD.toFixed(4)} (cache)`;
             } else {
-                document.getElementById('rateDisplay').textContent = `EUR/USD: ${EUR_USD.toFixed(4)} (default)`;
+                if (rateDisplayEl) rateDisplayEl.textContent = `EUR/USD: ${EUR_USD.toFixed(4)} (default)`;
             }
-            document.getElementById('rateUsed').textContent = `@${EUR_USD.toFixed(4)}`;
         }
         
         // ==================== BACKUP/RESTORE ====================
@@ -883,7 +885,7 @@
                     if (data.eurUsdRate) {
                         EUR_USD = data.eurUsdRate;
                         document.getElementById('rateDisplay').textContent = `EUR/USD: ${EUR_USD.toFixed(4)} (importato)`;
-                        document.getElementById('rateUsed').textContent = `@${EUR_USD.toFixed(4)}`;
+                        // rateUsed removed = `@${EUR_USD.toFixed(4)}`;
                     }
                     if (data.lastScanDate) {
                         lastScanDate = data.lastScanDate;
@@ -2201,19 +2203,27 @@
                 wallet._filteredUSD = wallet._filteredTokens.reduce((s, t) => s + (t.valueUSD || 0), 0);
             });
             
-            // Summary
-            document.getElementById('totalWallets').textContent = wallets.length;
-            document.getElementById('totalTokens').textContent = totalTokens;
-            document.getElementById('totalChains').textContent = allChains.size;
-            document.getElementById('totalValue').textContent = `$${totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-            document.getElementById('filterStats').textContent = `${hiddenCount} nascosti`;
+            // Summary - con controlli null
+            const totalWalletsEl = document.getElementById('totalWallets');
+            const totalTokensEl = document.getElementById('totalTokens');
+            const totalChainsEl = document.getElementById('totalChains');
+            const totalValueEl = document.getElementById('totalValue');
+            const filterStatsEl = document.getElementById('filterStats');
+            const totalValueEurEl = document.getElementById('totalValueEur');
+            const rwValueEl = document.getElementById('rwValue');
+            const ivafeEl = document.getElementById('ivafe');
+            
+            if (totalWalletsEl) totalWalletsEl.textContent = wallets.length;
+            if (totalTokensEl) totalTokensEl.textContent = totalTokens;
+            if (totalChainsEl) totalChainsEl.textContent = allChains.size;
+            if (totalValueEl) totalValueEl.textContent = `$${totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            if (filterStatsEl) filterStatsEl.textContent = `${hiddenCount} nascosti`;
             
             // EUR values
             const eurValue = totalUSD * EUR_USD;
-            document.getElementById('totalValueEur').textContent = `€${eurValue.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`;
-            document.getElementById('rateUsed').textContent = `@${EUR_USD.toFixed(4)}`;
-            document.getElementById('rwValue').textContent = `€${eurValue.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`;
-            document.getElementById('ivafe').textContent = `€${(eurValue * 0.002).toLocaleString('it-IT', { minimumFractionDigits: 2 })}`;
+            if (totalValueEurEl) totalValueEurEl.textContent = `€${eurValue.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`;
+            if (rwValueEl) rwValueEl.textContent = `€${eurValue.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`;
+            if (ivafeEl) ivafeEl.textContent = `€${(eurValue * 0.002).toLocaleString('it-IT', { minimumFractionDigits: 2 })}`;
             
             // Wallets container
             const container = document.getElementById('walletsContainer');
