@@ -552,6 +552,23 @@
             </div>
         </div>
         
+        <!-- NFT Section -->
+        <div class="staking-section" style="border-color:rgba(139,92,246,0.3);background:rgba(139,92,246,0.05);">
+            <div class="staking-header">
+                <span>🖼️ NFT Collection <span id="nftCount" style="font-size:12px;color:#8b5cf6;margin-left:8px;">(0 NFT)</span></span>
+                <div style="display:flex;gap:8px;">
+                    <span id="nftTotalValue" style="font-size:14px;font-weight:600;color:#8b5cf6;">$0</span>
+                    <button class="btn btn-small" style="background:#8b5cf6;color:#fff;" onclick="toggleNftSection()">Mostra/Nascondi</button>
+                </div>
+            </div>
+            <div id="nftContent" class="staking-content hidden">
+                <div id="nftGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:10px;"></div>
+                <div id="nftEmpty" style="text-align:center;color:#666;padding:20px;font-size:13px;">
+                    🖼️ Scansiona un wallet per vedere gli NFT
+                </div>
+            </div>
+        </div>
+        
         <!-- Backup Section -->
         <div class="backup-section">
             <div class="backup-title">🔥 Sincronizzazione Firebase (Automatica)</div>
@@ -653,28 +670,6 @@
             
             <!-- Wallets -->
             <div id="walletsContainer"></div>
-            
-            <!-- Fiscal -->
-            <div class="fiscal-summary">
-                <h3>🇮🇹 Riepilogo Fiscale Italia <span id="fiscalYear" style="font-size:14px;opacity:0.7;">(Anno 2024)</span></h3>
-                <div class="fiscal-grid">
-                    <div class="fiscal-box">
-                        <div class="title">📋 QUADRO RW</div>
-                        <div class="amount" id="rwValue">€0,00</div>
-                        <div class="note">Valore al <span id="rwDate">31/12/2024</span></div>
-                    </div>
-                    <div class="fiscal-box">
-                        <div class="title">💸 IVAFE (0,2%)</div>
-                        <div class="amount" id="ivafe">€0,00</div>
-                        <div class="note">Codice F24: 4043</div>
-                    </div>
-                    <div class="fiscal-box">
-                        <div class="title">📈 QUADRO RT</div>
-                        <div class="amount">Serve storico</div>
-                        <div class="note">26% plusvalenze</div>
-                    </div>
-                </div>
-            </div>
             
             <!-- AI -->
             <div id="aiSection" class="ai-section hidden">
@@ -1186,6 +1181,13 @@
                     wallet.tokens = await getMoralisBalances(wallet.address);
                 }
                 
+                // Carica anche NFT
+                if (moralisKey) {
+                    if (statusEl) statusEl.innerHTML = '⏳ NFT...';
+                    wallet.nfts = await getMoralisNFTs(wallet.address);
+                    console.log(`🖼️ Found ${wallet.nfts?.length || 0} NFTs`);
+                }
+                
                 wallet.totalUSD = wallet.tokens.reduce((s, t) => s + (t.valueUSD || 0), 0);
                 
                 console.log(`✅ Found ${wallet.tokens.length} tokens, $${wallet.totalUSD.toFixed(2)}`);
@@ -1199,6 +1201,10 @@
                     renderResults();
                 }
                 
+                // Aggiorna NFT
+                updateAllNfts();
+                renderNFTs();
+                
                 // Salva
                 saveWallets();
                 
@@ -1211,6 +1217,15 @@
                 btnEl.disabled = false;
                 btnEl.innerHTML = '🔍';
             }
+        }
+        
+        function updateAllNfts() {
+            allNfts = [];
+            wallets.forEach(w => {
+                if (w.nfts && w.nfts.length > 0) {
+                    allNfts.push(...w.nfts);
+                }
+            });
         }
         
         // ==================== PRICES ====================
@@ -1292,11 +1307,7 @@
             
             document.getElementById('totalValueEur').textContent = eurFormatted;
             
-            // Aggiorna riepilogo fiscale in basso
-            document.getElementById('rwValue').textContent = eurFormatted;
-            document.getElementById('ivafe').textContent = ivafeFormatted;
-            
-            // Aggiorna riepilogo fiscale in alto (vicino agli anni)
+            // Aggiorna riepilogo fiscale in alto
             const rwTopEl = document.getElementById('rwValueTop');
             const ivafeTopEl = document.getElementById('ivafeTop');
             const rwYearTopEl = document.getElementById('rwYearTop');
@@ -1831,6 +1842,12 @@
                     wallet.tokens = await getMoralisBalances(wallet.address);
                 }
                 
+                // Carica NFT
+                if (moralisKey) {
+                    document.getElementById('loadingText').textContent = `NFT ${i + 1}/${wallets.length}: ${wallet.name}...`;
+                    wallet.nfts = await getMoralisNFTs(wallet.address);
+                }
+                
                 wallet.totalUSD = wallet.tokens.reduce((s, t) => s + (t.valueUSD || 0), 0);
                 
                 await new Promise(r => setTimeout(r, 200));
@@ -1838,6 +1855,10 @@
             
             lastScanDate = new Date().toISOString();
             saveWallets();
+            
+            // Aggiorna NFT
+            updateAllNfts();
+            renderNFTs();
             
             document.getElementById('loadingSection').classList.add('hidden');
             document.getElementById('resultsSection').classList.remove('hidden');
@@ -2212,10 +2233,7 @@
         }
         
         function updateFiscalDisplay() {
-            document.getElementById('fiscalYear').textContent = `(Anno ${selectedYear})`;
-            document.getElementById('rwDate').textContent = `31/12/${selectedYear}`;
-            
-            // Aggiorna anche in alto
+            // Aggiorna anno in alto
             const rwYearTopEl = document.getElementById('rwYearTop');
             if (rwYearTopEl) rwYearTopEl.textContent = selectedYear;
         }
@@ -2305,14 +2323,219 @@
         
         function updateFiscalWithStaking(stakingValue) {
             // This will be called to add staking value to RW
-            const currentRW = document.getElementById('rwValue').textContent;
-            const walletValue = parseFloat(currentRW.replace('€', '').replace('.', '').replace(',', '.')) || 0;
-            const totalRW = walletValue + stakingValue;
+            const rwTopEl = document.getElementById('rwValueTop');
+            if (!rwTopEl) return;
             
-            // Update display to show breakdown
-            const rwNote = document.querySelector('.fiscal-box .note');
-            if (stakingValue > 0) {
-                rwNote.innerHTML = `Wallet: €${walletValue.toLocaleString('it-IT')} + Staking: €${stakingValue.toLocaleString('it-IT')}`;
+            const currentRW = rwTopEl.textContent;
+            const walletValue = parseFloat(currentRW.replace('€', '').replace('.', '').replace(',', '.')) || 0;
+        }
+        
+        // ==================== NFT ====================
+        let allNfts = [];
+        
+        function toggleNftSection() {
+            document.getElementById('nftContent').classList.toggle('hidden');
+        }
+        
+        async function getMoralisNFTs(address) {
+            const moralisKey = localStorage.getItem('moralis_key');
+            const nfts = [];
+            
+            if (!moralisKey) return nfts;
+            
+            console.log('🖼️ Fetching NFTs for:', address);
+            
+            // Determina se è Solana o EVM
+            if (isSolanaAddress(address)) {
+                // Solana NFTs
+                try {
+                    const res = await fetch(
+                        `https://solana-gateway.moralis.io/account/mainnet/${address}/nft`,
+                        { headers: { 'X-API-Key': moralisKey } }
+                    );
+                    
+                    if (res.ok) {
+                        const data = await res.json();
+                        console.log('📦 Solana NFTs:', data.length || 0);
+                        
+                        for (const nft of (data || [])) {
+                            const nftName = nft.name || 'Unknown NFT';
+                            const nftSymbol = nft.symbol || 'Unknown';
+                            
+                            // Filtro scam Solana
+                            if (isNftScam(nftName, nftSymbol)) {
+                                console.log('🚫 Scam NFT filtered:', nftName);
+                                continue;
+                            }
+                            
+                            nfts.push({
+                                name: nftName,
+                                collection: nftSymbol,
+                                image: nft.metadata?.image || '',
+                                chain: 'solana',
+                                mint: nft.mint,
+                                floorPrice: 0
+                            });
+                        }
+                    }
+                } catch (e) {
+                    console.error('Solana NFT error:', e);
+                }
+            } else {
+                // EVM NFTs (Ethereum, Polygon, etc.)
+                const chains = ['eth', 'polygon', 'bsc', 'arbitrum', 'base'];
+                
+                for (const chain of chains) {
+                    try {
+                        const res = await fetch(
+                            `https://deep-index.moralis.io/api/v2.2/${address}/nft?chain=${chain}&format=decimal`,
+                            { headers: { 'X-API-Key': moralisKey } }
+                        );
+                        
+                        if (res.ok) {
+                            const data = await res.json();
+                            
+                            for (const nft of (data.result || [])) {
+                                let metadata = {};
+                                try {
+                                    metadata = nft.metadata ? JSON.parse(nft.metadata) : {};
+                                } catch (e) {}
+                                
+                                const nftName = metadata.name || nft.name || `#${nft.token_id}`;
+                                const collectionName = nft.name || 'Unknown';
+                                
+                                // Filtro scam NFT
+                                if (isNftScam(nftName, collectionName)) {
+                                    console.log('🚫 Scam NFT filtered:', nftName, '- chain:', chain);
+                                    continue;
+                                }
+                                
+                                nfts.push({
+                                    name: nftName,
+                                    collection: collectionName,
+                                    image: metadata.image || '',
+                                    chain: chain,
+                                    contractAddress: nft.token_address,
+                                    tokenId: nft.token_id,
+                                    floorPrice: nft.floor_price || 0
+                                });
+                            }
+                        }
+                        
+                        await new Promise(r => setTimeout(r, 100));
+                    } catch (e) {
+                        console.error(`${chain} NFT error:`, e);
+                    }
+                }
+            }
+            
+            console.log('✅ Total NFTs found (after filter):', nfts.length);
+            return nfts;
+        }
+        
+        // Filtro anti-scam per NFT
+        function isNftScam(name, collection) {
+            const text = (name + ' ' + collection).toLowerCase();
+            
+            // Pattern scam comuni
+            const SCAM_PATTERNS = [
+                /airdrop/i,
+                /claim/i,
+                /free.*mint/i,
+                /voucher/i,
+                /\.com/i,
+                /\.io/i,
+                /\.xyz/i,
+                /\.net/i,
+                /\.org/i,
+                /reward/i,
+                /bonus/i,
+                /winner/i,
+                /congratulation/i,
+                /visit/i,
+                /http/i,
+                /www\./i,
+                /\.eth/i,
+                /opensea/i,
+                /rarible/i,
+                /uniswap/i,
+                /sushiswap/i,
+                /pancake/i,
+                /1inch/i,
+                /blur\.io/i,
+                /looksrare/i,
+                /x2y2/i,
+                /foundation/i,
+                /metamask/i,
+                /wallet.*connect/i,
+                /\$\d+/i,  // Contiene $ seguito da numeri
+                /usdt|usdc|busd/i,
+                /limited.*offer/i,
+                /act.*now/i,
+                /urgent/i,
+                /verify/i,
+                /update.*required/i
+            ];
+            
+            for (const pattern of SCAM_PATTERNS) {
+                if (pattern.test(text)) return true;
+            }
+            
+            // Nome troppo lungo (spesso spam)
+            if (name.length > 50) return true;
+            
+            // Contiene caratteri sospetti
+            if (/[<>{}\\\/]/.test(name)) return true;
+            
+            return false;
+        }
+        
+        function renderNFTs() {
+            const grid = document.getElementById('nftGrid');
+            const empty = document.getElementById('nftEmpty');
+            const countEl = document.getElementById('nftCount');
+            const totalEl = document.getElementById('nftTotalValue');
+            
+            if (allNfts.length === 0) {
+                grid.innerHTML = '';
+                empty.style.display = 'block';
+                countEl.textContent = '(0 NFT)';
+                totalEl.textContent = '$0';
+                return;
+            }
+            
+            empty.style.display = 'none';
+            countEl.textContent = `(${allNfts.length} NFT)`;
+            
+            // Calcola valore totale (se disponibile floor price)
+            const totalValue = allNfts.reduce((s, n) => s + (n.floorPrice || 0), 0);
+            totalEl.textContent = totalValue > 0 ? `$${totalValue.toFixed(2)}` : 'N/A';
+            
+            grid.innerHTML = allNfts.slice(0, 50).map(nft => {
+                // Converti IPFS URL
+                let imageUrl = nft.image || '';
+                if (imageUrl.startsWith('ipfs://')) {
+                    imageUrl = imageUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
+                }
+                
+                return `
+                    <div style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.2);border-radius:10px;overflow:hidden;">
+                        <div style="width:100%;aspect-ratio:1;background:#1a1a2e;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+                            ${imageUrl 
+                                ? `<img src="${imageUrl}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';this.parentElement.innerHTML='🖼️';">` 
+                                : '🖼️'}
+                        </div>
+                        <div style="padding:8px;">
+                            <div style="font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nft.name}</div>
+                            <div style="font-size:10px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nft.collection}</div>
+                            <div style="font-size:9px;color:#8b5cf6;margin-top:4px;">${nft.chain.toUpperCase()}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            if (allNfts.length > 50) {
+                grid.innerHTML += `<div style="display:flex;align-items:center;justify-content:center;color:#888;font-size:12px;">+ ${allNfts.length - 50} altri NFT</div>`;
             }
         }
         
@@ -2324,6 +2547,10 @@
             fetchEurUsdRate();
             selectYear(2025); // Default year
             renderStakingList();
+            
+            // Carica NFT dai wallet salvati
+            updateAllNfts();
+            renderNFTs();
             
             // Se ci sono wallet con token, mostra i risultati
             const hasScannedTokens = wallets.some(w => w.tokens && w.tokens.length > 0);
