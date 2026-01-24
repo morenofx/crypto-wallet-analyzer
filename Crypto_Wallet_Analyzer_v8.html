@@ -400,10 +400,68 @@
         
         /* File input hidden */
         .file-input-hidden { display: none; }
+        
+        /* Navigation Bar */
+        .nav-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.9);
+            backdrop-filter: blur(10px);
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            z-index: 1000;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .nav-logo {
+            font-size: 18px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #f7931a, #627eea);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .nav-links {
+            display: flex;
+            gap: 5px;
+            margin-left: auto;
+        }
+        .nav-link {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            color: #888;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .nav-link:hover {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+        .nav-link.active {
+            background: rgba(0,255,136,0.2);
+            border-color: #00ff88;
+            color: #00ff88;
+        }
+        
+        body { padding-top: 60px; }
     </style>
 </head>
 <body>
-    <a href="index.html" class="home-btn">🏠 Home</a>
+    <!-- Navigation Bar -->
+    <nav class="nav-bar">
+        <span class="nav-logo">🪙 Crypto Tools</span>
+        <div class="nav-links">
+            <a href="index.html" class="nav-link">🏠 Home</a>
+            <a href="Crypto_Fiscal_Manager_v1.html" class="nav-link">📊 Fiscal Manager</a>
+            <a href="Crypto_Wallet_Analyzer_v8.html" class="nav-link active">🔗 Wallet Analyzer</a>
+        </div>
+    </nav>
     
     <div class="container">
         <div class="header">
