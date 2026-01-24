@@ -1109,8 +1109,8 @@
             }
             
             document.getElementById('walletsPreview').classList.remove('hidden');
-            document.getElementById('walletsPreviewList').innerHTML = wallets.map(w => `
-                <div class="wallet-preview-item">
+            document.getElementById('walletsPreviewList').innerHTML = wallets.map((w, idx) => `
+                <div class="wallet-preview-item" id="wallet-item-${idx}">
                     <div class="wallet-preview-left">
                         <div class="wallet-preview-icon">💼</div>
                         <div>
@@ -1118,14 +1118,79 @@
                             <div class="wallet-preview-address">${w.address.slice(0,10)}...${w.address.slice(-6)}</div>
                         </div>
                     </div>
-                    <div style="display:flex;align-items:center;">
-                        ${w.tokens.length > 0 
-                            ? `<span style="color:#00ff88;font-weight:600;">$${w.totalUSD.toLocaleString('en-US', {minimumFractionDigits:2})}</span>` 
-                            : `<span class="wallet-preview-status">⏳ Pronto</span>`}
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        ${w.tokens && w.tokens.length > 0 
+                            ? `<span style="color:#00ff88;font-weight:600;">$${(w.totalUSD || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</span>` 
+                            : `<span class="wallet-preview-status" id="wallet-status-${idx}">⏳ Pronto</span>`}
+                        <button class="btn btn-small" style="background:#00ff88;color:#000;padding:4px 10px;font-size:11px;" onclick="scanSingleWallet(${idx})" id="scan-btn-${idx}">🔍</button>
                         <button class="wallet-preview-remove" onclick="removeWallet('${w.address}')">✕</button>
                     </div>
                 </div>
             `).join('');
+        }
+        
+        // Scansiona un singolo wallet
+        async function scanSingleWallet(idx) {
+            const wallet = wallets[idx];
+            if (!wallet) return;
+            
+            const statusEl = document.getElementById(`wallet-status-${idx}`);
+            const btnEl = document.getElementById(`scan-btn-${idx}`);
+            
+            if (statusEl) statusEl.innerHTML = '⏳ Scansione...';
+            if (btnEl) {
+                btnEl.disabled = true;
+                btnEl.innerHTML = '⏳';
+            }
+            
+            console.log(`🔍 Scanning wallet: ${wallet.name} (${wallet.address})`);
+            
+            try {
+                await fetchPrices();
+                const moralisKey = localStorage.getItem('moralis_key');
+                
+                if (isSolanaAddress(wallet.address)) {
+                    console.log('🔍 Solana wallet detected');
+                    
+                    // Prova Moralis prima
+                    if (moralisKey) {
+                        wallet.tokens = await getMoralisSolanaBalances(wallet.address);
+                    }
+                    
+                    // Fallback RPC
+                    if (!wallet.tokens || wallet.tokens.length === 0) {
+                        wallet.tokens = await getSolanaTokens(wallet.address);
+                    }
+                } else {
+                    // EVM
+                    wallet.tokens = await getMoralisBalances(wallet.address);
+                }
+                
+                wallet.totalUSD = wallet.tokens.reduce((s, t) => s + (t.valueUSD || 0), 0);
+                
+                console.log(`✅ Found ${wallet.tokens.length} tokens, $${wallet.totalUSD.toFixed(2)}`);
+                
+                // Aggiorna UI
+                renderWalletsPreview();
+                
+                // Mostra risultati se ci sono token
+                if (wallets.some(w => w.tokens && w.tokens.length > 0)) {
+                    document.getElementById('resultsSection').classList.remove('hidden');
+                    renderResults();
+                }
+                
+                // Salva
+                saveWallets();
+                
+            } catch (e) {
+                console.error('Scan error:', e);
+                if (statusEl) statusEl.innerHTML = '❌ Errore';
+            }
+            
+            if (btnEl) {
+                btnEl.disabled = false;
+                btnEl.innerHTML = '🔍';
+            }
         }
         
         // ==================== PRICES ====================
