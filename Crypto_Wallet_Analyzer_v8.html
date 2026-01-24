@@ -508,27 +508,55 @@
                 <span class="rate-display" id="rateDisplay">EUR/USD: caricamento...</span>
                 <button class="btn btn-small btn-warning" onclick="fetchEurUsdRate()">🔄 Aggiorna Tasso</button>
             </div>
-            <div class="date-row" style="margin-top:10px;">
-                <span class="date-label">💰 Prezzi Storici:</span>
-                <span id="historicalPriceInfo" style="font-size:11px;color:#888;">Seleziona anno per vedere prezzi al 31/12</span>
+            
+            <!-- Riepilogo Totale + Grafico -->
+            <div style="display:flex;gap:20px;margin-top:15px;flex-wrap:wrap;align-items:stretch;">
+                <!-- Grafico a Torta -->
+                <div style="flex:0 0 180px;display:flex;align-items:center;justify-content:center;">
+                    <canvas id="tokenPieChart" width="160" height="160"></canvas>
+                </div>
+                
+                <!-- Stats Box -->
+                <div style="flex:1;display:flex;gap:10px;flex-wrap:wrap;">
+                    <div style="flex:1;min-width:100px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:12px;text-align:center;">
+                        <div style="font-size:10px;color:#888;text-transform:uppercase;">Wallet</div>
+                        <div style="font-size:22px;font-weight:700;color:#fff;" id="totalWalletsTop">0</div>
+                    </div>
+                    <div style="flex:1;min-width:100px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:12px;text-align:center;">
+                        <div style="font-size:10px;color:#888;text-transform:uppercase;">Token</div>
+                        <div style="font-size:22px;font-weight:700;color:#fff;" id="totalTokensTop">0</div>
+                    </div>
+                    <div style="flex:1;min-width:100px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:12px;text-align:center;">
+                        <div style="font-size:10px;color:#888;text-transform:uppercase;">Chain</div>
+                        <div style="font-size:22px;font-weight:700;color:#fff;" id="totalChainsTop">0</div>
+                    </div>
+                    <div style="flex:1;min-width:130px;background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.3);border-radius:10px;padding:12px;text-align:center;">
+                        <div style="font-size:10px;color:#888;text-transform:uppercase;">Valore USD</div>
+                        <div style="font-size:22px;font-weight:700;color:#00ff88;" id="totalValueTop">$0</div>
+                    </div>
+                    <div style="flex:1;min-width:130px;background:rgba(0,212,170,0.1);border:1px solid rgba(0,212,170,0.3);border-radius:10px;padding:12px;text-align:center;">
+                        <div style="font-size:10px;color:#888;text-transform:uppercase;">Valore EUR</div>
+                        <div style="font-size:22px;font-weight:700;color:#00d4aa;" id="totalValueEurTop">€0</div>
+                    </div>
+                </div>
             </div>
             
             <!-- Riepilogo Fiscale Compatto -->
-            <div style="display:flex;gap:15px;margin-top:15px;flex-wrap:wrap;">
-                <div style="flex:1;min-width:200px;background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.3);border-radius:10px;padding:12px 15px;">
-                    <div style="font-size:11px;color:#888;margin-bottom:4px;">📋 QUADRO RW</div>
-                    <div style="font-size:20px;font-weight:700;color:#00ff88;" id="rwValueTop">€0</div>
-                    <div style="font-size:10px;color:#666;">Valore al 31/12/<span id="rwYearTop">2025</span></div>
+            <div style="display:flex;gap:10px;margin-top:15px;flex-wrap:wrap;">
+                <div style="flex:1;min-width:150px;background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.3);border-radius:10px;padding:10px 12px;">
+                    <div style="font-size:10px;color:#888;margin-bottom:2px;">📋 QUADRO RW</div>
+                    <div style="font-size:18px;font-weight:700;color:#00ff88;" id="rwValueTop">€0</div>
+                    <div style="font-size:9px;color:#666;">Valore al 31/12/<span id="rwYearTop">2025</span></div>
                 </div>
-                <div style="flex:1;min-width:200px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:10px;padding:12px 15px;">
-                    <div style="font-size:11px;color:#888;margin-bottom:4px;">💸 IVAFE (0,2%)</div>
-                    <div style="font-size:20px;font-weight:700;color:#fbbf24;" id="ivafeTop">€0</div>
-                    <div style="font-size:10px;color:#666;">Codice F24: 4043</div>
+                <div style="flex:1;min-width:150px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:10px;padding:10px 12px;">
+                    <div style="font-size:10px;color:#888;margin-bottom:2px;">💸 IVAFE (0,2%)</div>
+                    <div style="font-size:18px;font-weight:700;color:#fbbf24;" id="ivafeTop">€0</div>
+                    <div style="font-size:9px;color:#666;">Codice F24: 4043</div>
                 </div>
-                <div style="flex:1;min-width:200px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.3);border-radius:10px;padding:12px 15px;">
-                    <div style="font-size:11px;color:#888;margin-bottom:4px;">📈 QUADRO RT</div>
-                    <div style="font-size:20px;font-weight:700;color:#8b5cf6;">Serve storico</div>
-                    <div style="font-size:10px;color:#666;">26% plusvalenze</div>
+                <div style="flex:1;min-width:150px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.3);border-radius:10px;padding:10px 12px;">
+                    <div style="font-size:10px;color:#888;margin-bottom:2px;">📈 QUADRO RT</div>
+                    <div style="font-size:18px;font-weight:700;color:#8b5cf6;">Serve storico</div>
+                    <div style="font-size:9px;color:#666;">26% plusvalenze</div>
                 </div>
             </div>
         </div>
@@ -632,40 +660,18 @@
                 </div>
             </div>
             
-            <!-- Summary -->
-            <div class="card">
+            <!-- Action Buttons & Info -->
+            <div class="card" style="padding:12px 15px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-                    <h2>📊 Riepilogo Totale</h2>
+                    <div style="display:flex;align-items:center;gap:15px;">
+                        <span class="price-info" id="priceInfo" style="font-size:11px;">Prezzi: --</span>
+                    </div>
                     <div style="display:flex;gap:8px;flex-wrap:wrap;">
                         <button class="btn btn-ai btn-small" onclick="analyzeWithAI()">🤖 Analisi AI</button>
                         <button class="btn btn-warning btn-small" onclick="exportCSV()">📥 CSV</button>
                         <button class="btn btn-info btn-small" onclick="exportCSVFiscale()">📋 CSV Fiscale</button>
                     </div>
                 </div>
-                <div class="summary-grid">
-                    <div class="summary-box">
-                        <div class="label">Wallet</div>
-                        <div class="value" id="totalWallets">0</div>
-                    </div>
-                    <div class="summary-box">
-                        <div class="label">Token</div>
-                        <div class="value" id="totalTokens">0</div>
-                    </div>
-                    <div class="summary-box">
-                        <div class="label">Chain</div>
-                        <div class="value" id="totalChains">0</div>
-                    </div>
-                    <div class="summary-box">
-                        <div class="label">Valore USD</div>
-                        <div class="value" style="color:#00ff88;" id="totalValue">$0</div>
-                    </div>
-                    <div class="summary-box">
-                        <div class="label">Valore EUR</div>
-                        <div class="value" style="color:#fbbf24;" id="totalValueEur">€0</div>
-                        <div class="sub" id="rateUsed">@0.92</div>
-                    </div>
-                </div>
-                <div class="price-info" id="priceInfo">Prezzi: --</div>
             </div>
             
             <!-- Wallets -->
@@ -1284,6 +1290,7 @@
             let totalUSD = 0;
             let totalTokens = 0;
             const allChains = new Set();
+            const tokenValues = []; // Per il grafico
             
             wallets.forEach(wallet => {
                 if (wallet.tokens) {
@@ -1292,20 +1299,48 @@
                             totalUSD += token.valueUSD || 0;
                             totalTokens++;
                             allChains.add(token.chain);
+                            
+                            // Raccogli per grafico
+                            if (token.valueUSD > 0) {
+                                tokenValues.push({
+                                    symbol: token.symbol,
+                                    value: token.valueUSD,
+                                    chain: token.chain
+                                });
+                            }
                         }
                     });
                 }
             });
             
-            document.getElementById('totalTokens').textContent = totalTokens;
-            document.getElementById('totalChains').textContent = allChains.size;
-            document.getElementById('totalValue').textContent = `$${totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            // Aggiorna elementi esistenti
+            const totalTokensEl = document.getElementById('totalTokens');
+            const totalChainsEl = document.getElementById('totalChains');
+            const totalValueEl = document.getElementById('totalValue');
+            const totalValueEurEl = document.getElementById('totalValueEur');
+            
+            if (totalTokensEl) totalTokensEl.textContent = totalTokens;
+            if (totalChainsEl) totalChainsEl.textContent = allChains.size;
+            if (totalValueEl) totalValueEl.textContent = `$${totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             
             const eurValue = totalUSD * EUR_USD;
             const eurFormatted = `€${eurValue.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`;
             const ivafeFormatted = `€${(eurValue * 0.002).toLocaleString('it-IT', { minimumFractionDigits: 2 })}`;
             
-            document.getElementById('totalValueEur').textContent = eurFormatted;
+            if (totalValueEurEl) totalValueEurEl.textContent = eurFormatted;
+            
+            // Aggiorna totali in alto
+            const totalWalletsTopEl = document.getElementById('totalWalletsTop');
+            const totalTokensTopEl = document.getElementById('totalTokensTop');
+            const totalChainsTopEl = document.getElementById('totalChainsTop');
+            const totalValueTopEl = document.getElementById('totalValueTop');
+            const totalValueEurTopEl = document.getElementById('totalValueEurTop');
+            
+            if (totalWalletsTopEl) totalWalletsTopEl.textContent = wallets.length;
+            if (totalTokensTopEl) totalTokensTopEl.textContent = totalTokens;
+            if (totalChainsTopEl) totalChainsTopEl.textContent = allChains.size;
+            if (totalValueTopEl) totalValueTopEl.textContent = `$${totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+            if (totalValueEurTopEl) totalValueEurTopEl.textContent = eurFormatted;
             
             // Aggiorna riepilogo fiscale in alto
             const rwTopEl = document.getElementById('rwValueTop');
@@ -1315,6 +1350,90 @@
             if (rwTopEl) rwTopEl.textContent = eurFormatted;
             if (ivafeTopEl) ivafeTopEl.textContent = ivafeFormatted;
             if (rwYearTopEl) rwYearTopEl.textContent = selectedYear;
+            
+            // Disegna grafico a torta
+            drawPieChart(tokenValues, totalUSD);
+        }
+        
+        function drawPieChart(tokenValues, totalUSD) {
+            const canvas = document.getElementById('tokenPieChart');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = Math.min(centerX, centerY) - 10;
+            
+            // Clear
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (tokenValues.length === 0 || totalUSD === 0) {
+                // Cerchio vuoto
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+                ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+                ctx.lineWidth = 20;
+                ctx.stroke();
+                
+                ctx.fillStyle = '#666';
+                ctx.font = '12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('No data', centerX, centerY);
+                return;
+            }
+            
+            // Ordina per valore e prendi top 6
+            const sorted = tokenValues.sort((a, b) => b.value - a.value);
+            const top = sorted.slice(0, 6);
+            const othersValue = sorted.slice(6).reduce((s, t) => s + t.value, 0);
+            
+            if (othersValue > 0) {
+                top.push({ symbol: 'Altri', value: othersValue, chain: 'other' });
+            }
+            
+            // Colori
+            const colors = [
+                '#00ff88', '#f3ba2f', '#8b5cf6', '#ff4757', 
+                '#3498db', '#e91e63', '#00bcd4', '#ff9800'
+            ];
+            
+            // Disegna fette
+            let startAngle = -Math.PI / 2;
+            
+            top.forEach((token, i) => {
+                const sliceAngle = (token.value / totalUSD) * 2 * Math.PI;
+                const endAngle = startAngle + sliceAngle;
+                
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+                ctx.closePath();
+                ctx.fillStyle = colors[i % colors.length];
+                ctx.fill();
+                
+                // Bordo
+                ctx.strokeStyle = '#0a0a0a';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                startAngle = endAngle;
+            });
+            
+            // Buco centrale (donut)
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius * 0.55, 0, 2 * Math.PI);
+            ctx.fillStyle = '#0a0a0a';
+            ctx.fill();
+            
+            // Testo centrale
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`$${(totalUSD/1000).toFixed(1)}k`, centerX, centerY - 6);
+            ctx.font = '10px sans-serif';
+            ctx.fillStyle = '#888';
+            ctx.fillText('Total', centerX, centerY + 10);
         }
         
         function isHidden(token) {
