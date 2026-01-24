@@ -474,23 +474,23 @@
             </div>
         </div>
         
-        <!-- API Section -->
-        <div class="api-section">
-            <div class="api-row">
-                <span style="font-size:12px;min-width:100px;">🦊 Moralis:</span>
-                <input type="password" id="moralisKey" class="api-input" placeholder="eyJ... (per tutti i token ERC-20)" style="max-width:350px;">
-                <button class="btn btn-small" style="background:#00ff88;color:#000;" onclick="saveMoralisKey()">Salva</button>
-                <button class="btn btn-small" style="background:#ff4757;color:#fff;" onclick="clearMoralisKey()">❌</button>
-                <span id="moralisStatus" class="api-status off">OFF</span>
-            </div>
-            <div class="api-row">
-                <span style="font-size:12px;min-width:100px;">🤖 Claude:</span>
-                <input type="password" id="claudeKey" class="api-input" placeholder="sk-ant-... (per analisi AI)" style="max-width:350px;">
-                <button class="btn btn-small" style="background:#a855f7;color:white;" onclick="saveClaudeKey()">Salva</button>
-                <span id="claudeStatus" class="api-status off">OFF</span>
-            </div>
-            <div class="api-row" style="font-size:11px;color:#888;">
-                💡 Per Binance API, usa il <a href="Crypto_Fiscal_Manager_v1.html" style="color:#f3ba2f;">Fiscal Manager</a>
+        <!-- API Section - Compatto -->
+        <div class="api-section" style="padding:10px 15px;">
+            <div style="display:flex;gap:15px;flex-wrap:wrap;align-items:center;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <span style="font-size:11px;">🦊 Moralis:</span>
+                    <input type="password" id="moralisKey" class="api-input" placeholder="eyJ... (per tutti i token ERC-20)" style="width:180px;padding:5px 8px;font-size:11px;">
+                    <button class="btn btn-small" style="background:#00ff88;color:#000;padding:4px 8px;font-size:10px;" onclick="saveMoralisKey()">Salva</button>
+                    <button class="btn btn-small" style="background:#ff4757;color:#fff;padding:4px 6px;font-size:10px;" onclick="clearMoralisKey()">✕</button>
+                    <span id="moralisStatus" class="api-status off" style="font-size:10px;padding:2px 6px;">OFF</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <span style="font-size:11px;">🤖 Claude:</span>
+                    <input type="password" id="claudeKey" class="api-input" placeholder="sk-ant-... (per analisi AI)" style="width:180px;padding:5px 8px;font-size:11px;">
+                    <button class="btn btn-small" style="background:#a855f7;color:white;padding:4px 8px;font-size:10px;" onclick="saveClaudeKey()">Salva</button>
+                    <span id="claudeStatus" class="api-status off" style="font-size:10px;padding:2px 6px;">OFF</span>
+                </div>
+                <span style="font-size:10px;color:#666;">💡 Per Binance API → <a href="Crypto_Fiscal_Manager_v1.html" style="color:#f3ba2f;">Fiscal Manager</a></span>
             </div>
         </div>
         
@@ -502,7 +502,8 @@
                     <button class="year-btn" onclick="selectYear(2021)">2021</button>
                     <button class="year-btn" onclick="selectYear(2022)">2022</button>
                     <button class="year-btn" onclick="selectYear(2023)">2023</button>
-                    <button class="year-btn active" onclick="selectYear(2024)">2024</button>
+                    <button class="year-btn" onclick="selectYear(2024)">2024</button>
+                    <button class="year-btn active" onclick="selectYear(2025)">2025</button>
                 </div>
                 <span class="rate-display" id="rateDisplay">EUR/USD: caricamento...</span>
                 <button class="btn btn-small btn-warning" onclick="fetchEurUsdRate()">🔄 Aggiorna Tasso</button>
@@ -510,6 +511,25 @@
             <div class="date-row" style="margin-top:10px;">
                 <span class="date-label">💰 Prezzi Storici:</span>
                 <span id="historicalPriceInfo" style="font-size:11px;color:#888;">Seleziona anno per vedere prezzi al 31/12</span>
+            </div>
+            
+            <!-- Riepilogo Fiscale Compatto -->
+            <div style="display:flex;gap:15px;margin-top:15px;flex-wrap:wrap;">
+                <div style="flex:1;min-width:200px;background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.3);border-radius:10px;padding:12px 15px;">
+                    <div style="font-size:11px;color:#888;margin-bottom:4px;">📋 QUADRO RW</div>
+                    <div style="font-size:20px;font-weight:700;color:#00ff88;" id="rwValueTop">€0</div>
+                    <div style="font-size:10px;color:#666;">Valore al 31/12/<span id="rwYearTop">2025</span></div>
+                </div>
+                <div style="flex:1;min-width:200px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:10px;padding:12px 15px;">
+                    <div style="font-size:11px;color:#888;margin-bottom:4px;">💸 IVAFE (0,2%)</div>
+                    <div style="font-size:20px;font-weight:700;color:#fbbf24;" id="ivafeTop">€0</div>
+                    <div style="font-size:10px;color:#666;">Codice F24: 4043</div>
+                </div>
+                <div style="flex:1;min-width:200px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.3);border-radius:10px;padding:12px 15px;">
+                    <div style="font-size:11px;color:#888;margin-bottom:4px;">📈 QUADRO RT</div>
+                    <div style="font-size:20px;font-weight:700;color:#8b5cf6;">Serve storico</div>
+                    <div style="font-size:10px;color:#666;">26% plusvalenze</div>
+                </div>
             </div>
         </div>
         
@@ -1251,13 +1271,15 @@
             const allChains = new Set();
             
             wallets.forEach(wallet => {
-                wallet.tokens.forEach(token => {
-                    if (!isHidden(token)) {
-                        totalUSD += token.valueUSD || 0;
-                        totalTokens++;
-                        allChains.add(token.chain);
-                    }
-                });
+                if (wallet.tokens) {
+                    wallet.tokens.forEach(token => {
+                        if (!isHidden(token)) {
+                            totalUSD += token.valueUSD || 0;
+                            totalTokens++;
+                            allChains.add(token.chain);
+                        }
+                    });
+                }
             });
             
             document.getElementById('totalTokens').textContent = totalTokens;
@@ -1265,9 +1287,23 @@
             document.getElementById('totalValue').textContent = `$${totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             
             const eurValue = totalUSD * EUR_USD;
-            document.getElementById('totalValueEur').textContent = `€${eurValue.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`;
-            document.getElementById('rwValue').textContent = `€${eurValue.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`;
-            document.getElementById('ivafe').textContent = `€${(eurValue * 0.002).toLocaleString('it-IT', { minimumFractionDigits: 2 })}`;
+            const eurFormatted = `€${eurValue.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`;
+            const ivafeFormatted = `€${(eurValue * 0.002).toLocaleString('it-IT', { minimumFractionDigits: 2 })}`;
+            
+            document.getElementById('totalValueEur').textContent = eurFormatted;
+            
+            // Aggiorna riepilogo fiscale in basso
+            document.getElementById('rwValue').textContent = eurFormatted;
+            document.getElementById('ivafe').textContent = ivafeFormatted;
+            
+            // Aggiorna riepilogo fiscale in alto (vicino agli anni)
+            const rwTopEl = document.getElementById('rwValueTop');
+            const ivafeTopEl = document.getElementById('ivafeTop');
+            const rwYearTopEl = document.getElementById('rwYearTop');
+            
+            if (rwTopEl) rwTopEl.textContent = eurFormatted;
+            if (ivafeTopEl) ivafeTopEl.textContent = ivafeFormatted;
+            if (rwYearTopEl) rwYearTopEl.textContent = selectedYear;
         }
         
         function isHidden(token) {
@@ -2178,6 +2214,10 @@
         function updateFiscalDisplay() {
             document.getElementById('fiscalYear').textContent = `(Anno ${selectedYear})`;
             document.getElementById('rwDate').textContent = `31/12/${selectedYear}`;
+            
+            // Aggiorna anche in alto
+            const rwYearTopEl = document.getElementById('rwYearTop');
+            if (rwYearTopEl) rwYearTopEl.textContent = selectedYear;
         }
         
         // ==================== STAKING ====================
@@ -2282,7 +2322,7 @@
             await loadWallets();
             renderWalletsPreview();
             fetchEurUsdRate();
-            selectYear(2024); // Default year
+            selectYear(2025); // Default year
             renderStakingList();
             
             // Se ci sono wallet con token, mostra i risultati
