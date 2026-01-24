@@ -1788,6 +1788,10 @@
                 ...binanceBalances.staking.map(t => ({...t, total: t.amount, source: 'Staking'}))
             ].sort((a, b) => b.valueEur - a.valueEur);
             
+            // Update Binance badge
+            const tokenCount = allTokens.length;
+            document.getElementById('count-binance').textContent = tokenCount;
+            
             if (allTokens.length > 0) {
                 document.getElementById('binanceTokensList').innerHTML = `
                     <table class="data-table" style="font-size:12px;">

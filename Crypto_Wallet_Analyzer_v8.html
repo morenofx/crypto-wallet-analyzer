@@ -2092,9 +2092,9 @@
         }
         
         // ==================== INIT ====================
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             updateApiStatus();
-            loadWallets();
+            await loadWallets();
             renderWalletsPreview();
             fetchEurUsdRate();
             selectYear(2024); // Default year
