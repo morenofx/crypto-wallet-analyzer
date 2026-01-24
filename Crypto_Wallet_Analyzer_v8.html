@@ -1133,21 +1133,50 @@
             document.getElementById('walletsPreview').classList.remove('hidden');
             document.getElementById('walletsPreviewList').innerHTML = wallets.map((w, idx) => `
                 <div class="wallet-preview-item" id="wallet-item-${idx}">
-                    <div class="wallet-preview-left">
-                        <div class="wallet-preview-icon">💼</div>
-                        <div>
-                            <div class="wallet-preview-name">${w.name}</div>
-                            <div class="wallet-preview-address">${w.address.slice(0,10)}...${w.address.slice(-6)}</div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+                        <div class="wallet-preview-left" style="cursor:pointer;" onclick="toggleWalletTokens(${idx})">
+                            <div class="wallet-preview-icon">💼</div>
+                            <div>
+                                <div class="wallet-preview-name">${w.name} ${w.tokens && w.tokens.length > 0 ? `<span style="font-size:10px;color:#888;">(${w.tokens.length} token)</span>` : ''}</div>
+                                <div class="wallet-preview-address">${w.address.slice(0,10)}...${w.address.slice(-6)}</div>
+                            </div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            ${w.tokens && w.tokens.length > 0 
+                                ? `<span style="color:#00ff88;font-weight:600;cursor:pointer;" onclick="toggleWalletTokens(${idx})">$${(w.totalUSD || 0).toLocaleString('en-US', {minimumFractionDigits:2})} ▼</span>` 
+                                : `<span class="wallet-preview-status" id="wallet-status-${idx}">⏳ Pronto</span>`}
+                            <button class="btn btn-small" style="background:#00ff88;color:#000;padding:4px 10px;font-size:11px;" onclick="scanSingleWallet(${idx})" id="scan-btn-${idx}">🔍</button>
+                            <button class="wallet-preview-remove" onclick="removeWallet('${w.address}')">✕</button>
                         </div>
                     </div>
-                    <div style="display:flex;align-items:center;gap:8px;">
-                        ${w.tokens && w.tokens.length > 0 
-                            ? `<span style="color:#00ff88;font-weight:600;">$${(w.totalUSD || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</span>` 
-                            : `<span class="wallet-preview-status" id="wallet-status-${idx}">⏳ Pronto</span>`}
-                        <button class="btn btn-small" style="background:#00ff88;color:#000;padding:4px 10px;font-size:11px;" onclick="scanSingleWallet(${idx})" id="scan-btn-${idx}">🔍</button>
-                        <button class="wallet-preview-remove" onclick="removeWallet('${w.address}')">✕</button>
+                    <div id="wallet-tokens-${idx}" class="wallet-tokens-dropdown hidden" style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.1);display:none;">
+                        ${w.tokens && w.tokens.length > 0 ? w.tokens
+                            .filter(t => (t.valueUSD || 0) >= 0.01)
+                            .sort((a, b) => (b.valueUSD || 0) - (a.valueUSD || 0))
+                            .slice(0, 20)
+                            .map(t => `
+                                <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12px;">
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <span style="font-size:10px;color:#888;">${(t.chain || '').toUpperCase()}</span>
+                                        <span style="font-weight:500;">${t.symbol}</span>
+                                        <span style="color:#666;font-size:10px;">${t.balance?.toLocaleString('en-US', {maximumFractionDigits:4}) || 0}</span>
+                                    </div>
+                                    <span style="color:#00ff88;">$${(t.valueUSD || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</span>
+                                </div>
+                            `).join('') : '<div style="color:#666;font-size:11px;">Nessun token</div>'}
+                        ${w.tokens && w.tokens.length > 20 ? `<div style="color:#888;font-size:10px;text-align:center;margin-top:5px;">+ altri ${w.tokens.length - 20} token...</div>` : ''}
                     </div>
                 </div>
+            `).join('');
+        }
+        
+        function toggleWalletTokens(idx) {
+            const dropdown = document.getElementById(`wallet-tokens-${idx}`);
+            if (dropdown) {
+                const isHidden = dropdown.style.display === 'none';
+                dropdown.style.display = isHidden ? 'block' : 'none';
+            }
+        }
             `).join('');
         }
         
@@ -1510,9 +1539,19 @@
                                 } catch (e) {}
                             }
                             
+                            const valueUSD = balance * price;
+                            
+                            // Filtro anti-scam: ignora token con valore sospettamente alto
+                            // (>$100k per token sconosciuto è quasi sicuramente scam)
+                            const isKnownToken = ['ETH','BNB','MATIC','AVAX','BTC','WBTC','WETH','USDT','USDC','DAI','CAKE','UNI','AAVE','LINK','SHIB','BONE'].includes(symbol);
+                            if (!isKnownToken && valueUSD > 100000) {
+                                console.log('🚫 Suspicious token filtered:', symbol, 'value:', valueUSD);
+                                continue;
+                            }
+                            
                             tokens.push({
                                 symbol, name: t.name || symbol, chain, balance, price,
-                                valueUSD: balance * price,
+                                valueUSD: valueUSD,
                                 logo: t.logo || t.thumbnail || getTokenLogo(symbol),
                                 contractAddress: t.token_address
                             });
