@@ -724,6 +724,7 @@
                 'BONK': 0.000033, 'JUP': 0.92, 'WIF': 1.85, 'PYTH': 0.38, 'RAY': 5.2,
                 'EUR_USD': 0.96
             }
+            // 2025 usa prezzi live (non servono prezzi storici)
         };
         
         // Chain config
@@ -2313,12 +2314,9 @@
             if (HISTORICAL_PRICES[year]) {
                 EUR_USD = HISTORICAL_PRICES[year].EUR_USD;
                 document.getElementById('rateDisplay').textContent = `EUR/USD: ${EUR_USD.toFixed(4)} (31/12/${year})`;
-                document.getElementById('rateUsed').textContent = `@${EUR_USD.toFixed(4)}`;
-                
-                // Show historical prices info
-                const hp = HISTORICAL_PRICES[year];
-                document.getElementById('historicalPriceInfo').innerHTML = 
-                    `BTC: $${hp.BTC.toLocaleString()} | ETH: $${hp.ETH.toLocaleString()} | BNB: $${hp.BNB}`;
+            } else {
+                // Per 2025 usa il tasso corrente
+                document.getElementById('rateDisplay').textContent = `EUR/USD: ${EUR_USD.toFixed(4)} (live)`;
             }
             
             updateFiscalDisplay();
@@ -2327,28 +2325,93 @@
             if (wallets.some(w => w.tokens && w.tokens.length > 0)) {
                 recalculateWithHistoricalPrices();
             }
+            
+            // Aggiorna staking list
+            renderStakingList();
         }
         
         function recalculateWithHistoricalPrices() {
             const hp = HISTORICAL_PRICES[selectedYear];
-            if (!hp) return;
             
             // Recalculate values using historical prices
             wallets.forEach(wallet => {
-                wallet.tokens.forEach(token => {
-                    const symbol = token.symbol.toUpperCase();
-                    if (hp[symbol]) {
-                        token.historicalPrice = hp[symbol];
-                        token.historicalValueUSD = token.balance * hp[symbol];
-                    } else {
-                        // Keep current price if no historical available
-                        token.historicalPrice = token.price;
-                        token.historicalValueUSD = token.valueUSD;
-                    }
-                });
+                if (wallet.tokens) {
+                    wallet.tokens.forEach(token => {
+                        const symbol = token.symbol.toUpperCase();
+                        if (hp && hp[symbol]) {
+                            token.historicalPrice = hp[symbol];
+                            token.historicalValueUSD = token.balance * hp[symbol];
+                        } else {
+                            // Keep current price if no historical available
+                            token.historicalPrice = token.price;
+                            token.historicalValueUSD = token.valueUSD;
+                        }
+                    });
+                    
+                    // Ricalcola totale wallet
+                    wallet.historicalTotalUSD = wallet.tokens.reduce((s, t) => s + (t.historicalValueUSD || t.valueUSD || 0), 0);
+                }
             });
             
+            // Aggiorna UI
             renderResults();
+            updateDashboardTotalsHistorical();
+        }
+        
+        function updateDashboardTotalsHistorical() {
+            let totalUSD = 0;
+            let totalTokens = 0;
+            const allChains = new Set();
+            const tokenValues = [];
+            
+            wallets.forEach(wallet => {
+                if (wallet.tokens) {
+                    wallet.tokens.forEach(token => {
+                        if (!isHidden(token)) {
+                            const value = token.historicalValueUSD || token.valueUSD || 0;
+                            totalUSD += value;
+                            totalTokens++;
+                            allChains.add(token.chain);
+                            
+                            if (value > 0) {
+                                tokenValues.push({
+                                    symbol: token.symbol,
+                                    value: value,
+                                    chain: token.chain
+                                });
+                            }
+                        }
+                    });
+                }
+            });
+            
+            // Aggiorna totali in alto
+            const totalWalletsTopEl = document.getElementById('totalWalletsTop');
+            const totalTokensTopEl = document.getElementById('totalTokensTop');
+            const totalChainsTopEl = document.getElementById('totalChainsTop');
+            const totalValueTopEl = document.getElementById('totalValueTop');
+            const totalValueEurTopEl = document.getElementById('totalValueEurTop');
+            
+            if (totalWalletsTopEl) totalWalletsTopEl.textContent = wallets.length;
+            if (totalTokensTopEl) totalTokensTopEl.textContent = totalTokens;
+            if (totalChainsTopEl) totalChainsTopEl.textContent = allChains.size;
+            if (totalValueTopEl) totalValueTopEl.textContent = `$${totalUSD.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+            
+            const eurValue = totalUSD * EUR_USD;
+            const eurFormatted = `€${eurValue.toLocaleString('it-IT', { minimumFractionDigits: 2 })}`;
+            const ivafeFormatted = `€${(eurValue * 0.002).toLocaleString('it-IT', { minimumFractionDigits: 2 })}`;
+            
+            if (totalValueEurTopEl) totalValueEurTopEl.textContent = eurFormatted;
+            
+            // Aggiorna riepilogo fiscale
+            const rwTopEl = document.getElementById('rwValueTop');
+            const ivafeTopEl = document.getElementById('ivafeTop');
+            
+            if (rwTopEl) rwTopEl.textContent = eurFormatted;
+            if (ivafeTopEl) ivafeTopEl.textContent = ivafeFormatted;
+            
+            // Aggiorna grafico
+            drawPieChart(tokenValues, totalUSD);
         }
         
         function updateFiscalDisplay() {
