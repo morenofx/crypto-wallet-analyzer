@@ -517,26 +517,25 @@
                     </div>
                 </div>
                 
-                <!-- API Section -->
-                <div class="api-section" style="margin-bottom:20px;padding:15px;background:rgba(243,186,47,0.1);border:1px solid rgba(243,186,47,0.3);border-radius:8px;">
-                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-                        <span style="font-weight:600;color:#f3ba2f;">🔌 Collega API Binance</span>
-                        <span id="binanceApiStatus" class="api-status off" style="margin-left:auto;">OFF</span>
+                <!-- Server Sync Section -->
+                <div class="api-section" style="margin-bottom:20px;padding:20px;background:rgba(243,186,47,0.1);border:1px solid rgba(243,186,47,0.3);border-radius:12px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:15px;">
+                        <span style="font-weight:600;color:#f3ba2f;font-size:16px;">🔄 Sincronizza con Binance</span>
+                        <span id="serverStatus" style="font-size:11px;padding:4px 10px;border-radius:4px;background:rgba(255,71,87,0.2);color:#ff4757;">Server Offline</span>
                     </div>
-                    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
-                        <input type="password" id="binanceApiKey" placeholder="API Key (solo lettura)" style="flex:1;min-width:200px;padding:8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:#fff;font-family:inherit;font-size:12px;">
-                        <input type="password" id="binanceSecretKey" placeholder="Secret Key" style="flex:1;min-width:200px;padding:8px;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:#fff;font-family:inherit;font-size:12px;">
-                        <button class="btn btn-small" style="background:#f3ba2f;color:#000;" onclick="saveBinanceKeys()">💾 Salva</button>
-                        <button class="btn btn-small btn-danger" onclick="clearBinanceKeys()">❌</button>
+                    
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                        <button class="btn" style="background:linear-gradient(135deg,#f3ba2f,#f7931a);color:#000;padding:12px 24px;font-size:14px;font-weight:700;" onclick="syncBinanceFromServer()">
+                            📡 SINCRONIZZA DATI
+                        </button>
+                        <span id="syncStatus" style="font-size:12px;color:#888;"></span>
                     </div>
-                    <div id="binanceApiButtons" class="hidden" style="display:flex;gap:10px;flex-wrap:wrap;padding-top:10px;border-top:1px solid rgba(243,186,47,0.2);">
-                        <button class="btn btn-small" style="background:#f3ba2f;color:#000;" onclick="fetchBinanceSpot()">💰 Carica Spot</button>
-                        <button class="btn btn-small" style="background:#f3ba2f;color:#000;" onclick="fetchBinanceEarn()">📈 Carica Earn/Staking</button>
-                        <button class="btn btn-small" style="background:#f3ba2f;color:#000;" onclick="fetchBinanceAll()">🔄 Carica Tutto</button>
-                        <span id="binanceLoadStatus" style="font-size:11px;color:#888;margin-left:auto;align-self:center;"></span>
-                    </div>
-                    <div style="font-size:10px;color:#888;margin-top:8px;">
-                        ⚠️ Usa API con permessi SOLO LETTURA • I dati vengono salvati su Firebase
+                    
+                    <div style="margin-top:15px;padding:12px;background:rgba(0,0,0,0.2);border-radius:8px;font-size:11px;color:#888;">
+                        <strong style="color:#f3ba2f;">Come usare:</strong><br>
+                        1. Avvia il server: doppio click su <code style="background:rgba(255,255,255,0.1);padding:2px 6px;border-radius:4px;">AVVIA_SERVER.command</code><br>
+                        2. Clicca "Sincronizza Dati" qui sopra<br>
+                        3. I dati vengono salvati su Firebase automaticamente
                     </div>
                 </div>
                 
@@ -1697,188 +1696,80 @@
             localStorage.removeItem('binance_secret_key');
             binanceBalances = { spot: [], earn: [], staking: [] };
             binanceTotals = { spot: 0, earn: 0, staking: 0 };
-            updateBinanceApiStatus();
             document.getElementById('binanceLiveSection').classList.add('hidden');
-            showGlobalAlert('API Binance rimosse', 'warning');
+            showGlobalAlert('Dati Binance cancellati', 'warning');
         }
         
-        function updateBinanceApiStatus() {
-            const apiKey = localStorage.getItem('binance_api_key');
-            const status = document.getElementById('binanceApiStatus');
-            const buttons = document.getElementById('binanceApiButtons');
-            
-            if (apiKey) {
-                status.textContent = 'ON';
-                status.className = 'api-status on';
-                status.style.background = 'rgba(0,255,136,0.2)';
-                status.style.color = '#00ff88';
-                buttons.classList.remove('hidden');
-                buttons.style.display = 'flex';
-            } else {
-                status.textContent = 'OFF';
-                status.className = 'api-status off';
-                status.style.background = 'rgba(255,71,87,0.2)';
-                status.style.color = '#ff4757';
-                buttons.classList.add('hidden');
+        // ==================== SERVER SYNC ====================
+        const SERVER_URL = 'http://localhost:3456';
+        const BINANCE_API_KEY = '8jD5UTifvT5We5aQl09Xx2N5mB4f8emAloyll5dNaAqoONiNGSybCgWhlvSqoI6x';
+        const BINANCE_SECRET_KEY = '1SGmpE3diPGw2WsCffImzkGjOf0aCsItiqnOMMEWVfneKm1rYDhB0YlzUA3S7zGN';
+        
+        async function checkServerStatus() {
+            const statusEl = document.getElementById('serverStatus');
+            try {
+                const response = await fetch(`${SERVER_URL}/status`, { timeout: 2000 });
+                if (response.ok) {
+                    statusEl.textContent = 'Server Online ✓';
+                    statusEl.style.background = 'rgba(0,255,136,0.2)';
+                    statusEl.style.color = '#00ff88';
+                    return true;
+                }
+            } catch (e) {
+                statusEl.textContent = 'Server Offline';
+                statusEl.style.background = 'rgba(255,71,87,0.2)';
+                statusEl.style.color = '#ff4757';
             }
+            return false;
         }
         
-        async function hmacSha256(key, message) {
-            const encoder = new TextEncoder();
-            const keyData = encoder.encode(key);
-            const messageData = encoder.encode(message);
+        async function syncBinanceFromServer() {
+            const syncStatus = document.getElementById('syncStatus');
+            const serverStatus = document.getElementById('serverStatus');
             
-            const cryptoKey = await crypto.subtle.importKey(
-                'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
-            );
-            
-            const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
-            return Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');
-        }
-        
-        // Cloudflare Proxy URL
-        const PROXY_URL = 'https://crypto-proxy.moreno-dainese.workers.dev';
-        
-        async function fetchBinanceSpot() {
-            const apiKey = localStorage.getItem('binance_api_key');
-            const secretKey = localStorage.getItem('binance_secret_key');
-            
-            if (!apiKey || !secretKey) {
-                showGlobalAlert('⚠️ Inserisci prima le API Key', 'warning');
-                return;
-            }
-            
-            const status = document.getElementById('binanceLoadStatus');
-            status.textContent = '⏳ Caricamento Spot...';
-            status.style.color = '#fbbf24';
+            syncStatus.innerHTML = '⏳ Connessione al server...';
+            syncStatus.style.color = '#fbbf24';
             
             try {
-                await fetchPrices();
-                
-                const timestamp = Date.now();
-                const queryString = `timestamp=${timestamp}`;
-                const signature = await hmacSha256(secretKey, queryString);
-                
-                const binanceUrl = `https://api.binance.com/api/v3/account?${queryString}&signature=${signature}`;
-                
-                const response = await fetch(`${PROXY_URL}?url=${encodeURIComponent(binanceUrl)}`, {
-                    headers: { 'X-MBX-APIKEY': apiKey }
-                });
+                const response = await fetch(`${SERVER_URL}/fetch?apiKey=${BINANCE_API_KEY}&secretKey=${BINANCE_SECRET_KEY}`);
                 
                 if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.msg || 'API Error ' + response.status);
+                    throw new Error('Errore server');
                 }
                 
                 const data = await response.json();
                 
-                binanceBalances.spot = data.balances.filter(b => 
-                    parseFloat(b.free) > 0 || parseFloat(b.locked) > 0
-                ).map(b => ({
-                    symbol: b.asset,
-                    free: parseFloat(b.free),
-                    locked: parseFloat(b.locked),
-                    total: parseFloat(b.free) + parseFloat(b.locked),
-                    price: prices[b.asset] || 0,
-                    valueEur: (parseFloat(b.free) + parseFloat(b.locked)) * (prices[b.asset] || 0)
-                }));
-                
-                binanceTotals.spot = binanceBalances.spot.reduce((s, b) => s + b.valueEur, 0);
-                
-                status.textContent = `✅ Spot: ${binanceBalances.spot.length} token`;
-                status.style.color = '#00ff88';
-                
-                updateBinanceLiveUI();
-                saveBinanceToFirebase();
-                
-            } catch (e) {
-                console.error('Binance Spot error:', e);
-                status.textContent = '❌ ' + e.message;
-                status.style.color = '#ff4757';
+                if (data.success) {
+                    serverStatus.textContent = 'Server Online ✓';
+                    serverStatus.style.background = 'rgba(0,255,136,0.2)';
+                    serverStatus.style.color = '#00ff88';
+                    
+                    syncStatus.innerHTML = `✅ Sincronizzato! Totale: €${data.total.toFixed(2)}`;
+                    syncStatus.style.color = '#00ff88';
+                    
+                    // Ricarica dati da Firebase
+                    await loadBinanceFromFirebase();
+                    updateDashboard();
+                    
+                    showGlobalAlert(`✅ Binance sincronizzato: €${data.total.toFixed(2)}`, 'success');
+                } else {
+                    throw new Error(data.error || 'Errore sconosciuto');
+                }
+            } catch (error) {
+                if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                    syncStatus.innerHTML = '❌ Server non attivo - Avvia AVVIA_SERVER.command';
+                    serverStatus.textContent = 'Server Offline';
+                    serverStatus.style.background = 'rgba(255,71,87,0.2)';
+                    serverStatus.style.color = '#ff4757';
+                } else {
+                    syncStatus.innerHTML = '❌ ' + error.message;
+                }
+                syncStatus.style.color = '#ff4757';
             }
         }
         
-        async function fetchBinanceEarn() {
-            const apiKey = localStorage.getItem('binance_api_key');
-            const secretKey = localStorage.getItem('binance_secret_key');
-            
-            if (!apiKey || !secretKey) return;
-            
-            const status = document.getElementById('binanceLoadStatus');
-            status.textContent = '⏳ Caricamento Earn...';
-            status.style.color = '#fbbf24';
-            
-            try {
-                await fetchPrices();
-                
-                const timestamp = Date.now();
-                const queryString = `timestamp=${timestamp}`;
-                const signature = await hmacSha256(secretKey, queryString);
-                
-                // Flexible Earn
-                const flexUrl = `https://api.binance.com/sapi/v1/simple-earn/flexible/position?${queryString}&signature=${signature}`;
-                const flexResponse = await fetch(`${PROXY_URL}?url=${encodeURIComponent(flexUrl)}`, {
-                    headers: { 'X-MBX-APIKEY': apiKey }
-                });
-                
-                if (flexResponse.ok) {
-                    const flexData = await flexResponse.json();
-                    if (flexData.rows) {
-                        binanceBalances.earn = flexData.rows.filter(r => parseFloat(r.totalAmount) > 0).map(r => ({
-                            symbol: r.asset,
-                            amount: parseFloat(r.totalAmount),
-                            price: prices[r.asset] || 0,
-                            valueEur: parseFloat(r.totalAmount) * (prices[r.asset] || 0),
-                            type: 'flexible'
-                        }));
-                    }
-                }
-                
-                // Locked Earn
-                const lockedTimestamp = Date.now();
-                const lockedQuery = `timestamp=${lockedTimestamp}`;
-                const lockedSignature = await hmacSha256(secretKey, lockedQuery);
-                
-                const lockedUrl = `https://api.binance.com/sapi/v1/simple-earn/locked/position?${lockedQuery}&signature=${lockedSignature}`;
-                const lockedResponse = await fetch(`${PROXY_URL}?url=${encodeURIComponent(lockedUrl)}`, {
-                    headers: { 'X-MBX-APIKEY': apiKey }
-                });
-                
-                if (lockedResponse.ok) {
-                    const lockedData = await lockedResponse.json();
-                    if (lockedData.rows) {
-                        binanceBalances.staking = lockedData.rows.filter(r => parseFloat(r.amount) > 0).map(r => ({
-                            symbol: r.asset,
-                            amount: parseFloat(r.amount),
-                            price: prices[r.asset] || 0,
-                            valueEur: parseFloat(r.amount) * (prices[r.asset] || 0),
-                            type: 'locked'
-                        }));
-                    }
-                }
-                
-                binanceTotals.earn = binanceBalances.earn.reduce((s, b) => s + b.valueEur, 0);
-                binanceTotals.staking = binanceBalances.staking.reduce((s, b) => s + b.valueEur, 0);
-                
-                const count = binanceBalances.earn.length + binanceBalances.staking.length;
-                status.textContent = `✅ Earn/Staking: ${count} posizioni`;
-                status.style.color = '#00ff88';
-                
-                updateBinanceLiveUI();
-                saveBinanceToFirebase();
-                
-            } catch (e) {
-                console.error('Binance Earn error:', e);
-                status.textContent = '❌ ' + e.message;
-                status.style.color = '#ff4757';
-            }
-        }
-        
-        async function fetchBinanceAll() {
-            await fetchBinanceSpot();
-            await new Promise(r => setTimeout(r, 500));
-            await fetchBinanceEarn();
-        }
+        // Check server status on load
+        setTimeout(checkServerStatus, 1000);
         
         function updateBinanceLiveUI() {
             document.getElementById('binanceLiveSection').classList.remove('hidden');
