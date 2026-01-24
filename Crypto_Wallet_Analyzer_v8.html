@@ -1157,23 +1157,41 @@
                     </div>
                     <div id="wallet-tokens-${idx}" class="wallet-tokens-dropdown hidden" style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.1);display:none;">
                         ${w.tokens && w.tokens.length > 0 ? w.tokens
-                            .filter(t => (t.valueUSD || 0) >= 0.01)
+                            .filter(t => (t.valueUSD || 0) >= 0.01 && !isHidden(t))
                             .sort((a, b) => (b.valueUSD || 0) - (a.valueUSD || 0))
-                            .slice(0, 20)
+                            .slice(0, 30)
                             .map(t => `
-                                <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12px;">
-                                    <div style="display:flex;align-items:center;gap:8px;">
-                                        <span style="font-size:10px;color:#888;">${(t.chain || '').toUpperCase()}</span>
-                                        <span style="font-weight:500;">${t.symbol}</span>
-                                        <span style="color:#666;font-size:10px;">${t.balance?.toLocaleString('en-US', {maximumFractionDigits:4}) || 0}</span>
+                                <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:12px;border-bottom:1px solid rgba(255,255,255,0.05);">
+                                    <div style="display:flex;align-items:center;gap:10px;">
+                                        <img src="${t.logo || getTokenLogo(t.symbol)}" style="width:24px;height:24px;border-radius:50%;" onerror="this.src='https://via.placeholder.com/24/333/fff?text=${t.symbol?.charAt(0) || '?'}'">
+                                        <div>
+                                            <div style="font-weight:600;">${t.symbol} ${t.verified ? '<span style="color:#00ff88;font-size:10px;" title="Verificato CoinGecko">✓</span>' : ''}</div>
+                                            <div style="font-size:10px;color:#888;">${(t.chain || '').toUpperCase()} • ${t.balance?.toLocaleString('en-US', {maximumFractionDigits:4}) || 0}</div>
+                                            ${t.contractAddress && t.contractAddress !== 'native' ? \`<div style="font-size:9px;color:#666;font-family:monospace;">\${t.contractAddress.slice(0,10)}...\${t.contractAddress.slice(-6)} <a href="https://\${t.chain === 'polygon' ? 'polygonscan.com' : t.chain === 'bsc' ? 'bscscan.com' : t.chain === 'eth' ? 'etherscan.io' : t.chain + 'scan.io'}/token/\${t.contractAddress}" target="_blank" style="color:#00d4aa;">↗</a></div>\` : ''}
+                                        </div>
                                     </div>
-                                    <span style="color:#00ff88;">$${(t.valueUSD || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</span>
+                                    <div style="display:flex;align-items:center;gap:10px;">
+                                        <span style="color:#00ff88;font-weight:600;">$${(t.valueUSD || 0).toLocaleString('en-US', {minimumFractionDigits:2})}</span>
+                                        <button onclick="hideTokenFromPreview('${t.symbol}', '${t.contractAddress || ''}')" style="background:rgba(255,71,87,0.2);border:none;color:#ff4757;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:10px;" title="Nascondi token">🚫</button>
+                                    </div>
                                 </div>
                             `).join('') : '<div style="color:#666;font-size:11px;">Nessun token</div>'}
-                        ${w.tokens && w.tokens.length > 20 ? `<div style="color:#888;font-size:10px;text-align:center;margin-top:5px;">+ altri ${w.tokens.length - 20} token...</div>` : ''}
+                        ${w.tokens && w.tokens.filter(t => (t.valueUSD || 0) >= 0.01 && !isHidden(t)).length > 30 ? `<div style="color:#888;font-size:10px;text-align:center;margin-top:8px;">+ altri ${w.tokens.filter(t => (t.valueUSD || 0) >= 0.01 && !isHidden(t)).length - 30} token...</div>` : ''}
                     </div>
                 </div>
             `).join('');
+        }
+        
+        function hideTokenFromPreview(symbol, contractAddress) {
+            if (contractAddress && contractAddress !== 'native') {
+                hiddenTokens.push(`contract:${contractAddress.toLowerCase()}`);
+            } else {
+                hiddenTokens.push(`symbol:${symbol.toUpperCase()}`);
+            }
+            localStorage.setItem('hidden_tokens_v8', JSON.stringify(hiddenTokens));
+            saveToFirebase();
+            renderWalletsPreview();
+            updateDashboardTotals();
         }
         
         function toggleWalletTokens(idx) {
@@ -1269,6 +1287,65 @@
         }
         
         // ==================== PRICES ====================
+        // Contract verificati da CoinGecko (aggiornati)
+        const VERIFIED_CONTRACTS = {
+            // Ethereum
+            'eth': {
+                '0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9': { symbol: 'AAVE', coingecko: 'aave' },
+                '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984': { symbol: 'UNI', coingecko: 'uniswap' },
+                '0x514910771af9ca656af840dff83e8264ecf986ca': { symbol: 'LINK', coingecko: 'chainlink' },
+                '0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce': { symbol: 'SHIB', coingecko: 'shiba-inu' },
+                '0x9813037ee2218799597d83d4a5b6f3b6778218d9': { symbol: 'BONE', coingecko: 'bone-shibaswap' },
+                '0x6b175474e89094c44da98b954eedeac495271d0f': { symbol: 'DAI', coingecko: 'dai' },
+                '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': { symbol: 'USDC', coingecko: 'usd-coin' },
+                '0xdac17f958d2ee523a2206206994597c13d831ec7': { symbol: 'USDT', coingecko: 'tether' },
+                '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599': { symbol: 'WBTC', coingecko: 'wrapped-bitcoin' },
+                '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2': { symbol: 'WETH', coingecko: 'weth' },
+                '0x0d8775f648430679a709e98d2b0cb6250d2887ef': { symbol: 'BAT', coingecko: 'basic-attention-token' },
+                '0x9f8f72aa9304c8b593d555f12ef6589cc3a579a2': { symbol: 'MKR', coingecko: 'maker' },
+                '0xc00e94cb662c3520282e6f5717214004a7f26888': { symbol: 'COMP', coingecko: 'compound-governance-token' },
+                '0x6982508145454ce325ddbe47a25d4ec3d2311933': { symbol: 'PEPE', coingecko: 'pepe' }
+            },
+            // Polygon
+            'polygon': {
+                '0xd6df932a45c0f255f85145f286ea0b292b21c90b': { symbol: 'AAVE', coingecko: 'aave' },
+                '0xb33eaad8d922b1083446dc23f610c2567fb5180f': { symbol: 'UNI', coingecko: 'uniswap' },
+                '0x53e0bca35ec356bd5dddfebbd1fc0fd03fabad39': { symbol: 'LINK', coingecko: 'chainlink' },
+                '0x8f3cf7ad23cd3cadbd9735aff958023239c6a063': { symbol: 'DAI', coingecko: 'dai' },
+                '0x2791bca1f2de4661ed88a30c99a7a9449aa84174': { symbol: 'USDC', coingecko: 'usd-coin' },
+                '0xc2132d05d31c914a87c6611c10748aeb04b58e8f': { symbol: 'USDT', coingecko: 'tether' },
+                '0x1bfd67037b42cf73acf2047067bd4f2c47d9bfd6': { symbol: 'WBTC', coingecko: 'wrapped-bitcoin' },
+                '0x7ceb23fd6bc0add59e62ac25578270cff1b9f619': { symbol: 'WETH', coingecko: 'weth' }
+            },
+            // BSC
+            'bsc': {
+                '0xfb6115445bff7b52feb98650c87f44907e58f802': { symbol: 'AAVE', coingecko: 'aave' },
+                '0xbf5140a22578168fd562dccf235e5d43a02ce9b1': { symbol: 'UNI', coingecko: 'uniswap' },
+                '0xf8a0bf9cf54bb92f17374d9e9a321e6a111a51bd': { symbol: 'LINK', coingecko: 'chainlink' },
+                '0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3': { symbol: 'DAI', coingecko: 'dai' },
+                '0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d': { symbol: 'USDC', coingecko: 'usd-coin' },
+                '0x55d398326f99059ff775485246999027b3197955': { symbol: 'USDT', coingecko: 'tether' },
+                '0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82': { symbol: 'CAKE', coingecko: 'pancakeswap-token' }
+            },
+            // Arbitrum
+            'arbitrum': {
+                '0xfa7f8980b0f1e64a2062791cc3b0871572f1f7f0': { symbol: 'UNI', coingecko: 'uniswap' },
+                '0xf97f4df75117a78c1a5a0dbb814af92458539fb4': { symbol: 'LINK', coingecko: 'chainlink' },
+                '0xda10009cbd5d07dd0cecc66161fc93d7c9000da1': { symbol: 'DAI', coingecko: 'dai' },
+                '0xff970a61a04b1ca14834a43f5de4533ebddb5cc8': { symbol: 'USDC', coingecko: 'usd-coin' },
+                '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9': { symbol: 'USDT', coingecko: 'tether' },
+                '0x912ce59144191c1204e64559fe8253a0e49e6548': { symbol: 'ARB', coingecko: 'arbitrum' }
+            }
+        };
+        
+        // Verifica se un token è verificato su CoinGecko
+        function isVerifiedToken(chain, contractAddress) {
+            if (!contractAddress || contractAddress === 'native') return true; // Native tokens sono OK
+            const chainContracts = VERIFIED_CONTRACTS[chain];
+            if (!chainContracts) return null; // Chain non mappata
+            return chainContracts[contractAddress.toLowerCase()] || false;
+        }
+        
         async function fetchPrices() {
             const ids = Object.values(COINGECKO_IDS).join(',');
             try {
@@ -1280,6 +1357,20 @@
                 document.getElementById('priceInfo').textContent = `Prezzi aggiornati: ${new Date().toLocaleTimeString('it-IT')}`;
             } catch (e) {
                 console.error('CoinGecko error:', e);
+            }
+        }
+        
+        // Fetch prezzo da CoinGecko per contract verificato
+        async function fetchVerifiedPrice(chain, contractAddress) {
+            const verified = isVerifiedToken(chain, contractAddress);
+            if (!verified || !verified.coingecko) return null;
+            
+            try {
+                const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${verified.coingecko}&vs_currencies=usd`);
+                const data = await res.json();
+                return data[verified.coingecko]?.usd || null;
+            } catch (e) {
+                return null;
             }
         }
         
@@ -1545,19 +1636,46 @@
                             
                             const valueUSD = balance * price;
                             
-                            // Filtro anti-scam: ignora token con valore sospettamente alto
-                            // (>$100k per token sconosciuto è quasi sicuramente scam)
-                            const isKnownToken = ['ETH','BNB','MATIC','AVAX','BTC','WBTC','WETH','USDT','USDC','DAI','CAKE','UNI','AAVE','LINK','SHIB','BONE'].includes(symbol);
-                            if (!isKnownToken && valueUSD > 100000) {
+                            // Verifica se il token è nella lista CoinGecko verificata
+                            const verified = isVerifiedToken(chain, t.token_address);
+                            
+                            // Se il simbolo è di un token famoso ma il contract NON è verificato, è FAKE
+                            const famousSymbols = ['AAVE', 'UNI', 'LINK', 'DAI', 'USDC', 'USDT', 'WBTC', 'WETH', 'CAKE', 'COMP', 'MKR', 'BAT', 'ARB'];
+                            if (famousSymbols.includes(symbol) && verified === false) {
+                                console.log(`🚫 FAKE ${symbol} filtered - contract not verified:`, t.token_address);
+                                continue;
+                            }
+                            
+                            // Token noti (nativi + verificati)
+                            const isKnownToken = ['ETH','BNB','MATIC','AVAX','BTC','WBTC','WETH','USDT','USDC','DAI','CAKE','UNI','AAVE','LINK','SHIB','BONE','PLS','PLSX','HEX','SOL'].includes(symbol);
+                            
+                            // Filtra token sconosciuti con valore > $100k
+                            if (!isKnownToken && !verified && valueUSD > 100000) {
                                 console.log('🚫 Suspicious token filtered:', symbol, 'value:', valueUSD);
                                 continue;
                             }
                             
+                            // Filtra token con prezzo irrealistico (>$50k per token, esclusi BTC/ETH)
+                            if (!isKnownToken && !verified && price > 50000) {
+                                console.log('🚫 Unrealistic price filtered:', symbol, 'price:', price);
+                                continue;
+                            }
+                            
+                            // Se è verificato, usa il prezzo CoinGecko (più affidabile)
+                            let finalPrice = price;
+                            if (verified && verified.coingecko && prices[symbol]) {
+                                finalPrice = prices[symbol];
+                            }
+                            
+                            const finalValueUSD = balance * finalPrice;
+                            
                             tokens.push({
-                                symbol, name: t.name || symbol, chain, balance, price,
-                                valueUSD: valueUSD,
+                                symbol, name: t.name || symbol, chain, balance, 
+                                price: finalPrice,
+                                valueUSD: finalValueUSD,
                                 logo: t.logo || t.thumbnail || getTokenLogo(symbol),
-                                contractAddress: t.token_address
+                                contractAddress: t.token_address,
+                                verified: verified ? true : false
                             });
                         }
                     }
