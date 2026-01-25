@@ -479,25 +479,31 @@
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
                 <div style="display:flex;align-items:center;gap:4px;">
                     <span style="font-size:10px;">💎 Covalent:</span>
-                    <input type="password" id="covalentKey" class="api-input" placeholder="cqt_..." style="width:110px;padding:4px 6px;font-size:10px;">
+                    <input type="password" id="covalentKey" class="api-input" placeholder="cqt_..." style="width:100px;padding:4px 6px;font-size:10px;">
                     <button class="btn btn-small" style="background:#ff6b35;color:white;padding:3px 6px;font-size:9px;" onclick="saveCovalentKey()">Salva</button>
                     <span id="covalentStatus" class="api-status off" style="font-size:9px;padding:2px 5px;">OFF</span>
                 </div>
                 <div style="display:flex;align-items:center;gap:4px;">
+                    <span style="font-size:10px;">☀️ Helius:</span>
+                    <input type="password" id="heliusKey" class="api-input" placeholder="Solana API..." style="width:100px;padding:4px 6px;font-size:10px;">
+                    <button class="btn btn-small" style="background:#9945FF;color:white;padding:3px 6px;font-size:9px;" onclick="saveHeliusKey()">Salva</button>
+                    <span id="heliusStatus" class="api-status off" style="font-size:9px;padding:2px 5px;">OFF</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:4px;">
                     <span style="font-size:10px;">🦊 Moralis:</span>
-                    <input type="password" id="moralisKey" class="api-input" placeholder="eyJ..." style="width:100px;padding:4px 6px;font-size:10px;">
+                    <input type="password" id="moralisKey" class="api-input" placeholder="eyJ..." style="width:90px;padding:4px 6px;font-size:10px;">
                     <button class="btn btn-small" style="background:#00ff88;color:#000;padding:3px 6px;font-size:9px;" onclick="saveMoralisKey()">Salva</button>
                     <span id="moralisStatus" class="api-status off" style="font-size:9px;padding:2px 5px;">OFF</span>
                 </div>
                 <div style="display:flex;align-items:center;gap:4px;">
                     <span style="font-size:10px;">⚗️ Alchemy:</span>
-                    <input type="password" id="alchemyKey" class="api-input" placeholder="API key..." style="width:100px;padding:4px 6px;font-size:10px;">
+                    <input type="password" id="alchemyKey" class="api-input" placeholder="API key..." style="width:90px;padding:4px 6px;font-size:10px;">
                     <button class="btn btn-small" style="background:#0052ff;color:white;padding:3px 6px;font-size:9px;" onclick="saveAlchemyKey()">Salva</button>
                     <span id="alchemyStatus" class="api-status off" style="font-size:9px;padding:2px 5px;">OFF</span>
                 </div>
                 <div style="display:flex;align-items:center;gap:4px;">
                     <span style="font-size:10px;">🤖 Claude:</span>
-                    <input type="password" id="claudeKey" class="api-input" placeholder="sk-ant-..." style="width:100px;padding:4px 6px;font-size:10px;">
+                    <input type="password" id="claudeKey" class="api-input" placeholder="sk-ant-..." style="width:90px;padding:4px 6px;font-size:10px;">
                     <button class="btn btn-small" style="background:#a855f7;color:white;padding:3px 6px;font-size:9px;" onclick="saveClaudeKey()">Salva</button>
                     <span id="claudeStatus" class="api-status off" style="font-size:9px;padding:2px 5px;">OFF</span>
                 </div>
@@ -924,7 +930,17 @@
                 localStorage.setItem('covalent_key', key);
                 document.getElementById('covalentKey').value = '';
                 updateApiStatus();
-                alert('Covalent API salvata! Questa è l\'API principale per tutte le chain.');
+                alert('Covalent API salvata! Questa è l\'API principale per tutte le chain EVM.');
+            }
+        }
+        
+        function saveHeliusKey() {
+            const key = document.getElementById('heliusKey').value.trim();
+            if (key) {
+                localStorage.setItem('helius_key', key);
+                document.getElementById('heliusKey').value = '';
+                updateApiStatus();
+                alert('Helius API salvata! Verrà usata per scansionare wallet Solana.');
             }
         }
         
@@ -963,11 +979,13 @@
         
         function updateApiStatus() {
             const covalent = localStorage.getItem('covalent_key');
+            const helius = localStorage.getItem('helius_key');
             const moralis = localStorage.getItem('moralis_key');
             const alchemy = localStorage.getItem('alchemy_key');
             const claude = localStorage.getItem('claude_key');
             
             const covalentEl = document.getElementById('covalentStatus');
+            const heliusEl = document.getElementById('heliusStatus');
             const moralisEl = document.getElementById('moralisStatus');
             const alchemyEl = document.getElementById('alchemyStatus');
             const claudeEl = document.getElementById('claudeStatus');
@@ -975,6 +993,10 @@
             if (covalentEl) {
                 covalentEl.className = covalent ? 'api-status on' : 'api-status off';
                 covalentEl.textContent = covalent ? 'ON' : 'OFF';
+            }
+            if (heliusEl) {
+                heliusEl.className = helius ? 'api-status on' : 'api-status off';
+                heliusEl.textContent = helius ? 'ON' : 'OFF';
             }
             if (moralisEl) {
                 moralisEl.className = moralis ? 'api-status on' : 'api-status off';
@@ -1243,16 +1265,22 @@
             try {
                 await fetchPrices();
                 const moralisKey = localStorage.getItem('moralis_key');
+                const heliusKey = localStorage.getItem('helius_key');
                 
                 if (isSolanaAddress(wallet.address)) {
                     console.log('🔍 Solana wallet detected');
                     
-                    // Prova Moralis prima
-                    if (moralisKey) {
+                    // 1. Prova Helius prima (migliore per Solana)
+                    if (heliusKey) {
+                        wallet.tokens = await getHeliusSolanaBalances(wallet.address);
+                    }
+                    
+                    // 2. Fallback Moralis
+                    if ((!wallet.tokens || wallet.tokens.length === 0) && moralisKey) {
                         wallet.tokens = await getMoralisSolanaBalances(wallet.address);
                     }
                     
-                    // Fallback RPC
+                    // 3. Fallback RPC pubblico
                     if (!wallet.tokens || wallet.tokens.length === 0) {
                         wallet.tokens = await getSolanaTokens(wallet.address);
                     }
@@ -1971,6 +1999,98 @@
             if (address.startsWith('0x')) {
                 const pulseTokens = await getPulseChainTokens(address);
                 tokens.push(...pulseTokens);
+            }
+            
+            return tokens;
+        }
+        
+        // ==================== HELIUS SOLANA ====================
+        async function getHeliusSolanaBalances(address) {
+            const heliusKey = localStorage.getItem('helius_key');
+            const tokens = [];
+            
+            if (!heliusKey) {
+                console.log('No Helius key');
+                return tokens;
+            }
+            
+            console.log('☀️ Helius Solana scan:', address);
+            
+            try {
+                // Get all balances using Helius DAS API
+                const res = await fetch(`https://mainnet.helius-rpc.com/?api-key=${heliusKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        id: 'helius-balances',
+                        method: 'searchAssets',
+                        params: {
+                            ownerAddress: address,
+                            tokenType: 'fungible',
+                            displayOptions: {
+                                showNativeBalance: true
+                            }
+                        }
+                    })
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    console.log('☀️ Helius response:', data);
+                    
+                    // Native SOL balance
+                    if (data.result?.nativeBalance) {
+                        const solBalance = data.result.nativeBalance.lamports / 1e9;
+                        if (solBalance > 0.0001) {
+                            const solPrice = prices['SOL'] || 0;
+                            tokens.push({
+                                symbol: 'SOL',
+                                name: 'Solana',
+                                chain: 'solana',
+                                balance: solBalance,
+                                price: solPrice,
+                                valueUSD: solBalance * solPrice,
+                                logo: getTokenLogo('SOL'),
+                                contractAddress: 'native'
+                            });
+                        }
+                    }
+                    
+                    // SPL Tokens
+                    const items = data.result?.items || [];
+                    for (const item of items) {
+                        if (!item.token_info) continue;
+                        
+                        const symbol = item.token_info.symbol || item.content?.metadata?.symbol || 'UNKNOWN';
+                        const balance = item.token_info.balance / Math.pow(10, item.token_info.decimals || 9);
+                        const price = item.token_info.price_info?.price_per_token || prices[symbol] || 0;
+                        const valueUSD = item.token_info.price_info?.total_price || (balance * price);
+                        
+                        if (balance <= 0 || valueUSD < 0.01) continue;
+                        
+                        // Filtro spam
+                        if (valueUSD > 100000 && !['SOL', 'USDC', 'USDT', 'JUP', 'RAY', 'BONK', 'WIF'].includes(symbol.toUpperCase())) {
+                            console.log(`🚫 Suspicious Solana token filtered: ${symbol} $${valueUSD}`);
+                            continue;
+                        }
+                        
+                        tokens.push({
+                            symbol: symbol.toUpperCase(),
+                            name: item.content?.metadata?.name || symbol,
+                            chain: 'solana',
+                            balance,
+                            price,
+                            valueUSD,
+                            logo: item.content?.links?.image || getTokenLogo(symbol),
+                            contractAddress: item.id
+                        });
+                    }
+                    
+                    console.log(`☀️ Helius found ${tokens.length} tokens`);
+                }
+            } catch (e) {
+                console.error('Helius error:', e);
             }
             
             return tokens;
