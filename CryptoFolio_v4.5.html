@@ -1199,7 +1199,6 @@
         
         // Chiamata API Binance firmata
         async function binanceSignedRequest(endpoint, params = {}) {
-            const baseUrl = 'https://api.binance.com';
             const timestamp = Date.now();
             
             params.timestamp = timestamp;
@@ -1210,15 +1209,26 @@
                 .join('&');
             
             const signature = await signBinanceRequest(queryString, apiKeys.binanceSecret);
-            const url = `${baseUrl}${endpoint}?${queryString}&signature=${signature}`;
             
-            const response = await fetch(url, {
-                headers: { 'X-MBX-APIKEY': apiKeys.binanceKey }
+            // Usa CORS proxy per aggirare le restrizioni del browser
+            const binanceUrl = `https://api.binance.com${endpoint}?${queryString}&signature=${signature}`;
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(binanceUrl)}`;
+            
+            const response = await fetch(proxyUrl, {
+                headers: { 
+                    'X-MBX-APIKEY': apiKeys.binanceKey,
+                    'x-requested-with': 'XMLHttpRequest'
+                }
             });
             
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.msg || `HTTP ${response.status}`);
+                const text = await response.text();
+                try {
+                    const error = JSON.parse(text);
+                    throw new Error(error.msg || `HTTP ${response.status}`);
+                } catch (e) {
+                    throw new Error(`HTTP ${response.status}: ${text.substring(0, 100)}`);
+                }
             }
             
             return response.json();
