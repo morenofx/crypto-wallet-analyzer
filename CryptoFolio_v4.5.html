@@ -851,6 +851,8 @@
             }
             updateBlacklist(); 
             displayResults(lastScanResults);
+            // Aggiorna anche wallet detail se aperto
+            if (currentDetailWallet) displayWalletDetail();
             saveToFirebase();
         }
         function restoreToken(c) { 
@@ -860,6 +862,8 @@
             localStorage.setItem('cryptofolio_blacklist_names', JSON.stringify(blacklistNames)); 
             updateBlacklist(); 
             displayResults(lastScanResults);
+            // Aggiorna anche wallet detail se aperto
+            if (currentDetailWallet) displayWalletDetail();
             saveToFirebase();
         }
         function clearBlacklist() { 
@@ -1970,18 +1974,21 @@
                 return;
             }
             
-            // Raggruppa token per chain
+            // Raggruppa token per chain (escludi blacklistati)
             const byChain = {};
             for (const token of walletData.results) {
+                const contractAddr = token.contract || token.token_address || '';
+                if (isBlacklisted(contractAddr)) continue;
                 if (!byChain[token.chain]) byChain[token.chain] = [];
                 byChain[token.chain].push(token);
             }
             
-            // Calcola totali
-            const totalUSD = walletData.results.reduce((s, t) => s + t.valueUSD, 0);
+            // Calcola totali (escludi blacklistati)
+            const visibleTokens = walletData.results.filter(t => !isBlacklisted(t.contract || t.token_address || ''));
+            const totalUSD = visibleTokens.reduce((s, t) => s + t.valueUSD, 0);
             const totalEUR = totalUSD * EUR_USD;
             const chainCount = Object.keys(byChain).length;
-            const tokenCount = walletData.results.length;
+            const tokenCount = visibleTokens.length;
             
             document.getElementById('detailTotal').textContent = '€' + formatEUR(totalEUR);
             document.getElementById('detailChainCount').textContent = chainCount;
@@ -1991,7 +1998,7 @@
             let html = '';
             for (const [chainKey, tokens] of Object.entries(byChain)) {
                 const chain = CHAINS[chainKey];
-                const chainTotal = tokens.reduce((s, t) => s + t.valueUSD, 0) * EUR_USD;
+                const chainTotal = tokens.filter(t => !isBlacklisted(t.contract || t.token_address || '')).reduce((s, t) => s + t.valueUSD, 0) * EUR_USD;
                 
                 html += `
                     <div class="card" style="margin-bottom:16px;">
@@ -2011,11 +2018,16 @@
                 tokens.sort((a, b) => b.valueUSD - a.valueUSD);
                 
                 for (const t of tokens) {
+                    // Salta token blacklistati o con valore troppo basso
+                    const contractAddr = t.contract || t.token_address || '';
+                    if (isBlacklisted(contractAddr)) continue;
                     if (t.valueUSD < 0.01) continue;
+                    
                     const vEUR = t.valueUSD * EUR_USD;
                     html += `
                         <tr>
                             <td><div class="token-cell">
+                                <button class="hide-btn" onclick="hideToken('${contractAddr}','${t.symbol || ''}')">✕</button>
                                 <div class="token-icon">${t.logo ? `<img src="${t.logo}" onerror="this.parentElement.textContent='${t.symbol?.slice(0,2) || '??'}'">` : (t.symbol?.slice(0,2) || '??')}</div>
                                 <div class="token-info">
                                     <div class="symbol">${t.symbol || '???'}</div>
