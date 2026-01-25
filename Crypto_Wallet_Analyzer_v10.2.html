@@ -1195,16 +1195,22 @@
         }
         
         .token-hide-btn {
-            padding: 4px 10px;
-            background: transparent;
-            border: 1px solid rgba(255,100,100,0.3);
-            border-radius: 4px;
+            width: 20px;
+            height: 20px;
+            padding: 0;
+            background: rgba(255,100,100,0.1);
+            border: none;
+            border-radius: 50%;
             color: var(--accent-red);
             cursor: pointer;
             opacity: 0;
-            font-size: 12px;
+            font-size: 10px;
             transition: all 0.2s;
-            margin-left: 12px;
+            margin-right: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
         }
         
         .token-row:hover .token-hide-btn {
@@ -1213,7 +1219,8 @@
         
         .token-hide-btn:hover {
             opacity: 1;
-            background: rgba(255,100,100,0.1);
+            background: rgba(255,100,100,0.3);
+            transform: scale(1.1);
         }
         
         /* ===== UTILITIES ===== */
@@ -1801,25 +1808,25 @@
         let saveTimeout = null;
         
         const CHAIN_INFO = {
-            'eth': { name: 'Ethereum', icon: '◆', color: '#627eea' },
-            'polygon': { name: 'Polygon', icon: '◇', color: '#8247e5' },
-            'bsc': { name: 'BSC', icon: '◆', color: '#f3ba2f' },
-            'arbitrum': { name: 'Arbitrum', icon: '◆', color: '#28a0f0' },
-            'base': { name: 'Base', icon: '■', color: '#0052ff' },
-            'optimism': { name: 'Optimism', icon: '◯', color: '#ff0420' },
-            'avalanche': { name: 'Avalanche', icon: '▲', color: '#e84142' },
-            'pulse': { name: 'PulseChain', icon: '💜', color: '#ff00ff' },
-            'solana': { name: 'Solana', icon: '☀️', color: '#14f195' },
-            'fantom': { name: 'Fantom', icon: '👻', color: '#1969ff' },
-            'moonbeam': { name: 'Moonbeam', icon: '🌙', color: '#53cbc8' },
-            'scroll': { name: 'Scroll', icon: '📜', color: '#ffeeda' },
-            'zksync': { name: 'zkSync', icon: '⚡', color: '#8c8dfc' },
-            'linea': { name: 'Linea', icon: '▬', color: '#61dfff' },
-            'mantle': { name: 'Mantle', icon: '🏔️', color: '#000000' },
-            'gnosis': { name: 'Gnosis', icon: '🦉', color: '#04795b' },
-            'celo': { name: 'Celo', icon: '🟢', color: '#35d07f' },
-            'zora': { name: 'Zora', icon: '🌈', color: '#5b5bd6' },
-            'exchange': { name: 'Exchanges', icon: '🏦', color: '#6b7280' }
+            'eth': { name: 'Ethereum', icon: '◆', color: '#627eea', logo: 'https://cryptologos.cc/logos/ethereum-eth-logo.png' },
+            'polygon': { name: 'Polygon', icon: '◇', color: '#8247e5', logo: 'https://cryptologos.cc/logos/polygon-matic-logo.png' },
+            'bsc': { name: 'BSC', icon: '◆', color: '#f3ba2f', logo: 'https://cryptologos.cc/logos/bnb-bnb-logo.png' },
+            'arbitrum': { name: 'Arbitrum', icon: '◆', color: '#28a0f0', logo: 'https://cryptologos.cc/logos/arbitrum-arb-logo.png' },
+            'base': { name: 'Base', icon: '■', color: '#0052ff', logo: 'https://avatars.githubusercontent.com/u/108554348' },
+            'optimism': { name: 'Optimism', icon: '◯', color: '#ff0420', logo: 'https://cryptologos.cc/logos/optimism-ethereum-op-logo.png' },
+            'avalanche': { name: 'Avalanche', icon: '▲', color: '#e84142', logo: 'https://cryptologos.cc/logos/avalanche-avax-logo.png' },
+            'pulse': { name: 'PulseChain', icon: '💜', color: '#ff00ff', logo: 'https://cryptologos.cc/logos/pulsechain-pls-logo.png' },
+            'solana': { name: 'Solana', icon: '☀️', color: '#14f195', logo: 'https://cryptologos.cc/logos/solana-sol-logo.png' },
+            'fantom': { name: 'Fantom', icon: '👻', color: '#1969ff', logo: 'https://cryptologos.cc/logos/fantom-ftm-logo.png' },
+            'moonbeam': { name: 'Moonbeam', icon: '🌙', color: '#53cbc8', logo: 'https://cryptologos.cc/logos/moonbeam-glmr-logo.png' },
+            'scroll': { name: 'Scroll', icon: '📜', color: '#ffeeda', logo: '' },
+            'zksync': { name: 'zkSync', icon: '⚡', color: '#8c8dfc', logo: '' },
+            'linea': { name: 'Linea', icon: '▬', color: '#61dfff', logo: '' },
+            'mantle': { name: 'Mantle', icon: '🏔️', color: '#000000', logo: '' },
+            'gnosis': { name: 'Gnosis', icon: '🦉', color: '#04795b', logo: 'https://cryptologos.cc/logos/gnosis-gno-gno-logo.png' },
+            'celo': { name: 'Celo', icon: '🟢', color: '#35d07f', logo: 'https://cryptologos.cc/logos/celo-celo-logo.png' },
+            'zora': { name: 'Zora', icon: '🌈', color: '#5b5bd6', logo: '' },
+            'exchange': { name: 'Exchanges', icon: '🏦', color: '#6b7280', logo: '' }
         };
         
         // Scam patterns
@@ -2111,6 +2118,7 @@
                 : tokens.map(t => `
                     <div class="token-row">
                         <div class="token-info">
+                            <button class="token-hide-btn" onclick="event.stopPropagation(); hideTokenAndRefreshMain('${t.symbol}', '${t.contractAddress || ''}', '${filterChain || ''}')" title="Hide token">✕</button>
                             <div class="token-icon">
                                 ${t.logo ? `<img src="${t.logo}" onerror="this.parentElement.textContent='${t.symbol.slice(0,2)}'">` : t.symbol.slice(0, 2)}
                             </div>
@@ -2119,7 +2127,6 @@
                         </div>
                         <div class="token-balance">${formatBalance(t.balance)}</div>
                         <div class="token-value">${((t.valueUSD || 0) * EUR_USD).toLocaleString('it-IT', {minimumFractionDigits: 2})}</div>
-                        <button class="token-hide-btn" onclick="hideTokenAndRefreshMain('${t.symbol}', '${t.contractAddress || ''}', '${filterChain || ''}')" title="Hide token">✕</button>
                     </div>
                 `).join('');
             
@@ -2149,9 +2156,15 @@
                 const info = CHAIN_INFO[chain] || { name: chain, icon: '?', color: '#888' };
                 const isActive = filterChain === chain;
                 const bgStyle = isActive ? 'background:var(--bg-tertiary);border-left:3px solid var(--accent-blue);' : '';
+                
+                // Usa logo se disponibile
+                const iconHtml = info.logo 
+                    ? `<img src="${info.logo}" style="width:20px;height:20px;border-radius:50%;" onerror="this.parentElement.style.background='${colors[chain] || info.color}';this.replaceWith(document.createTextNode('${info.icon}'))">`
+                    : info.icon;
+                
                 return `
                     <div class="chain-item" style="cursor:pointer;${bgStyle}" onclick="renderWalletDetail(wallets[${currentWalletIndex}], '${chain}')">
-                        <div class="chain-icon" style="background:${colors[chain] || info.color};">${info.icon}</div>
+                        <div class="chain-icon" style="background:${info.logo ? 'transparent' : (colors[chain] || info.color)};">${iconHtml}</div>
                         <div class="chain-info">
                             <div class="chain-name">
                                 ${info.name}
@@ -2280,10 +2293,15 @@
                 const valueEUR = data.value * EUR_USD;
                 const color = colors[chain] || info.color;
                 
+                // Usa logo se disponibile, altrimenti icona con colore
+                const iconHtml = info.logo 
+                    ? `<img src="${info.logo}" style="width:24px;height:24px;border-radius:50%;" onerror="this.parentElement.innerHTML='${info.icon}'">`
+                    : info.icon;
+                
                 return `
                     <div class="chain-card" onclick="openChainTokensModal('${chain}')">
                         <div class="chain-card-header">
-                            <div class="chain-card-icon" style="background:${color};">${info.icon}</div>
+                            <div class="chain-card-icon" style="background:${info.logo ? 'transparent' : color};">${iconHtml}</div>
                             <div class="chain-card-info">
                                 <div class="chain-card-name">${info.name}</div>
                                 <div class="chain-card-tokens">${data.tokens.length} tokens</div>
@@ -2806,9 +2824,20 @@
                                 continue;
                             }
                             
-                            // Filtra token sconosciuti con valore sospetto (>$100k)
-                            if (!coingeckoTokens.includes(symbol) && valueUSD > 100000) {
-                                console.log(`🚫 Suspicious value filtered: ${symbol} $${valueUSD.toFixed(0)}`);
+                            // Major tokens che possono avere valori alti
+                            const majorTokens = ['ETH','WETH','BTC','WBTC','BNB','LINK','UNI','AAVE'];
+                            
+                            // Filtra QUALSIASI token con valore sospettamente alto
+                            // Se non è un major token e vale > $50k, probabilmente è un prezzo sbagliato
+                            if (!majorTokens.includes(symbol) && valueUSD > 50000) {
+                                console.log(`🚫 Suspicious value filtered: ${symbol} $${valueUSD.toFixed(0)} (max $50k for non-major tokens)`);
+                                continue;
+                            }
+                            
+                            // Anche per token "conosciuti" da CoinGecko, se il valore è > $500k è sospetto
+                            // (tranne per BTC/ETH)
+                            if (!['BTC','WBTC','ETH','WETH'].includes(symbol) && valueUSD > 500000) {
+                                console.log(`🚫 Extremely suspicious value filtered: ${symbol} $${valueUSD.toFixed(0)}`);
                                 continue;
                             }
                             
