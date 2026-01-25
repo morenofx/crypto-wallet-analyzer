@@ -2612,7 +2612,10 @@
         async function getCovalentBalances(address) {
             const key = localStorage.getItem('covalent_key');
             const tokens = [];
-            if (!key) return tokens;
+            if (!key) {
+                console.log('❌ No Covalent key');
+                return tokens;
+            }
             
             const chains = {
                 'eth': 'eth-mainnet',
@@ -2636,30 +2639,45 @@
             for (const [chain, chainId] of Object.entries(chains)) {
                 try {
                     console.log(`💎 Covalent scanning ${chain}...`);
-                    const res = await fetch(`https://api.covalenthq.com/v1/${chainId}/address/${address}/balances_v2/?key=${key}&nft=false&no-spam=true`);
+                    // Rimosso no-spam=true per vedere tutti i token
+                    const url = `https://api.covalenthq.com/v1/${chainId}/address/${address}/balances_v2/?key=${key}&nft=false`;
+                    const res = await fetch(url);
                     
                     if (res.ok) {
                         const data = await res.json();
-                        for (const item of (data.data?.items || [])) {
-                            if (!item.contract_ticker_symbol) continue;
+                        const items = data.data?.items || [];
+                        console.log(`💎 ${chain}: ${items.length} items returned`);
+                        
+                        for (const item of items) {
+                            if (!item.contract_ticker_symbol) {
+                                console.log(`⚠️ Skipped item without symbol:`, item.contract_name);
+                                continue;
+                            }
                             
                             const balance = parseFloat(item.balance) / Math.pow(10, item.contract_decimals || 18);
-                            if (balance <= 0) continue;
+                            if (balance <= 0) {
+                                continue;
+                            }
                             
                             const symbol = item.contract_ticker_symbol.toUpperCase();
                             const name = item.contract_name || symbol;
                             const price = item.quote_rate || prices[symbol] || 0;
                             const valueUSD = item.quote || (balance * price);
                             
+                            // Solo filtro scam, non filtrare token legittimi
                             if (isScamToken(name, symbol)) {
-                                console.log(`🚫 SCAM filtered: ${name}`);
+                                console.log(`🚫 SCAM filtered: ${name} (${symbol})`);
                                 continue;
                             }
                             
-                            if (valueUSD > 100000 && !['ETH','BNB','MATIC','USDT','USDC','DAI','WBTC'].includes(symbol)) {
-                                console.log(`🚫 Suspicious filtered: ${symbol} $${valueUSD}`);
+                            // Filtro valore sospetto solo per token sconosciuti con valore enorme
+                            const knownTokens = ['ETH','BNB','MATIC','USDT','USDC','DAI','WBTC','WETH','SHIB','BONE','LINK','UNI','AAVE','PEPE','ARB','OP'];
+                            if (valueUSD > 500000 && !knownTokens.includes(symbol)) {
+                                console.log(`🚫 Suspicious value filtered: ${symbol} $${valueUSD.toFixed(0)}`);
                                 continue;
                             }
+                            
+                            console.log(`✅ ${chain}: ${symbol} = ${balance.toFixed(4)} ($${valueUSD.toFixed(2)})`);
                             
                             tokens.push({
                                 symbol, name, chain, balance, price, valueUSD,
@@ -2667,13 +2685,16 @@
                                 contractAddress: item.native_token ? 'native' : item.contract_address
                             });
                         }
+                    } else {
+                        console.error(`❌ Covalent ${chain} error: ${res.status}`);
                     }
-                    await new Promise(r => setTimeout(r, 150));
+                    await new Promise(r => setTimeout(r, 200)); // Un po' più di delay
                 } catch (e) {
-                    console.error(`Covalent ${chain} error:`, e);
+                    console.error(`❌ Covalent ${chain} exception:`, e);
                 }
             }
             
+            console.log(`💎 Covalent TOTAL: ${tokens.length} tokens found`);
             return tokens;
         }
         
