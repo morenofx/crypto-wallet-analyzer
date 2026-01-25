@@ -1402,7 +1402,10 @@
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">EUR/USD Rate</div>
-                    <div class="stat-value text-secondary" style="font-size:18px;" id="eurUsdRate">0.92</div>
+                    <div class="stat-value text-secondary" style="font-size:18px;display:flex;align-items:center;gap:8px;">
+                        <span id="eurUsdRate">0.92</span>
+                        <button onclick="refreshEurUsdRate()" style="background:transparent;border:none;cursor:pointer;font-size:14px;opacity:0.7;padding:2px;" title="Aggiorna cambio">🔄</button>
+                    </div>
                 </div>
             </div>
             
@@ -2434,36 +2437,32 @@
         }
         
         // ==================== FORMATTAZIONE NUMERI ====================
-        // Formato ITALIANO: 4.000,00 = quattromila (punto=migliaia, virgola=decimali)
+        // Formato ITALIANO come OKIPO: 7.137,69 € (punto=migliaia, virgola=decimali)
+        
         function formatEUR(value) {
             if (value >= 1000000) {
-                // Milioni: 4.5M
+                // Milioni: 4,5M
                 return (value / 1000000).toFixed(1).replace('.', ',') + 'M';
             }
-            // Formato italiano standard
-            return value.toLocaleString('it-IT', { 
-                minimumFractionDigits: 0, 
-                maximumFractionDigits: 0 
-            });
-        }
-        
-        function formatEURDecimals(value) {
-            // Con decimali: 4.000,50
+            // Formato italiano con 2 decimali: 7.137,69
             return value.toLocaleString('it-IT', { 
                 minimumFractionDigits: 2, 
                 maximumFractionDigits: 2 
             });
+        }
+        
+        function formatEURNoDecimals(value) {
+            // Senza decimali: 7.138
+            return Math.round(value).toLocaleString('it-IT');
         }
         
         function formatUSD(value) {
-            if (value >= 1000000) {
-                return (value / 1000000).toFixed(1) + 'M $';
-            }
-            // Formato US: 4,000.00
-            return value.toLocaleString('en-US', { 
+            // Formato italiano anche per USD: 8.422,17
+            // NON aggiunge il simbolo $ (è già nell'HTML)
+            return value.toLocaleString('it-IT', { 
                 minimumFractionDigits: 2, 
                 maximumFractionDigits: 2 
-            }) + ' $';
+            });
         }
         
         function renderChainDistribution(chainData, totalUSD) {
@@ -2935,9 +2934,34 @@
                     const data = await res.json();
                     EUR_USD = data.rates.EUR;
                     document.getElementById('eurUsdRate').textContent = EUR_USD.toFixed(4);
+                    console.log(`💱 EUR/USD rate: ${EUR_USD.toFixed(4)}`);
+                    return true;
                 }
             } catch (e) {
                 console.error('EUR/USD rate error:', e);
+            }
+            return false;
+        }
+        
+        async function refreshEurUsdRate() {
+            const rateEl = document.getElementById('eurUsdRate');
+            const oldText = rateEl.textContent;
+            rateEl.textContent = '...';
+            
+            const success = await fetchEurUsdRate();
+            
+            if (success) {
+                // Flash verde per conferma
+                rateEl.style.color = '#00ff88';
+                setTimeout(() => { rateEl.style.color = ''; }, 1000);
+                
+                // Aggiorna tutti i valori EUR
+                updateDashboard();
+                updateRWValue();
+            } else {
+                rateEl.textContent = oldText;
+                rateEl.style.color = '#ff4757';
+                setTimeout(() => { rateEl.style.color = ''; }, 1000);
             }
         }
         
