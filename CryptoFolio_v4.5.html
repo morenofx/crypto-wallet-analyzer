@@ -2634,7 +2634,10 @@
             let html = '';
             for (const exch of EXCHANGE_LIST) {
                 const data = exchangeData[exch.id] || {};
-                const hasTx = data.transactions && data.transactions.length > 0;
+                // Controlla se ci sono transazioni O dati salvati (transactionCount o totali)
+                const hasTx = (data.transactions && data.transactions.length > 0);
+                const hasData = hasTx || data.transactionCount > 0 || (data.totals && Object.values(data.totals).some(v => v > 0));
+                const txCount = data.transactions ? data.transactions.length : (data.transactionCount || 0);
                 const total2024 = data.totals ? (data.totals[2024] || 0) : 0;
                 
                 html += '<div class="card exchange-card" id="exch-' + exch.id + '" style="position:relative;overflow:hidden;">';
@@ -2642,13 +2645,13 @@
                 html += '<div class="card-title" style="display:flex;align-items:center;gap:12px;">';
                 html += '<span style="width:40px;height:40px;background:' + exch.color + ';border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:bold;color:#fff;">' + exch.icon + '</span>';
                 html += '<div><div style="font-size:14px;">' + exch.name + '</div>';
-                if (hasTx) {
-                    html += '<div style="font-size:11px;color:var(--green);">✓ ' + data.transactions.length + ' tx</div>';
+                if (hasData) {
+                    html += '<div style="font-size:11px;color:var(--green);">✓ ' + (txCount > 0 ? txCount + ' tx' : 'Dati salvati') + '</div>';
                 } else {
                     html += '<div style="font-size:11px;color:var(--text-secondary);">📂 Importa CSV</div>';
                 }
                 html += '</div></div>';
-                if (hasTx && total2024 > 0) {
+                if (hasData && total2024 > 0) {
                     html += '<div style="text-align:right;"><div style="font-size:11px;color:var(--text-secondary);">2024</div><div style="font-size:16px;font-weight:700;color:var(--green);">€' + formatEUR(total2024) + '</div></div>';
                 }
                 html += '</div>';
@@ -2660,13 +2663,13 @@
                 html += '<div style="color:var(--text-secondary);font-size:13px;">Trascina ZIP o CSV qui</div>';
                 html += '<input type="file" id="file-' + exch.id + '" accept=".csv,.zip" multiple style="display:none;" onchange="handleFileSelect(event, \'' + exch.id + '\')">';
                 html += '<button class="btn btn-secondary" onclick="document.getElementById(\'file-' + exch.id + '\').click()" style="margin-top:12px;font-size:12px;">📁 Sfoglia</button>';
-                if (hasTx) {
+                if (hasData) {
                     html += '<button class="btn" onclick="clearExchangeData(\'' + exch.id + '\')" style="margin-top:12px;margin-left:8px;font-size:12px;background:var(--red);">🗑️ Reset</button>';
                 }
                 html += '</div>';
                 
                 // Totali per anno (se presenti)
-                if (hasTx && data.totals) {
+                if (hasData && data.totals) {
                     html += '<div style="margin-top:12px;display:grid;grid-template-columns:repeat(5,1fr);gap:6px;font-size:11px;">';
                     for (const y of [2021, 2022, 2023, 2024, 2025]) {
                         const val = data.totals[y] || 0;
