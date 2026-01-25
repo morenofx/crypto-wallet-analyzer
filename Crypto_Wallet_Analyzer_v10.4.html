@@ -2025,22 +2025,37 @@
             const MAX_TOKEN_EUR = 50000;
             const UNLIMITED = ['ETH', 'WETH', 'BTC', 'WBTC'];
             
+            // Token conosciuti con prezzo storico affidabile
+            const KNOWN_TOKENS = ['ETH', 'WETH', 'BTC', 'WBTC', 'BNB', 'SOL', 'MATIC', 'PLS', 'HEX', 
+                                  'SHIB', 'BONE', 'USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FRAX'];
+            
             wallets.forEach(w => {
                 (w.tokens || []).forEach(t => {
                     if (!isHidden(t)) {
                         const symbol = (t.symbol || '').toUpperCase();
                         let tokenValueUSD = 0;
                         
+                        // IMPORTANTE: Usa solo token VERIFICATI o CONOSCIUTI
+                        // Se il token ha valueUSD = 0 e non è un token conosciuto, è probabilmente FAKE
+                        const isKnownToken = KNOWN_TOKENS.includes(symbol);
+                        const isVerified = t.verified === true;
+                        const hasValue = (t.valueUSD || 0) > 0;
+                        
+                        // Skip token non verificati senza valore (probabilmente FAKE)
+                        if (!isKnownToken && !isVerified && !hasValue) {
+                            continue;
+                        }
+                        
                         if (yearPrices[symbol]) {
                             tokenValueUSD = (t.balance || 0) * yearPrices[symbol];
                         } else if (['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FRAX'].includes(symbol)) {
                             tokenValueUSD = t.balance || 0;
                         } else {
-                            // Token sconosciuto - NON aggiungiamo il valore attuale per evitare errori
-                            if (t.valueUSD > 100) {
+                            // Token sconosciuto - ignora per RW
+                            if (hasValue && t.valueUSD > 100) {
                                 unknownTokens.push(symbol);
                             }
-                            tokenValueUSD = 0; // Ignora token senza prezzo storico
+                            tokenValueUSD = 0;
                         }
                         
                         // Applica filtro €50k
@@ -2055,7 +2070,7 @@
                 });
             });
             
-            // Aggiungi anche exchanges
+            // Aggiungi anche exchanges (sempre affidabili)
             exchanges.forEach(ex => {
                 (ex.tokens || []).forEach(t => {
                     const symbol = (t.symbol || '').toUpperCase();
@@ -2420,7 +2435,7 @@
             
             document.getElementById('totalValueUSD').textContent = formatUSD(totalUSD);
             document.getElementById('totalValueEUR').textContent = formatEUR(totalEUR) + ' €';
-            document.getElementById('rwValue').textContent = formatEUR(totalEUR) + ' €';
+            // RW Value viene calcolato da updateRWValue() con prezzi storici
             document.getElementById('statWallets').textContent = wallets.length;
             document.getElementById('statTokens').textContent = totalTokens;
             document.getElementById('statChains').textContent = chains.size;
@@ -2434,6 +2449,9 @@
             
             // Render portfolio chart
             renderPortfolioChart(chainData);
+            
+            // Aggiorna RW Value con prezzi storici
+            updateRWValue();
         }
         
         // ==================== FORMATTAZIONE NUMERI ====================
