@@ -3484,13 +3484,23 @@
         }
         
         function recalculateAllExchanges() {
+            let recalculated = 0;
             for (const exchId of Object.keys(exchangeData)) {
-                calculateExchangeBalances(exchId);
+                // Solo ricalcola se ci sono transazioni in memoria
+                if (exchangeData[exchId].transactions && exchangeData[exchId].transactions.length > 0) {
+                    calculateExchangeBalances(exchId);
+                    recalculated++;
+                }
             }
             initExchangeGrid();
             updateExchangeTotals();
-            saveExchangeDataToFirebase();
-            alert('✅ Ricalcolo completato!');
+            updateExchangeCount();
+            if (recalculated > 0) {
+                saveExchangeDataToFirebase();
+                alert('✅ Ricalcolati ' + recalculated + ' exchange!');
+            } else {
+                alert('⚠️ Nessuna transazione in memoria da ricalcolare.\nI totali salvati sono già visualizzati.');
+            }
         }
         
         async function saveExchangeDataToFirebase() {
@@ -3560,12 +3570,13 @@
         // Funzioni API Binance rimosse - usiamo solo CSV
         
         function updateExchangeCount() {
-            // Conta exchange con dati CSV importati
+            // Conta exchange con dati (transazioni in memoria O dati salvati da Firebase)
             let count = 0;
             for (const exchId of Object.keys(exchangeData)) {
-                if (exchangeData[exchId].transactions && exchangeData[exchId].transactions.length > 0) {
-                    count++;
-                }
+                const data = exchangeData[exchId];
+                const hasTx = data.transactions && data.transactions.length > 0;
+                const hasData = hasTx || data.transactionCount > 0 || (data.totals && Object.values(data.totals).some(v => v > 0));
+                if (hasData) count++;
             }
             document.getElementById('exchangeCount').textContent = count;
         }
