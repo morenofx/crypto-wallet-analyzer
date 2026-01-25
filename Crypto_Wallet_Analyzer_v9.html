@@ -2617,6 +2617,7 @@
                 return tokens;
             }
             
+            // Solo le chain principali per velocità
             const chains = {
                 'eth': 'eth-mainnet',
                 'polygon': 'matic-mainnet',
@@ -2624,77 +2625,66 @@
                 'arbitrum': 'arbitrum-mainnet',
                 'base': 'base-mainnet',
                 'optimism': 'optimism-mainnet',
-                'avalanche': 'avalanche-mainnet',
-                'fantom': 'fantom-mainnet',
-                'moonbeam': 'moonbeam-mainnet',
-                'scroll': 'scroll-mainnet',
-                'zksync': 'zksync-mainnet',
-                'linea': 'linea-mainnet',
-                'mantle': 'mantle-mainnet',
-                'gnosis': 'gnosis-mainnet',
-                'celo': 'celo-mainnet',
-                'zora': 'zora-mainnet'
+                'avalanche': 'avalanche-mainnet'
             };
             
-            for (const [chain, chainId] of Object.entries(chains)) {
+            // Scan parallelo per velocità
+            const promises = Object.entries(chains).map(async ([chain, chainId]) => {
                 try {
-                    console.log(`💎 Covalent scanning ${chain}...`);
-                    // Rimosso no-spam=true per vedere tutti i token
+                    console.log(`💎 Scanning ${chain}...`);
                     const url = `https://api.covalenthq.com/v1/${chainId}/address/${address}/balances_v2/?key=${key}&nft=false`;
                     const res = await fetch(url);
                     
                     if (res.ok) {
                         const data = await res.json();
                         const items = data.data?.items || [];
-                        console.log(`💎 ${chain}: ${items.length} items returned`);
+                        console.log(`💎 ${chain}: ${items.length} items`);
                         
+                        const chainTokens = [];
                         for (const item of items) {
-                            if (!item.contract_ticker_symbol) {
-                                console.log(`⚠️ Skipped item without symbol:`, item.contract_name);
-                                continue;
-                            }
+                            if (!item.contract_ticker_symbol) continue;
                             
                             const balance = parseFloat(item.balance) / Math.pow(10, item.contract_decimals || 18);
-                            if (balance <= 0) {
-                                continue;
-                            }
+                            if (balance <= 0) continue;
                             
                             const symbol = item.contract_ticker_symbol.toUpperCase();
                             const name = item.contract_name || symbol;
                             const price = item.quote_rate || prices[symbol] || 0;
                             const valueUSD = item.quote || (balance * price);
                             
-                            // Solo filtro scam, non filtrare token legittimi
                             if (isScamToken(name, symbol)) {
-                                console.log(`🚫 SCAM filtered: ${name} (${symbol})`);
+                                console.log(`🚫 SCAM: ${name}`);
                                 continue;
                             }
                             
-                            // Filtro valore sospetto solo per token sconosciuti con valore enorme
-                            const knownTokens = ['ETH','BNB','MATIC','USDT','USDC','DAI','WBTC','WETH','SHIB','BONE','LINK','UNI','AAVE','PEPE','ARB','OP'];
+                            const knownTokens = ['ETH','BNB','MATIC','USDT','USDC','DAI','WBTC','WETH','SHIB','BONE','LINK','UNI','AAVE','PEPE','ARB','OP','AVAX'];
                             if (valueUSD > 500000 && !knownTokens.includes(symbol)) {
-                                console.log(`🚫 Suspicious value filtered: ${symbol} $${valueUSD.toFixed(0)}`);
+                                console.log(`🚫 Suspicious: ${symbol} $${valueUSD.toFixed(0)}`);
                                 continue;
                             }
                             
-                            console.log(`✅ ${chain}: ${symbol} = ${balance.toFixed(4)} ($${valueUSD.toFixed(2)})`);
-                            
-                            tokens.push({
+                            chainTokens.push({
                                 symbol, name, chain, balance, price, valueUSD,
                                 logo: item.logo_url || getTokenLogo(symbol),
                                 contractAddress: item.native_token ? 'native' : item.contract_address
                             });
                         }
+                        return chainTokens;
                     } else {
-                        console.error(`❌ Covalent ${chain} error: ${res.status}`);
+                        console.error(`❌ ${chain}: ${res.status}`);
+                        return [];
                     }
-                    await new Promise(r => setTimeout(r, 200)); // Un po' più di delay
                 } catch (e) {
-                    console.error(`❌ Covalent ${chain} exception:`, e);
+                    console.error(`❌ ${chain}:`, e.message);
+                    return [];
                 }
-            }
+            });
             
-            console.log(`💎 Covalent TOTAL: ${tokens.length} tokens found`);
+            // Aspetta tutte le chain in parallelo
+            const results = await Promise.all(promises);
+            results.forEach(chainTokens => tokens.push(...chainTokens));
+            
+            console.log(`💎 TOTAL: ${tokens.length} tokens`);
             return tokens;
         }
         
