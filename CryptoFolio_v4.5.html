@@ -485,7 +485,11 @@
             </p>
             
             <div style="display:flex;gap:12px;flex-wrap:wrap;">
-                <button class="btn btn-primary" onclick="loadReconciliationData()">📊 Carica Dati</button>
+                <button class="btn btn-primary" onclick="loadReconciliationData()">📊 Carica Dati Wallet</button>
+                <label class="btn btn-secondary" style="cursor:pointer;margin:0;">
+                    📁 Importa CSV Exchange
+                    <input type="file" accept=".csv" onchange="importExchangeCSVForReconcile(this.files[0])" style="display:none;">
+                </label>
                 <button class="btn btn-secondary" onclick="runReconciliation()">🔗 Esegui Riconciliazione</button>
                 <button class="btn btn-secondary" onclick="exportReconciliationReport()">📥 Esporta Report</button>
             </div>
@@ -4127,6 +4131,112 @@
             unmatchedWallet: [],
             currentYearFilter: 'all'
         };
+        
+        // Import CSV Exchange per Riconciliazione (supporta Tatax e Binance)
+        async function importExchangeCSVForReconcile(file) {
+            if (!file) return;
+            
+            const text = await file.text();
+            const lines = text.split('\n').filter(l => l.trim());
+            
+            if (lines.length < 2) {
+                alert('❌ File CSV vuoto o non valido');
+                return;
+            }
+            
+            const header = lines[0].toLowerCase();
+            console.log('📁 Header CSV:', header);
+            
+            let imported = 0;
+            
+            // Formato Tatax: Symbol,TokenAddress,TimeStamp,MovementType,Quantity,...
+            if (header.includes('movementtype') || header.includes('symbol')) {
+                console.log('📁 Rilevato formato Tatax');
+                
+                for (let i = 1; i < lines.length; i++) {
+                    try {
+                        // Parse CSV con virgolette
+                        const row = lines[i].match(/(".*?"|[^,]+)(?=\s*,|\s*$)/g);
+                        if (!row || row.length < 5) continue;
+                        
+                        const clean = (s) => s ? s.replace(/"/g, '').trim() : '';
+                        
+                        const symbol = clean(row[0]);
+                        const timestamp = clean(row[2]);
+                        const moveType = clean(row[3]).toUpperCase();
+                        const quantity = parseFloat(clean(row[4])) || 0;
+                        
+                        // Solo DEPOSIT e WITHDRAWAL crypto (non fiat, non fee)
+                        if (!['DEPOSIT', 'WITHDRAWAL'].includes(moveType)) continue;
+                        if (['EUR', 'USD', 'GBP'].includes(symbol)) continue;
+                        if (Math.abs(quantity) < 0.0000001) continue;
+                        
+                        reconcileData.exchangeTx.push({
+                            source: 'exchange',
+                            exchange: 'binance',
+                            date: new Date(timestamp),
+                            type: moveType === 'WITHDRAWAL' ? 'withdraw' : 'deposit',
+                            coin: symbol.replace('.LENDING@BINANCE', '').replace('.STAKING@BINANCE', ''),
+                            amount: Math.abs(quantity)
+                        });
+                        imported++;
+                        
+                    } catch (e) {
+                        // Skip invalid rows
+                    }
+                }
+            }
+            // Formato Binance diretto: User_ID,UTC_Time,Account,Operation,Coin,Change,Remark
+            else if (header.includes('operation') || header.includes('utc_time')) {
+                console.log('📁 Rilevato formato Binance');
+                
+                for (let i = 1; i < lines.length; i++) {
+                    try {
+                        const row = lines[i].match(/(".*?"|[^,]+)(?=\s*,|\s*$)/g);
+                        if (!row || row.length < 6) continue;
+                        
+                        const clean = (s) => s ? s.replace(/"/g, '').trim() : '';
+                        
+                        const timestamp = clean(row[1]);
+                        const operation = clean(row[3]).toLowerCase();
+                        const coin = clean(row[4]);
+                        const change = parseFloat(clean(row[5])) || 0;
+                        
+                        // Solo Deposit e Withdraw
+                        if (!operation.includes('deposit') && !operation.includes('withdraw')) continue;
+                        if (['EUR', 'USD', 'GBP'].includes(coin)) continue;
+                        if (Math.abs(change) < 0.0000001) continue;
+                        
+                        reconcileData.exchangeTx.push({
+                            source: 'exchange',
+                            exchange: 'binance',
+                            date: new Date(timestamp),
+                            type: operation.includes('withdraw') ? 'withdraw' : 'deposit',
+                            coin: coin,
+                            amount: Math.abs(change)
+                        });
+                        imported++;
+                        
+                    } catch (e) {
+                        // Skip invalid rows
+                    }
+                }
+            }
+            else {
+                alert('❌ Formato CSV non riconosciuto.\nFormati supportati: Tatax, Binance');
+                return;
+            }
+            
+            // Ordina per data
+            reconcileData.exchangeTx.sort((a, b) => a.date - b.date);
+            
+            console.log(`✅ Importate ${imported} transazioni exchange (deposit/withdraw)`);
+            
+            updateReconcileSummary();
+            renderReconcileData();
+            
+            alert(`✅ Importato!\n\n• ${imported} transazioni exchange (deposit/withdraw crypto)\n• ${reconcileData.exchangeTx.length} totali\n\nOra clicca "Esegui Riconciliazione" per trovare i match.`);
+        }
         
         async function loadReconciliationData() {
             console.log('🔗 Caricamento dati per riconciliazione...');
