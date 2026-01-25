@@ -1787,6 +1787,15 @@
             'avalanche': { name: 'Avalanche', icon: '▲', color: '#e84142' },
             'pulse': { name: 'PulseChain', icon: '💜', color: '#ff00ff' },
             'solana': { name: 'Solana', icon: '☀️', color: '#14f195' },
+            'fantom': { name: 'Fantom', icon: '👻', color: '#1969ff' },
+            'moonbeam': { name: 'Moonbeam', icon: '🌙', color: '#53cbc8' },
+            'scroll': { name: 'Scroll', icon: '📜', color: '#ffeeda' },
+            'zksync': { name: 'zkSync', icon: '⚡', color: '#8c8dfc' },
+            'linea': { name: 'Linea', icon: '▬', color: '#61dfff' },
+            'mantle': { name: 'Mantle', icon: '🏔️', color: '#000000' },
+            'gnosis': { name: 'Gnosis', icon: '🦉', color: '#04795b' },
+            'celo': { name: 'Celo', icon: '🟢', color: '#35d07f' },
+            'zora': { name: 'Zora', icon: '🌈', color: '#5b5bd6' },
             'exchange': { name: 'Exchanges', icon: '🏦', color: '#6b7280' }
         };
         
@@ -2180,7 +2189,17 @@
                 'optimism': '#ff0420',
                 'avalanche': '#e84142',
                 'pulse': '#ff00ff',
-                'solana': '#14f195'
+                'solana': '#14f195',
+                'fantom': '#1969ff',
+                'moonbeam': '#53cbc8',
+                'scroll': '#ffeeda',
+                'zksync': '#8c8dfc',
+                'linea': '#61dfff',
+                'mantle': '#000000',
+                'gnosis': '#04795b',
+                'celo': '#35d07f',
+                'zora': '#5b5bd6',
+                'exchange': '#6b7280'
             };
             
             container.innerHTML = sortedChains.map(([chain, data]) => {
@@ -2251,7 +2270,17 @@
                 'optimism': '#ff0420',
                 'avalanche': '#e84142',
                 'pulse': '#ff00ff',
-                'solana': '#14f195'
+                'solana': '#14f195',
+                'fantom': '#1969ff',
+                'moonbeam': '#53cbc8',
+                'scroll': '#ffeeda',
+                'zksync': '#8c8dfc',
+                'linea': '#61dfff',
+                'mantle': '#000000',
+                'gnosis': '#04795b',
+                'celo': '#35d07f',
+                'zora': '#5b5bd6',
+                'exchange': '#6b7280'
             };
             
             Object.entries(chainData)
@@ -2320,7 +2349,11 @@
             const colors = {
                 'eth': '#627eea', 'polygon': '#8247e5', 'bsc': '#f3ba2f',
                 'arbitrum': '#28a0f0', 'base': '#0052ff', 'optimism': '#ff0420',
-                'avalanche': '#e84142', 'pulse': '#ff00ff', 'solana': '#14f195'
+                'avalanche': '#e84142', 'pulse': '#ff00ff', 'solana': '#14f195',
+                'fantom': '#1969ff', 'moonbeam': '#53cbc8', 'scroll': '#ffeeda',
+                'zksync': '#8c8dfc', 'linea': '#61dfff', 'mantle': '#000000',
+                'gnosis': '#04795b', 'celo': '#35d07f', 'zora': '#5b5bd6',
+                'exchange': '#6b7280'
             };
             
             // Collect all tokens for this chain
@@ -2374,7 +2407,11 @@
             const colors = {
                 'eth': '#627eea', 'polygon': '#8247e5', 'bsc': '#f3ba2f',
                 'arbitrum': '#28a0f0', 'base': '#0052ff', 'optimism': '#ff0420',
-                'avalanche': '#e84142', 'pulse': '#ff00ff', 'solana': '#14f195'
+                'avalanche': '#e84142', 'pulse': '#ff00ff', 'solana': '#14f195',
+                'fantom': '#1969ff', 'moonbeam': '#53cbc8', 'scroll': '#ffeeda',
+                'zksync': '#8c8dfc', 'linea': '#61dfff', 'mantle': '#000000',
+                'gnosis': '#04795b', 'celo': '#35d07f', 'zora': '#5b5bd6',
+                'exchange': '#6b7280'
             };
             
             // Filtra token per questa chain
@@ -2550,7 +2587,17 @@
                 'bsc': 'bsc-mainnet',
                 'arbitrum': 'arbitrum-mainnet',
                 'base': 'base-mainnet',
-                'optimism': 'optimism-mainnet'
+                'optimism': 'optimism-mainnet',
+                'avalanche': 'avalanche-mainnet',
+                'fantom': 'fantom-mainnet',
+                'moonbeam': 'moonbeam-mainnet',
+                'scroll': 'scroll-mainnet',
+                'zksync': 'zksync-mainnet',
+                'linea': 'linea-mainnet',
+                'mantle': 'mantle-mainnet',
+                'gnosis': 'gnosis-mainnet',
+                'celo': 'celo-mainnet',
+                'zora': 'zora-mainnet'
             };
             
             for (const [chain, chainId] of Object.entries(chains)) {
