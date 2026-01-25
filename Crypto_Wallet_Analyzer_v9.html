@@ -2042,13 +2042,32 @@
             document.getElementById('walletDetailView').classList.remove('active');
         }
         
-        function renderWalletDetail(wallet) {
-            const tokens = (wallet.tokens || []).filter(t => !isHidden(t)).sort((a, b) => (b.valueUSD || 0) - (a.valueUSD || 0));
+        function renderWalletDetail(wallet, filterChain = null) {
+            const allTokens = (wallet.tokens || []).filter(t => !isHidden(t)).sort((a, b) => (b.valueUSD || 0) - (a.valueUSD || 0));
+            
+            // Filtra per chain se specificato
+            const tokens = filterChain 
+                ? allTokens.filter(t => t.chain === filterChain)
+                : allTokens;
+            
             const totalEUR = tokens.reduce((sum, t) => sum + ((t.valueUSD || 0) * EUR_USD), 0);
+            const allTotalEUR = allTokens.reduce((sum, t) => sum + ((t.valueUSD || 0) * EUR_USD), 0);
+            
+            // Header Holdings
+            const holdingsTitle = filterChain 
+                ? `${CHAIN_INFO[filterChain]?.name || filterChain} Holdings`
+                : 'Holdings';
             
             document.getElementById('detailTotalValue').textContent = `${totalEUR.toLocaleString('it-IT', {minimumFractionDigits: 2})} €`;
             
-            // Holdings list
+            // Holdings list con header aggiornato
+            const holdingsHeader = document.querySelector('.holdings-title');
+            if (holdingsHeader) {
+                holdingsHeader.innerHTML = filterChain 
+                    ? `<span style="cursor:pointer;" onclick="renderWalletDetail(wallets[${currentWalletIndex}])">← Holdings</span> / ${CHAIN_INFO[filterChain]?.name || filterChain}`
+                    : 'Holdings';
+            }
+            
             const holdingsHtml = tokens.length === 0 
                 ? '<div style="padding:40px;text-align:center;color:var(--text-secondary);">No tokens found. Click Sync to scan.</div>'
                 : tokens.map(t => `
@@ -2058,6 +2077,7 @@
                                 ${t.logo ? `<img src="${t.logo}" onerror="this.parentElement.textContent='${t.symbol.slice(0,2)}'">` : t.symbol.slice(0, 2)}
                             </div>
                             <span class="token-name">${t.symbol}</span>
+                            ${!filterChain ? `<span style="font-size:10px;color:var(--text-secondary);margin-left:6px;">${CHAIN_INFO[t.chain]?.name || t.chain}</span>` : ''}
                         </div>
                         <div class="token-balance">${formatBalance(t.balance)}</div>
                         <div class="token-value">${((t.valueUSD || 0) * EUR_USD).toLocaleString('it-IT', {minimumFractionDigits: 2})}</div>
@@ -2068,18 +2088,31 @@
             
             // Chains list
             const chainTotals = {};
-            tokens.forEach(t => {
+            allTokens.forEach(t => {
                 const chain = t.chain || 'unknown';
                 if (!chainTotals[chain]) chainTotals[chain] = { tokens: 0, value: 0 };
                 chainTotals[chain].tokens++;
                 chainTotals[chain].value += (t.valueUSD || 0) * EUR_USD;
             });
             
-            const chainsHtml = Object.entries(chainTotals).map(([chain, data]) => {
+            const colors = {
+                'eth': '#627eea', 'polygon': '#8247e5', 'bsc': '#f3ba2f',
+                'arbitrum': '#28a0f0', 'base': '#0052ff', 'optimism': '#ff0420',
+                'avalanche': '#e84142', 'pulse': '#ff00ff', 'solana': '#14f195',
+                'fantom': '#1969ff', 'moonbeam': '#53cbc8', 'scroll': '#ffeeda',
+                'zksync': '#8c8dfc', 'linea': '#61dfff', 'mantle': '#000000',
+                'gnosis': '#04795b', 'celo': '#35d07f', 'zora': '#5b5bd6'
+            };
+            
+            const chainsHtml = Object.entries(chainTotals)
+                .sort((a, b) => b[1].value - a[1].value)
+                .map(([chain, data]) => {
                 const info = CHAIN_INFO[chain] || { name: chain, icon: '?', color: '#888' };
+                const isActive = filterChain === chain;
+                const bgStyle = isActive ? 'background:var(--bg-tertiary);border-left:3px solid var(--accent-blue);' : '';
                 return `
-                    <div class="chain-item" style="cursor:pointer;" onclick="showChainTokensInWallet('${chain}')">
-                        <div class="chain-icon ${chain}">${info.icon}</div>
+                    <div class="chain-item" style="cursor:pointer;${bgStyle}" onclick="renderWalletDetail(wallets[${currentWalletIndex}], '${chain}')">
+                        <div class="chain-icon" style="background:${colors[chain] || info.color};">${info.icon}</div>
                         <div class="chain-info">
                             <div class="chain-name">
                                 ${info.name}
@@ -2088,7 +2121,7 @@
                             <div class="chain-address">${wallet.address.slice(0, 8)}...${wallet.address.slice(-6)}</div>
                         </div>
                         <div class="chain-stats">
-                            <div class="chain-stats-value">${data.tokens} tokens</div>
+                            <div class="chain-stats-value" style="color:var(--accent-blue);">${data.tokens} tokens</div>
                         </div>
                         <div class="chain-value">
                             <div class="chain-value-amount">${data.value.toLocaleString('it-IT', {minimumFractionDigits: 2})} €</div>
