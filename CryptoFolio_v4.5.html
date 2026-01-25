@@ -68,17 +68,22 @@
         .card { background: var(--bg-card); border-radius: 16px; padding: 24px; border: 1px solid var(--border); }
         .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .card-title { font-size: 18px; font-weight: 600; }
-        .holdings-table { width: 100%; border-collapse: collapse; }
-        .holdings-table th { text-align: left; padding: 12px 8px; color: var(--text-secondary); font-size: 12px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
-        .holdings-table td { padding: 16px 8px; border-bottom: 1px solid var(--border); }
+        .holdings-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .holdings-table th { text-align: left; padding: 12px 8px; color: var(--text-secondary); font-size: 12px; text-transform: uppercase; border-bottom: 1px solid var(--border); font-weight: 500; letter-spacing: 0.5px; }
+        .holdings-table th:nth-child(1) { width: 40%; text-align: left; }
+        .holdings-table th:nth-child(2) { width: 20%; text-align: right; }
+        .holdings-table th:nth-child(3) { width: 18%; text-align: right; }
+        .holdings-table th:nth-child(4) { width: 22%; text-align: right; }
+        .holdings-table td { padding: 16px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        .holdings-table td:nth-child(2), .holdings-table td:nth-child(3), .holdings-table td:nth-child(4) { text-align: right; }
         .holdings-table tr:hover { background: rgba(255,255,255,0.02); }
         .token-cell { display: flex; align-items: center; gap: 12px; }
-        .token-icon { width: 36px; height: 36px; border-radius: 50%; background: var(--bg-secondary); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px; overflow: hidden; }
+        .token-icon { width: 40px; height: 40px; border-radius: 50%; background: var(--bg-secondary); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px; overflow: hidden; flex-shrink: 0; }
         .token-icon img { width: 100%; height: 100%; object-fit: cover; }
-        .token-info .symbol { font-weight: 600; }
-        .token-info .name { font-size: 12px; color: var(--text-secondary); }
+        .token-info .symbol { font-weight: 600; font-size: 14px; }
+        .token-info .name { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
         .text-right { text-align: right; }
-        .text-mono { font-family: 'SF Mono', Monaco, monospace; }
+        .text-mono { font-family: 'SF Mono', Monaco, monospace; font-size: 13px; }
         .text-secondary { color: var(--text-secondary); }
         .wallet-input-section { background: var(--bg-card); padding: 20px; border-radius: 16px; margin-bottom: 20px; border: 1px solid var(--border); }
         .input-row { display: flex; gap: 16px; margin-bottom: 16px; }
@@ -1737,7 +1742,12 @@
             
             // Native balance
             const nativeBal = moralisData.nativeBalance ? Number(BigInt(moralisData.nativeBalance)) / 1e18 : 0;
-            const nativePrice = NATIVE_PRICES[chainInfo.symbol] || NATIVE_PRICES.ETH;
+            let nativePrice = NATIVE_PRICES[chainInfo.symbol] || NATIVE_PRICES.ETH;
+            
+            // FIX: Forza prezzo corretto per CRO (evita bug Moralis/DexScreener)
+            if (chainInfo.symbol === 'CRO' && (nativePrice > 1 || nativePrice === 0)) {
+                nativePrice = NATIVE_PRICES.CRO || 0.09;
+            }
             
             if (nativeBal > 0.0001) {
                 results.push({
@@ -1765,6 +1775,12 @@
                     // Get price from DexScreener
                     const pd = await fetchTokenPrice(token.token_address, chainInfo.dex);
                     if (pd) { price = pd.price; if (pd.logo) logo = pd.logo; }
+                    
+                    // FIX: Forza prezzo corretto per WCRO e token CRO-like su Cronos
+                    const sym = (token.symbol || '').toUpperCase();
+                    if ((sym === 'WCRO' || sym === 'CRO') && (price > 1 || price === 0)) {
+                        price = NATIVE_PRICES.CRO || 0.09;
+                    }
                     
                     results.push({
                         symbol: token.symbol,
@@ -1968,7 +1984,7 @@
                             <div style="font-weight:600;color:var(--green);">€${formatEUR(chainTotal)}</div>
                         </div>
                         <table class="holdings-table">
-                            <thead><tr><th>Token</th><th class="text-right">Balance</th><th class="text-right">Prezzo</th><th class="text-right">Valore</th></tr></thead>
+                            <thead><tr><th>TOKEN</th><th>BALANCE</th><th>PREZZO</th><th>VALORE</th></tr></thead>
                             <tbody>
                 `;
                 
@@ -2150,16 +2166,17 @@
         
         async function fetchNativePrices() {
             try {
-                const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum,binancecoin,matic-network,pulsechain,solana&vs_currencies=usd');
+                const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum,binancecoin,matic-network,pulsechain,solana,crypto-com-chain&vs_currencies=usd');
                 const d = await r.json();
                 NATIVE_PRICES.ETH = d.ethereum?.usd || 3000;
                 NATIVE_PRICES.BNB = d.binancecoin?.usd || 600;
                 NATIVE_PRICES.MATIC = d['matic-network']?.usd || 0.4;
                 NATIVE_PRICES.PLS = d.pulsechain?.usd || 0.00003;
                 NATIVE_PRICES.SOL = d.solana?.usd || 150;
+                NATIVE_PRICES.CRO = d['crypto-com-chain']?.usd || 0.09;
             } catch(e) {
                 NATIVE_PRICES.ETH = 3000; NATIVE_PRICES.BNB = 600; NATIVE_PRICES.MATIC = 0.4;
-                NATIVE_PRICES.PLS = 0.00003; NATIVE_PRICES.SOL = 150;
+                NATIVE_PRICES.PLS = 0.00003; NATIVE_PRICES.SOL = 150; NATIVE_PRICES.CRO = 0.09;
             }
         }
         
@@ -2708,7 +2725,7 @@
             }
             
             let html = `<table class="holdings-table">
-                <thead><tr><th>Token</th><th class="text-right">Balance</th><th class="text-right">Prezzo</th><th class="text-right">Valore</th></tr></thead>
+                <thead><tr><th>TOKEN</th><th>BALANCE</th><th>PREZZO</th><th>VALORE</th></tr></thead>
                 <tbody>`;
             
             for (const t of withVal) {
