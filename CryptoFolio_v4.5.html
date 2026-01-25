@@ -493,14 +493,25 @@
             'tether': { 2020: 1, 2021: 1, 2022: 1, 2023: 1, 2024: 1, 2025: 1 },
             'usd-coin': { 2020: 1, 2021: 1, 2022: 1, 2023: 1, 2024: 1, 2025: 1 },
             'solana': { 2020: 1.5, 2021: 170, 2022: 9.5, 2023: 100, 2024: 190, 2025: 150 },
+            'bitcoin': { 2020: 29000, 2021: 47700, 2022: 16500, 2023: 42300, 2024: 93400, 2025: 100000 },
+            'ripple': { 2020: 0.22, 2021: 0.83, 2022: 0.35, 2023: 0.62, 2024: 2.08, 2025: 2.30 },
+            'cardano': { 2020: 0.18, 2021: 1.35, 2022: 0.25, 2023: 0.59, 2024: 0.88, 2025: 0.90 },
+            'dogecoin': { 2020: 0.005, 2021: 0.17, 2022: 0.07, 2023: 0.09, 2024: 0.32, 2025: 0.35 },
+            'polkadot': { 2020: 9.5, 2021: 27.8, 2022: 4.3, 2023: 7.9, 2024: 6.9, 2025: 7.0 },
+            'chainlink': { 2020: 11.5, 2021: 19.3, 2022: 5.7, 2023: 15.1, 2024: 14.8, 2025: 15.0 },
+            'avalanche-2': { 2020: 3.5, 2021: 109, 2022: 11.3, 2023: 40.5, 2024: 38.6, 2025: 40.0 },
         };
+        const YEAR_END_PRICES = HISTORICAL_PRICES; // Alias
         
         const SYMBOL_TO_CG = { 
             'ETH': 'ethereum', 'BNB': 'binancecoin', 'MATIC': 'matic-network', 
             'SHIB': 'shiba-inu', 'BONE': 'bone-shibaswap', 
             'USDT': 'tether', 'USDC': 'usd-coin',
             'PLS': 'pulsechain', 'HEX': 'hex', 'PLSX': 'pulsex',
-            'SOL': 'solana'
+            'SOL': 'solana', 'BTC': 'bitcoin', 'XRP': 'ripple',
+            'ADA': 'cardano', 'DOGE': 'dogecoin', 'DOT': 'polkadot',
+            'LINK': 'chainlink', 'AVAX': 'avalanche-2',
+            'BUSD': 'tether', 'FDUSD': 'tether', 'DAI': 'tether', // Stablecoins → use $1
         };
         
         let tokenBlacklist = JSON.parse(localStorage.getItem('cryptofolio_blacklist') || '[]');
@@ -2942,16 +2953,25 @@
             for (const year of years) {
                 const yb = yearEndBalances[year] || {};
                 let totalEur = 0;
+                let coinsWithValue = [];
                 
                 for (const [coin, amount] of Object.entries(yb)) {
                     if (amount <= 0) continue;
                     const price = getHistoricalPrice(coin, year);
                     if (price > 0) {
-                        totalEur += amount * price * EUR_USD;
+                        const valueUsd = amount * price;
+                        const valueEur = valueUsd * EUR_USD;
+                        totalEur += valueEur;
+                        if (valueEur > 10) { // Solo coin > €10
+                            coinsWithValue.push(coin + ': €' + valueEur.toFixed(0));
+                        }
                     }
                 }
                 
                 yearEndTotals[year] = totalEur;
+                if (coinsWithValue.length > 0) {
+                    console.log('Year', year, '- Top coins:', coinsWithValue.slice(0, 10).join(', '));
+                }
             }
             
             data.balances = yearEndBalances;
@@ -2961,21 +2981,42 @@
         }
         
         function getHistoricalPrice(coin, year) {
+            const coinUpper = coin.toUpperCase();
+            
             // Usa i prezzi storici dalla YEAR_END_PRICES se disponibili
-            const cgId = SYMBOL_TO_CG[coin.toUpperCase()];
+            const cgId = SYMBOL_TO_CG[coinUpper];
             if (cgId && YEAR_END_PRICES[cgId] && YEAR_END_PRICES[cgId][year]) {
                 return YEAR_END_PRICES[cgId][year];
             }
             
-            // Stablecoins
-            if (['USDT', 'USDC', 'BUSD', 'FDUSD', 'DAI', 'UST', 'USTC'].includes(coin.toUpperCase())) {
+            // Stablecoins - sempre $1
+            if (['USDT', 'USDC', 'BUSD', 'FDUSD', 'DAI', 'UST', 'USTC', 'TUSD', 'USDP', 'GUSD', 'PAX', 'FRAX'].includes(coinUpper)) {
                 return 1.0;
             }
-            if (coin.toUpperCase() === 'EUR') {
+            
+            // EUR token
+            if (coinUpper === 'EUR' || coinUpper === 'EUROC' || coinUpper === 'EURT') {
                 return 1 / EUR_USD;
             }
             
-            // Fallback: cerca un prezzo approssimativo
+            // BTC variations
+            if (['BTC', 'WBTC', 'BTCB'].includes(coinUpper)) {
+                return YEAR_END_PRICES['bitcoin']?.[year] || 50000;
+            }
+            
+            // ETH variations
+            if (['ETH', 'WETH', 'BETH', 'STETH'].includes(coinUpper)) {
+                return YEAR_END_PRICES['ethereum']?.[year] || 2000;
+            }
+            
+            // BNB variations  
+            if (['BNB', 'WBNB'].includes(coinUpper)) {
+                return YEAR_END_PRICES['binancecoin']?.[year] || 300;
+            }
+            
+            // Monete molto piccole o sconosciute - log per debug
+            // console.log('Unknown coin price:', coinUpper, 'year:', year);
+            
             return 0;
         }
         
