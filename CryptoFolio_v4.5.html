@@ -1210,28 +1210,54 @@
             
             const signature = await signBinanceRequest(queryString, apiKeys.binanceSecret);
             
-            // Usa CORS proxy per aggirare le restrizioni del browser
+            // Prova diversi proxy CORS
             const binanceUrl = `https://api.binance.com${endpoint}?${queryString}&signature=${signature}`;
-            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(binanceUrl)}`;
             
-            const response = await fetch(proxyUrl, {
-                headers: { 
-                    'X-MBX-APIKEY': apiKeys.binanceKey,
-                    'x-requested-with': 'XMLHttpRequest'
-                }
-            });
+            // Lista di proxy da provare
+            const proxies = [
+                (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+                (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+                (url) => `https://cors.sh/${url}`,
+            ];
             
-            if (!response.ok) {
-                const text = await response.text();
+            // Per Binance dobbiamo includere la API key nell'URL come workaround
+            const urlWithKey = `${binanceUrl}&apiKey=${apiKeys.binanceKey}`;
+            
+            let lastError = null;
+            
+            for (const makeProxyUrl of proxies) {
                 try {
-                    const error = JSON.parse(text);
-                    throw new Error(error.msg || `HTTP ${response.status}`);
+                    const proxyUrl = makeProxyUrl(binanceUrl);
+                    
+                    const response = await fetch(proxyUrl, {
+                        method: 'GET',
+                        headers: { 
+                            'X-MBX-APIKEY': apiKeys.binanceKey,
+                            'x-requested-with': 'XMLHttpRequest'
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        return response.json();
+                    }
+                    
+                    lastError = `HTTP ${response.status}`;
                 } catch (e) {
-                    throw new Error(`HTTP ${response.status}: ${text.substring(0, 100)}`);
+                    lastError = e.message;
                 }
             }
             
-            return response.json();
+            // Se tutti i proxy falliscono, prova chiamata diretta (potrebbe funzionare in alcuni contesti)
+            try {
+                const response = await fetch(binanceUrl, {
+                    headers: { 'X-MBX-APIKEY': apiKeys.binanceKey }
+                });
+                if (response.ok) return response.json();
+                const error = await response.json();
+                throw new Error(error.msg || `HTTP ${response.status}`);
+            } catch (e) {
+                throw new Error(`CORS bloccato. ${lastError}. Prova l'estensione "CORS Unblock" per Chrome.`);
+            }
         }
         
         function binanceLog(msg, type = 'info') {
