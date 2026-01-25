@@ -357,21 +357,30 @@
                 </div>
             </div>
             
-            <!-- SOLANA -->
+            <!-- SOLANA / HELIUS -->
             <div class="card" style="margin-bottom:20px;">
                 <div class="card-header">
                     <div class="card-title" style="display:flex;align-items:center;gap:12px;">
                         <span style="width:40px;height:40px;background:#9945ff;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;">🟣</span>
                         <div>
-                            <div>Solana</div>
-                            <div style="font-size:12px;color:var(--text-secondary);font-weight:normal;">RPC Pubblico • Gratuito • Token SPL</div>
+                            <div>Solana (Helius)</div>
+                            <div style="font-size:12px;color:var(--text-secondary);font-weight:normal;">API Veloce • Token SPL • NFT</div>
                         </div>
                     </div>
-                    <span class="api-status" style="background:var(--green);color:#000;">AUTO</span>
+                    <span class="api-status" id="heliusStatus">OFF</span>
+                </div>
+                <div class="input-row" style="margin-top:16px;">
+                    <div class="input-group" style="flex:3;">
+                        <label>API Key <a href="https://www.helius.dev/" target="_blank" style="color:var(--accent);font-size:11px;margin-left:8px;">→ Ottieni gratis</a></label>
+                        <input type="password" id="heliusKey" placeholder="xxx-xxx-xxx..." autocomplete="off">
+                    </div>
+                    <div class="input-group" style="flex:0;align-self:flex-end;">
+                        <button class="btn btn-primary" onclick="saveHeliusKey()">💾 Salva</button>
+                    </div>
                 </div>
                 <div style="margin-top:12px;padding:12px;background:var(--bg-primary);border-radius:8px;font-size:12px;">
-                    <strong>Endpoint:</strong> api.mainnet-beta.solana.com<br>
-                    <strong>Note:</strong> Usa RPC pubblico, potrebbe essere lento. Per performance migliori considera Helius o QuickNode.
+                    <strong>Endpoint:</strong> api.helius.xyz<br>
+                    <strong>Limite free:</strong> 30 req/sec, 500.000/mese
                 </div>
             </div>
             
@@ -1079,6 +1088,19 @@
             alert('✅ Etherscan API key salvata!');
         }
         
+        function saveHeliusKey() {
+            const key = document.getElementById('heliusKey').value.trim();
+            if (!key) {
+                alert('Inserisci una API key valida');
+                return;
+            }
+            apiKeys.helius = key;
+            localStorage.setItem('cryptofolio_apikeys', JSON.stringify(apiKeys));
+            saveToFirebase();
+            updateApiStatus();
+            alert('✅ Helius API key salvata! Solana scan migliorato.');
+        }
+        
         function updateApiStatus() {
             // Update status badges
             const moralisStatus = document.getElementById('moralisStatus');
@@ -1104,12 +1126,26 @@
                 }
             }
             
+            const heliusStatus = document.getElementById('heliusStatus');
+            if (heliusStatus) {
+                if (apiKeys.helius) {
+                    heliusStatus.textContent = 'ON';
+                    heliusStatus.classList.add('api-on');
+                } else {
+                    heliusStatus.textContent = 'OFF';
+                    heliusStatus.classList.remove('api-on');
+                }
+            }
+            
             // Fill input fields
             if (document.getElementById('moralisKey') && apiKeys.moralis) {
                 document.getElementById('moralisKey').value = apiKeys.moralis;
             }
             if (document.getElementById('etherscanKey') && apiKeys.etherscan) {
                 document.getElementById('etherscanKey').value = apiKeys.etherscan;
+            }
+            if (document.getElementById('heliusKey') && apiKeys.helius) {
+                document.getElementById('heliusKey').value = apiKeys.helius;
             }
             
             // Update API count badge
@@ -1141,11 +1177,11 @@
                     <div style="font-size:12px;color:var(--green);">✓ Auto</div>
                 </div>`;
                 
-                // Solana
+                // Solana / Helius
                 html += `<div style="padding:16px;background:var(--bg-primary);border-radius:10px;text-align:center;">
                     <div style="font-size:24px;margin-bottom:8px;">🟣</div>
                     <div style="font-weight:600;">Solana</div>
-                    <div style="font-size:12px;color:var(--green);">✓ Auto</div>
+                    <div style="font-size:12px;color:${apiKeys.helius ? 'var(--green)' : 'var(--red)'};">${apiKeys.helius ? '✓ Helius' : '✗ Configura Helius'}</div>
                 </div>`;
                 
                 summary.innerHTML = html;
@@ -1153,10 +1189,102 @@
         }
         
         function updateApiCount() {
-            let count = 2; // PulseChain + Solana sempre attive
+            let count = 1; // PulseChain sempre attiva
             if (apiKeys.moralis) count++;
             if (apiKeys.etherscan) count++;
+            if (apiKeys.helius) count++;
             document.getElementById('apiCount').textContent = count;
+        }
+        
+        // ==================== HELIUS API (SOLANA) ====================
+        async function fetchWithHelius(addr) {
+            if (!apiKeys.helius) return null;
+            
+            try {
+                console.log('Fetching Solana data with Helius for', addr);
+                
+                // Helius balances endpoint - restituisce SOL + tutti i token SPL
+                const url = `https://api.helius.xyz/v0/addresses/${addr}/balances?api-key=${apiKeys.helius}`;
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    console.error('Helius API error:', response.status);
+                    return null;
+                }
+                
+                const data = await response.json();
+                console.log('Helius response:', data);
+                
+                const results = [];
+                
+                // Native SOL balance
+                if (data.nativeBalance) {
+                    const solBalance = data.nativeBalance / 1e9; // lamports to SOL
+                    const solPrice = NATIVE_PRICES.SOL || 150;
+                    
+                    if (solBalance > 0.0001) {
+                        results.push({
+                            symbol: 'SOL',
+                            name: 'Solana',
+                            balance: solBalance,
+                            price: solPrice,
+                            valueUSD: solBalance * solPrice,
+                            contract: 'native-solana',
+                            logo: TOKEN_ICONS['SOL'],
+                            chain: 'solana'
+                        });
+                        console.log('SOL balance:', solBalance, 'USD:', solBalance * solPrice);
+                    }
+                }
+                
+                // Token balances
+                if (data.tokens && data.tokens.length > 0) {
+                    for (const token of data.tokens) {
+                        if (!token.amount || token.amount <= 0) continue;
+                        
+                        const decimals = token.decimals || 0;
+                        const balance = token.amount / Math.pow(10, decimals);
+                        
+                        if (balance <= 0) continue;
+                        
+                        // Try to get price from DexScreener
+                        let price = 0;
+                        let logo = null;
+                        let symbol = token.symbol || 'SPL';
+                        let name = token.name || 'Solana Token';
+                        
+                        const pd = await fetchTokenPrice(token.mint, 'solana');
+                        if (pd) {
+                            price = pd.price;
+                            if (pd.logo) logo = pd.logo;
+                            if (pd.symbol) symbol = pd.symbol;
+                            if (pd.name) name = pd.name;
+                        }
+                        
+                        // Skip dust (< $0.01)
+                        const valueUSD = balance * price;
+                        if (valueUSD < 0.01 && price > 0) continue;
+                        
+                        results.push({
+                            symbol: symbol,
+                            name: name,
+                            balance: balance,
+                            price: price,
+                            valueUSD: valueUSD,
+                            contract: token.mint,
+                            logo: logo,
+                            chain: 'solana'
+                        });
+                    }
+                }
+                
+                console.log('Helius found', results.length, 'assets');
+                return results;
+                
+            } catch (e) {
+                console.error('Helius fetch error:', e);
+                return null;
+            }
         }
         
         // ==================== MORALIS API ====================
@@ -1787,6 +1915,24 @@
                     
                     log(`📡 ${chain.name}...`);
                     
+                    // SOLANA: Use Helius API if available
+                    if (chainKey === 'solana' && apiKeys.helius) {
+                        log(`  🟣 Helius API...`, 'info');
+                        const heliusResults = await fetchWithHelius(addr);
+                        if (heliusResults && heliusResults.length > 0) {
+                            results.push(...heliusResults);
+                            const solToken = heliusResults.find(t => t.symbol === 'SOL');
+                            if (solToken) {
+                                log(`  SOL: ${formatNum(solToken.balance, 4)} ($${formatNum(solToken.valueUSD)})`, 'success');
+                            }
+                            const tokenCount = heliusResults.filter(t => t.symbol !== 'SOL').length;
+                            if (tokenCount > 0) log(`  ${tokenCount} SPL tokens`, 'info');
+                            continue;
+                        } else {
+                            log(`  ⚠️ Helius: nessun risultato`, 'warning');
+                        }
+                    }
+                    
                     // Try Moralis first for supported chains
                     if (apiKeys.moralis && MORALIS_CHAINS[chainKey]) {
                         log(`  ⚡ Moralis...`, 'info');
@@ -1807,6 +1953,12 @@
                     // Fallback to Etherscan/PulseScan/Solana RPC
                     if (!etherscanKey && chainKey !== 'pulse' && chainKey !== 'solana') {
                         log(`  ⚠️ Skip - nessuna API key`, 'warning');
+                        continue;
+                    }
+                    
+                    // Skip Solana RPC fallback if no Helius (too unreliable)
+                    if (chainKey === 'solana' && !apiKeys.helius) {
+                        log(`  ⚠️ Configura Helius API per Solana`, 'warning');
                         continue;
                     }
                     
@@ -1965,6 +2117,28 @@
                     
                     log(`   ⛓️ ${chain.name}...`);
                     
+                    // SOLANA: Use Helius API if available
+                    if (chainKey === 'solana' && apiKeys.helius) {
+                        const heliusResults = await fetchWithHelius(wallet.address);
+                        if (heliusResults && heliusResults.length > 0) {
+                            results.push(...heliusResults);
+                            const solToken = heliusResults.find(t => t.symbol === 'SOL');
+                            if (solToken) {
+                                log(`      SOL: ${formatNum(solToken.balance, 4)} ($${formatNum(solToken.valueUSD)})`, 'success');
+                            }
+                            for (const t of heliusResults.filter(t => t.symbol !== 'SOL' && t.valueUSD >= 1)) {
+                                log(`      ${t.symbol}: $${formatNum(t.valueUSD)}`, 'success');
+                            }
+                            continue;
+                        }
+                    }
+                    
+                    // Skip Solana if no Helius
+                    if (chainKey === 'solana' && !apiKeys.helius) {
+                        log(`      ⚠️ Configura Helius per Solana`, 'warning');
+                        continue;
+                    }
+                    
                     // Try Moralis first for supported chains
                     if (apiKeys.moralis && MORALIS_CHAINS[chainKey]) {
                         const moralisResults = await scanWithMoralis(wallet.address, chainKey);
@@ -1983,8 +2157,8 @@
                         }
                     }
                     
-                    // Fallback to Etherscan/PulseScan/Solana RPC
-                    if (!etherscanKey && chainKey !== 'pulse' && chainKey !== 'solana') {
+                    // Fallback to Etherscan/PulseScan
+                    if (!etherscanKey && chainKey !== 'pulse') {
                         continue; // Skip silently
                     }
                     
