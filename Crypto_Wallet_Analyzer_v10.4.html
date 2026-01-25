@@ -2043,7 +2043,7 @@
                         
                         // Skip token non verificati senza valore (probabilmente FAKE)
                         if (!isKnownToken && !isVerified && !hasValue) {
-                            continue;
+                            return; // Skip this token in forEach
                         }
                         
                         if (yearPrices[symbol]) {
