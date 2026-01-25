@@ -2805,7 +2805,9 @@
         
         function parseExchangeCSV(text, exchId) {
             // Parser generico che adatta al formato dell'exchange
-            const lines = text.trim().split('\n');
+            // Rimuovi BOM (byte order mark) se presente
+            const cleanText = text.replace(/^\uFEFF/, '').trim();
+            const lines = cleanText.split('\n');
             console.log('parseExchangeCSV for', exchId, '- lines:', lines.length);
             
             if (lines.length < 2) {
@@ -2813,8 +2815,9 @@
                 return [];
             }
             
-            const header = lines[0].toLowerCase();
-            console.log('Header (lowercase):', header.substring(0, 100));
+            // Pulisci header da BOM e caratteri speciali
+            const header = lines[0].toLowerCase().replace(/^\uFEFF/, '').replace(/[^\x20-\x7E]/g, '').trim();
+            console.log('Header (cleaned):', header.substring(0, 100));
             
             // Rileva il formato basandosi sull'header
             if (header.includes('utc_time') && header.includes('coin')) {
@@ -2822,9 +2825,65 @@
                 return parseBinanceCSV(lines);
             }
             
+            // Bitget: order,Date,Coin,Type,Amount,Fee,Available
+            if (header.includes('order') && header.includes('date') && header.includes('coin') && header.includes('amount')) {
+                console.log('Detected Bitget format');
+                return parseBitgetCSV(lines);
+            }
+            
             // TODO: Aggiungere altri parser per altri exchange
             console.log('No matching parser found, using generic');
             return parseGenericCSV(lines, exchId);
+        }
+        
+        function parseBitgetCSV(lines) {
+            // Formato: order,Date,Coin,Type,Amount,Fee,Available
+            const transactions = [];
+            console.log('Parsing Bitget CSV, lines:', lines.length);
+            console.log('Header:', lines[0]);
+            console.log('First data line:', lines[1]);
+            
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i];
+                if (!line.trim()) continue;
+                
+                // Parse CSV (può avere tab iniziale)
+                const cleanLine = line.replace(/^\t/, '').trim();
+                const cols = cleanLine.split(',');
+                
+                if (cols.length < 5) {
+                    console.log('Skipping line (not enough cols):', cols.length);
+                    continue;
+                }
+                
+                const [order, dateStr, coin, type, amount, fee, available] = cols;
+                
+                // Parse date (formato: YYYY-MM-DD HH:MM:SS)
+                const date = new Date(dateStr);
+                if (isNaN(date.getTime())) {
+                    console.log('Invalid date:', dateStr);
+                    continue;
+                }
+                
+                const amountNum = parseFloat(amount) || 0;
+                
+                transactions.push({
+                    date: date,
+                    account: 'spot',
+                    operation: type,
+                    coin: coin,
+                    change: amountNum, // Già con segno corretto
+                    remark: ''
+                });
+            }
+            
+            console.log('Parsed', transactions.length, 'Bitget transactions');
+            if (transactions.length > 0) {
+                console.log('First tx:', transactions[0]);
+                console.log('Last tx:', transactions[transactions.length - 1]);
+            }
+            
+            return transactions;
         }
         
         function parseBinanceCSV(lines) {
