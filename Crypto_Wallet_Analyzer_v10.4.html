@@ -2029,8 +2029,8 @@
             const KNOWN_TOKENS = ['ETH', 'WETH', 'BTC', 'WBTC', 'BNB', 'SOL', 'MATIC', 'PLS', 'HEX', 
                                   'SHIB', 'BONE', 'USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FRAX'];
             
-            // Simboli famosi che richiedono verifica contratto
-            const FAMOUS_SYMBOLS = ['SHIB', 'DOGE', 'PEPE', 'FLOKI', 'BONE'];
+            // Simboli che richiedono verifica (alto valore = alto rischio di fake)
+            const FAMOUS_SYMBOLS = ['SHIB', 'DOGE', 'PEPE', 'FLOKI', 'BONE', 'ETH', 'WETH', 'BTC', 'WBTC', 'BNB', 'SOL', 'MATIC', 'AVAX', 'LINK', 'UNI', 'AAVE'];
             
             wallets.forEach(w => {
                 (w.tokens || []).forEach(t => {
@@ -2038,31 +2038,35 @@
                         const symbol = (t.symbol || '').toUpperCase();
                         let tokenValueUSD = 0;
                         
-                        // STESSO FILTRO di EUR Value:
-                        // Se il token ha valueUSD = 0 (filtrato come FAKE), skippa
-                        const currentValueUSD = t.valueUSD || 0;
+                        // ============ FILTRO SEMPLIFICATO ============
+                        // Per RW contiamo SOLO:
+                        // 1. Token nativi (ETH, BNB, etc.) - sempre trusted
+                        // 2. Token VERIFICATI (verified: true)
+                        // 3. Stablecoin
                         
-                        // Se è un simbolo famoso ma NON verificato → FAKE
-                        if (FAMOUS_SYMBOLS.includes(symbol) && t.verified !== true) {
-                            console.log(`⚠️ RW SKIP FAKE: ${symbol} (non verificato)`);
-                            return;
-                        }
-                        
-                        // Se il token ha valore 0 attuale e non è stablecoin → skippa
+                        const isNative = t.contractAddress === 'native';
                         const isStablecoin = ['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FRAX'].includes(symbol);
-                        if (currentValueUSD === 0 && !isStablecoin && !t.verified) {
+                        const isVerified = t.verified === true;
+                        
+                        // Se è un simbolo famoso e NON è nativo, DEVE essere verificato
+                        if (FAMOUS_SYMBOLS.includes(symbol) && !isNative && !isVerified) {
+                            console.log(`⚠️ RW SKIP FAKE: ${symbol} on ${t.chain} (non nativo e non verificato)`);
                             return;
                         }
                         
+                        // Per altri token: deve avere valore attuale > 0 O essere stablecoin/nativo
+                        const currentValueUSD = t.valueUSD || 0;
+                        if (currentValueUSD === 0 && !isStablecoin && !isNative && !isVerified) {
+                            return;
+                        }
+                        
+                        // Calcola valore storico
                         if (yearPrices[symbol]) {
                             tokenValueUSD = (t.balance || 0) * yearPrices[symbol];
                         } else if (isStablecoin) {
                             tokenValueUSD = t.balance || 0;
                         } else {
                             // Token sconosciuto - ignora per RW
-                            if (currentValueUSD > 100) {
-                                unknownTokens.push(symbol);
-                            }
                             tokenValueUSD = 0;
                         }
                         
@@ -2071,6 +2075,10 @@
                         if (!UNLIMITED.includes(symbol) && tokenEUR > MAX_TOKEN_EUR) {
                             console.log(`⚠️ RW FILTER: ${symbol} €${formatEUR(tokenEUR)} → €0`);
                             tokenValueUSD = 0;
+                        }
+                        
+                        if (tokenValueUSD > 0) {
+                            console.log(`✓ RW: ${symbol} = $${tokenValueUSD.toFixed(2)}`);
                         }
                         
                         rwValueUSD += tokenValueUSD;
