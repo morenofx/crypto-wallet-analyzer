@@ -161,6 +161,7 @@
                 <div class="stat-card"><div class="stat-label">💰 Portfolio Value</div><div class="stat-value" id="totalEUR">€0,00</div><div class="stat-change text-secondary" id="totalUSD">$0,00 USD</div></div>
                 <div class="stat-card"><div class="stat-label">🪙 Assets</div><div class="stat-value" id="tokenCount">0</div><div class="stat-change text-secondary">tokens</div></div>
                 <div class="stat-card"><div class="stat-label">👛 Wallets</div><div class="stat-value" id="scannedWallets">0</div><div class="stat-change text-secondary" id="chainNames">-</div></div>
+                <div class="stat-card" style="cursor:pointer;" onclick="showView('exchanges')"><div class="stat-label">🏦 Exchanges</div><div class="stat-value" id="exchangeTotalEUR" style="color:#f3ba2f;">€0,00</div><div class="stat-change text-secondary" id="exchangeNames">Binance</div></div>
                 <div class="stat-card"><div class="stat-label">💱 EUR/USD</div><div class="stat-value" id="eurUsdRate">0.849</div><div class="stat-change text-secondary">rate</div></div>
             </div>
             
@@ -180,7 +181,7 @@
                 <div class="card-header"><div class="card-title">➕ Aggiungi Wallet</div></div>
                 <div class="input-row">
                     <div class="input-group"><label>Nome (es. "Main", "Trading", "Cold")</label><input type="text" id="newWalletName" placeholder="Nome wallet..." autocomplete="off"></div>
-                    <div class="input-group" style="flex:2;"><label>Indirizzo</label><input type="text" id="newWalletAddress" placeholder="0x..." autocomplete="off"></div>
+                    <div class="input-group" style="flex:2;"><label>Indirizzo (EVM o Solana)</label><input type="text" id="newWalletAddress" placeholder="0x... o indirizzo Solana" autocomplete="off"></div>
                 </div>
                 <button class="btn btn-primary" onclick="addWallet()" style="margin-top:12px;">💾 Salva Wallet</button>
             </div>
@@ -1177,8 +1178,13 @@
             const address = document.getElementById('newWalletAddress').value.trim();
             
             if (!name) { alert('Inserisci un nome per il wallet'); return; }
-            if (!address || !address.startsWith('0x') || address.length !== 42) { 
-                alert('Indirizzo wallet non valido (deve iniziare con 0x e avere 42 caratteri)'); 
+            
+            // Validazione: EVM (0x + 40 hex) o Solana (32-44 chars base58)
+            const isEVM = address.startsWith('0x') && address.length === 42 && /^0x[a-fA-F0-9]{40}$/.test(address);
+            const isSolana = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address);
+            
+            if (!isEVM && !isSolana) { 
+                alert('Indirizzo wallet non valido.\n\nFormati supportati:\n• EVM: 0x... (42 caratteri)\n• Solana: base58 (32-44 caratteri)'); 
                 return; 
             }
             
@@ -1188,7 +1194,10 @@
                 return;
             }
             
-            savedWallets.push({ name, address, addedAt: Date.now() });
+            // Detect wallet type
+            const walletType = isSolana ? 'solana' : 'evm';
+            
+            savedWallets.push({ name, address, type: walletType, addedAt: Date.now() });
             localStorage.setItem('cryptofolio_wallets', JSON.stringify(savedWallets));
             
             document.getElementById('newWalletName').value = '';
@@ -1197,7 +1206,7 @@
             updateWalletsList();
             updateWalletSelect();
             saveToFirebase();
-            log(`✅ Wallet "${name}" aggiunto`, 'success');
+            log(`✅ Wallet "${name}" (${walletType.toUpperCase()}) aggiunto`, 'success');
         }
         
         function removeWallet(index) {
@@ -1243,12 +1252,18 @@
                 const total = walletData ? walletData.results.reduce((s, t) => s + t.valueUSD, 0) * EUR_USD : 0;
                 const totalStr = walletData ? `€${formatEUR(total)}` : '<span style="color:var(--text-secondary);">Non scansionato</span>';
                 
+                // Detect wallet type
+                const isSolana = w.type === 'solana' || (!w.address.startsWith('0x') && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(w.address));
+                const typeBadge = isSolana 
+                    ? '<span style="background:#9945ff;color:#fff;padding:2px 6px;border-radius:4px;font-size:10px;margin-left:8px;">SOL</span>'
+                    : '<span style="background:#627eea;color:#fff;padding:2px 6px;border-radius:4px;font-size:10px;margin-left:8px;">EVM</span>';
+                
                 html += `
                     <div style="display:flex;align-items:center;justify-content:space-between;padding:16px;background:var(--bg-primary);border-radius:12px;margin-bottom:12px;">
                         <div style="display:flex;align-items:center;gap:16px;cursor:pointer;flex:1;" onclick="openWalletDetail(${i})">
-                            <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-light));display:flex;align-items:center;justify-content:center;font-size:20px;">👛</div>
+                            <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,${isSolana ? '#9945ff,#14f195' : 'var(--accent),var(--accent-light)'});display:flex;align-items:center;justify-content:center;font-size:20px;">👛</div>
                             <div>
-                                <div style="font-weight:600;font-size:16px;">${w.name}</div>
+                                <div style="font-weight:600;font-size:16px;">${w.name}${typeBadge}</div>
                                 <div style="font-size:13px;color:var(--text-secondary);font-family:monospace;">${shortAddr}</div>
                             </div>
                             <div style="margin-left:auto;text-align:right;">
@@ -1965,12 +1980,22 @@
         function displayResults(results) {
             const visible = results.filter(t => !isBlacklisted(t.contract));
             const withVal = visible.filter(t => t.valueUSD >= 0.01);
-            const totalUSD = withVal.reduce((s, t) => s + t.valueUSD, 0);
+            const walletsUSD = withVal.reduce((s, t) => s + t.valueUSD, 0);
+            
+            // Aggiungi Binance al totale
+            const binanceTotal = (binanceData.totals.spot || 0) + (binanceData.totals.earn || 0) + (binanceData.totals.staking || 0);
+            const totalUSD = walletsUSD + (binanceTotal / EUR_USD); // Binance è già in EUR, converti in USD
             const totalEUR = totalUSD * EUR_USD;
             
             document.getElementById('totalEUR').textContent = '€' + formatEUR(totalEUR);
             document.getElementById('totalUSD').textContent = '$' + formatEUR(totalUSD) + ' USD';
             document.getElementById('tokenCount').textContent = withVal.length;
+            
+            // Aggiorna card Exchanges
+            document.getElementById('exchangeTotalEUR').textContent = '€' + formatEUR(binanceTotal);
+            if (binanceTotal > 0) {
+                document.getElementById('exchangeNames').textContent = 'Binance ✓';
+            }
             
             // Conta wallet scansionati
             const scannedCount = Object.keys(walletResults).length;
@@ -2489,10 +2514,18 @@
                 console.log('📊 Loaded', Object.keys(walletResults).length, 'wallet results from Firebase');
             }
             
-            // Check Binance
+            // Check Binance e aggiorna dashboard
             const binanceTotal = (binanceData.totals.spot || 0) + (binanceData.totals.earn || 0) + (binanceData.totals.staking || 0);
             if (binanceTotal > 0) {
+                document.getElementById('exchangeTotalEUR').textContent = '€' + binanceTotal.toLocaleString('it-IT', {maximumFractionDigits: 2});
+                document.getElementById('exchangeNames').textContent = 'Binance ✓';
                 console.log('💰 Binance loaded: €' + binanceTotal.toFixed(2));
+                
+                // Se non ci sono wallet results, mostra comunque il totale Binance nel portfolio
+                if (Object.keys(walletResults).length === 0) {
+                    document.getElementById('totalEUR').textContent = '€' + binanceTotal.toLocaleString('it-IT', {maximumFractionDigits: 2});
+                    document.getElementById('totalUSD').textContent = '$' + (binanceTotal / EUR_USD).toLocaleString('it-IT', {maximumFractionDigits: 2}) + ' USD';
+                }
             }
         }
         init();
