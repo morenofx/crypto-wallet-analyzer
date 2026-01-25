@@ -2044,6 +2044,12 @@
         }
         
         function renderWalletDetail(wallet, filterChain = null) {
+            // Controllo sicurezza
+            if (!wallet) {
+                console.error('renderWalletDetail: wallet is undefined');
+                return;
+            }
+            
             const allTokens = (wallet.tokens || []).filter(t => !isHidden(t)).sort((a, b) => (b.valueUSD || 0) - (a.valueUSD || 0));
             
             // Filtra per chain se specificato
@@ -2521,7 +2527,12 @@
         }
         
         async function scanCurrentWallet() {
-            if (currentWalletIndex >= 0) {
+            if (currentWalletIndex >= 0 && currentWalletIndex < wallets.length) {
+                const wallet = wallets[currentWalletIndex];
+                if (!wallet) {
+                    console.error('scanCurrentWallet: wallet not found at index', currentWalletIndex);
+                    return;
+                }
                 await scanWallet(currentWalletIndex);
                 renderWalletDetail(wallets[currentWalletIndex]);
                 renderWalletList();
@@ -2554,12 +2565,10 @@
                     }
                 } else {
                     wallet.tokens = await getCovalentBalances(wallet.address);
-                    if (wallet.tokens.length === 0) {
-                        wallet.tokens = await getAlchemyBalances(wallet.address);
+                    if (!wallet.tokens || wallet.tokens.length === 0) {
+                        wallet.tokens = await getAlchemyBalances(wallet.address) || [];
                     }
-                    // PulseChain
-                    const pulseTokens = await getPulseChainTokens(wallet.address);
-                    wallet.tokens.push(...pulseTokens);
+                    // PulseChain è già incluso in getCovalentBalances/getMoralisBalancesInternal
                 }
                 
                 wallet.totalUSD = wallet.tokens.filter(t => !isHidden(t)).reduce((s, t) => s + (t.valueUSD || 0), 0);
@@ -2615,27 +2624,47 @@
         async function getCovalentBalances(address) {
             const moralisKey = localStorage.getItem('moralis_key');
             let tokens = [];
+            let foundTokens = false;
             
-            // 1. Prima prova Moralis (migliore - tutte le chain + prezzi + PulseChain)
+            // 1. Prima prova Moralis (migliore - tutte le chain EVM)
             if (moralisKey) {
                 console.log('🦊 Using Moralis API (principale)...');
-                tokens = await getMoralisBalancesInternal(address, moralisKey);
-                if (tokens.length > 0) {
-                    return tokens;
+                try {
+                    tokens = await getMoralisBalancesInternal(address, moralisKey);
+                    foundTokens = tokens && tokens.length > 0;
+                } catch (e) {
+                    console.error('Moralis error:', e);
+                    tokens = [];
                 }
             }
             
-            // 2. Fallback a Etherscan APIs
-            console.log('📊 Fallback -> Etherscan APIs...');
-            tokens = await getEtherscanBalances(address);
-            
-            // 3. Aggiungi sempre PulseChain se è un indirizzo EVM
-            if (address.startsWith('0x')) {
-                const pulseTokens = await getPulseChainTokens(address);
-                tokens.push(...pulseTokens);
+            // 2. Se Moralis non ha trovato nulla, prova Etherscan
+            if (!foundTokens) {
+                console.log('📊 Fallback -> Etherscan V2...');
+                try {
+                    tokens = await getEtherscanBalances(address);
+                } catch (e) {
+                    console.error('Etherscan error:', e);
+                    tokens = [];
+                }
             }
             
-            return tokens;
+            // 3. Aggiungi SEMPRE PulseChain per indirizzi EVM
+            if (address.startsWith('0x')) {
+                console.log('💜 Scanning PulseChain...');
+                try {
+                    const pulseTokens = await getPulseChainTokens(address);
+                    if (pulseTokens && pulseTokens.length > 0) {
+                        tokens = tokens || [];
+                        tokens.push(...pulseTokens);
+                    }
+                } catch (e) {
+                    console.error('PulseChain error:', e);
+                }
+            }
+            
+            console.log(`📊 Total found: ${(tokens || []).length} tokens`);
+            return tokens || [];
         }
         
         // Moralis API - principale
@@ -2732,12 +2761,7 @@
                 }
             }
             
-            // PulseChain (non supportato da Moralis, usa RPC diretto)
-            if (address.startsWith('0x')) {
-                console.log('💜 Scanning PulseChain...');
-                const pulseTokens = await getPulseChainTokens(address);
-                tokens.push(...pulseTokens);
-            }
+            // PulseChain è gestito centralmente in getCovalentBalances
             
             console.log(`🦊 Moralis total: ${tokens.length} tokens`);
             return tokens;
