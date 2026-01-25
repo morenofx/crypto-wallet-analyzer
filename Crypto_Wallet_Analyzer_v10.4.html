@@ -2465,16 +2465,6 @@
                 maximumFractionDigits: 2 
             }) + ' $';
         }
-            
-            // Render chain distribution
-            renderChainDistribution(chainData, totalUSD);
-            
-            // Render top holdings
-            renderTopHoldings(allTokens);
-            
-            // Render portfolio chart
-            renderPortfolioChart(chainData);
-        }
         
         function renderChainDistribution(chainData, totalUSD) {
             const container = document.getElementById('chainDistribution');
@@ -3421,39 +3411,6 @@
             // This function is now deprecated - Etherscan APIs are used instead
             console.log('ℹ️ Alchemy fallback not needed - using Etherscan APIs');
             return [];
-        }
-        
-        // PulseChain RPC
-        async function getPulseChainTokens(address) {
-            const tokens = [];
-            try {
-                const res = await fetch('https://rpc.pulsechain.com', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        jsonrpc: '2.0',
-                        method: 'eth_getBalance',
-                        params: [address, 'latest'],
-                        id: 1
-                    })
-                });
-                
-                if (res.ok) {
-                    const data = await res.json();
-                    const balance = parseInt(data.result, 16) / 1e18;
-                    if (balance > 0.01) {
-                        tokens.push({
-                            symbol: 'PLS', name: 'PulseChain', chain: 'pulse',
-                            balance, price: prices['PLS'] || 0,
-                            valueUSD: balance * (prices['PLS'] || 0),
-                            logo: getTokenLogo('PLS'), contractAddress: 'native'
-                        });
-                    }
-                }
-            } catch (e) {
-                console.error('PulseChain error:', e);
-            }
-            return tokens;
         }
         
         // Solana RPC fallback
