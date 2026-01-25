@@ -1010,12 +1010,12 @@
         async function scanDetailWallet() {
             if (!currentDetailWallet) return;
             
-            const apiKey = document.getElementById('apiKey').value.trim();
-            if (!apiKey) { alert('Inserisci API key nella Dashboard'); return; }
+            const etherscanKey = apiKeys.etherscan;
+            if (!etherscanKey && !apiKeys.moralis) { 
+                alert('Configura almeno una API in API Connect'); 
+                return; 
+            }
             if (selectedChains.length === 0) { alert('Seleziona almeno una chain nella Dashboard'); return; }
-            
-            // Imposta indirizzo e avvia scan
-            document.getElementById('walletAddress').value = currentDetailWallet.address;
             
             // Scan del wallet
             const addr = currentDetailWallet.address;
@@ -1027,8 +1027,23 @@
             for (const chainKey of selectedChains) {
                 const chain = CHAINS[chainKey];
                 
+                // Try Moralis first for supported chains
+                if (apiKeys.moralis && MORALIS_CHAINS[chainKey]) {
+                    const moralisResults = await scanWithMoralis(addr, chainKey);
+                    if (moralisResults && moralisResults.length > 0) {
+                        results.push(...moralisResults);
+                        await new Promise(r => setTimeout(r, 100));
+                        continue;
+                    }
+                }
+                
+                // Fallback to Etherscan/PulseScan/Solana RPC
+                if (!etherscanKey && chainKey !== 'pulse' && chainKey !== 'solana') {
+                    continue;
+                }
+                
                 // Native balance
-                const nativeWei = await fetchNativeBalance(addr, apiKey, chain.id, chainKey);
+                const nativeWei = await fetchNativeBalance(addr, etherscanKey, chain.id, chainKey);
                 const nativeDecimals = chainKey === 'solana' ? 9 : 18;
                 const nativeBal = Number(nativeWei) / Math.pow(10, nativeDecimals);
                 const nativePrice = NATIVE_PRICES[chain.symbol] || NATIVE_PRICES.ETH;
@@ -1047,7 +1062,7 @@
                 }
                 
                 // Token balances
-                const tokens = await fetchTokenTransfers(addr, apiKey, chain.id, chainKey);
+                const tokens = await fetchTokenTransfers(addr, etherscanKey, chain.id, chainKey);
                 
                 for (const [c, t] of Object.entries(tokens)) {
                     if (isBlacklisted(c) || isSpam(t.name, t.symbol) || t.balance <= 0n) continue;
@@ -1111,16 +1126,21 @@
         
         function loadSettings() {
             const w = localStorage.getItem('cryptofolio_wallet');
-            const k = localStorage.getItem('etherscan_api_key');
+            const oldKey = localStorage.getItem('etherscan_api_key');
+            
             if (w) document.getElementById('walletAddress').value = w;
-            if (k) document.getElementById('apiKey').value = k;
+            
+            // Backward compatibility: migra vecchia API key a nuovo sistema
+            if (oldKey && !apiKeys.etherscan) {
+                apiKeys.etherscan = oldKey;
+                localStorage.setItem('cryptofolio_apikeys', JSON.stringify(apiKeys));
+                localStorage.removeItem('etherscan_api_key'); // Rimuovi vecchia chiave
+            }
         }
         
         function saveSettings() {
             const w = document.getElementById('walletAddress').value.trim();
-            const k = document.getElementById('apiKey').value.trim();
             if (w) localStorage.setItem('cryptofolio_wallet', w);
-            if (k) localStorage.setItem('etherscan_api_key', k);
             saveToFirebase();
         }
         
@@ -1425,20 +1445,30 @@
         }
         
         async function scanAllWallets() {
-            const apiKey = document.getElementById('apiKey').value.trim();
-            if (!apiKey) { log('❌ Inserisci API key', 'error'); return; }
+            const etherscanKey = apiKeys.etherscan;
+            if (!etherscanKey && !apiKeys.moralis) { 
+                log('❌ Configura almeno una API (Moralis o Etherscan) in API Connect', 'error'); 
+                return; 
+            }
             if (savedWallets.length === 0) { log('❌ Nessun wallet salvato. Vai su Wallets per aggiungerli.', 'error'); return; }
             if (selectedChains.length === 0) { log('❌ Seleziona almeno una chain', 'error'); return; }
             
             document.getElementById('statusLog').innerHTML = '';
             log(`🚀 Scan di ${savedWallets.length} wallet...`);
             
+            // Mostra quale API sarà usata
+            if (apiKeys.moralis) {
+                log(`🟢 Usando Moralis API (veloce)`, 'info');
+            } else {
+                log(`🔵 Usando Etherscan API`, 'info');
+            }
+            
             // Reset risultati
             walletResults = {};
             
             await fetchEurUsd();
             await fetchNativePrices();
-            log(`💰 ETH: $${formatNum(NATIVE_PRICES.ETH)} | BNB: $${formatNum(NATIVE_PRICES.BNB)}`, 'info');
+            log(`💰 ETH: $${formatNum(NATIVE_PRICES.ETH)} | BNB: $${formatNum(NATIVE_PRICES.BNB)} | SOL: $${formatNum(NATIVE_PRICES.SOL)}`, 'info');
             
             for (let i = 0; i < savedWallets.length; i++) {
                 const wallet = savedWallets[i];
@@ -1451,8 +1481,31 @@
                     const chain = CHAINS[chainKey];
                     log(`   ⛓️ ${chain.name}...`);
                     
+                    // Try Moralis first for supported chains
+                    if (apiKeys.moralis && MORALIS_CHAINS[chainKey]) {
+                        const moralisResults = await scanWithMoralis(wallet.address, chainKey);
+                        if (moralisResults && moralisResults.length > 0) {
+                            results.push(...moralisResults);
+                            const nativeToken = moralisResults.find(t => t.contract.startsWith('native-'));
+                            if (nativeToken) {
+                                log(`      ${nativeToken.symbol}: ${formatNum(nativeToken.balance, 4)} ($${formatNum(nativeToken.valueUSD)})`, 'success');
+                            }
+                            const tokenCount = moralisResults.filter(t => !t.contract.startsWith('native-') && t.valueUSD >= 1).length;
+                            for (const t of moralisResults.filter(t => !t.contract.startsWith('native-') && t.valueUSD >= 1)) {
+                                log(`      ${t.symbol}: $${formatNum(t.valueUSD)}`, 'success');
+                            }
+                            await new Promise(r => setTimeout(r, 100));
+                            continue;
+                        }
+                    }
+                    
+                    // Fallback to Etherscan/PulseScan/Solana RPC
+                    if (!etherscanKey && chainKey !== 'pulse' && chainKey !== 'solana') {
+                        continue; // Skip silently
+                    }
+                    
                     // Native balance
-                    const nativeWei = await fetchNativeBalance(wallet.address, apiKey, chain.id, chainKey);
+                    const nativeWei = await fetchNativeBalance(wallet.address, etherscanKey, chain.id, chainKey);
                     const nativeDecimals = chainKey === 'solana' ? 9 : 18;
                     const nativeBal = Number(nativeWei) / Math.pow(10, nativeDecimals);
                     const nativePrice = NATIVE_PRICES[chain.symbol] || NATIVE_PRICES.ETH;
@@ -1472,7 +1525,7 @@
                     }
                     
                     // Token balances
-                    const tokens = await fetchTokenTransfers(wallet.address, apiKey, chain.id, chainKey);
+                    const tokens = await fetchTokenTransfers(wallet.address, etherscanKey, chain.id, chainKey);
                     
                     for (const [c, t] of Object.entries(tokens)) {
                         if (isBlacklisted(c) || isSpam(t.name, t.symbol) || t.balance <= 0n) continue;
@@ -1612,10 +1665,10 @@
         
         // ==================== TAX REPORT ====================
         async function calculateTaxReportAll() {
-            const apiKey = document.getElementById('apiKey').value.trim();
+            const apiKey = apiKeys.etherscan;
             
             if (!apiKey) { 
-                alert('Inserisci API key nella Dashboard prima!'); 
+                alert('Configura Etherscan API in API Connect prima! (necessaria per storico transazioni)'); 
                 return; 
             }
             
