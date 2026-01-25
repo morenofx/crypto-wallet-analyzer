@@ -500,6 +500,14 @@
             'polkadot': { 2020: 9.5, 2021: 27.8, 2022: 4.3, 2023: 7.9, 2024: 6.9, 2025: 7.0 },
             'chainlink': { 2020: 11.5, 2021: 19.3, 2022: 5.7, 2023: 15.1, 2024: 14.8, 2025: 15.0 },
             'avalanche-2': { 2020: 3.5, 2021: 109, 2022: 11.3, 2023: 40.5, 2024: 38.6, 2025: 40.0 },
+            // Aggiunti per Crypto.com e Cosmos
+            'cosmos': { 2020: 5.0, 2021: 44, 2022: 9.3, 2023: 10.5, 2024: 6.7, 2025: 7.0 },
+            'crypto-com-chain': { 2020: 0.06, 2021: 0.60, 2022: 0.057, 2023: 0.073, 2024: 0.12, 2025: 0.10 },
+            'terra-luna': { 2020: 0.64, 2021: 93, 2022: 0.00017, 2023: 0.00015, 2024: 0.00010, 2025: 0.00008 },
+            'osmosis': { 2020: 0, 2021: 10.5, 2022: 0.8, 2023: 0.5, 2024: 0.4, 2025: 0.35 },
+            'litecoin': { 2020: 125, 2021: 148, 2022: 70, 2023: 73, 2024: 103, 2025: 100 },
+            'uniswap': { 2020: 3.5, 2021: 17.5, 2022: 5.2, 2023: 6.3, 2024: 13.5, 2025: 14.0 },
+            'aave': { 2020: 89, 2021: 264, 2022: 51, 2023: 99, 2024: 330, 2025: 350 },
         };
         const YEAR_END_PRICES = HISTORICAL_PRICES; // Alias
         
@@ -511,7 +519,11 @@
             'SOL': 'solana', 'BTC': 'bitcoin', 'XRP': 'ripple',
             'ADA': 'cardano', 'DOGE': 'dogecoin', 'DOT': 'polkadot',
             'LINK': 'chainlink', 'AVAX': 'avalanche-2',
-            'BUSD': 'tether', 'FDUSD': 'tether', 'DAI': 'tether', // Stablecoins → use $1
+            'BUSD': 'tether', 'FDUSD': 'tether', 'DAI': 'tether',
+            // Aggiunti
+            'ATOM': 'cosmos', 'CRO': 'crypto-com-chain', 'LUNC': 'terra-luna', 'LUNA': 'terra-luna',
+            'OSMO': 'osmosis', 'LTC': 'litecoin', 'UNI': 'uniswap', 'AAVE': 'aave',
+            'EUR': 'eur', 'USD': 'usd',
         };
         
         let tokenBlacklist = JSON.parse(localStorage.getItem('cryptofolio_blacklist') || '[]');
@@ -2903,29 +2915,43 @@
         
         // === CRYPTO.COM APP PARSER ===
         function parseCryptoComAppCSV(lines) {
-            // Timestamp (UTC),Transaction Description,Currency,Amount,To Currency,To Amount,...
+            // Timestamp (UTC),Transaction Description,Currency,Amount,To Currency,To Amount,...,Transaction Kind
             const transactions = [];
             console.log('Parsing Crypto.com App CSV, lines:', lines.length);
             
             for (let i = 1; i < lines.length; i++) {
                 const cols = parseCSVLine(lines[i]);
-                if (cols.length < 4) continue;
+                if (cols.length < 10) continue;
                 
-                const [timestamp, description, currency, amount] = cols;
+                const [timestamp, description, currency, amount, toCurrency, toAmount, nativeCurrency, nativeAmount, nativeUsd, txKind] = cols;
                 const date = new Date(timestamp);
                 if (isNaN(date.getTime())) continue;
                 
+                // Prima valuta (può essere + o -)
                 const amountNum = parseFloat(amount) || 0;
-                if (amountNum === 0) continue;
+                if (amountNum !== 0 && currency && currency !== '-') {
+                    transactions.push({
+                        date: date,
+                        account: 'app',
+                        operation: description,
+                        coin: currency,
+                        change: amountNum,
+                        remark: txKind || ''
+                    });
+                }
                 
-                transactions.push({
-                    date: date,
-                    account: 'app',
-                    operation: description,
-                    coin: currency,
-                    change: amountNum,
-                    remark: ''
-                });
+                // Seconda valuta (To Currency / To Amount) - solo se presente e diversa dalla prima
+                const toAmountNum = parseFloat(toAmount) || 0;
+                if (toAmountNum !== 0 && toCurrency && toCurrency !== '-' && toCurrency !== currency) {
+                    transactions.push({
+                        date: date,
+                        account: 'app',
+                        operation: description,
+                        coin: toCurrency,
+                        change: toAmountNum, // To Amount è sempre positivo (ricevuto)
+                        remark: txKind || ''
+                    });
+                }
             }
             console.log('Parsed', transactions.length, 'Crypto.com App transactions');
             return transactions;
@@ -3466,8 +3492,20 @@
         
         async function saveExchangeDataToFirebase() {
             try {
+                // Salva solo totali e balances, NON le transazioni (troppo grandi per Firebase)
+                const dataToSave = {};
+                for (const exchId of Object.keys(exchangeData)) {
+                    const data = exchangeData[exchId];
+                    dataToSave[exchId] = {
+                        totals: data.totals || {},
+                        balances: data.balances || {},
+                        transactionCount: data.transactions ? data.transactions.length : 0,
+                        lastImport: new Date().toISOString()
+                    };
+                }
+                
                 await db.collection('cryptofolio').doc('exchanges').set({
-                    data: exchangeData,
+                    data: dataToSave,
                     lastUpdate: new Date().toISOString()
                 });
                 console.log('✅ Exchange data saved to Firebase');
@@ -3481,17 +3519,16 @@
                 const doc = await db.collection('cryptofolio').doc('exchanges').get();
                 if (doc.exists) {
                     const data = doc.data();
-                    exchangeData = data.data || {};
+                    const savedData = data.data || {};
                     
-                    // Riconverti date da string a Date
-                    for (const exchId of Object.keys(exchangeData)) {
-                        if (exchangeData[exchId].transactions) {
-                            for (const tx of exchangeData[exchId].transactions) {
-                                if (typeof tx.date === 'string') {
-                                    tx.date = new Date(tx.date);
-                                }
-                            }
-                        }
+                    // Carica solo totali e balances (le transazioni non sono salvate)
+                    for (const exchId of Object.keys(savedData)) {
+                        exchangeData[exchId] = {
+                            transactions: [], // Vuoto - dovrà reimportare
+                            totals: savedData[exchId].totals || {},
+                            balances: savedData[exchId].balances || {},
+                            transactionCount: savedData[exchId].transactionCount || 0
+                        };
                     }
                     
                     console.log('✅ Exchange data loaded from Firebase:', Object.keys(exchangeData).length, 'exchanges');
