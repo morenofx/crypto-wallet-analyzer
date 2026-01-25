@@ -1197,67 +1197,21 @@
                 .join('');
         }
         
-        // Chiamata API Binance firmata
+        // Chiamata API Binance tramite server locale
         async function binanceSignedRequest(endpoint, params = {}) {
-            const timestamp = Date.now();
-            
-            params.timestamp = timestamp;
-            params.recvWindow = 60000;
-            
+            // Usa il server locale che gestisce CORS e firma
             const queryString = Object.entries(params)
                 .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
                 .join('&');
             
-            const signature = await signBinanceRequest(queryString, apiKeys.binanceSecret);
+            const url = `http://localhost:3456/proxy?endpoint=${encodeURIComponent(endpoint)}&apiKey=${apiKeys.binanceKey}&secretKey=${apiKeys.binanceSecret}&${queryString}`;
             
-            // Prova diversi proxy CORS
-            const binanceUrl = `https://api.binance.com${endpoint}?${queryString}&signature=${signature}`;
-            
-            // Lista di proxy da provare
-            const proxies = [
-                (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-                (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-                (url) => `https://cors.sh/${url}`,
-            ];
-            
-            // Per Binance dobbiamo includere la API key nell'URL come workaround
-            const urlWithKey = `${binanceUrl}&apiKey=${apiKeys.binanceKey}`;
-            
-            let lastError = null;
-            
-            for (const makeProxyUrl of proxies) {
-                try {
-                    const proxyUrl = makeProxyUrl(binanceUrl);
-                    
-                    const response = await fetch(proxyUrl, {
-                        method: 'GET',
-                        headers: { 
-                            'X-MBX-APIKEY': apiKeys.binanceKey,
-                            'x-requested-with': 'XMLHttpRequest'
-                        }
-                    });
-                    
-                    if (response.ok) {
-                        return response.json();
-                    }
-                    
-                    lastError = `HTTP ${response.status}`;
-                } catch (e) {
-                    lastError = e.message;
-                }
-            }
-            
-            // Se tutti i proxy falliscono, prova chiamata diretta (potrebbe funzionare in alcuni contesti)
-            try {
-                const response = await fetch(binanceUrl, {
-                    headers: { 'X-MBX-APIKEY': apiKeys.binanceKey }
-                });
-                if (response.ok) return response.json();
+            const response = await fetch(url);
+            if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.msg || `HTTP ${response.status}`);
-            } catch (e) {
-                throw new Error(`CORS bloccato. ${lastError}. Prova l'estensione "CORS Unblock" per Chrome.`);
+                throw new Error(error.error || `HTTP ${response.status}`);
             }
+            return response.json();
         }
         
         function binanceLog(msg, type = 'info') {
@@ -1280,27 +1234,35 @@
             const log = document.getElementById('binanceApiLog');
             if (log) { log.innerHTML = ''; log.style.display = 'block'; }
             
-            binanceLog('🔍 Test connessione Binance...');
+            binanceLog('🔍 Test connessione server locale...');
             
             try {
-                // Test con endpoint account
-                const account = await binanceSignedRequest('/api/v3/account');
-                binanceLog('✅ Connessione OK!', 'success');
-                binanceLog(`📊 Balances: ${account.balances.filter(b => parseFloat(b.free) > 0 || parseFloat(b.locked) > 0).length} asset attivi`);
+                // Prima controlla se il server è attivo
+                const statusResponse = await fetch('http://localhost:3456/status');
+                if (!statusResponse.ok) throw new Error('Server non risponde');
                 
-                // Mostra alcuni saldi
-                const topBalances = account.balances
-                    .map(b => ({ asset: b.asset, total: parseFloat(b.free) + parseFloat(b.locked) }))
-                    .filter(b => b.total > 0)
-                    .sort((a, b) => b.total - a.total)
-                    .slice(0, 5);
+                binanceLog('✅ Server locale attivo!', 'success');
                 
-                binanceLog(`Top assets: ${topBalances.map(b => b.asset + ': ' + b.total.toFixed(4)).join(', ')}`);
+                // Test con endpoint fetch
+                binanceLog('📡 Test API Binance...');
+                const fetchUrl = `http://localhost:3456/fetch?apiKey=${encodeURIComponent(apiKeys.binanceKey)}&secretKey=${encodeURIComponent(apiKeys.binanceSecret)}`;
+                
+                const response = await fetch(fetchUrl);
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                binanceLog('✅ Connessione Binance OK!', 'success');
+                binanceLog(`💰 Totale attuale: €${data.total.toFixed(2)}`);
+                binanceLog(`   Spot: €${data.totals.spot.toFixed(2)}`);
+                binanceLog(`   Earn: €${data.totals.earn.toFixed(2)}`);
                 
             } catch (e) {
                 binanceLog('❌ Errore: ' + e.message, 'error');
-                if (e.message.includes('Invalid API-key')) {
-                    binanceLog('Controlla che la API key sia corretta e abbia i permessi di lettura', 'error');
+                if (e.message.includes('fetch') || e.message.includes('Failed')) {
+                    binanceLog('⚠️ Server non attivo! Avvia con: node server.js', 'error');
                 }
             }
         }
@@ -1318,141 +1280,33 @@
             if (btn) { btn.disabled = true; btn.textContent = '⏳ Scaricamento...'; }
             
             binanceLog('📥 Inizio download storico Binance...');
-            
-            const allTransactions = [];
-            const startYear = 2020;
-            const endYear = new Date().getFullYear();
+            binanceLog('⏳ Questo può richiedere 1-2 minuti...');
             
             try {
-                // 1. DEPOSITI
-                binanceLog('📥 Scaricamento depositi...');
-                for (let year = startYear; year <= endYear; year++) {
-                    const startTime = new Date(year, 0, 1).getTime();
-                    const endTime = new Date(year, 11, 31, 23, 59, 59).getTime();
-                    
-                    try {
-                        const deposits = await binanceSignedRequest('/sapi/v1/capital/deposit/hisrec', {
-                            startTime, endTime, limit: 1000
-                        });
-                        
-                        for (const d of deposits) {
-                            allTransactions.push({
-                                date: new Date(d.insertTime),
-                                type: 'deposit',
-                                coin: d.coin,
-                                amount: parseFloat(d.amount),
-                                change: parseFloat(d.amount)
-                            });
-                        }
-                        if (deposits.length > 0) binanceLog(`  ${year}: ${deposits.length} depositi`);
-                    } catch (e) {
-                        // Ignora errori per anni senza dati
-                    }
-                    await new Promise(r => setTimeout(r, 200)); // Rate limit
+                // Prima controlla se il server è attivo
+                const statusResponse = await fetch('http://localhost:3456/status');
+                if (!statusResponse.ok) throw new Error('Server locale non attivo');
+                
+                binanceLog('✅ Server locale OK');
+                
+                // Chiama endpoint /history
+                binanceLog('📜 Scaricamento storico dal server...');
+                const historyUrl = `http://localhost:3456/history?apiKey=${encodeURIComponent(apiKeys.binanceKey)}&secretKey=${encodeURIComponent(apiKeys.binanceSecret)}`;
+                
+                const response = await fetch(historyUrl);
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
                 }
                 
-                // 2. PRELIEVI
-                binanceLog('📤 Scaricamento prelievi...');
-                for (let year = startYear; year <= endYear; year++) {
-                    const startTime = new Date(year, 0, 1).getTime();
-                    const endTime = new Date(year, 11, 31, 23, 59, 59).getTime();
-                    
-                    try {
-                        const withdrawals = await binanceSignedRequest('/sapi/v1/capital/withdraw/history', {
-                            startTime, endTime, limit: 1000
-                        });
-                        
-                        for (const w of withdrawals) {
-                            if (w.status === 6) { // Completed
-                                allTransactions.push({
-                                    date: new Date(w.completeTime || w.applyTime),
-                                    type: 'withdrawal',
-                                    coin: w.coin,
-                                    amount: parseFloat(w.amount),
-                                    change: -parseFloat(w.amount) - parseFloat(w.transactionFee || 0)
-                                });
-                            }
-                        }
-                        if (withdrawals.length > 0) binanceLog(`  ${year}: ${withdrawals.length} prelievi`);
-                    } catch (e) {
-                        // Ignora errori per anni senza dati
-                    }
-                    await new Promise(r => setTimeout(r, 200));
-                }
+                binanceLog(`✅ Ricevute ${data.count} transazioni`, 'success');
                 
-                // 3. DIVIDENDI / DISTRIBUZIONE
-                binanceLog('💰 Scaricamento dividendi e distribuzione...');
-                try {
-                    const dividends = await binanceSignedRequest('/sapi/v1/asset/assetDividend', { limit: 500 });
-                    for (const d of (dividends.rows || [])) {
-                        allTransactions.push({
-                            date: new Date(d.divTime),
-                            type: 'dividend',
-                            coin: d.asset,
-                            amount: parseFloat(d.amount),
-                            change: parseFloat(d.amount)
-                        });
-                    }
-                    binanceLog(`  ${(dividends.rows || []).length} dividendi trovati`);
-                } catch (e) {
-                    binanceLog('  Dividendi: nessuno o errore');
-                }
-                
-                // 4. DUST (piccole conversioni in BNB)
-                binanceLog('🧹 Scaricamento conversioni dust...');
-                try {
-                    const dust = await binanceSignedRequest('/sapi/v1/asset/dribblet', { limit: 500 });
-                    for (const d of (dust.userAssetDribblets || [])) {
-                        // BNB ricevuto
-                        allTransactions.push({
-                            date: new Date(d.operateTime),
-                            type: 'dust',
-                            coin: 'BNB',
-                            amount: parseFloat(d.transferedTotal),
-                            change: parseFloat(d.transferedTotal)
-                        });
-                        // Asset convertiti (negativi)
-                        for (const detail of (d.userAssetDribbletDetails || [])) {
-                            allTransactions.push({
-                                date: new Date(d.operateTime),
-                                type: 'dust',
-                                coin: detail.fromAsset,
-                                amount: parseFloat(detail.amount),
-                                change: -parseFloat(detail.amount)
-                            });
-                        }
-                    }
-                    binanceLog(`  ${(dust.userAssetDribblets || []).length} conversioni dust`);
-                } catch (e) {
-                    binanceLog('  Dust: nessuno o errore');
-                }
-                
-                // 5. EARN / STAKING REWARDS
-                binanceLog('🏦 Scaricamento rewards staking/earn...');
-                try {
-                    // Simple Earn Flexible
-                    const flexHistory = await binanceSignedRequest('/sapi/v1/simple-earn/flexible/history/rewardsRecord', {
-                        type: 'REWARDS', size: 100
-                    });
-                    for (const r of (flexHistory.rows || [])) {
-                        allTransactions.push({
-                            date: new Date(r.time),
-                            type: 'earn_reward',
-                            coin: r.asset,
-                            amount: parseFloat(r.rewards),
-                            change: parseFloat(r.rewards)
-                        });
-                    }
-                    binanceLog(`  ${(flexHistory.rows || []).length} rewards earn`);
-                } catch (e) {
-                    // Ignora se non disponibile
-                }
-                
-                // RIEPILOGO
-                binanceLog(`✅ Totale: ${allTransactions.length} transazioni scaricate`, 'success');
-                
-                // Ordina per data
-                allTransactions.sort((a, b) => a.date - b.date);
+                // Converti date da timestamp a Date objects
+                const allTransactions = data.transactions.map(tx => ({
+                    ...tx,
+                    date: new Date(tx.date)
+                }));
                 
                 // Calcola saldi al 31/12
                 binanceLog('📊 Calcolo saldi al 31/12...');
@@ -1466,12 +1320,12 @@
                     // Aggiorna saldo
                     if (!balances[tx.coin]) balances[tx.coin] = 0;
                     balances[tx.coin] += tx.change;
-                    if (balances[tx.coin] < 0.00000001) balances[tx.coin] = 0; // Fix floating point
+                    if (Math.abs(balances[tx.coin]) < 0.00000001) balances[tx.coin] = 0;
                     
                     // Snapshot a fine anno
                     while (yearIndex < years.length && tx.date > new Date(years[yearIndex], 11, 31, 23, 59, 59)) {
                         yearEndSnapshots[years[yearIndex]] = { ...balances };
-                        binanceLog(`  Snapshot ${years[yearIndex]}: ${Object.keys(balances).filter(c => balances[c] > 0).length} coins`);
+                        binanceLog(`  Snapshot ${years[yearIndex]}: ${Object.keys(balances).filter(c => balances[c] > 0.0001).length} coins`);
                         yearIndex++;
                     }
                 }
@@ -1519,7 +1373,13 @@
                 
             } catch (e) {
                 binanceLog('❌ Errore: ' + e.message, 'error');
-                alert('❌ Errore: ' + e.message);
+                if (e.message.includes('fetch') || e.message.includes('Failed') || e.message.includes('non attivo')) {
+                    binanceLog('', 'info');
+                    binanceLog('⚠️ AVVIA IL SERVER LOCALE:', 'error');
+                    binanceLog('1. Apri terminale nella cartella CryptoFolio', 'info');
+                    binanceLog('2. Esegui: node server.js', 'info');
+                    binanceLog('3. Riprova', 'info');
+                }
             } finally {
                 if (btn) { btn.disabled = false; btn.textContent = '📥 Scarica Storico Completo'; }
             }
