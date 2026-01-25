@@ -1046,7 +1046,8 @@
             for (const y of years) {
                 const input = document.getElementById('exchange' + y);
                 if (input && exchangeValues[y]) {
-                    input.value = exchangeValues[y];
+                    // Formatta con max 2 decimali
+                    input.value = parseFloat(exchangeValues[y]).toFixed(2);
                 }
             }
         }
@@ -2968,7 +2969,7 @@
                     }
                 }
                 
-                yearEndTotals[year] = totalEur;
+                yearEndTotals[year] = Math.round(totalEur * 100) / 100; // Arrotonda a 2 decimali
                 if (coinsWithValue.length > 0) {
                     console.log('Year', year, '- Top coins:', coinsWithValue.slice(0, 10).join(', '));
                 }
@@ -3033,6 +3034,11 @@
                 }
             }
             
+            // Arrotonda a 2 decimali PRIMA di visualizzare
+            for (const y of years) {
+                totals[y] = Math.round(totals[y] * 100) / 100;
+            }
+            
             // Aggiorna UI
             for (const y of years) {
                 const el = document.getElementById('exchTotal' + y);
@@ -3043,6 +3049,9 @@
             
             // Aggiorna exchangeValues per Tax Report
             exchangeValues = totals;
+            
+            // Aggiorna anche gli input nel Tax Report se visibili
+            loadExchangeValuesUI();
         }
         
         function clearExchangeData(exchId) {
