@@ -2019,70 +2019,48 @@
             
             const yearPrices = historicalPrices[selectedYear] || historicalPrices[2025];
             let rwValueUSD = 0;
-            let unknownTokens = [];
             
-            // FILTRO: max €50k per token (tranne ETH/BTC)
+            // FILTRO: max €50k per token (tranne ETH/BTC) - STESSO di EUR Value
             const MAX_TOKEN_EUR = 50000;
             const UNLIMITED = ['ETH', 'WETH', 'BTC', 'WBTC'];
             
-            // Token conosciuti con prezzo storico affidabile
-            const KNOWN_TOKENS = ['ETH', 'WETH', 'BTC', 'WBTC', 'BNB', 'SOL', 'MATIC', 'PLS', 'HEX', 
-                                  'SHIB', 'BONE', 'USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FRAX'];
-            
-            // Simboli che richiedono verifica (alto valore = alto rischio di fake)
-            // MA NON su PulseChain che è una chain separata con token bridged legittimi
-            const FAMOUS_SYMBOLS = ['SHIB', 'DOGE', 'PEPE', 'FLOKI', 'BONE', 'ETH', 'WETH', 'BTC', 'WBTC', 'BNB', 'SOL', 'MATIC', 'AVAX', 'LINK', 'UNI', 'AAVE'];
+            // ============ LOGICA SEMPLIFICATA ============
+            // RW conta SOLO i token che hanno valore in EUR Value
+            // (cioè quelli con valueUSD > 0 O ricalcolabili con prezzi)
             
             wallets.forEach(w => {
                 (w.tokens || []).forEach(t => {
                     if (!isHidden(t)) {
                         const symbol = (t.symbol || '').toUpperCase();
-                        const chain = (t.chain || '').toLowerCase();
+                        const balance = t.balance || 0;
+                        
+                        // STESSO CHECK di EUR Value: ha valore attuale?
+                        let currentValueUSD = t.valueUSD || 0;
+                        if (currentValueUSD === 0 && balance > 0 && prices[symbol]) {
+                            currentValueUSD = balance * prices[symbol];
+                        }
+                        
+                        // Se non ha valore attuale → skip (probabilmente fake/dust)
+                        if (currentValueUSD < 0.01) {
+                            return;
+                        }
+                        
+                        // Calcola valore STORICO
                         let tokenValueUSD = 0;
-                        
-                        // ============ FILTRO SEMPLIFICATO ============
-                        // Per RW contiamo SOLO:
-                        // 1. Token nativi (ETH, BNB, etc.) - sempre trusted
-                        // 2. Token VERIFICATI (verified: true)
-                        // 3. Stablecoin
-                        // 4. Token su PulseChain (chain separata, token legittimi)
-                        
-                        const isNative = t.contractAddress === 'native';
-                        const isStablecoin = ['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FRAX'].includes(symbol);
-                        const isVerified = t.verified === true;
-                        const isPulseChain = chain === 'pulse';
-                        
-                        // Se è un simbolo famoso e NON è nativo e NON è su PulseChain, DEVE essere verificato
-                        if (FAMOUS_SYMBOLS.includes(symbol) && !isNative && !isVerified && !isPulseChain) {
-                            console.log(`⚠️ RW SKIP FAKE: ${symbol} on ${chain} (non nativo e non verificato)`);
-                            return;
-                        }
-                        
-                        // Per altri token: deve avere valore attuale > 0 O essere stablecoin/nativo/PulseChain
-                        const currentValueUSD = t.valueUSD || 0;
-                        if (currentValueUSD === 0 && !isStablecoin && !isNative && !isVerified && !isPulseChain) {
-                            return;
-                        }
-                        
-                        // Calcola valore storico
                         if (yearPrices[symbol]) {
-                            tokenValueUSD = (t.balance || 0) * yearPrices[symbol];
-                        } else if (isStablecoin) {
-                            tokenValueUSD = t.balance || 0;
+                            tokenValueUSD = balance * yearPrices[symbol];
+                        } else if (['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FRAX'].includes(symbol)) {
+                            tokenValueUSD = balance; // Stablecoin = $1
                         } else {
-                            // Token sconosciuto - ignora per RW
-                            tokenValueUSD = 0;
+                            // Token senza prezzo storico → usa valore attuale come stima
+                            tokenValueUSD = currentValueUSD;
                         }
                         
-                        // Applica filtro €50k
+                        // Applica filtro €50k (STESSO di EUR Value)
                         const tokenEUR = tokenValueUSD * EUR_USD;
                         if (!UNLIMITED.includes(symbol) && tokenEUR > MAX_TOKEN_EUR) {
                             console.log(`⚠️ RW FILTER: ${symbol} €${formatEUR(tokenEUR)} → €0`);
                             tokenValueUSD = 0;
-                        }
-                        
-                        if (tokenValueUSD > 0) {
-                            console.log(`✓ RW: ${symbol} = $${tokenValueUSD.toFixed(2)}`);
                         }
                         
                         rwValueUSD += tokenValueUSD;
@@ -2090,26 +2068,25 @@
                 });
             });
             
-            // Aggiungi anche exchanges (sempre affidabili)
+            // Aggiungi exchanges (sempre affidabili)
             exchanges.forEach(ex => {
                 (ex.tokens || []).forEach(t => {
                     const symbol = (t.symbol || '').toUpperCase();
+                    const balance = t.balance || 0;
+                    
                     if (yearPrices[symbol]) {
-                        rwValueUSD += (t.balance || 0) * yearPrices[symbol];
+                        rwValueUSD += balance * yearPrices[symbol];
                     } else if (['USDT', 'USDC', 'DAI', 'BUSD'].includes(symbol)) {
-                        rwValueUSD += t.balance || 0;
+                        rwValueUSD += balance;
+                    } else {
+                        // Usa valore attuale
+                        rwValueUSD += t.valueUSD || 0;
                     }
                 });
             });
             
             const rwValueEUR = rwValueUSD * EUR_USD;
             document.getElementById('rwValue').textContent = formatEUR(rwValueEUR) + ' €';
-            
-            // Mostra warning per token senza prezzo storico
-            if (unknownTokens.length > 0 && selectedYear !== 2025) {
-                console.log(`⚠️ Token senza prezzo storico ${selectedYear}: ${[...new Set(unknownTokens)].join(', ')}`);
-            }
-            
             console.log(`📊 RW ${selectedYear}: €${formatEUR(rwValueEUR)}`);
         }
         
