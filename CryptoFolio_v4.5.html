@@ -542,7 +542,8 @@
             { id: 'cake', name: 'Cake DeFi', color: '#00d395', icon: '🍰' },
             { id: 'coinbase', name: 'Coinbase', color: '#0052ff', icon: 'Cb' },
             { id: 'cosmos', name: 'Cosmos', color: '#2e3148', icon: '⚛️' },
-            { id: 'cryptocom', name: 'Crypto.com', color: '#002d74', icon: 'Cc' },
+            { id: 'cryptocom_app', name: 'Crypto.com App', color: '#002d74', icon: 'Ca' },
+            { id: 'cryptocom_exchange', name: 'Crypto.com Exchange', color: '#002d74', icon: 'Ce' },
             { id: 'gateio', name: 'Gate.io', color: '#17e6a1', icon: 'G' },
             { id: 'kraken', name: 'Kraken', color: '#5741d9', icon: 'Kr' },
             { id: 'kucoin', name: 'KuCoin', color: '#23af91', icon: 'Ku' },
@@ -2816,24 +2817,345 @@
             }
             
             // Pulisci header da BOM e caratteri speciali
-            const header = lines[0].toLowerCase().replace(/^\uFEFF/, '').replace(/[^\x20-\x7E]/g, '').trim();
-            console.log('Header (cleaned):', header.substring(0, 100));
+            let header = lines[0].toLowerCase().replace(/^\uFEFF/, '').replace(/[^\x20-\x7E,]/g, '').trim();
+            console.log('Header (cleaned):', header.substring(0, 120));
             
-            // Rileva il formato basandosi sull'header
+            // === BINANCE ===
             if (header.includes('utc_time') && header.includes('coin')) {
                 console.log('Detected Binance format');
                 return parseBinanceCSV(lines);
             }
             
-            // Bitget: order,Date,Coin,Type,Amount,Fee,Available
+            // === BITGET ===
             if (header.includes('order') && header.includes('date') && header.includes('coin') && header.includes('amount')) {
                 console.log('Detected Bitget format');
                 return parseBitgetCSV(lines);
             }
             
-            // TODO: Aggiungere altri parser per altri exchange
+            // === CRYPTO.COM APP ===
+            if (header.includes('timestamp') && header.includes('transaction description') && header.includes('currency')) {
+                console.log('Detected Crypto.com App format');
+                return parseCryptoComAppCSV(lines);
+            }
+            
+            // === CRYPTO.COM EXCHANGE ===
+            if (header.includes('event_time_display') && header.includes('instrument_name') && header.includes('journal_type')) {
+                console.log('Detected Crypto.com Exchange format');
+                return parseCryptoComExchangeCSV(lines);
+            }
+            
+            // === COINBASE ===
+            if (header.includes('transaction type') && header.includes('asset') && header.includes('quantity')) {
+                console.log('Detected Coinbase format');
+                return parseCoinbaseCSV(lines);
+            }
+            // Coinbase - cerca header nelle prime righe
+            for (let i = 0; i < Math.min(10, lines.length); i++) {
+                const testHeader = lines[i].toLowerCase();
+                if (testHeader.includes('transaction type') && testHeader.includes('asset') && testHeader.includes('quantity')) {
+                    console.log('Detected Coinbase format at line', i);
+                    return parseCoinbaseCSV(lines.slice(i));
+                }
+            }
+            
+            // === COSMOS ===
+            if (header.includes('tx_type') && header.includes('received_amount') && header.includes('received_currency')) {
+                console.log('Detected Cosmos format');
+                return parseCosmosCSV(lines);
+            }
+            
+            // === BYBIT AssetChangeDetails ===
+            if (header.includes('uid') && header.includes('currency') && header.includes('change') && header.includes('wallet balance')) {
+                console.log('Detected Bybit AssetChangeDetails format');
+                return parseBybitAssetChangeCSV(lines);
+            }
+            // Bybit - cerca header nelle prime righe (salta riga UID)
+            for (let i = 0; i < Math.min(5, lines.length); i++) {
+                const testHeader = lines[i].toLowerCase();
+                if (testHeader.includes('uid') && testHeader.includes('currency') && testHeader.includes('change')) {
+                    console.log('Detected Bybit AssetChangeDetails at line', i);
+                    return parseBybitAssetChangeCSV(lines.slice(i));
+                }
+            }
+            
+            // === BYBIT Deposit/Withdraw History ===
+            for (let i = 0; i < Math.min(5, lines.length); i++) {
+                const testHeader = lines[i].toLowerCase();
+                if (testHeader.includes('uid') && testHeader.includes('date') && testHeader.includes('type') && testHeader.includes('asset') && testHeader.includes('amount')) {
+                    console.log('Detected Bybit DepositWithdraw at line', i);
+                    return parseBybitDepositWithdrawCSV(lines.slice(i));
+                }
+            }
+            
+            // === BITPANDA ===
+            // Cerca header nelle prime 10 righe (salta disclaimer)
+            for (let i = 0; i < Math.min(10, lines.length); i++) {
+                const testHeader = lines[i].toLowerCase();
+                if (testHeader.includes('transaction id') && testHeader.includes('transaction type') && testHeader.includes('amount asset')) {
+                    console.log('Detected Bitpanda format at line', i);
+                    return parseBitpandaCSV(lines.slice(i));
+                }
+            }
+            
             console.log('No matching parser found, using generic');
             return parseGenericCSV(lines, exchId);
+        }
+        
+        // === CRYPTO.COM APP PARSER ===
+        function parseCryptoComAppCSV(lines) {
+            // Timestamp (UTC),Transaction Description,Currency,Amount,To Currency,To Amount,...
+            const transactions = [];
+            console.log('Parsing Crypto.com App CSV, lines:', lines.length);
+            
+            for (let i = 1; i < lines.length; i++) {
+                const cols = parseCSVLine(lines[i]);
+                if (cols.length < 4) continue;
+                
+                const [timestamp, description, currency, amount] = cols;
+                const date = new Date(timestamp);
+                if (isNaN(date.getTime())) continue;
+                
+                const amountNum = parseFloat(amount) || 0;
+                if (amountNum === 0) continue;
+                
+                transactions.push({
+                    date: date,
+                    account: 'app',
+                    operation: description,
+                    coin: currency,
+                    change: amountNum,
+                    remark: ''
+                });
+            }
+            console.log('Parsed', transactions.length, 'Crypto.com App transactions');
+            return transactions;
+        }
+        
+        // === CRYPTO.COM EXCHANGE PARSER ===
+        function parseCryptoComExchangeCSV(lines) {
+            // event_time_display,instrument_name,journal_id,journal_type,...,transaction_qty,...
+            const transactions = [];
+            console.log('Parsing Crypto.com Exchange CSV, lines:', lines.length);
+            
+            for (let i = 1; i < lines.length; i++) {
+                const cols = parseCSVLine(lines[i]);
+                if (cols.length < 8) continue;
+                
+                const [eventTime, instrumentName, journalId, journalType, orderId, side, takerSide, transactionQty] = cols;
+                const date = new Date(eventTime);
+                if (isNaN(date.getTime())) continue;
+                
+                const qty = parseFloat(transactionQty) || 0;
+                if (qty === 0) continue;
+                
+                transactions.push({
+                    date: date,
+                    account: 'exchange',
+                    operation: journalType,
+                    coin: instrumentName,
+                    change: qty,
+                    remark: ''
+                });
+            }
+            console.log('Parsed', transactions.length, 'Crypto.com Exchange transactions');
+            return transactions;
+        }
+        
+        // === COINBASE PARSER ===
+        function parseCoinbaseCSV(lines) {
+            // ID,Timestamp,Transaction Type,Asset,Quantity Transacted,...
+            const transactions = [];
+            console.log('Parsing Coinbase CSV, lines:', lines.length);
+            
+            for (let i = 1; i < lines.length; i++) {
+                const cols = parseCSVLine(lines[i]);
+                if (cols.length < 5) continue;
+                
+                const [id, timestamp, txType, asset, quantity] = cols;
+                const date = new Date(timestamp);
+                if (isNaN(date.getTime())) continue;
+                
+                let qty = parseFloat(quantity) || 0;
+                if (qty === 0) continue;
+                
+                // Determina segno basato sul tipo
+                const txTypeLower = txType.toLowerCase();
+                if (txTypeLower.includes('sell') || txTypeLower.includes('send') || txTypeLower.includes('withdraw')) {
+                    qty = -Math.abs(qty);
+                } else {
+                    qty = Math.abs(qty);
+                }
+                
+                transactions.push({
+                    date: date,
+                    account: 'coinbase',
+                    operation: txType,
+                    coin: asset,
+                    change: qty,
+                    remark: ''
+                });
+            }
+            console.log('Parsed', transactions.length, 'Coinbase transactions');
+            return transactions;
+        }
+        
+        // === COSMOS PARSER ===
+        function parseCosmosCSV(lines) {
+            // timestamp,tx_type,received_amount,received_currency,sent_amount,sent_currency,...
+            const transactions = [];
+            console.log('Parsing Cosmos CSV, lines:', lines.length);
+            
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].replace(/\r/g, '');
+                const cols = parseCSVLine(line);
+                if (cols.length < 6) continue;
+                
+                const [timestamp, txType, receivedAmount, receivedCurrency, sentAmount, sentCurrency] = cols;
+                const date = new Date(timestamp);
+                if (isNaN(date.getTime())) continue;
+                
+                // Received
+                const recvAmt = parseFloat(receivedAmount) || 0;
+                if (recvAmt > 0 && receivedCurrency) {
+                    transactions.push({
+                        date: date,
+                        account: 'cosmos',
+                        operation: txType,
+                        coin: receivedCurrency.toUpperCase(),
+                        change: recvAmt,
+                        remark: ''
+                    });
+                }
+                
+                // Sent
+                const sentAmt = parseFloat(sentAmount) || 0;
+                if (sentAmt > 0 && sentCurrency) {
+                    transactions.push({
+                        date: date,
+                        account: 'cosmos',
+                        operation: txType,
+                        coin: sentCurrency.toUpperCase(),
+                        change: -sentAmt,
+                        remark: ''
+                    });
+                }
+            }
+            console.log('Parsed', transactions.length, 'Cosmos transactions');
+            return transactions;
+        }
+        
+        // === BYBIT ASSET CHANGE DETAILS PARSER ===
+        function parseBybitAssetChangeCSV(lines) {
+            // Uid,Currency,Contract,Type,Direction,...,Change,...,Time(UTC)
+            const transactions = [];
+            console.log('Parsing Bybit AssetChange CSV, lines:', lines.length);
+            
+            // Trova indice colonne
+            const header = lines[0].toLowerCase();
+            const cols = header.split(',');
+            const currencyIdx = cols.findIndex(c => c.includes('currency'));
+            const changeIdx = cols.findIndex(c => c === 'change');
+            const timeIdx = cols.findIndex(c => c.includes('time'));
+            const typeIdx = cols.findIndex(c => c === 'type');
+            
+            if (currencyIdx === -1 || changeIdx === -1 || timeIdx === -1) {
+                console.log('Cannot find required columns in Bybit CSV');
+                return [];
+            }
+            
+            for (let i = 1; i < lines.length; i++) {
+                const parts = lines[i].split(',');
+                if (parts.length <= Math.max(currencyIdx, changeIdx, timeIdx)) continue;
+                
+                const currency = parts[currencyIdx];
+                const change = parseFloat(parts[changeIdx]) || 0;
+                const timeStr = parts[timeIdx];
+                const txType = typeIdx >= 0 ? parts[typeIdx] : '';
+                
+                const date = new Date(timeStr);
+                if (isNaN(date.getTime()) || change === 0) continue;
+                
+                transactions.push({
+                    date: date,
+                    account: 'bybit',
+                    operation: txType,
+                    coin: currency,
+                    change: change,
+                    remark: ''
+                });
+            }
+            console.log('Parsed', transactions.length, 'Bybit AssetChange transactions');
+            return transactions;
+        }
+        
+        // === BYBIT DEPOSIT/WITHDRAW PARSER ===
+        function parseBybitDepositWithdrawCSV(lines) {
+            // Uid,Date,Type,Asset,Chain,Amount,...
+            const transactions = [];
+            console.log('Parsing Bybit DepositWithdraw CSV, lines:', lines.length);
+            
+            for (let i = 1; i < lines.length; i++) {
+                const cols = lines[i].split(',');
+                if (cols.length < 6) continue;
+                
+                const [uid, dateStr, txType, asset, chain, amount] = cols;
+                const date = new Date(dateStr);
+                if (isNaN(date.getTime())) continue;
+                
+                let qty = parseFloat(amount) || 0;
+                if (qty === 0) continue;
+                
+                // Withdraw = negativo
+                if (txType.toLowerCase().includes('withdraw')) {
+                    qty = -Math.abs(qty);
+                }
+                
+                transactions.push({
+                    date: date,
+                    account: 'bybit',
+                    operation: txType,
+                    coin: asset,
+                    change: qty,
+                    remark: chain
+                });
+            }
+            console.log('Parsed', transactions.length, 'Bybit DepositWithdraw transactions');
+            return transactions;
+        }
+        
+        // === BITPANDA PARSER ===
+        function parseBitpandaCSV(lines) {
+            // "Transaction ID",Timestamp,"Transaction Type",In/Out,"Amount Fiat",Fiat,"Amount Asset",Asset,...
+            const transactions = [];
+            console.log('Parsing Bitpanda CSV, lines:', lines.length);
+            
+            for (let i = 1; i < lines.length; i++) {
+                const cols = parseCSVLine(lines[i]);
+                if (cols.length < 8) continue;
+                
+                const [txId, timestamp, txType, inOut, amountFiat, fiat, amountAsset, asset] = cols;
+                const date = new Date(timestamp);
+                if (isNaN(date.getTime())) continue;
+                
+                let qty = parseFloat(amountAsset) || 0;
+                if (qty === 0 || !asset || asset === '-') continue;
+                
+                // In/Out determina segno
+                if (inOut.toLowerCase() === 'outgoing') {
+                    qty = -Math.abs(qty);
+                }
+                
+                transactions.push({
+                    date: date,
+                    account: 'bitpanda',
+                    operation: txType,
+                    coin: asset,
+                    change: qty,
+                    remark: ''
+                });
+            }
+            console.log('Parsed', transactions.length, 'Bitpanda transactions');
+            return transactions;
         }
         
         function parseBitgetCSV(lines) {
