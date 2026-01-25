@@ -82,7 +82,7 @@
         </form>
         
         <p class="error" id="error">❌ Password errata</p>
-        <p class="footer">v4.3 - Fixed</p>
+        <p class="footer">v4.4 - Exchanges</p>
     </div>
 
     <script>
@@ -95,7 +95,7 @@
             // Simple obfuscation (per uso personale va bene)
             if (btoa(pwd) === 'bW9yZW5vMjAyNA==') {
                 sessionStorage.setItem('cryptofolio_auth', Date.now().toString());
-                window.location.href = 'CryptoFolio_v4.3.html';
+                window.location.href = 'CryptoFolio_v4.4.html';
             } else {
                 document.getElementById('error').classList.add('show');
                 document.getElementById('password').value = '';
@@ -107,7 +107,7 @@
         // Auto-redirect se già autenticato (sessione valida 24h)
         const auth = sessionStorage.getItem('cryptofolio_auth');
         if (auth && (Date.now() - parseInt(auth)) < 86400000) {
-            window.location.href = 'CryptoFolio_v4.3.html';
+            window.location.href = 'CryptoFolio_v4.4.html';
         }
     </script>
 </body>
