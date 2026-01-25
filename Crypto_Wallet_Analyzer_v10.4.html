@@ -2010,11 +2010,11 @@
         async function updateRWValue() {
             // Prezzi storici al 31 dicembre di ogni anno (per Quadro RW)
             const historicalPrices = {
-                2021: { ETH: 3700, BTC: 46300, BNB: 520, SOL: 170, MATIC: 2.5, PLS: 0, HEX: 0.35, SHIB: 0.000033, BONE: 1.8, USDT: 1, USDC: 1, DAI: 1 },
-                2022: { ETH: 1200, BTC: 16500, BNB: 250, SOL: 10, MATIC: 0.75, PLS: 0.00005, HEX: 0.04, SHIB: 0.0000085, BONE: 0.5, USDT: 1, USDC: 1, DAI: 1 },
-                2023: { ETH: 2300, BTC: 42500, BNB: 310, SOL: 100, MATIC: 1.0, PLS: 0.00003, HEX: 0.008, SHIB: 0.0000095, BONE: 0.45, USDT: 1, USDC: 1, DAI: 1 },
-                2024: { ETH: 3400, BTC: 93000, BNB: 700, SOL: 190, MATIC: 0.45, PLS: 0.000020, HEX: 0.005, SHIB: 0.000022, BONE: 0.35, USDT: 1, USDC: 1, DAI: 1 },
-                2025: { ETH: 3300, BTC: 100000, BNB: 690, SOL: 250, MATIC: 0.42, PLS: 0.000015, HEX: 0.004, SHIB: 0.000018, BONE: 0.30, USDT: 1, USDC: 1, DAI: 1 }
+                2021: { ETH: 3700, BTC: 46300, BNB: 520, SOL: 170, MATIC: 2.5, PLS: 0, PLSX: 0, HEX: 0.35, SHIB: 0.000033, BONE: 1.8, USDT: 1, USDC: 1, DAI: 1, CAKE: 11 },
+                2022: { ETH: 1200, BTC: 16500, BNB: 250, SOL: 10, MATIC: 0.75, PLS: 0.00005, PLSX: 0.00015, HEX: 0.04, SHIB: 0.0000085, BONE: 0.5, USDT: 1, USDC: 1, DAI: 1, CAKE: 3.8 },
+                2023: { ETH: 2300, BTC: 42500, BNB: 310, SOL: 100, MATIC: 1.0, PLS: 0.00003, PLSX: 0.00008, HEX: 0.008, SHIB: 0.0000095, BONE: 0.45, USDT: 1, USDC: 1, DAI: 1, CAKE: 2.5 },
+                2024: { ETH: 3400, BTC: 93000, BNB: 700, SOL: 190, MATIC: 0.45, PLS: 0.000020, PLSX: 0.00005, HEX: 0.005, SHIB: 0.000022, BONE: 0.35, USDT: 1, USDC: 1, DAI: 1, CAKE: 2.3 },
+                2025: { ETH: 3300, BTC: 100000, BNB: 690, SOL: 250, MATIC: 0.42, PLS: 0.000015, PLSX: 0.00004, HEX: 0.004, SHIB: 0.000018, BONE: 0.30, USDT: 1, USDC: 1, DAI: 1, CAKE: 2.5 }
             };
             
             const yearPrices = historicalPrices[selectedYear] || historicalPrices[2025];
@@ -2030,12 +2030,14 @@
                                   'SHIB', 'BONE', 'USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FRAX'];
             
             // Simboli che richiedono verifica (alto valore = alto rischio di fake)
+            // MA NON su PulseChain che è una chain separata con token bridged legittimi
             const FAMOUS_SYMBOLS = ['SHIB', 'DOGE', 'PEPE', 'FLOKI', 'BONE', 'ETH', 'WETH', 'BTC', 'WBTC', 'BNB', 'SOL', 'MATIC', 'AVAX', 'LINK', 'UNI', 'AAVE'];
             
             wallets.forEach(w => {
                 (w.tokens || []).forEach(t => {
                     if (!isHidden(t)) {
                         const symbol = (t.symbol || '').toUpperCase();
+                        const chain = (t.chain || '').toLowerCase();
                         let tokenValueUSD = 0;
                         
                         // ============ FILTRO SEMPLIFICATO ============
@@ -2043,20 +2045,22 @@
                         // 1. Token nativi (ETH, BNB, etc.) - sempre trusted
                         // 2. Token VERIFICATI (verified: true)
                         // 3. Stablecoin
+                        // 4. Token su PulseChain (chain separata, token legittimi)
                         
                         const isNative = t.contractAddress === 'native';
                         const isStablecoin = ['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FRAX'].includes(symbol);
                         const isVerified = t.verified === true;
+                        const isPulseChain = chain === 'pulse';
                         
-                        // Se è un simbolo famoso e NON è nativo, DEVE essere verificato
-                        if (FAMOUS_SYMBOLS.includes(symbol) && !isNative && !isVerified) {
-                            console.log(`⚠️ RW SKIP FAKE: ${symbol} on ${t.chain} (non nativo e non verificato)`);
+                        // Se è un simbolo famoso e NON è nativo e NON è su PulseChain, DEVE essere verificato
+                        if (FAMOUS_SYMBOLS.includes(symbol) && !isNative && !isVerified && !isPulseChain) {
+                            console.log(`⚠️ RW SKIP FAKE: ${symbol} on ${chain} (non nativo e non verificato)`);
                             return;
                         }
                         
-                        // Per altri token: deve avere valore attuale > 0 O essere stablecoin/nativo
+                        // Per altri token: deve avere valore attuale > 0 O essere stablecoin/nativo/PulseChain
                         const currentValueUSD = t.valueUSD || 0;
-                        if (currentValueUSD === 0 && !isStablecoin && !isNative && !isVerified) {
+                        if (currentValueUSD === 0 && !isStablecoin && !isNative && !isVerified && !isPulseChain) {
                             return;
                         }
                         
@@ -2270,11 +2274,18 @@
             
             const allTokens = (wallet.tokens || []).filter(t => !isHidden(t)).map(t => {
                 const symbol = (t.symbol || '').toUpperCase();
-                const valueEUR = (t.valueUSD || 0) * EUR_USD;
+                
+                // RICALCOLA valore se mancante ma abbiamo il prezzo
+                let tokenValue = t.valueUSD || 0;
+                if (tokenValue === 0 && t.balance > 0 && prices[symbol]) {
+                    tokenValue = t.balance * prices[symbol];
+                }
+                
+                const valueEUR = tokenValue * EUR_USD;
                 if (!UNLIMITED_TOKENS.includes(symbol) && valueEUR > MAX_SINGLE_TOKEN_EUR) {
                     return { ...t, valueUSD: 0 };
                 }
-                return t;
+                return { ...t, valueUSD: tokenValue };
             }).sort((a, b) => (b.valueUSD || 0) - (a.valueUSD || 0));
             
             // Filtra per chain se specificato
@@ -2415,8 +2426,15 @@
             wallets.forEach(w => {
                 (w.tokens || []).forEach(t => {
                     if (!isHidden(t)) {
-                        let tokenValue = t.valueUSD || 0;
                         const symbol = (t.symbol || '').toUpperCase();
+                        
+                        // RICALCOLA valore se mancante ma abbiamo il prezzo
+                        let tokenValue = t.valueUSD || 0;
+                        if (tokenValue === 0 && t.balance > 0 && prices[symbol]) {
+                            tokenValue = t.balance * prices[symbol];
+                            console.log(`💰 Recalc ${symbol}: ${t.balance} × $${prices[symbol]} = $${tokenValue.toFixed(2)}`);
+                        }
+                        
                         const valueEUR = tokenValue * EUR_USD;
                         
                         // FILTRO AGGRESSIVO: se supera €50k e non è ETH/BTC → azzera
@@ -2960,8 +2978,8 @@
         // ==================== API FUNCTIONS ====================
         async function fetchPrices() {
             try {
-                // Fetch principale - major tokens
-                const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,binancecoin,solana,matic-network,avalanche-2,pulsechain,hex,usd-coin,tether,dai,shiba-inu,bone-shibaswap,chainlink,uniswap,aave,pepe,arbitrum,optimism&vs_currencies=usd');
+                // Fetch principale - major tokens + PulseChain ecosystem
+                const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,binancecoin,solana,matic-network,avalanche-2,pulsechain,pulsex,hex,usd-coin,tether,dai,shiba-inu,bone-shibaswap,chainlink,uniswap,aave,pepe,arbitrum,optimism,pancakeswap-token&vs_currencies=usd');
                 if (res.ok) {
                     const data = await res.json();
                     prices = {
@@ -2972,8 +2990,9 @@
                         'SOL': data.solana?.usd || 0,
                         'MATIC': data['matic-network']?.usd || 0,
                         'AVAX': data['avalanche-2']?.usd || 0,
-                        'PLS': data.pulsechain?.usd || 0,
-                        'HEX': data.hex?.usd || 0,
+                        'PLS': data.pulsechain?.usd || 0.000015, // Fallback ~$0.000015
+                        'PLSX': data.pulsex?.usd || 0.00004,    // Fallback ~$0.00004
+                        'HEX': data.hex?.usd || 0.004,          // Fallback ~$0.004
                         'USDC': data['usd-coin']?.usd || 1,
                         'USDT': data.tether?.usd || 1,
                         'DAI': data.dai?.usd || 1,
@@ -2984,12 +3003,24 @@
                         'AAVE': data.aave?.usd || 0,
                         'PEPE': data.pepe?.usd || 0,
                         'ARB': data.arbitrum?.usd || 0,
-                        'OP': data.optimism?.usd || 0
+                        'OP': data.optimism?.usd || 0,
+                        'CAKE': data['pancakeswap-token']?.usd || 0,
+                        'INC': 0.0001 // Incentive - non su CoinGecko, prezzo stimato
                     };
-                    console.log('💰 Prices loaded:', Object.keys(prices).length, 'tokens');
+                    console.log('💰 Prices loaded:', prices);
+                    console.log(`  PLS: $${prices.PLS}, PLSX: $${prices.PLSX}, HEX: $${prices.HEX}`);
                 }
             } catch (e) {
                 console.error('Price fetch error:', e);
+                // Fallback prezzi se CoinGecko fallisce
+                prices = {
+                    'BTC': 100000, 'ETH': 3300, 'WETH': 3300, 'BNB': 690, 'SOL': 250,
+                    'MATIC': 0.42, 'AVAX': 35, 'PLS': 0.000015, 'PLSX': 0.00004,
+                    'HEX': 0.004, 'USDC': 1, 'USDT': 1, 'DAI': 1, 'SHIB': 0.000018,
+                    'BONE': 0.30, 'LINK': 20, 'UNI': 12, 'AAVE': 300, 'PEPE': 0.00001,
+                    'ARB': 1.5, 'OP': 2.5, 'CAKE': 2.5, 'INC': 0.0001
+                };
+                console.log('💰 Using fallback prices');
             }
         }
         
@@ -3256,7 +3287,10 @@
                     { address: '0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39', symbol: 'HEX', name: 'HEX', decimals: 8 },
                     { address: '0x2fa878Ab3F87CC1C9737Fc071108F904c0B0C95d', symbol: 'INC', name: 'Incentive', decimals: 18 },
                     { address: '0x0cbe0dF132a6c6B4a2974Fa1b7Fb953CF0Cc798a', symbol: 'pSHIB', name: 'PulseShib', decimals: 18 },
-                    { address: '0x15D38573d2feeb82e7ad5187aB8c1D52810B1f07', symbol: 'pWETH', name: 'Wrapped ETH from Ethereum', decimals: 18 }
+                    { address: '0x15D38573d2feeb82e7ad5187aB8c1D52810B1f07', symbol: 'pWETH', name: 'Wrapped ETH from Ethereum', decimals: 18 },
+                    // Bridged tokens from Ethereum
+                    { address: '0x6B175474E89094C44Da98b954EescdeCB5f07f84', symbol: 'DAI', name: 'DAI Stablecoin', decimals: 18 },
+                    { address: '0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE', symbol: 'SHIB', name: 'Shiba Inu (Bridged)', decimals: 18 }
                 ];
                 
                 const balanceOfData = '0x70a08231000000000000000000000000' + address.slice(2);
