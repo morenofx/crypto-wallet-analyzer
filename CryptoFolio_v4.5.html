@@ -746,12 +746,10 @@
                 updateApiStatus();
             }
             
-            // Check Binance server quando si apre exchanges
+            // Inizializza griglia exchange quando si apre
             if (view === 'exchanges') {
                 initExchangeGrid();
                 updateExchangeTotals();
-                checkBinanceServer();
-                updateBinanceUI();
             }
         }
         
@@ -2081,9 +2079,23 @@
             const withVal = visible.filter(t => t.valueUSD >= 0.01);
             const walletsUSD = withVal.reduce((s, t) => s + t.valueUSD, 0);
             
-            // Aggiungi Binance al totale
-            const binanceTotal = (binanceData.totals.spot || 0) + (binanceData.totals.earn || 0) + (binanceData.totals.staking || 0);
-            const totalUSD = walletsUSD + (binanceTotal / EUR_USD); // Binance è già in EUR, converti in USD
+            // Calcola totale exchange da CSV (usa anno più recente disponibile)
+            let exchangeTotalEUR = 0;
+            let exchangeNames = [];
+            for (const exchId of Object.keys(exchangeData)) {
+                const data = exchangeData[exchId];
+                if (data && data.totals) {
+                    // Prendi anno più recente con valore > 0
+                    const latestYear = [2025, 2024, 2023, 2022, 2021].find(y => data.totals[y] > 0);
+                    if (latestYear && data.totals[latestYear] > 0) {
+                        exchangeTotalEUR += data.totals[latestYear];
+                        const exchInfo = EXCHANGE_LIST.find(e => e.id === exchId);
+                        if (exchInfo) exchangeNames.push(exchInfo.name);
+                    }
+                }
+            }
+            
+            const totalUSD = walletsUSD + (exchangeTotalEUR / EUR_USD);
             const totalEUR = totalUSD * EUR_USD;
             
             document.getElementById('totalEUR').textContent = '€' + formatEUR(totalEUR);
@@ -2091,9 +2103,11 @@
             document.getElementById('tokenCount').textContent = withVal.length;
             
             // Aggiorna card Exchanges
-            document.getElementById('exchangeTotalEUR').textContent = '€' + formatEUR(binanceTotal);
-            if (binanceTotal > 0) {
-                document.getElementById('exchangeNames').textContent = 'Binance ✓';
+            document.getElementById('exchangeTotalEUR').textContent = '€' + formatEUR(exchangeTotalEUR);
+            if (exchangeNames.length > 0) {
+                document.getElementById('exchangeNames').textContent = exchangeNames.join(', ') + ' ✓';
+            } else {
+                document.getElementById('exchangeNames').textContent = 'Nessuno';
             }
             
             // Conta wallet scansionati
@@ -2758,12 +2772,15 @@
             saveExchangeDataToFirebase();
         }
         
-        function clearAllExchangeData() {
-            if (!confirm('Cancellare TUTTI i dati degli exchange?')) return;
+        async function clearAllExchangeData() {
+            if (!confirm('Cancellare TUTTI i dati degli exchange (inclusi dati API vecchi)?')) return;
             exchangeData = {};
+            await resetAllBinanceLegacyData();
             initExchangeGrid();
             updateExchangeTotals();
+            updateExchangeCount();
             saveExchangeDataToFirebase();
+            alert('✅ Tutti i dati exchange cancellati!');
         }
         
         function recalculateAllExchanges() {
@@ -2813,176 +2830,52 @@
             }
         }
         
-        // ==================== BINANCE ====================
-        function saveBinanceKeys() {
-            const apiKey = document.getElementById('binanceApiKey').value.trim();
-            const secretKey = document.getElementById('binanceSecretKey').value.trim();
-            
-            if (!apiKey || !secretKey) {
-                alert('Inserisci sia API Key che Secret Key');
-                return;
-            }
-            
-            apiKeys.binance = { key: apiKey, secret: secretKey };
-            localStorage.setItem('cryptofolio_apikeys', JSON.stringify(apiKeys));
-            saveToFirebase();
-            
-            document.getElementById('binanceApiStatus').textContent = 'ON';
-            document.getElementById('binanceApiStatus').classList.add('api-on');
-            updateExchangeCount();
-            
-            alert('✅ API Binance salvate!');
-        }
-        
-        async function checkBinanceServer() {
-            const statusEl = document.getElementById('binanceServerStatus');
-            try {
-                const response = await fetch(BINANCE_SERVER_URL + '/status', { 
-                    method: 'GET',
-                    mode: 'cors'
-                });
-                if (response.ok) {
-                    statusEl.textContent = 'Server Online ✓';
-                    statusEl.style.background = 'rgba(0,230,118,0.2)';
-                    statusEl.style.color = 'var(--green)';
-                    return true;
-                }
-            } catch (e) {
-                statusEl.textContent = 'Server Offline';
-                statusEl.style.background = 'rgba(255,82,82,0.2)';
-                statusEl.style.color = 'var(--red)';
-            }
-            return false;
-        }
-        
-        async function syncBinance() {
-            const syncStatus = document.getElementById('binanceSyncStatus');
-            const syncBtn = document.getElementById('binanceSyncBtn');
-            
-            if (!apiKeys.binance || !apiKeys.binance.key || !apiKeys.binance.secret) {
-                alert('Configura prima le API Key di Binance!');
-                return;
-            }
-            
-            syncBtn.disabled = true;
-            syncStatus.innerHTML = '⏳ Connessione al server...';
-            syncStatus.style.color = 'var(--accent)';
-            
-            try {
-                const serverOnline = await checkBinanceServer();
-                if (!serverOnline) {
-                    syncStatus.innerHTML = '❌ Server non attivo - Avvia AVVIA_SERVER.command';
-                    syncStatus.style.color = 'var(--red)';
-                    syncBtn.disabled = false;
-                    return;
-                }
-                
-                syncStatus.innerHTML = '⏳ Caricamento dati da Binance...';
-                
-                const url = BINANCE_SERVER_URL + '/fetch?apiKey=' + encodeURIComponent(apiKeys.binance.key) + '&secretKey=' + encodeURIComponent(apiKeys.binance.secret);
-                const response = await fetch(url);
-                const data = await response.json();
-                
-                if (data.success) {
-                    syncStatus.innerHTML = '✅ Sincronizzato! Totale: €' + data.total.toFixed(2);
-                    syncStatus.style.color = 'var(--green)';
-                    
-                    // Ricarica dati da Firebase
-                    await loadBinanceFromFirebase();
-                    updateBinanceUI();
-                } else {
-                    throw new Error(data.error || 'Errore sconosciuto');
-                }
-            } catch (error) {
-                syncStatus.innerHTML = '❌ ' + error.message;
-                syncStatus.style.color = 'var(--red)';
-            }
-            
-            syncBtn.disabled = false;
-        }
-        
-        async function loadBinanceFromFirebase() {
+        // ==================== LEGACY CLEANUP ====================
+        async function cleanupLegacyBinanceData() {
+            // Pulisce i vecchi dati API Binance da Firebase
             try {
                 const doc = await db.collection('fiscal').doc('binance_live').get();
                 if (doc.exists) {
-                    const data = doc.data();
-                    binanceData.balances = data.balances || { spot: [], earn: [], staking: [] };
-                    binanceData.totals = data.totals || { spot: 0, earn: 0, staking: 0 };
-                    binanceData.lastUpdate = data.lastUpdate || null;
-                    console.log('✅ Binance data loaded from Firebase');
+                    await db.collection('fiscal').doc('binance_live').delete();
+                    console.log('🧹 Cleaned up legacy Binance API data from Firebase');
                 }
+                // Reset local data
+                binanceData = { balances: { spot: [], earn: [], staking: [] }, totals: { spot: 0, earn: 0, staking: 0 }, lastUpdate: null };
             } catch (e) {
-                console.error('Binance Firebase load error:', e);
+                console.log('No legacy Binance data to clean');
             }
         }
         
-        function updateBinanceUI() {
-            // Update API status
-            if (apiKeys.binance && apiKeys.binance.key) {
-                document.getElementById('binanceApiKey').value = apiKeys.binance.key.slice(0, 8) + '...' + apiKeys.binance.key.slice(-4);
-                document.getElementById('binanceSecretKey').value = '••••••••••••••••';
-                document.getElementById('binanceApiStatus').textContent = 'ON';
-                document.getElementById('binanceApiStatus').classList.add('api-on');
-            }
-            
-            const total = (binanceData.totals.spot || 0) + (binanceData.totals.earn || 0) + (binanceData.totals.staking || 0);
-            
-            if (total > 0) {
-                document.getElementById('binanceBalances').style.display = 'block';
-                document.getElementById('binanceSpotTotal').textContent = '€' + (binanceData.totals.spot || 0).toLocaleString('it-IT', {maximumFractionDigits: 2});
-                document.getElementById('binanceEarnTotal').textContent = '€' + (binanceData.totals.earn || 0).toLocaleString('it-IT', {maximumFractionDigits: 2});
-                document.getElementById('binanceStakingTotal').textContent = '€' + (binanceData.totals.staking || 0).toLocaleString('it-IT', {maximumFractionDigits: 2});
-                document.getElementById('binanceTotalValue').textContent = '€' + total.toLocaleString('it-IT', {maximumFractionDigits: 2});
-                
-                if (binanceData.lastUpdate) {
-                    document.getElementById('binanceLastUpdate').textContent = new Date(binanceData.lastUpdate).toLocaleString('it-IT');
-                }
-                
-                // Build token list
-                const allTokens = [
-                    ...(binanceData.balances.spot || []).map(t => ({...t, source: 'Spot'})),
-                    ...(binanceData.balances.earn || []).map(t => ({...t, total: t.amount, source: 'Earn'})),
-                    ...(binanceData.balances.staking || []).map(t => ({...t, total: t.amount, source: 'Staking'}))
-                ].sort((a, b) => (b.valueEur || 0) - (a.valueEur || 0));
-                
-                updateExchangeCount();
-                
-                if (allTokens.length > 0) {
-                    let html = '<table class="holdings-table" style="font-size:12px;"><thead><tr><th>Token</th><th>Tipo</th><th class="text-right">Quantità</th><th class="text-right">Valore EUR</th></tr></thead><tbody>';
-                    
-                    for (const t of allTokens.slice(0, 25)) {
-                        const sourceColor = t.source === 'Spot' ? 'var(--green)' : t.source === 'Earn' ? 'var(--accent)' : '#9945ff';
-                        html += '<tr>';
-                        html += '<td><strong>' + t.symbol + '</strong></td>';
-                        html += '<td><span style="background:' + sourceColor + ';color:#000;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;">' + t.source + '</span></td>';
-                        html += '<td class="text-right text-mono">' + (t.total || t.amount || 0).toLocaleString('en-US', {maximumFractionDigits: 6}) + '</td>';
-                        html += '<td class="text-right text-mono" style="color:var(--green);font-weight:600;">€' + (t.valueEur || 0).toLocaleString('it-IT', {maximumFractionDigits: 2}) + '</td>';
-                        html += '</tr>';
-                    }
-                    
-                    html += '</tbody></table>';
-                    
-                    if (allTokens.length > 25) {
-                        html += '<div style="text-align:center;color:var(--text-secondary);margin-top:12px;font-size:11px;">+ altri ' + (allTokens.length - 25) + ' token</div>';
-                    }
-                    
-                    document.getElementById('binanceTokensList').innerHTML = html;
-                }
-            }
-        }
+        // Funzioni API Binance rimosse - usiamo solo CSV
         
         function updateExchangeCount() {
+            // Conta exchange con dati CSV importati
             let count = 0;
-            const total = (binanceData.totals.spot || 0) + (binanceData.totals.earn || 0) + (binanceData.totals.staking || 0);
-            if (total > 0) count++;
+            for (const exchId of Object.keys(exchangeData)) {
+                if (exchangeData[exchId].transactions && exchangeData[exchId].transactions.length > 0) {
+                    count++;
+                }
+            }
             document.getElementById('exchangeCount').textContent = count;
+        }
+        
+        async function resetAllBinanceLegacyData() {
+            // Resetta i vecchi dati API Binance in Firebase
+            binanceData = { balances: { spot: [], earn: [], staking: [] }, totals: { spot: 0, earn: 0, staking: 0 }, lastUpdate: null };
+            try {
+                await db.collection('fiscal').doc('binance_live').delete();
+                console.log('✅ Binance legacy API data deleted');
+            } catch(e) {
+                console.log('No legacy binance data to delete');
+            }
+            updateExchangeCount();
         }
         
         // ==================== INIT ====================
         async function init() {
             loadSettings();
             await loadFromFirebase();
-            await loadBinanceFromFirebase();
+            await cleanupLegacyBinanceData(); // Pulisce vecchi dati API
             await loadExchangeDataFromFirebase();
             initChainSelector();
             initExchangeGrid();
@@ -3016,17 +2909,30 @@
                 console.log('📊 Loaded', Object.keys(walletResults).length, 'wallet results from Firebase');
             }
             
-            // Check Binance e aggiorna dashboard
-            const binanceTotal = (binanceData.totals.spot || 0) + (binanceData.totals.earn || 0) + (binanceData.totals.staking || 0);
-            if (binanceTotal > 0) {
-                document.getElementById('exchangeTotalEUR').textContent = '€' + binanceTotal.toLocaleString('it-IT', {maximumFractionDigits: 2});
-                document.getElementById('exchangeNames').textContent = 'Binance ✓';
-                console.log('💰 Binance loaded: €' + binanceTotal.toFixed(2));
+            // Check Exchange CSV e aggiorna dashboard
+            let exchangeTotalEUR = 0;
+            let exchangeNames = [];
+            for (const exchId of Object.keys(exchangeData)) {
+                const data = exchangeData[exchId];
+                if (data && data.totals) {
+                    const latestYear = [2025, 2024, 2023, 2022, 2021].find(y => data.totals[y] > 0);
+                    if (latestYear && data.totals[latestYear] > 0) {
+                        exchangeTotalEUR += data.totals[latestYear];
+                        const exchInfo = EXCHANGE_LIST.find(e => e.id === exchId);
+                        if (exchInfo) exchangeNames.push(exchInfo.name);
+                    }
+                }
+            }
+            
+            if (exchangeTotalEUR > 0) {
+                document.getElementById('exchangeTotalEUR').textContent = '€' + exchangeTotalEUR.toLocaleString('it-IT', {maximumFractionDigits: 2});
+                document.getElementById('exchangeNames').textContent = exchangeNames.join(', ') + ' ✓';
+                console.log('💰 Exchanges loaded: €' + exchangeTotalEUR.toFixed(2));
                 
-                // Se non ci sono wallet results, mostra comunque il totale Binance nel portfolio
+                // Se non ci sono wallet results, mostra comunque il totale Exchange nel portfolio
                 if (Object.keys(walletResults).length === 0) {
-                    document.getElementById('totalEUR').textContent = '€' + binanceTotal.toLocaleString('it-IT', {maximumFractionDigits: 2});
-                    document.getElementById('totalUSD').textContent = '$' + (binanceTotal / EUR_USD).toLocaleString('it-IT', {maximumFractionDigits: 2}) + ' USD';
+                    document.getElementById('totalEUR').textContent = '€' + exchangeTotalEUR.toLocaleString('it-IT', {maximumFractionDigits: 2});
+                    document.getElementById('totalUSD').textContent = '$' + (exchangeTotalEUR / EUR_USD).toLocaleString('it-IT', {maximumFractionDigits: 2}) + ' USD';
                 }
             }
         }
