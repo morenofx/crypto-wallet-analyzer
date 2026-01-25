@@ -2029,30 +2029,38 @@
             const KNOWN_TOKENS = ['ETH', 'WETH', 'BTC', 'WBTC', 'BNB', 'SOL', 'MATIC', 'PLS', 'HEX', 
                                   'SHIB', 'BONE', 'USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FRAX'];
             
+            // Simboli famosi che richiedono verifica contratto
+            const FAMOUS_SYMBOLS = ['SHIB', 'DOGE', 'PEPE', 'FLOKI', 'BONE'];
+            
             wallets.forEach(w => {
                 (w.tokens || []).forEach(t => {
                     if (!isHidden(t)) {
                         const symbol = (t.symbol || '').toUpperCase();
                         let tokenValueUSD = 0;
                         
-                        // IMPORTANTE: Usa solo token VERIFICATI o CONOSCIUTI
-                        // Se il token ha valueUSD = 0 e non è un token conosciuto, è probabilmente FAKE
-                        const isKnownToken = KNOWN_TOKENS.includes(symbol);
-                        const isVerified = t.verified === true;
-                        const hasValue = (t.valueUSD || 0) > 0;
+                        // STESSO FILTRO di EUR Value:
+                        // Se il token ha valueUSD = 0 (filtrato come FAKE), skippa
+                        const currentValueUSD = t.valueUSD || 0;
                         
-                        // Skip token non verificati senza valore (probabilmente FAKE)
-                        if (!isKnownToken && !isVerified && !hasValue) {
-                            return; // Skip this token in forEach
+                        // Se è un simbolo famoso ma NON verificato → FAKE
+                        if (FAMOUS_SYMBOLS.includes(symbol) && t.verified !== true) {
+                            console.log(`⚠️ RW SKIP FAKE: ${symbol} (non verificato)`);
+                            return;
+                        }
+                        
+                        // Se il token ha valore 0 attuale e non è stablecoin → skippa
+                        const isStablecoin = ['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FRAX'].includes(symbol);
+                        if (currentValueUSD === 0 && !isStablecoin && !t.verified) {
+                            return;
                         }
                         
                         if (yearPrices[symbol]) {
                             tokenValueUSD = (t.balance || 0) * yearPrices[symbol];
-                        } else if (['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FRAX'].includes(symbol)) {
+                        } else if (isStablecoin) {
                             tokenValueUSD = t.balance || 0;
                         } else {
                             // Token sconosciuto - ignora per RW
-                            if (hasValue && t.valueUSD > 100) {
+                            if (currentValueUSD > 100) {
                                 unknownTokens.push(symbol);
                             }
                             tokenValueUSD = 0;
@@ -2369,6 +2377,12 @@
             return balance.toFixed(8);
         }
         
+        function shortenAddress(address) {
+            if (!address) return 'Unknown';
+            if (address.length < 15) return address;
+            return address.slice(0, 6) + '...' + address.slice(-4);
+        }
+        
         function isHidden(token) {
             const contractId = `contract:${(token.contractAddress || '').toLowerCase()}`;
             const symbolId = `symbol:${(token.symbol || '').toUpperCase()}`;
@@ -2576,41 +2590,51 @@
             const values = [];
             const colors = [];
             
-            const colorMap = {
-                'eth': '#627eea',
-                'polygon': '#8247e5',
-                'bsc': '#f3ba2f',
-                'arbitrum': '#28a0f0',
-                'base': '#0052ff',
-                'optimism': '#ff0420',
-                'avalanche': '#e84142',
-                'pulse': '#ff00ff',
-                'solana': '#14f195',
-                'fantom': '#1969ff',
-                'moonbeam': '#53cbc8',
-                'scroll': '#ffeeda',
-                'zksync': '#8c8dfc',
-                'linea': '#61dfff',
-                'mantle': '#000000',
-                'gnosis': '#04795b',
-                'celo': '#35d07f',
-                'zora': '#5b5bd6',
-                'exchange': '#6b7280'
-            };
+            // Colori per wallet/exchange
+            const walletColors = ['#627eea', '#8247e5', '#f3ba2f', '#28a0f0', '#0052ff', '#ff0420', '#e84142', '#ff00ff', '#14f195', '#1969ff'];
+            let colorIndex = 0;
             
-            Object.entries(chainData)
-                .sort((a, b) => b[1].value - a[1].value)
-                .forEach(([chain, data]) => {
-                    const info = CHAIN_INFO[chain] || { name: chain };
-                    const valueEUR = data.value * EUR_USD;
-                    // Solo chain con valore > 0
-                    if (valueEUR > 0) {
-                        labels.push(info.name);
-                        values.push(valueEUR);
-                        colors.push(colorMap[chain] || '#888');
-                        console.log(`📊 Chart: ${info.name} = €${valueEUR.toFixed(2)}`);
+            // OKIPO style: mostra per WALLET, non per chain
+            wallets.forEach(w => {
+                // Calcola valore totale wallet (filtrato)
+                const MAX_SINGLE_TOKEN_EUR = 50000;
+                const UNLIMITED_TOKENS = ['ETH', 'WETH', 'BTC', 'WBTC'];
+                
+                let walletValue = 0;
+                (w.tokens || []).forEach(t => {
+                    if (!isHidden(t)) {
+                        let tokenValue = t.valueUSD || 0;
+                        const symbol = (t.symbol || '').toUpperCase();
+                        const valueEUR = tokenValue * EUR_USD;
+                        
+                        if (!UNLIMITED_TOKENS.includes(symbol) && valueEUR > MAX_SINGLE_TOKEN_EUR) {
+                            tokenValue = 0;
+                        }
+                        walletValue += tokenValue * EUR_USD;
                     }
                 });
+                
+                if (walletValue > 0) {
+                    labels.push(w.name || shortenAddress(w.address));
+                    values.push(walletValue);
+                    colors.push(walletColors[colorIndex % walletColors.length]);
+                    colorIndex++;
+                }
+            });
+            
+            // Aggiungi exchange
+            const exchangeColors = ['#00d4aa', '#ffa500', '#ff6b6b', '#4ecdc4', '#45b7d1'];
+            let exColorIndex = 0;
+            
+            exchanges.forEach(ex => {
+                const exValue = (ex.tokens || []).reduce((sum, t) => sum + ((t.valueUSD || 0) * EUR_USD), 0);
+                if (exValue > 0) {
+                    labels.push(ex.name);
+                    values.push(exValue);
+                    colors.push(exchangeColors[exColorIndex % exchangeColors.length]);
+                    exColorIndex++;
+                }
+            });
             
             // Se non ci sono dati, non creare il grafico
             if (values.length === 0) {
@@ -2623,6 +2647,8 @@
             if (portfolioChart) {
                 portfolioChart.destroy();
             }
+            
+            const total = values.reduce((a, b) => a + b, 0);
             
             portfolioChart = new Chart(ctx, {
                 type: 'doughnut',
@@ -2648,7 +2674,21 @@
                                 padding: 15,
                                 font: { size: 12 },
                                 usePointStyle: true,
-                                pointStyle: 'circle'
+                                pointStyle: 'circle',
+                                generateLabels: function(chart) {
+                                    const data = chart.data;
+                                    return data.labels.map((label, i) => {
+                                        const value = data.datasets[0].data[i];
+                                        const percent = ((value / total) * 100).toFixed(1);
+                                        return {
+                                            text: `${label} (${percent}%)`,
+                                            fillStyle: data.datasets[0].backgroundColor[i],
+                                            strokeStyle: data.datasets[0].backgroundColor[i],
+                                            hidden: false,
+                                            index: i
+                                        };
+                                    });
+                                }
                             }
                         },
                         tooltip: {
