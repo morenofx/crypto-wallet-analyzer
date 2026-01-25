@@ -384,6 +384,43 @@
                 </div>
             </div>
             
+            <!-- BINANCE API STORICO -->
+            <div class="card" style="margin-bottom:20px;border:2px solid #f3ba2f;">
+                <div class="card-header">
+                    <div class="card-title" style="display:flex;align-items:center;gap:12px;">
+                        <span style="width:40px;height:40px;background:#f3ba2f;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:bold;color:#000;">B</span>
+                        <div>
+                            <div>Binance - Storico Completo</div>
+                            <div style="font-size:12px;color:var(--text-secondary);font-weight:normal;">📜 Scarica TUTTE le transazioni • Calcolo automatico 31/12</div>
+                        </div>
+                    </div>
+                    <span class="api-status" id="binanceApiStatus">OFF</span>
+                </div>
+                <div class="input-row" style="margin-top:16px;">
+                    <div class="input-group" style="flex:2;">
+                        <label>API Key <a href="https://www.binance.com/en/my/settings/api-management" target="_blank" style="color:var(--accent);font-size:11px;margin-left:8px;">→ Crea API</a></label>
+                        <input type="text" id="binanceApiKeyInput" placeholder="API Key..." autocomplete="off">
+                    </div>
+                    <div class="input-group" style="flex:2;">
+                        <label>Secret Key</label>
+                        <input type="password" id="binanceSecretInput" placeholder="Secret Key..." autocomplete="off">
+                    </div>
+                    <div class="input-group" style="flex:0;align-self:flex-end;">
+                        <button class="btn btn-primary" onclick="saveBinanceApiKeys()">💾 Salva</button>
+                    </div>
+                </div>
+                <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="btn btn-secondary" onclick="testBinanceApi()" id="btnTestBinance">🔍 Test Connessione</button>
+                    <button class="btn" onclick="downloadBinanceHistory()" id="btnDownloadBinance" style="background:#f3ba2f;color:#000;">📥 Scarica Storico Completo</button>
+                </div>
+                <div id="binanceApiLog" style="margin-top:12px;padding:12px;background:var(--bg-primary);border-radius:8px;font-size:11px;font-family:monospace;max-height:200px;overflow-y:auto;display:none;"></div>
+                <div style="margin-top:12px;padding:12px;background:var(--bg-primary);border-radius:8px;font-size:12px;">
+                    <strong>⚠️ Permessi richiesti:</strong> Abilita solo "Enable Reading" - NO trading, NO withdrawal<br>
+                    <strong>📊 Dati scaricati:</strong> Depositi, Prelievi, Spot Trades, Dividendi, Conversioni, Staking<br>
+                    <strong>📅 Risultato:</strong> Saldo al 31/12 di ogni anno (2021-2025)
+                </div>
+            </div>
+            
             <!-- API STATUS SUMMARY -->
             <div class="card">
                 <div class="card-header"><div class="card-title">📊 Riepilogo API</div></div>
@@ -1126,6 +1163,332 @@
             alert('✅ Helius API key salvata! Solana scan migliorato.');
         }
         
+        // ==================== BINANCE API STORICO ====================
+        function saveBinanceApiKeys() {
+            const key = document.getElementById('binanceApiKeyInput').value.trim();
+            const secret = document.getElementById('binanceSecretInput').value.trim();
+            
+            if (!key || !secret || key.includes('...') || secret.includes('•')) {
+                alert('Inserisci API Key e Secret Key valide');
+                return;
+            }
+            
+            apiKeys.binanceKey = key;
+            apiKeys.binanceSecret = secret;
+            localStorage.setItem('cryptofolio_apikeys', JSON.stringify(apiKeys));
+            saveToFirebase();
+            updateApiStatus();
+            alert('✅ Binance API salvate! Ora puoi scaricare lo storico.');
+        }
+        
+        // HMAC-SHA256 signing per Binance
+        async function signBinanceRequest(queryString, secret) {
+            const encoder = new TextEncoder();
+            const keyData = encoder.encode(secret);
+            const msgData = encoder.encode(queryString);
+            
+            const cryptoKey = await crypto.subtle.importKey(
+                'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+            );
+            
+            const signature = await crypto.subtle.sign('HMAC', cryptoKey, msgData);
+            return Array.from(new Uint8Array(signature))
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+        }
+        
+        // Chiamata API Binance firmata
+        async function binanceSignedRequest(endpoint, params = {}) {
+            const baseUrl = 'https://api.binance.com';
+            const timestamp = Date.now();
+            
+            params.timestamp = timestamp;
+            params.recvWindow = 60000;
+            
+            const queryString = Object.entries(params)
+                .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+                .join('&');
+            
+            const signature = await signBinanceRequest(queryString, apiKeys.binanceSecret);
+            const url = `${baseUrl}${endpoint}?${queryString}&signature=${signature}`;
+            
+            const response = await fetch(url, {
+                headers: { 'X-MBX-APIKEY': apiKeys.binanceKey }
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.msg || `HTTP ${response.status}`);
+            }
+            
+            return response.json();
+        }
+        
+        function binanceLog(msg, type = 'info') {
+            const log = document.getElementById('binanceApiLog');
+            if (log) {
+                log.style.display = 'block';
+                const color = type === 'error' ? 'var(--red)' : type === 'success' ? 'var(--green)' : 'var(--text-secondary)';
+                log.innerHTML += `<div style="color:${color}">[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+                log.scrollTop = log.scrollHeight;
+            }
+            console.log('[Binance]', msg);
+        }
+        
+        async function testBinanceApi() {
+            if (!apiKeys.binanceKey || !apiKeys.binanceSecret) {
+                alert('⚠️ Inserisci prima API Key e Secret');
+                return;
+            }
+            
+            const log = document.getElementById('binanceApiLog');
+            if (log) { log.innerHTML = ''; log.style.display = 'block'; }
+            
+            binanceLog('🔍 Test connessione Binance...');
+            
+            try {
+                // Test con endpoint account
+                const account = await binanceSignedRequest('/api/v3/account');
+                binanceLog('✅ Connessione OK!', 'success');
+                binanceLog(`📊 Balances: ${account.balances.filter(b => parseFloat(b.free) > 0 || parseFloat(b.locked) > 0).length} asset attivi`);
+                
+                // Mostra alcuni saldi
+                const topBalances = account.balances
+                    .map(b => ({ asset: b.asset, total: parseFloat(b.free) + parseFloat(b.locked) }))
+                    .filter(b => b.total > 0)
+                    .sort((a, b) => b.total - a.total)
+                    .slice(0, 5);
+                
+                binanceLog(`Top assets: ${topBalances.map(b => b.asset + ': ' + b.total.toFixed(4)).join(', ')}`);
+                
+            } catch (e) {
+                binanceLog('❌ Errore: ' + e.message, 'error');
+                if (e.message.includes('Invalid API-key')) {
+                    binanceLog('Controlla che la API key sia corretta e abbia i permessi di lettura', 'error');
+                }
+            }
+        }
+        
+        async function downloadBinanceHistory() {
+            if (!apiKeys.binanceKey || !apiKeys.binanceSecret) {
+                alert('⚠️ Inserisci prima API Key e Secret');
+                return;
+            }
+            
+            const log = document.getElementById('binanceApiLog');
+            if (log) { log.innerHTML = ''; log.style.display = 'block'; }
+            
+            const btn = document.getElementById('btnDownloadBinance');
+            if (btn) { btn.disabled = true; btn.textContent = '⏳ Scaricamento...'; }
+            
+            binanceLog('📥 Inizio download storico Binance...');
+            
+            const allTransactions = [];
+            const startYear = 2020;
+            const endYear = new Date().getFullYear();
+            
+            try {
+                // 1. DEPOSITI
+                binanceLog('📥 Scaricamento depositi...');
+                for (let year = startYear; year <= endYear; year++) {
+                    const startTime = new Date(year, 0, 1).getTime();
+                    const endTime = new Date(year, 11, 31, 23, 59, 59).getTime();
+                    
+                    try {
+                        const deposits = await binanceSignedRequest('/sapi/v1/capital/deposit/hisrec', {
+                            startTime, endTime, limit: 1000
+                        });
+                        
+                        for (const d of deposits) {
+                            allTransactions.push({
+                                date: new Date(d.insertTime),
+                                type: 'deposit',
+                                coin: d.coin,
+                                amount: parseFloat(d.amount),
+                                change: parseFloat(d.amount)
+                            });
+                        }
+                        if (deposits.length > 0) binanceLog(`  ${year}: ${deposits.length} depositi`);
+                    } catch (e) {
+                        // Ignora errori per anni senza dati
+                    }
+                    await new Promise(r => setTimeout(r, 200)); // Rate limit
+                }
+                
+                // 2. PRELIEVI
+                binanceLog('📤 Scaricamento prelievi...');
+                for (let year = startYear; year <= endYear; year++) {
+                    const startTime = new Date(year, 0, 1).getTime();
+                    const endTime = new Date(year, 11, 31, 23, 59, 59).getTime();
+                    
+                    try {
+                        const withdrawals = await binanceSignedRequest('/sapi/v1/capital/withdraw/history', {
+                            startTime, endTime, limit: 1000
+                        });
+                        
+                        for (const w of withdrawals) {
+                            if (w.status === 6) { // Completed
+                                allTransactions.push({
+                                    date: new Date(w.completeTime || w.applyTime),
+                                    type: 'withdrawal',
+                                    coin: w.coin,
+                                    amount: parseFloat(w.amount),
+                                    change: -parseFloat(w.amount) - parseFloat(w.transactionFee || 0)
+                                });
+                            }
+                        }
+                        if (withdrawals.length > 0) binanceLog(`  ${year}: ${withdrawals.length} prelievi`);
+                    } catch (e) {
+                        // Ignora errori per anni senza dati
+                    }
+                    await new Promise(r => setTimeout(r, 200));
+                }
+                
+                // 3. DIVIDENDI / DISTRIBUZIONE
+                binanceLog('💰 Scaricamento dividendi e distribuzione...');
+                try {
+                    const dividends = await binanceSignedRequest('/sapi/v1/asset/assetDividend', { limit: 500 });
+                    for (const d of (dividends.rows || [])) {
+                        allTransactions.push({
+                            date: new Date(d.divTime),
+                            type: 'dividend',
+                            coin: d.asset,
+                            amount: parseFloat(d.amount),
+                            change: parseFloat(d.amount)
+                        });
+                    }
+                    binanceLog(`  ${(dividends.rows || []).length} dividendi trovati`);
+                } catch (e) {
+                    binanceLog('  Dividendi: nessuno o errore');
+                }
+                
+                // 4. DUST (piccole conversioni in BNB)
+                binanceLog('🧹 Scaricamento conversioni dust...');
+                try {
+                    const dust = await binanceSignedRequest('/sapi/v1/asset/dribblet', { limit: 500 });
+                    for (const d of (dust.userAssetDribblets || [])) {
+                        // BNB ricevuto
+                        allTransactions.push({
+                            date: new Date(d.operateTime),
+                            type: 'dust',
+                            coin: 'BNB',
+                            amount: parseFloat(d.transferedTotal),
+                            change: parseFloat(d.transferedTotal)
+                        });
+                        // Asset convertiti (negativi)
+                        for (const detail of (d.userAssetDribbletDetails || [])) {
+                            allTransactions.push({
+                                date: new Date(d.operateTime),
+                                type: 'dust',
+                                coin: detail.fromAsset,
+                                amount: parseFloat(detail.amount),
+                                change: -parseFloat(detail.amount)
+                            });
+                        }
+                    }
+                    binanceLog(`  ${(dust.userAssetDribblets || []).length} conversioni dust`);
+                } catch (e) {
+                    binanceLog('  Dust: nessuno o errore');
+                }
+                
+                // 5. EARN / STAKING REWARDS
+                binanceLog('🏦 Scaricamento rewards staking/earn...');
+                try {
+                    // Simple Earn Flexible
+                    const flexHistory = await binanceSignedRequest('/sapi/v1/simple-earn/flexible/history/rewardsRecord', {
+                        type: 'REWARDS', size: 100
+                    });
+                    for (const r of (flexHistory.rows || [])) {
+                        allTransactions.push({
+                            date: new Date(r.time),
+                            type: 'earn_reward',
+                            coin: r.asset,
+                            amount: parseFloat(r.rewards),
+                            change: parseFloat(r.rewards)
+                        });
+                    }
+                    binanceLog(`  ${(flexHistory.rows || []).length} rewards earn`);
+                } catch (e) {
+                    // Ignora se non disponibile
+                }
+                
+                // RIEPILOGO
+                binanceLog(`✅ Totale: ${allTransactions.length} transazioni scaricate`, 'success');
+                
+                // Ordina per data
+                allTransactions.sort((a, b) => a.date - b.date);
+                
+                // Calcola saldi al 31/12
+                binanceLog('📊 Calcolo saldi al 31/12...');
+                
+                const balances = {};
+                const yearEndSnapshots = {};
+                const years = [2021, 2022, 2023, 2024, 2025];
+                let yearIndex = 0;
+                
+                for (const tx of allTransactions) {
+                    // Aggiorna saldo
+                    if (!balances[tx.coin]) balances[tx.coin] = 0;
+                    balances[tx.coin] += tx.change;
+                    if (balances[tx.coin] < 0.00000001) balances[tx.coin] = 0; // Fix floating point
+                    
+                    // Snapshot a fine anno
+                    while (yearIndex < years.length && tx.date > new Date(years[yearIndex], 11, 31, 23, 59, 59)) {
+                        yearEndSnapshots[years[yearIndex]] = { ...balances };
+                        binanceLog(`  Snapshot ${years[yearIndex]}: ${Object.keys(balances).filter(c => balances[c] > 0).length} coins`);
+                        yearIndex++;
+                    }
+                }
+                
+                // Snapshot anni rimanenti
+                for (let i = yearIndex; i < years.length; i++) {
+                    yearEndSnapshots[years[i]] = { ...balances };
+                }
+                
+                // Calcola totali EUR
+                const yearTotals = {};
+                for (const year of years) {
+                    let totalEur = 0;
+                    const snapshot = yearEndSnapshots[year] || {};
+                    
+                    for (const [coin, amount] of Object.entries(snapshot)) {
+                        if (amount <= 0) continue;
+                        const price = getHistoricalPrice(coin, year);
+                        const valueUsd = amount * price;
+                        totalEur += valueUsd * EUR_USD;
+                    }
+                    
+                    yearTotals[year] = Math.round(totalEur * 100) / 100;
+                    binanceLog(`  ${year}: €${formatEUR(yearTotals[year])}`);
+                }
+                
+                // Salva in exchangeData
+                exchangeData['binance'] = {
+                    transactions: allTransactions,
+                    balances: yearEndSnapshots,
+                    totals: yearTotals,
+                    transactionCount: allTransactions.length,
+                    isManual: false,
+                    lastImport: new Date().toISOString(),
+                    source: 'api'
+                };
+                
+                initExchangeGrid();
+                updateExchangeTotals();
+                updateExchangeCount();
+                saveExchangeDataToFirebase();
+                
+                binanceLog('🎉 Completato! Dati salvati.', 'success');
+                alert('✅ Binance: ' + allTransactions.length + ' transazioni scaricate!\nControlla la sezione Exchanges.');
+                
+            } catch (e) {
+                binanceLog('❌ Errore: ' + e.message, 'error');
+                alert('❌ Errore: ' + e.message);
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = '📥 Scarica Storico Completo'; }
+            }
+        }
+        
         function updateApiStatus() {
             // Update status badges
             const moralisStatus = document.getElementById('moralisStatus');
@@ -1159,6 +1522,24 @@
                 } else {
                     heliusStatus.textContent = 'OFF';
                     heliusStatus.classList.remove('api-on');
+                }
+            }
+            
+            // Binance API status
+            const binanceApiStatus = document.getElementById('binanceApiStatus');
+            if (binanceApiStatus) {
+                if (apiKeys.binanceKey && apiKeys.binanceSecret) {
+                    binanceApiStatus.textContent = 'ON';
+                    binanceApiStatus.classList.add('api-on');
+                    binanceApiStatus.style.background = '#f3ba2f';
+                    // Popola i campi
+                    const keyInput = document.getElementById('binanceApiKeyInput');
+                    const secretInput = document.getElementById('binanceSecretInput');
+                    if (keyInput) keyInput.value = apiKeys.binanceKey.substring(0, 8) + '...';
+                    if (secretInput) secretInput.value = '••••••••';
+                } else {
+                    binanceApiStatus.textContent = 'OFF';
+                    binanceApiStatus.classList.remove('api-on');
                 }
             }
             
@@ -2636,16 +3017,22 @@
                 const data = exchangeData[exch.id] || {};
                 // Controlla se ci sono transazioni O dati salvati (transactionCount o totali)
                 const hasTx = (data.transactions && data.transactions.length > 0);
-                const hasData = hasTx || data.transactionCount > 0 || (data.totals && Object.values(data.totals).some(v => v > 0));
+                const hasData = hasTx || data.transactionCount > 0 || data.isZeroed || data.isManual || (data.totals && Object.values(data.totals).some(v => v > 0));
                 const txCount = data.transactions ? data.transactions.length : (data.transactionCount || 0);
                 const total2024 = data.totals ? (data.totals[2024] || 0) : 0;
+                const isZeroed = data.isZeroed || false;
+                const isManual = data.isManual || false;
                 
                 html += '<div class="card exchange-card" id="exch-' + exch.id + '" style="position:relative;overflow:hidden;">';
                 html += '<div class="card-header" style="cursor:pointer;" onclick="toggleExchangeDropzone(\'' + exch.id + '\')">';
                 html += '<div class="card-title" style="display:flex;align-items:center;gap:12px;">';
                 html += '<span style="width:40px;height:40px;background:' + exch.color + ';border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:bold;color:#fff;">' + exch.icon + '</span>';
                 html += '<div><div style="font-size:14px;">' + exch.name + '</div>';
-                if (hasData) {
+                if (isZeroed) {
+                    html += '<div style="font-size:11px;color:var(--yellow);">⚠️ Azzerato (vuoto)</div>';
+                } else if (isManual && txCount === 0) {
+                    html += '<div style="font-size:11px;color:var(--accent);">✏️ Valori manuali</div>';
+                } else if (hasData) {
                     html += '<div style="font-size:11px;color:var(--green);">✓ ' + (txCount > 0 ? txCount + ' tx' : 'Dati salvati') + '</div>';
                 } else {
                     html += '<div style="font-size:11px;color:var(--text-secondary);">📂 Importa CSV</div>';
@@ -2653,6 +3040,8 @@
                 html += '</div></div>';
                 if (hasData && total2024 > 0) {
                     html += '<div style="text-align:right;"><div style="font-size:11px;color:var(--text-secondary);">2024</div><div style="font-size:16px;font-weight:700;color:var(--green);">€' + formatEUR(total2024) + '</div></div>';
+                } else if (isZeroed) {
+                    html += '<div style="text-align:right;"><div style="font-size:11px;color:var(--text-secondary);">2024</div><div style="font-size:16px;font-weight:700;color:var(--yellow);">€0,00</div></div>';
                 }
                 html += '</div>';
                 
@@ -2663,22 +3052,27 @@
                 html += '<div style="color:var(--text-secondary);font-size:13px;">Trascina ZIP o CSV qui</div>';
                 html += '<input type="file" id="file-' + exch.id + '" accept=".csv,.zip" multiple style="display:none;" onchange="handleFileSelect(event, \'' + exch.id + '\')">';
                 html += '<button class="btn btn-secondary" onclick="document.getElementById(\'file-' + exch.id + '\').click()" style="margin-top:12px;font-size:12px;">📁 Sfoglia</button>';
+                html += '<button class="btn" onclick="enableManualEntry(\'' + exch.id + '\')" style="margin-top:12px;margin-left:8px;font-size:12px;background:var(--accent);">✏️ Inserisci manuale</button>';
                 if (hasData) {
+                    html += '<button class="btn" onclick="zeroExchangeData(\'' + exch.id + '\')" style="margin-top:12px;margin-left:8px;font-size:12px;background:var(--yellow);color:#000;">🔄 Azzera</button>';
                     html += '<button class="btn" onclick="clearExchangeData(\'' + exch.id + '\')" style="margin-top:12px;margin-left:8px;font-size:12px;background:var(--red);">🗑️ Reset</button>';
                 }
                 html += '</div>';
                 
-                // Totali per anno (se presenti)
+                // Totali per anno (se presenti) - con possibilità di modifica manuale
                 if (hasData && data.totals) {
                     html += '<div style="margin-top:12px;display:grid;grid-template-columns:repeat(5,1fr);gap:6px;font-size:11px;">';
                     for (const y of [2021, 2022, 2023, 2024, 2025]) {
                         const val = data.totals[y] || 0;
                         html += '<div style="background:var(--bg-primary);padding:6px;border-radius:4px;text-align:center;">';
                         html += '<div style="color:var(--text-secondary);">' + y + '</div>';
-                        html += '<div style="color:' + (val > 0 ? 'var(--green)' : 'var(--text-secondary)') + ';font-weight:600;">€' + formatEUR(val) + '</div>';
+                        html += '<input type="number" id="manual-' + exch.id + '-' + y + '" value="' + val.toFixed(2) + '" ';
+                        html += 'style="width:100%;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;padding:4px;text-align:center;font-size:11px;font-weight:600;color:var(--green);" ';
+                        html += 'onchange="updateManualExchangeValue(\'' + exch.id + '\',' + y + ',this.value)">';
                         html += '</div>';
                     }
                     html += '</div>';
+                    html += '<div style="margin-top:8px;text-align:center;"><button class="btn btn-secondary" onclick="saveManualExchangeValues(\'' + exch.id + '\')" style="font-size:11px;">💾 Salva valori manuali</button></div>';
                 }
                 
                 html += '</div>';
@@ -3469,7 +3863,81 @@
             delete exchangeData[exchId];
             initExchangeGrid();
             updateExchangeTotals();
+            updateExchangeCount();
             saveExchangeDataToFirebase();
+        }
+        
+        function zeroExchangeData(exchId) {
+            if (!confirm('Impostare tutti i valori di ' + exchId.toUpperCase() + ' a €0?\n(Usa se hai prelevato tutto dall\'exchange)')) return;
+            
+            // Mantieni la struttura ma azzera tutti i totali
+            if (!exchangeData[exchId]) {
+                exchangeData[exchId] = {};
+            }
+            exchangeData[exchId].totals = { 2021: 0, 2022: 0, 2023: 0, 2024: 0, 2025: 0 };
+            exchangeData[exchId].balances = {};
+            exchangeData[exchId].transactions = [];
+            exchangeData[exchId].transactionCount = 0;
+            exchangeData[exchId].isZeroed = true; // Flag per indicare che è stato azzerato manualmente
+            exchangeData[exchId].isManual = true;
+            
+            initExchangeGrid();
+            updateExchangeTotals();
+            updateExchangeCount();
+            saveExchangeDataToFirebase();
+            alert('✅ ' + exchId.toUpperCase() + ' impostato a €0 per tutti gli anni!');
+        }
+        
+        function updateManualExchangeValue(exchId, year, value) {
+            // Aggiorna valore in memoria (non salva ancora)
+            if (!exchangeData[exchId]) {
+                exchangeData[exchId] = { totals: {}, balances: {}, transactions: [], isManual: true };
+            }
+            if (!exchangeData[exchId].totals) {
+                exchangeData[exchId].totals = {};
+            }
+            exchangeData[exchId].totals[year] = parseFloat(value) || 0;
+            exchangeData[exchId].isManual = true;
+            exchangeData[exchId].isZeroed = false;
+            
+            // Aggiorna totali in tempo reale
+            updateExchangeTotals();
+        }
+        
+        function saveManualExchangeValues(exchId) {
+            // Leggi tutti i valori dagli input
+            const years = [2021, 2022, 2023, 2024, 2025];
+            if (!exchangeData[exchId]) {
+                exchangeData[exchId] = { totals: {}, balances: {}, transactions: [], isManual: true };
+            }
+            
+            for (const y of years) {
+                const input = document.getElementById('manual-' + exchId + '-' + y);
+                if (input) {
+                    exchangeData[exchId].totals[y] = parseFloat(input.value) || 0;
+                }
+            }
+            exchangeData[exchId].isManual = true;
+            exchangeData[exchId].isZeroed = false;
+            exchangeData[exchId].transactionCount = 0; // Non basato su CSV
+            
+            updateExchangeTotals();
+            updateExchangeCount();
+            saveExchangeDataToFirebase();
+            alert('✅ Valori manuali salvati per ' + exchId.toUpperCase() + '!');
+        }
+        
+        function enableManualEntry(exchId) {
+            // Abilita inserimento manuale per exchange senza dati
+            if (!exchangeData[exchId]) {
+                exchangeData[exchId] = { 
+                    totals: { 2021: 0, 2022: 0, 2023: 0, 2024: 0, 2025: 0 }, 
+                    balances: {}, 
+                    transactions: [], 
+                    isManual: true 
+                };
+            }
+            initExchangeGrid();
         }
         
         async function clearAllExchangeData() {
@@ -3513,6 +3981,8 @@
                         totals: data.totals || {},
                         balances: data.balances || {},
                         transactionCount: data.transactions ? data.transactions.length : 0,
+                        isZeroed: data.isZeroed || false,
+                        isManual: data.isManual || false,
                         lastImport: new Date().toISOString()
                     };
                 }
@@ -3540,7 +4010,9 @@
                             transactions: [], // Vuoto - dovrà reimportare
                             totals: savedData[exchId].totals || {},
                             balances: savedData[exchId].balances || {},
-                            transactionCount: savedData[exchId].transactionCount || 0
+                            transactionCount: savedData[exchId].transactionCount || 0,
+                            isZeroed: savedData[exchId].isZeroed || false,
+                            isManual: savedData[exchId].isManual || false
                         };
                     }
                     
@@ -3570,12 +4042,12 @@
         // Funzioni API Binance rimosse - usiamo solo CSV
         
         function updateExchangeCount() {
-            // Conta exchange con dati (transazioni in memoria O dati salvati da Firebase)
+            // Conta exchange con dati (transazioni in memoria O dati salvati da Firebase O manuali)
             let count = 0;
             for (const exchId of Object.keys(exchangeData)) {
                 const data = exchangeData[exchId];
                 const hasTx = data.transactions && data.transactions.length > 0;
-                const hasData = hasTx || data.transactionCount > 0 || (data.totals && Object.values(data.totals).some(v => v > 0));
+                const hasData = hasTx || data.transactionCount > 0 || data.isZeroed || data.isManual || (data.totals && Object.values(data.totals).some(v => v > 0));
                 if (hasData) count++;
             }
             document.getElementById('exchangeCount').textContent = count;
