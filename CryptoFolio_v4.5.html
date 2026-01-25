@@ -491,6 +491,7 @@
                 </label>
                 <button class="btn btn-secondary" onclick="runReconciliation()">🔗 Esegui Riconciliazione</button>
                 <button class="btn btn-secondary" onclick="exportReconciliationReport()">📥 Esporta Report</button>
+                <button class="btn btn-secondary" onclick="resetReconciliationData()" style="background:var(--red);">🗑️ Reset</button>
             </div>
         </div>
         
@@ -589,11 +590,12 @@
             arbitrum: { id: 42161, name: 'Arbitrum', symbol: 'ETH', explorer: 'arbiscan.io', color: '#28a0f0', dex: 'arbitrum', api: 'etherscan' },
             optimism: { id: 10, name: 'Optimism', symbol: 'ETH', explorer: 'optimistic.etherscan.io', color: '#ff0420', dex: 'optimism', api: 'etherscan' },
             base: { id: 8453, name: 'Base', symbol: 'ETH', explorer: 'basescan.org', color: '#0052ff', dex: 'base', api: 'etherscan' },
+            cronos: { id: 25, name: 'Cronos', symbol: 'CRO', explorer: 'cronoscan.com', color: '#002D74', dex: 'cronos', api: 'etherscan' },
             pulse: { id: 369, name: 'PulseChain', symbol: 'PLS', explorer: 'scan.pulsechain.com', color: '#00ff00', dex: 'pulsechain', api: 'pulsescan' },
             solana: { id: 0, name: 'Solana', symbol: 'SOL', explorer: 'solscan.io', color: '#9945ff', dex: 'solana', api: 'solana' },
         };
         
-        const NATIVE_PRICES = { ETH: 0, BNB: 0, MATIC: 0, PLS: 0, SOL: 0 };
+        const NATIVE_PRICES = { ETH: 0, BNB: 0, MATIC: 0, PLS: 0, SOL: 0, CRO: 0 };
         
         const TOKEN_ICONS = {
             'ETH': 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
@@ -605,6 +607,7 @@
             'USDC': 'https://assets.coingecko.com/coins/images/6319/small/usdc.png',
             'PLS': 'https://tokens.app.pulsex.com/images/tokens/0xA1077a294dDE1B09bB078844df40758a5D0f9a27.png',
             'SOL': 'https://assets.coingecko.com/coins/images/4128/small/solana.png',
+            'CRO': 'https://assets.coingecko.com/coins/images/7310/small/cro_token_logo.png',
             'HEX': 'https://tokens.app.pulsex.com/images/tokens/0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39.png',
             'PLSX': 'https://tokens.app.pulsex.com/images/tokens/0x95B303987A60C71504D99Aa1b13B4DA07b0790ab.png',
             'INC': 'https://tokens.app.pulsex.com/images/tokens/0x2fa878Ab3F87CC1C9737Fc071108F904c0B0C95d.png',
@@ -711,7 +714,8 @@
             polygon: '0x89',
             arbitrum: '0xa4b1',
             optimism: '0xa',
-            base: '0x2105'
+            base: '0x2105',
+            cronos: '0x19'
         };
         
         // ==================== FIREBASE ====================
@@ -903,6 +907,16 @@
                 loadExchangeValuesUI();
                 if (taxReportData) {
                     renderTaxReport(taxReportData);
+                }
+            }
+            
+            // Carica dati riconciliazione da localStorage
+            if (view === 'reconcile') {
+                if (reconcileData.exchangeTx.length === 0 && reconcileData.walletTx.length === 0) {
+                    if (loadReconcileFromLocalStorage()) {
+                        updateReconcileSummary();
+                        renderReconcileData();
+                    }
                 }
             }
             
@@ -4200,6 +4214,12 @@
         async function importExchangeCSVForReconcile(file) {
             if (!file) return;
             
+            // RESET dati exchange prima di importare
+            reconcileData.exchangeTx = [];
+            reconcileData.matches = [];
+            reconcileData.unmatchedExch = [];
+            reconcileData.unmatchedWallet = [];
+            
             const text = await file.text();
             const lines = text.split('\n').filter(l => l.trim());
             
@@ -4298,6 +4318,7 @@
             
             updateReconcileSummary();
             renderReconcileData();
+            saveReconcileToLocalStorage(); // Salva in localStorage
             
             alert(`✅ Importato!\n\n• ${imported} transazioni exchange (deposit/withdraw crypto)\n• ${reconcileData.exchangeTx.length} totali\n\nOra clicca "Esegui Riconciliazione" per trovare i match.`);
         }
@@ -4305,8 +4326,11 @@
         async function loadReconciliationData() {
             console.log('🔗 Caricamento dati per riconciliazione...');
             
-            reconcileData.exchangeTx = [];
+            // RESET solo wallet, NON exchange (potrebbero essere già caricati da CSV)
             reconcileData.walletTx = [];
+            reconcileData.matches = [];
+            reconcileData.unmatchedExch = [];
+            reconcileData.unmatchedWallet = [];
             
             // Mostra loading
             document.getElementById('reconcileMatches').innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:40px;">⏳ Caricamento in corso...</div>';
@@ -4362,7 +4386,8 @@
                 { id: '0x89', name: 'Polygon' },
                 { id: '0xa4b1', name: 'Arbitrum' },
                 { id: '0xa', name: 'Optimism' },
-                { id: '0x2105', name: 'Base' }
+                { id: '0x2105', name: 'Base' },
+                { id: '0x19', name: 'Cronos' }
             ];
             
             for (const address of walletAddresses) {
@@ -4414,7 +4439,8 @@
                             // Map chain to native symbol
                             const nativeSymbols = {
                                 '0x1': 'ETH', '0x38': 'BNB', '0x89': 'MATIC',
-                                '0xa4b1': 'ETH', '0xa': 'ETH', '0x2105': 'ETH'
+                                '0xa4b1': 'ETH', '0xa': 'ETH', '0x2105': 'ETH',
+                                '0x19': 'CRO'
                             };
                             
                             for (const tx of (nativeData.result || [])) {
@@ -4454,44 +4480,62 @@
             
             updateReconcileSummary();
             renderReconcileData();
+            saveReconcileToLocalStorage(); // Salva in localStorage
             
             alert(`✅ Caricamento completato!\n\n• ${reconcileData.exchangeTx.length} transazioni exchange (deposit/withdraw)\n• ${reconcileData.walletTx.length} transazioni wallet\n\nOra clicca "Esegui Riconciliazione" per trovare i match.`);
         }
         
         function runReconciliation() {
             console.log('🔗 Esecuzione riconciliazione...');
+            console.log('Exchange TX totali:', reconcileData.exchangeTx.length);
+            console.log('Wallet TX totali:', reconcileData.walletTx.length);
+            
+            // Debug: mostra sample dei tipi
+            const exchTypes = [...new Set(reconcileData.exchangeTx.map(t => t.type))];
+            const walletTypes = [...new Set(reconcileData.walletTx.map(t => t.type))];
+            console.log('Tipi exchange:', exchTypes);
+            console.log('Tipi wallet:', walletTypes);
             
             reconcileData.matches = [];
             reconcileData.unmatchedExch = [...reconcileData.exchangeTx];
             reconcileData.unmatchedWallet = [...reconcileData.walletTx];
             
             // Algoritmo di matching
-            // Match: stesso coin, importo simile (±5%), data vicina (±24h)
+            const AMOUNT_TOLERANCE = 0.10; // 10% tolerance (per fee)
+            const TIME_TOLERANCE = 48 * 60 * 60 * 1000; // 48 ore in ms
             
-            const AMOUNT_TOLERANCE = 0.05; // 5%
-            const TIME_TOLERANCE = 24 * 60 * 60 * 1000; // 24 ore in ms
+            // Normalizza tipo
+            const isWithdraw = (type) => ['withdraw', 'withdrawal', 'send'].includes((type || '').toLowerCase());
+            const isDeposit = (type) => ['deposit', 'receive', 'credit'].includes((type || '').toLowerCase());
             
             // Per ogni withdraw exchange, cerca deposit wallet
             for (let i = reconcileData.unmatchedExch.length - 1; i >= 0; i--) {
                 const exchTx = reconcileData.unmatchedExch[i];
                 
-                if (exchTx.type !== 'withdraw') continue;
+                if (!isWithdraw(exchTx.type)) continue;
                 
                 // Cerca un deposit wallet corrispondente
                 for (let j = reconcileData.unmatchedWallet.length - 1; j >= 0; j--) {
                     const walletTx = reconcileData.unmatchedWallet[j];
                     
-                    if (walletTx.type !== 'receive' && walletTx.type !== 'deposit') continue;
+                    if (!isDeposit(walletTx.type)) continue;
                     
                     // Stesso coin?
-                    if (exchTx.coin.toUpperCase() !== walletTx.coin.toUpperCase()) continue;
+                    const exchCoin = (exchTx.coin || '').toUpperCase();
+                    const walletCoin = (walletTx.coin || '').toUpperCase();
+                    if (exchCoin !== walletCoin) continue;
                     
                     // Importo simile?
-                    const amountDiff = Math.abs(exchTx.amount - walletTx.amount) / exchTx.amount;
+                    if (exchTx.amount <= 0 || walletTx.amount <= 0) continue;
+                    const amountDiff = Math.abs(exchTx.amount - walletTx.amount) / Math.max(exchTx.amount, walletTx.amount);
                     if (amountDiff > AMOUNT_TOLERANCE) continue;
                     
                     // Data vicina?
-                    const timeDiff = Math.abs(exchTx.date.getTime() - walletTx.date.getTime());
+                    const exchDate = exchTx.date instanceof Date ? exchTx.date : new Date(exchTx.date);
+                    const walletDate = walletTx.date instanceof Date ? walletTx.date : new Date(walletTx.date);
+                    if (isNaN(exchDate.getTime()) || isNaN(walletDate.getTime())) continue;
+                    
+                    const timeDiff = Math.abs(exchDate.getTime() - walletDate.getTime());
                     if (timeDiff > TIME_TOLERANCE) continue;
                     
                     // MATCH!
@@ -4514,19 +4558,26 @@
             for (let i = reconcileData.unmatchedExch.length - 1; i >= 0; i--) {
                 const exchTx = reconcileData.unmatchedExch[i];
                 
-                if (exchTx.type !== 'deposit') continue;
+                if (!isDeposit(exchTx.type)) continue;
                 
                 for (let j = reconcileData.unmatchedWallet.length - 1; j >= 0; j--) {
                     const walletTx = reconcileData.unmatchedWallet[j];
                     
-                    if (walletTx.type !== 'send' && walletTx.type !== 'withdraw') continue;
+                    if (!isWithdraw(walletTx.type)) continue;
                     
-                    if (exchTx.coin.toUpperCase() !== walletTx.coin.toUpperCase()) continue;
+                    const exchCoin = (exchTx.coin || '').toUpperCase();
+                    const walletCoin = (walletTx.coin || '').toUpperCase();
+                    if (exchCoin !== walletCoin) continue;
                     
-                    const amountDiff = Math.abs(exchTx.amount - walletTx.amount) / exchTx.amount;
+                    if (exchTx.amount <= 0 || walletTx.amount <= 0) continue;
+                    const amountDiff = Math.abs(exchTx.amount - walletTx.amount) / Math.max(exchTx.amount, walletTx.amount);
                     if (amountDiff > AMOUNT_TOLERANCE) continue;
                     
-                    const timeDiff = Math.abs(exchTx.date.getTime() - walletTx.date.getTime());
+                    const exchDate = exchTx.date instanceof Date ? exchTx.date : new Date(exchTx.date);
+                    const walletDate = walletTx.date instanceof Date ? walletTx.date : new Date(walletTx.date);
+                    if (isNaN(exchDate.getTime()) || isNaN(walletDate.getTime())) continue;
+                    
+                    const timeDiff = Math.abs(exchDate.getTime() - walletDate.getTime());
                     if (timeDiff > TIME_TOLERANCE) continue;
                     
                     reconcileData.matches.push({
@@ -4648,6 +4699,69 @@
                         <div style="color:var(--text-secondary);font-size:11px;">${tx.date.toLocaleString('it-IT')}</div>
                     </div>
                 `).join('');
+            }
+        }
+        
+        function resetReconciliationData() {
+            if (!confirm('Sei sicuro di voler cancellare tutti i dati di riconciliazione?')) return;
+            
+            reconcileData.exchangeTx = [];
+            reconcileData.walletTx = [];
+            reconcileData.matches = [];
+            reconcileData.unmatchedExch = [];
+            reconcileData.unmatchedWallet = [];
+            
+            // Cancella anche da localStorage
+            localStorage.removeItem('reconcileData');
+            
+            updateReconcileSummary();
+            renderReconcileData();
+            
+            alert('✅ Dati riconciliazione cancellati!');
+        }
+        
+        function saveReconcileToLocalStorage() {
+            try {
+                // Salva solo i dati essenziali (senza funzioni o oggetti complessi)
+                const dataToSave = {
+                    exchangeTx: reconcileData.exchangeTx.map(tx => ({
+                        ...tx,
+                        date: tx.date instanceof Date ? tx.date.toISOString() : tx.date
+                    })),
+                    walletTx: reconcileData.walletTx.map(tx => ({
+                        ...tx,
+                        date: tx.date instanceof Date ? tx.date.toISOString() : tx.date
+                    })),
+                    savedAt: new Date().toISOString()
+                };
+                localStorage.setItem('reconcileData', JSON.stringify(dataToSave));
+                console.log('💾 Riconciliazione salvata in localStorage');
+            } catch (e) {
+                console.warn('Errore salvataggio localStorage:', e);
+            }
+        }
+        
+        function loadReconcileFromLocalStorage() {
+            try {
+                const saved = localStorage.getItem('reconcileData');
+                if (!saved) return false;
+                
+                const data = JSON.parse(saved);
+                
+                reconcileData.exchangeTx = (data.exchangeTx || []).map(tx => ({
+                    ...tx,
+                    date: new Date(tx.date)
+                }));
+                reconcileData.walletTx = (data.walletTx || []).map(tx => ({
+                    ...tx,
+                    date: new Date(tx.date)
+                }));
+                
+                console.log(`📂 Caricati da localStorage: ${reconcileData.exchangeTx.length} exchange, ${reconcileData.walletTx.length} wallet`);
+                return true;
+            } catch (e) {
+                console.warn('Errore caricamento localStorage:', e);
+                return false;
             }
         }
         
