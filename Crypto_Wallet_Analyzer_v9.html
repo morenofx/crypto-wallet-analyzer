@@ -1,0 +1,3223 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Portfolio Tracker</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💎</text></svg>">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDAmtceQc0m-KQC7xGmu0IH1cR4tnI8oCQ",
+            authDomain: "moreno-crypto-tools.firebaseapp.com",
+            projectId: "moreno-crypto-tools",
+            storageBucket: "moreno-crypto-tools.firebasestorage.app",
+            messagingSenderId: "875997322481",
+            appId: "1:875997322481:web:1a012bec2aff2cb5205d50"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+    </script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --border-color: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --accent-blue: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-red: #f85149;
+            --accent-yellow: #d29922;
+            --accent-purple: #a371f7;
+        }
+        
+        body {
+            min-height: 100vh;
+            background: var(--bg-primary);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            color: var(--text-primary);
+        }
+        
+        /* ===== TOP NAVBAR ===== */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            z-index: 1000;
+        }
+        
+        .navbar-brand {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--accent-blue);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .navbar-menu {
+            display: flex;
+            gap: 8px;
+            margin-left: 40px;
+        }
+        
+        .nav-item {
+            padding: 8px 16px;
+            border-radius: 6px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .nav-item:hover {
+            color: var(--text-primary);
+            background: var(--bg-tertiary);
+        }
+        
+        .nav-item.active {
+            color: var(--text-primary);
+            background: var(--bg-tertiary);
+        }
+        
+        .navbar-right {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .sync-status {
+            font-size: 12px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .sync-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-green);
+        }
+        
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #a855f7, #3b82f6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        /* ===== MAIN LAYOUT ===== */
+        .main-container {
+            margin-top: 60px;
+            min-height: calc(100vh - 60px);
+        }
+        
+        .page {
+            display: none;
+            padding: 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .page.active {
+            display: block;
+        }
+        
+        /* ===== DASHBOARD PAGE ===== */
+        .dashboard-header {
+            margin-bottom: 24px;
+        }
+        
+        .dashboard-header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .dashboard-header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .stat-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+        }
+        
+        .stat-value.green { color: var(--accent-green); }
+        .stat-value.blue { color: var(--accent-blue); }
+        
+        .stat-change {
+            font-size: 12px;
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .stat-change.positive { color: var(--accent-green); }
+        .stat-change.negative { color: var(--accent-red); }
+        
+        /* Total Value Card */
+        .total-value-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        
+        .total-value-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+        
+        .total-value-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        
+        .total-value-amount {
+            font-size: 42px;
+            font-weight: 700;
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+        
+        .currency-symbol {
+            color: #ff79c6;
+            font-size: 36px;
+        }
+        
+        .total-value-secondary {
+            display: flex;
+            gap: 32px;
+            margin-top: 16px;
+        }
+        
+        .secondary-stat {
+            text-align: right;
+        }
+        
+        .secondary-stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .secondary-stat-value {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        /* ===== WALLETS PAGE ===== */
+        .wallets-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        
+        .wallets-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .wallets-title h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        .wallets-count {
+            background: var(--bg-tertiary);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .wallets-actions {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: var(--accent-blue);
+            color: #fff;
+        }
+        
+        .btn-primary:hover {
+            background: #4393e6;
+        }
+        
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--border-color);
+        }
+        
+        .btn-success {
+            background: var(--accent-green);
+            color: #fff;
+        }
+        
+        .search-box {
+            position: relative;
+            margin-bottom: 16px;
+        }
+        
+        .search-input {
+            width: 100%;
+            max-width: 300px;
+            padding: 10px 16px 10px 40px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 14px;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+        
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+        }
+        
+        /* Wallet List */
+        .wallet-list {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .wallet-item {
+            display: flex;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .wallet-item:last-child {
+            border-bottom: none;
+        }
+        
+        .wallet-item:hover {
+            background: var(--bg-tertiary);
+        }
+        
+        .wallet-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            margin-right: 16px;
+            flex-shrink: 0;
+        }
+        
+        .wallet-icon.eth { background: linear-gradient(135deg, #627eea, #3c4fa0); }
+        .wallet-icon.sol { background: linear-gradient(135deg, #14f195, #9945ff); }
+        .wallet-icon.multi { background: linear-gradient(135deg, #3b82f6, #8b5cf6); }
+        
+        .wallet-info {
+            flex: 1;
+        }
+        
+        .wallet-name {
+            font-weight: 600;
+            font-size: 15px;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .wallet-address {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .badge-synced {
+            background: rgba(63, 185, 80, 0.2);
+            color: var(--accent-green);
+        }
+        
+        .badge-pending {
+            background: rgba(210, 153, 34, 0.2);
+            color: var(--accent-yellow);
+        }
+        
+        .badge-error {
+            background: rgba(248, 81, 73, 0.2);
+            color: var(--accent-red);
+        }
+        
+        .wallet-stats {
+            text-align: center;
+            margin-right: 24px;
+        }
+        
+        .wallet-stats-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+        
+        .wallet-stats-value {
+            font-size: 14px;
+            color: var(--accent-blue);
+        }
+        
+        .wallet-value {
+            text-align: right;
+            min-width: 120px;
+        }
+        
+        .wallet-value-amount {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .wallet-value-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+        
+        .wallet-menu {
+            margin-left: 16px;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+        
+        .wallet-menu:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+        
+        /* ===== WALLET DETAIL VIEW ===== */
+        .wallet-detail {
+            display: none;
+        }
+        
+        .wallet-detail.active {
+            display: block;
+        }
+        
+        .wallet-detail-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .back-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        
+        .back-btn:hover {
+            background: var(--border-color);
+        }
+        
+        .wallet-detail-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+        }
+        
+        .wallet-detail-info h1 {
+            font-size: 20px;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .wallet-detail-info p {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        .wallet-detail-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 12px;
+        }
+        
+        .holdings-section {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 24px;
+        }
+        
+        @media (max-width: 1024px) {
+            .holdings-section {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .holdings-panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+        }
+        
+        .holdings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .holdings-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .holdings-total {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .holdings-total-value {
+            font-size: 18px;
+            font-weight: 700;
+        }
+        
+        .holdings-table {
+            width: 100%;
+        }
+        
+        .holdings-table-header {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            padding: 12px 20px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .token-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            padding: 14px 20px;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            transition: background 0.2s;
+        }
+        
+        .token-row:hover {
+            background: var(--bg-tertiary);
+        }
+        
+        .token-row:last-child {
+            border-bottom: none;
+        }
+        
+        .token-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .token-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            background: var(--bg-tertiary);
+        }
+        
+        .token-icon img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        
+        .token-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .token-balance {
+            font-size: 14px;
+            text-align: right;
+        }
+        
+        .token-value {
+            font-size: 14px;
+            text-align: right;
+            font-weight: 500;
+        }
+        
+        .token-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        
+        .token-action-btn {
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+        
+        .token-action-btn:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+        
+        /* Chain accounts panel */
+        .accounts-panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+        }
+        
+        .accounts-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .accounts-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .chain-item {
+            display: flex;
+            align-items: center;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .chain-item:last-child {
+            border-bottom: none;
+        }
+        
+        .chain-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            margin-right: 12px;
+        }
+        
+        .chain-icon.eth { background: linear-gradient(135deg, #627eea, #3c4fa0); }
+        .chain-icon.polygon { background: linear-gradient(135deg, #8247e5, #5f3dc4); }
+        .chain-icon.bsc { background: linear-gradient(135deg, #f3ba2f, #c99a2e); }
+        .chain-icon.arbitrum { background: linear-gradient(135deg, #28a0f0, #1a6fc4); }
+        .chain-icon.base { background: linear-gradient(135deg, #0052ff, #0033cc); }
+        .chain-icon.optimism { background: linear-gradient(135deg, #ff0420, #cc0318); }
+        .chain-icon.solana { background: linear-gradient(135deg, #14f195, #9945ff); }
+        .chain-icon.pulse { background: linear-gradient(135deg, #ff00ff, #cc00cc); }
+        
+        .chain-info {
+            flex: 1;
+        }
+        
+        .chain-name {
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .chain-address {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .chain-stats {
+            text-align: center;
+            margin-right: 16px;
+        }
+        
+        .chain-stats-value {
+            font-size: 13px;
+            color: var(--accent-blue);
+        }
+        
+        .chain-stats-label {
+            font-size: 10px;
+            color: var(--text-secondary);
+        }
+        
+        .chain-value {
+            text-align: right;
+            min-width: 80px;
+        }
+        
+        .chain-value-amount {
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .chain-value-label {
+            font-size: 10px;
+            color: var(--text-secondary);
+        }
+        
+        /* ===== API KEYS PAGE ===== */
+        .api-keys-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 16px;
+        }
+        
+        .api-key-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        
+        .api-key-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .api-key-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+        
+        .api-key-icon.covalent { background: linear-gradient(135deg, #ff6b35, #f7931a); }
+        .api-key-icon.helius { background: linear-gradient(135deg, #9945ff, #14f195); }
+        .api-key-icon.alchemy { background: linear-gradient(135deg, #0052ff, #00d4aa); }
+        .api-key-icon.moralis { background: linear-gradient(135deg, #00ff88, #00d4aa); }
+        .api-key-icon.claude { background: linear-gradient(135deg, #a855f7, #6366f1); }
+        
+        .api-key-info h3 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .api-key-info p {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .api-key-status {
+            margin-left: auto;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .api-key-status.on {
+            background: rgba(63, 185, 80, 0.2);
+            color: var(--accent-green);
+        }
+        
+        .api-key-status.off {
+            background: rgba(139, 148, 158, 0.2);
+            color: var(--text-secondary);
+        }
+        
+        .api-key-input-group {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .api-key-input {
+            flex: 1;
+            padding: 10px 14px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+        }
+        
+        .api-key-input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+        
+        /* ===== SETTINGS PAGE ===== */
+        .settings-section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .settings-section-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .settings-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .settings-row:last-child {
+            border-bottom: none;
+        }
+        
+        .settings-label {
+            font-size: 14px;
+        }
+        
+        .settings-label small {
+            display: block;
+            color: var(--text-secondary);
+            font-size: 12px;
+            margin-top: 2px;
+        }
+        
+        /* ===== ADD WALLET MODAL ===== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-overlay.active {
+            display: flex;
+        }
+        
+        .modal {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 480px;
+            padding: 24px;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .modal-header h2 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+        
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            background: var(--bg-tertiary);
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 18px;
+        }
+        
+        .modal-close:hover {
+            background: var(--border-color);
+            color: var(--text-primary);
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 12px 14px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 14px;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+        
+        .form-input.mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+        
+        .modal-actions .btn {
+            flex: 1;
+        }
+        
+        /* Chain Distribution */
+        .chain-distribution {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+        
+        .chain-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .chain-card:hover {
+            border-color: var(--accent-blue);
+            transform: translateY(-2px);
+        }
+        
+        .chain-card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .chain-card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        
+        .chain-card-info {
+            flex: 1;
+        }
+        
+        .chain-card-name {
+            font-weight: 600;
+            font-size: 15px;
+        }
+        
+        .chain-card-tokens {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .chain-card-value {
+            text-align: right;
+        }
+        
+        .chain-card-amount {
+            font-size: 18px;
+            font-weight: 700;
+        }
+        
+        .chain-card-percent {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .chain-card-bar {
+            height: 4px;
+            background: var(--bg-tertiary);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .chain-card-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.3s;
+        }
+        
+        /* Chain tokens modal */
+        .chain-tokens-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        
+        .chain-tokens-modal.active {
+            display: flex;
+        }
+        
+        .chain-tokens-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chain-tokens-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .chain-tokens-header h2 {
+            flex: 1;
+            font-size: 18px;
+        }
+        
+        .chain-tokens-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 0;
+        }
+        
+        .chain-token-item {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr auto;
+            align-items: center;
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .chain-token-item:hover {
+            background: var(--bg-tertiary);
+        }
+        
+        .chain-token-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .chain-token-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--bg-tertiary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .chain-token-icon img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+        }
+        
+        .chain-token-symbol {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .chain-token-balance,
+        .chain-token-value {
+            text-align: right;
+            font-size: 13px;
+        }
+        
+        .chain-token-hide {
+            padding: 4px 8px;
+            background: transparent;
+            border: none;
+            color: var(--accent-red);
+            cursor: pointer;
+            opacity: 0.5;
+            font-size: 14px;
+        }
+        
+        .chain-token-hide:hover {
+            opacity: 1;
+        }
+        
+        /* ===== UTILITIES ===== */
+        .hidden { display: none !important; }
+        
+        .text-green { color: var(--accent-green); }
+        .text-red { color: var(--accent-red); }
+        .text-blue { color: var(--accent-blue); }
+        .text-yellow { color: var(--accent-yellow); }
+        .text-secondary { color: var(--text-secondary); }
+        
+        /* ===== LOADING ===== */
+        .loading-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Year selector */
+        .year-selector {
+            display: flex;
+            gap: 8px;
+            margin-left: 24px;
+        }
+        
+        .year-btn {
+            padding: 6px 12px;
+            border-radius: 6px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-family: inherit;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        
+        .year-btn.active {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: #fff;
+        }
+        
+        .year-btn:hover:not(.active) {
+            background: var(--border-color);
+        }
+    </style>
+</head>
+<body>
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <span>💎</span>
+            Crypto Tracker
+        </div>
+        
+        <div class="navbar-menu">
+            <div class="nav-item active" onclick="showPage('dashboard')">Dashboard</div>
+            <div class="nav-item" onclick="showPage('wallets')">Wallets</div>
+            <div class="nav-item" onclick="showPage('exchanges')">Exchanges</div>
+            <div class="nav-item" onclick="showPage('api-keys')">API Keys</div>
+            <div class="nav-item" onclick="showPage('settings')">Settings</div>
+        </div>
+        
+        <div class="year-selector">
+            <button class="year-btn" onclick="selectYear(2021)">2021</button>
+            <button class="year-btn" onclick="selectYear(2022)">2022</button>
+            <button class="year-btn" onclick="selectYear(2023)">2023</button>
+            <button class="year-btn" onclick="selectYear(2024)">2024</button>
+            <button class="year-btn active" onclick="selectYear(2025)">2025</button>
+        </div>
+        
+        <div class="navbar-right">
+            <div class="sync-status">
+                <div class="sync-dot"></div>
+                <span id="syncStatus">Sincronizzato</span>
+            </div>
+            <div class="user-avatar">M</div>
+        </div>
+    </nav>
+    
+    <!-- MAIN CONTAINER -->
+    <div class="main-container">
+        
+        <!-- DASHBOARD PAGE -->
+        <div class="page active" id="page-dashboard">
+            <div class="dashboard-header">
+                <h1>Dashboard</h1>
+                <p>Panoramica del tuo portfolio crypto</p>
+            </div>
+            
+            <div class="total-value-card">
+                <div class="total-value-header">
+                    <div>
+                        <div class="total-value-label">Total Value</div>
+                        <div class="total-value-amount">
+                            <span id="totalValueUSD">0</span>
+                            <span class="currency-symbol">$</span>
+                        </div>
+                        <div class="stat-change positive" id="totalChange">↑ 0%</div>
+                    </div>
+                    <div class="total-value-secondary">
+                        <div class="secondary-stat">
+                            <div class="secondary-stat-label">EUR Value</div>
+                            <div class="secondary-stat-value" id="totalValueEUR">0 €</div>
+                        </div>
+                        <div class="secondary-stat">
+                            <div class="secondary-stat-label">RW Value (1/1)</div>
+                            <div class="secondary-stat-value" id="rwValue">0 €</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Portfolio Chart -->
+                <div style="margin-top:24px;height:280px;display:flex;align-items:center;justify-content:center;">
+                    <canvas id="portfolioChart" style="max-width:500px;"></canvas>
+                </div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Wallets</div>
+                    <div class="stat-value blue" id="statWallets">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Tokens</div>
+                    <div class="stat-value" id="statTokens">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Chains</div>
+                    <div class="stat-value" id="statChains">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">EUR/USD Rate</div>
+                    <div class="stat-value text-secondary" style="font-size:18px;" id="eurUsdRate">0.92</div>
+                </div>
+            </div>
+            
+            <!-- Chain Distribution -->
+            <div style="margin-top:24px;">
+                <h2 style="font-size:18px;margin-bottom:16px;">Chain Distribution</h2>
+                <div class="chain-distribution" id="chainDistribution">
+                    <!-- Chains will be rendered here -->
+                </div>
+            </div>
+            
+            <!-- Top Holdings -->
+            <div style="margin-top:24px;">
+                <h2 style="font-size:18px;margin-bottom:16px;">Top Holdings</h2>
+                <div class="holdings-panel">
+                    <div class="holdings-table-header">
+                        <span>Coin</span>
+                        <span style="text-align:right">Balance</span>
+                        <span style="text-align:right">Value (EUR)</span>
+                    </div>
+                    <div id="topHoldingsList">
+                        <!-- Top tokens will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- WALLETS PAGE -->
+        <div class="page" id="page-wallets">
+            <div class="wallet-list-view" id="walletListView">
+                <div class="wallets-header">
+                    <div class="wallets-title">
+                        <h1>Wallets</h1>
+                        <span class="wallets-count" id="walletsCount">0</span>
+                    </div>
+                    <div class="wallets-actions">
+                        <button class="btn btn-primary" onclick="openAddWalletModal()">
+                            <span>+</span> Add wallet
+                        </button>
+                        <button class="btn btn-secondary" onclick="scanAllWallets()">
+                            <span>🔄</span> Sync all
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="search-box">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" class="search-input" placeholder="Find wallet..." id="walletSearch" oninput="filterWallets()">
+                </div>
+                
+                <div class="wallet-list" id="walletList">
+                    <!-- Wallets will be rendered here -->
+                </div>
+            </div>
+            
+            <!-- Wallet Detail View -->
+            <div class="wallet-detail" id="walletDetailView">
+                <div class="wallet-detail-header">
+                    <button class="back-btn" onclick="closeWalletDetail()">←</button>
+                    <div class="wallet-detail-icon" id="detailIcon">💼</div>
+                    <div class="wallet-detail-info">
+                        <h1 id="detailAddress">0x...</h1>
+                        <p id="detailMeta">Added recently</p>
+                    </div>
+                    <div class="wallet-detail-actions">
+                        <button class="btn btn-primary" onclick="scanCurrentWallet()">
+                            <span>🔄</span> Sync now
+                        </button>
+                        <button class="btn btn-secondary" onclick="deleteCurrentWallet()">
+                            <span>🗑️</span> Remove
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="holdings-section">
+                    <div class="holdings-panel">
+                        <div class="holdings-header">
+                            <span class="holdings-title">Holdings</span>
+                            <div class="holdings-total">
+                                <span class="holdings-total-value" id="detailTotalValue">0 €</span>
+                            </div>
+                        </div>
+                        <div class="holdings-table-header">
+                            <span>Coin</span>
+                            <span style="text-align:right">Balance</span>
+                            <span style="text-align:right">Value (EUR)</span>
+                        </div>
+                        <div id="holdingsList">
+                            <!-- Tokens will be rendered here -->
+                        </div>
+                    </div>
+                    
+                    <div class="accounts-panel">
+                        <div class="accounts-header">
+                            <span class="accounts-title">Accounts</span>
+                            <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="scanCurrentWallet()">🔄</button>
+                        </div>
+                        <div id="chainsList">
+                            <!-- Chains will be rendered here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- EXCHANGES PAGE -->
+        <div class="page" id="page-exchanges">
+            <div class="dashboard-header">
+                <h1>Exchanges</h1>
+                <p>Connetti i tuoi exchange per importare saldi e transazioni</p>
+            </div>
+            
+            <div class="api-keys-grid">
+                <!-- Binance -->
+                <div class="api-key-card">
+                    <div class="api-key-header">
+                        <div class="api-key-icon" style="background:linear-gradient(135deg, #f3ba2f, #c99a2e);">
+                            <img src="https://assets.coingecko.com/markets/images/52/small/binance.jpg" style="width:100%;height:100%;border-radius:10px;" onerror="this.parentElement.textContent='₿'">
+                        </div>
+                        <div class="api-key-info">
+                            <h3>Binance</h3>
+                            <p>Spot, Earn, Staking balances</p>
+                        </div>
+                        <span class="api-key-status off" id="binanceStatus">OFF</span>
+                    </div>
+                    <div class="api-key-input-group" style="margin-bottom:8px;">
+                        <input type="password" class="api-key-input" id="binanceApiKey" placeholder="API Key">
+                    </div>
+                    <div class="api-key-input-group">
+                        <input type="password" class="api-key-input" id="binanceSecret" placeholder="Secret Key">
+                        <button class="btn btn-primary" onclick="saveBinanceKeys()">Save</button>
+                    </div>
+                    <button class="btn btn-secondary" style="width:100%;margin-top:12px;" onclick="syncBinance()">
+                        🔄 Sync Binance
+                    </button>
+                </div>
+                
+                <!-- Bitget -->
+                <div class="api-key-card">
+                    <div class="api-key-header">
+                        <div class="api-key-icon" style="background:linear-gradient(135deg, #00f0ff, #0080ff);">
+                            <span style="font-size:16px;">B</span>
+                        </div>
+                        <div class="api-key-info">
+                            <h3>Bitget</h3>
+                            <p>Spot & Copy Trading</p>
+                        </div>
+                        <span class="api-key-status off" id="bitgetStatus">OFF</span>
+                    </div>
+                    <div class="api-key-input-group" style="margin-bottom:8px;">
+                        <input type="password" class="api-key-input" id="bitgetApiKey" placeholder="API Key">
+                    </div>
+                    <div class="api-key-input-group" style="margin-bottom:8px;">
+                        <input type="password" class="api-key-input" id="bitgetSecret" placeholder="Secret Key">
+                    </div>
+                    <div class="api-key-input-group">
+                        <input type="password" class="api-key-input" id="bitgetPassphrase" placeholder="Passphrase">
+                        <button class="btn btn-primary" onclick="saveBitgetKeys()">Save</button>
+                    </div>
+                </div>
+                
+                <!-- Crypto.com -->
+                <div class="api-key-card">
+                    <div class="api-key-header">
+                        <div class="api-key-icon" style="background:linear-gradient(135deg, #002D74, #001840);">
+                            <span style="font-size:14px;">C</span>
+                        </div>
+                        <div class="api-key-info">
+                            <h3>Crypto.com</h3>
+                            <p>App & Exchange</p>
+                        </div>
+                        <span class="api-key-status off" id="cryptocomStatus">OFF</span>
+                    </div>
+                    <div class="form-group" style="margin-top:12px;">
+                        <label class="form-label">Import CSV</label>
+                        <input type="file" id="cryptocomFile" accept=".csv" class="form-input" onchange="importCryptocomCSV(event)">
+                    </div>
+                </div>
+                
+                <!-- Nexo -->
+                <div class="api-key-card">
+                    <div class="api-key-header">
+                        <div class="api-key-icon" style="background:linear-gradient(135deg, #1e4dd8, #1a3fb0);">
+                            <span style="font-size:16px;">N</span>
+                        </div>
+                        <div class="api-key-info">
+                            <h3>Nexo</h3>
+                            <p>Earn & Credit</p>
+                        </div>
+                        <span class="api-key-status off" id="nexoStatus">OFF</span>
+                    </div>
+                    <div class="form-group" style="margin-top:12px;">
+                        <label class="form-label">Import CSV</label>
+                        <input type="file" id="nexoFile" accept=".csv" class="form-input" onchange="importNexoCSV(event)">
+                    </div>
+                </div>
+                
+                <!-- Revolut -->
+                <div class="api-key-card">
+                    <div class="api-key-header">
+                        <div class="api-key-icon" style="background:linear-gradient(135deg, #0666eb, #044bb5);">
+                            <span style="font-size:16px;">R</span>
+                        </div>
+                        <div class="api-key-info">
+                            <h3>Revolut</h3>
+                            <p>Crypto holdings</p>
+                        </div>
+                        <span class="api-key-status off" id="revolutStatus">OFF</span>
+                    </div>
+                    <div class="form-group" style="margin-top:12px;">
+                        <label class="form-label">Import CSV</label>
+                        <input type="file" id="revolutFile" accept=".csv" class="form-input" onchange="importRevolutCSV(event)">
+                    </div>
+                </div>
+                
+                <!-- Manual Entry -->
+                <div class="api-key-card">
+                    <div class="api-key-header">
+                        <div class="api-key-icon" style="background:linear-gradient(135deg, #6b7280, #4b5563);">
+                            <span style="font-size:18px;">+</span>
+                        </div>
+                        <div class="api-key-info">
+                            <h3>Other Exchange</h3>
+                            <p>Manual balance entry</p>
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary" style="width:100%;margin-top:12px;" onclick="openManualExchangeModal()">
+                        ➕ Add Manually
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Exchange Holdings -->
+            <div style="margin-top:32px;">
+                <h2 style="font-size:18px;margin-bottom:16px;">Exchange Holdings</h2>
+                <div class="holdings-panel">
+                    <div class="holdings-header">
+                        <span class="holdings-title">All Exchanges</span>
+                        <div class="holdings-total">
+                            <span class="holdings-total-value" id="exchangeTotalValue">0 €</span>
+                        </div>
+                    </div>
+                    <div id="exchangeHoldingsList">
+                        <div style="padding:40px;text-align:center;color:var(--text-secondary);">
+                            Connect an exchange or import CSV to see holdings
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- API KEYS PAGE -->
+        <div class="page" id="page-api-keys">
+            <div class="dashboard-header">
+                <h1>API Keys</h1>
+                <p>Gestisci le connessioni alle API blockchain</p>
+            </div>
+            
+            <div class="api-keys-grid">
+                <div class="api-key-card">
+                    <div class="api-key-header">
+                        <div class="api-key-icon covalent">💎</div>
+                        <div class="api-key-info">
+                            <h3>Covalent (GoldRush)</h3>
+                            <p>ETH, Polygon, BSC, Arbitrum, Base</p>
+                        </div>
+                        <span class="api-key-status off" id="covalentStatus">OFF</span>
+                    </div>
+                    <div class="api-key-input-group">
+                        <input type="password" class="api-key-input" id="covalentKey" placeholder="cqt_...">
+                        <button class="btn btn-primary" onclick="saveCovalentKey()">Save</button>
+                    </div>
+                </div>
+                
+                <div class="api-key-card">
+                    <div class="api-key-header">
+                        <div class="api-key-icon helius">☀️</div>
+                        <div class="api-key-info">
+                            <h3>Helius</h3>
+                            <p>Solana tokens & NFTs</p>
+                        </div>
+                        <span class="api-key-status off" id="heliusStatus">OFF</span>
+                    </div>
+                    <div class="api-key-input-group">
+                        <input type="password" class="api-key-input" id="heliusKey" placeholder="API key...">
+                        <button class="btn btn-primary" onclick="saveHeliusKey()">Save</button>
+                    </div>
+                </div>
+                
+                <div class="api-key-card">
+                    <div class="api-key-header">
+                        <div class="api-key-icon alchemy">⚗️</div>
+                        <div class="api-key-info">
+                            <h3>Alchemy</h3>
+                            <p>ETH, Polygon, Arbitrum (fallback)</p>
+                        </div>
+                        <span class="api-key-status off" id="alchemyStatus">OFF</span>
+                    </div>
+                    <div class="api-key-input-group">
+                        <input type="password" class="api-key-input" id="alchemyKey" placeholder="API key...">
+                        <button class="btn btn-primary" onclick="saveAlchemyKey()">Save</button>
+                    </div>
+                </div>
+                
+                <div class="api-key-card">
+                    <div class="api-key-header">
+                        <div class="api-key-icon moralis">🦊</div>
+                        <div class="api-key-info">
+                            <h3>Moralis</h3>
+                            <p>Multi-chain + Solana (backup)</p>
+                        </div>
+                        <span class="api-key-status off" id="moralisStatus">OFF</span>
+                    </div>
+                    <div class="api-key-input-group">
+                        <input type="password" class="api-key-input" id="moralisKey" placeholder="eyJ...">
+                        <button class="btn btn-primary" onclick="saveMoralisKey()">Save</button>
+                    </div>
+                </div>
+                
+                <div class="api-key-card">
+                    <div class="api-key-header">
+                        <div class="api-key-icon claude">🤖</div>
+                        <div class="api-key-info">
+                            <h3>Claude AI</h3>
+                            <p>Portfolio analysis (optional)</p>
+                        </div>
+                        <span class="api-key-status off" id="claudeStatus">OFF</span>
+                    </div>
+                    <div class="api-key-input-group">
+                        <input type="password" class="api-key-input" id="claudeKey" placeholder="sk-ant-...">
+                        <button class="btn btn-primary" onclick="saveClaudeKey()">Save</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- SETTINGS PAGE -->
+        <div class="page" id="page-settings">
+            <div class="dashboard-header">
+                <h1>Settings</h1>
+                <p>Configura il tuo portfolio tracker</p>
+            </div>
+            
+            <div class="settings-section">
+                <div class="settings-section-header">Data Management</div>
+                <div class="settings-row">
+                    <div class="settings-label">
+                        Export Portfolio
+                        <small>Download JSON backup of all data</small>
+                    </div>
+                    <button class="btn btn-secondary" onclick="exportJSON()">📥 Export</button>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-label">
+                        Import Portfolio
+                        <small>Restore from JSON backup</small>
+                    </div>
+                    <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">📤 Import</button>
+                    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
+                </div>
+                <div class="settings-row">
+                    <div class="settings-label">
+                        Force Sync to Cloud
+                        <small>Save current state to Firebase</small>
+                    </div>
+                    <button class="btn btn-primary" onclick="forceSaveToFirebase()">☁️ Sync</button>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <div class="settings-section-header">Display</div>
+                <div class="settings-row">
+                    <div class="settings-label">
+                        Currency
+                        <small>Primary display currency</small>
+                    </div>
+                    <select class="form-input" style="width:auto;">
+                        <option value="eur">EUR (€)</option>
+                        <option value="usd">USD ($)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <div class="settings-section-header">Danger Zone</div>
+                <div class="settings-row">
+                    <div class="settings-label">
+                        Clear All Data
+                        <small>Remove all wallets and settings</small>
+                    </div>
+                    <button class="btn" style="background:var(--accent-red);color:#fff;" onclick="clearAllData()">🗑️ Clear</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ADD WALLET MODAL -->
+    <div class="modal-overlay" id="addWalletModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Add Wallet</h2>
+                <button class="modal-close" onclick="closeAddWalletModal()">×</button>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Wallet Address</label>
+                <input type="text" class="form-input mono" id="newWalletAddress" placeholder="0x... or Solana address">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Name (optional)</label>
+                <input type="text" class="form-input" id="newWalletName" placeholder="My Wallet">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeAddWalletModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="addWallet()">Add Wallet</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- CHAIN TOKENS MODAL -->
+    <div class="chain-tokens-modal" id="chainTokensModal">
+        <div class="chain-tokens-content">
+            <div class="chain-tokens-header">
+                <div class="chain-card-icon" id="modalChainIcon" style="width:36px;height:36px;">◆</div>
+                <h2 id="modalChainName">Ethereum</h2>
+                <span id="modalChainValue" style="font-size:18px;font-weight:700;">0 €</span>
+                <button class="modal-close" onclick="closeChainTokensModal()">×</button>
+            </div>
+            <div class="chain-tokens-list" id="chainTokensList">
+                <!-- Tokens will be rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== STATE ====================
+        let wallets = [];
+        let exchanges = [];
+        let hiddenTokens = [];
+        let selectedYear = 2025;
+        let EUR_USD = 0.92;
+        let currentWalletIndex = -1;
+        let prices = {};
+        let saveTimeout = null;
+        
+        const CHAIN_INFO = {
+            'eth': { name: 'Ethereum', icon: '◆', color: '#627eea' },
+            'polygon': { name: 'Polygon', icon: '◇', color: '#8247e5' },
+            'bsc': { name: 'BSC', icon: '◆', color: '#f3ba2f' },
+            'arbitrum': { name: 'Arbitrum', icon: '◆', color: '#28a0f0' },
+            'base': { name: 'Base', icon: '■', color: '#0052ff' },
+            'optimism': { name: 'Optimism', icon: '◯', color: '#ff0420' },
+            'avalanche': { name: 'Avalanche', icon: '▲', color: '#e84142' },
+            'pulse': { name: 'PulseChain', icon: '💜', color: '#ff00ff' },
+            'solana': { name: 'Solana', icon: '☀️', color: '#14f195' },
+            'exchange': { name: 'Exchanges', icon: '🏦', color: '#6b7280' }
+        };
+        
+        // Scam patterns
+        const SCAM_PATTERNS = [
+            /airdrop/i, /claim/i, /\.com$/i, /\.io$/i, /\.org$/i, /\.net$/i, /\.xyz$/i,
+            /reward/i, /bonus/i, /gift/i, /visit/i, /http/i, /www\./i,
+            /free.*token/i, /token.*free/i, /\.com\s/i, /\.io\s/i,
+            /swap.*reward/i, /defi.*bonus/i, /nft.*free/i,
+            /claim.*now/i, /get.*free/i, /withdraw/i
+        ];
+        
+        function isScamToken(name, symbol) {
+            const nameLC = (name || '').toLowerCase();
+            const symbolLC = (symbol || '').toLowerCase();
+            
+            if (nameLC.includes('.com') || nameLC.includes('.io') || nameLC.includes('.org') || 
+                nameLC.includes('.net') || nameLC.includes('.xyz') || nameLC.includes('www.') ||
+                symbolLC.includes('.com') || symbolLC.includes('.io') || symbolLC.includes('www')) {
+                return true;
+            }
+            
+            for (const pattern of SCAM_PATTERNS) {
+                if (pattern.test(name) || pattern.test(symbol)) return true;
+            }
+            
+            if (name && name.length > 35) return true;
+            if (symbol && symbol.length > 12) return true;
+            
+            return false;
+        }
+        
+        // ==================== INITIALIZATION ====================
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadFromFirebase();
+            updateApiStatus();
+            fetchEurUsdRate();
+            fetchPrices();
+        });
+        
+        // ==================== NAVIGATION ====================
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            
+            document.getElementById(`page-${pageId}`).classList.add('active');
+            event.target.classList.add('active');
+            
+            if (pageId === 'wallets') {
+                document.getElementById('walletListView').style.display = 'block';
+                document.getElementById('walletDetailView').classList.remove('active');
+            }
+        }
+        
+        function selectYear(year) {
+            selectedYear = year;
+            document.querySelectorAll('.year-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent == year);
+            });
+            
+            // Aggiorna RW Value con prezzo storico
+            updateRWValue();
+            saveToFirebase();
+        }
+        
+        async function updateRWValue() {
+            // Prezzi storici al 1 gennaio di ogni anno (approssimati)
+            const historicalPrices = {
+                2021: { ETH: 730, BTC: 29000, BNB: 37, SOL: 1.5, MATIC: 0.017, PLS: 0, HEX: 0.003 },
+                2022: { ETH: 3700, BTC: 47000, BNB: 530, SOL: 170, MATIC: 2.5, PLS: 0, HEX: 0.35 },
+                2023: { ETH: 1200, BTC: 16500, BNB: 250, SOL: 10, MATIC: 0.75, PLS: 0.00005, HEX: 0.04 },
+                2024: { ETH: 2300, BTC: 42000, BNB: 310, SOL: 100, MATIC: 1.0, PLS: 0.00003, HEX: 0.008 },
+                2025: { ETH: 3400, BTC: 93000, BNB: 700, SOL: 190, MATIC: 0.45, PLS: 0.000012, HEX: 0.003 }
+            };
+            
+            const yearPrices = historicalPrices[selectedYear] || historicalPrices[2025];
+            let rwValueUSD = 0;
+            
+            wallets.forEach(w => {
+                (w.tokens || []).forEach(t => {
+                    if (!isHidden(t)) {
+                        const symbol = t.symbol?.toUpperCase();
+                        if (yearPrices[symbol]) {
+                            rwValueUSD += (t.balance || 0) * yearPrices[symbol];
+                        } else if (['USDT', 'USDC', 'DAI', 'BUSD'].includes(symbol)) {
+                            rwValueUSD += t.balance || 0;
+                        } else {
+                            // Per token sconosciuti usa il valore attuale come approssimazione
+                            rwValueUSD += t.valueUSD || 0;
+                        }
+                    }
+                });
+            });
+            
+            const rwValueEUR = rwValueUSD * EUR_USD;
+            document.getElementById('rwValue').textContent = `${rwValueEUR.toLocaleString('it-IT', {minimumFractionDigits: 0})} €`;
+        }
+        
+        // ==================== MODAL ====================
+        function openAddWalletModal() {
+            document.getElementById('addWalletModal').classList.add('active');
+            document.getElementById('newWalletAddress').focus();
+        }
+        
+        function closeAddWalletModal() {
+            document.getElementById('addWalletModal').classList.remove('active');
+            document.getElementById('newWalletAddress').value = '';
+            document.getElementById('newWalletName').value = '';
+        }
+        
+        // ==================== WALLET MANAGEMENT ====================
+        function addWallet() {
+            let address = document.getElementById('newWalletAddress').value.trim();
+            const name = document.getElementById('newWalletName').value.trim() || `Wallet ${wallets.length + 1}`;
+            
+            const isEVM = address.startsWith('0x') && address.length === 42;
+            const isSolana = isSolanaAddress(address);
+            
+            if (!isEVM && !isSolana) {
+                alert('Invalid address. Use 0x... for EVM or Solana address.');
+                return;
+            }
+            
+            if (isEVM) address = address.toLowerCase();
+            
+            if (wallets.find(w => w.address === address)) {
+                alert('Wallet already exists');
+                return;
+            }
+            
+            wallets.push({ 
+                address, 
+                name, 
+                tokens: [], 
+                totalUSD: 0, 
+                type: isSolana ? 'solana' : 'evm',
+                lastSync: null
+            });
+            
+            closeAddWalletModal();
+            renderWalletList();
+            updateDashboard();
+            saveToFirebase();
+        }
+        
+        function isSolanaAddress(address) {
+            if (!address || address.startsWith('0x')) return false;
+            if (address.length < 32 || address.length > 44) return false;
+            const base58Regex = /^[1-9A-HJ-NP-Za-km-z]+$/;
+            return base58Regex.test(address);
+        }
+        
+        function removeWallet(index) {
+            if (confirm('Remove this wallet?')) {
+                wallets.splice(index, 1);
+                renderWalletList();
+                updateDashboard();
+                saveToFirebase();
+            }
+        }
+        
+        function filterWallets() {
+            const search = document.getElementById('walletSearch').value.toLowerCase();
+            document.querySelectorAll('.wallet-item').forEach(item => {
+                const name = item.dataset.name?.toLowerCase() || '';
+                const address = item.dataset.address?.toLowerCase() || '';
+                item.style.display = (name.includes(search) || address.includes(search)) ? 'flex' : 'none';
+            });
+        }
+        
+        // ==================== RENDER WALLET LIST ====================
+        function renderWalletList() {
+            const container = document.getElementById('walletList');
+            document.getElementById('walletsCount').textContent = wallets.length;
+            
+            if (wallets.length === 0) {
+                container.innerHTML = `
+                    <div style="padding:40px;text-align:center;color:var(--text-secondary);">
+                        <p style="font-size:16px;margin-bottom:8px;">No wallets added yet</p>
+                        <p style="font-size:13px;">Click "Add wallet" to get started</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = wallets.map((w, idx) => {
+                const tokenCount = w.tokens?.filter(t => !isHidden(t)).length || 0;
+                const totalEUR = (w.totalUSD || 0) * EUR_USD;
+                const syncStatus = w.lastSync ? 'synced' : 'pending';
+                const iconClass = w.type === 'solana' ? 'sol' : 'multi';
+                
+                return `
+                    <div class="wallet-item" data-name="${w.name}" data-address="${w.address}" onclick="openWalletDetail(${idx})">
+                        <div class="wallet-icon ${iconClass}">${w.type === 'solana' ? '☀️' : '💼'}</div>
+                        <div class="wallet-info">
+                            <div class="wallet-name">
+                                ${w.name}
+                                <span class="badge badge-${syncStatus}">${syncStatus.toUpperCase()}</span>
+                            </div>
+                            <div class="wallet-address">${w.address.slice(0, 10)}...${w.address.slice(-6)}</div>
+                        </div>
+                        <div class="wallet-stats">
+                            <div class="wallet-stats-value">${tokenCount} tokens</div>
+                            <div class="wallet-stats-label">${w.lastSync ? formatTimeAgo(w.lastSync) : 'Not synced'}</div>
+                        </div>
+                        <div class="wallet-value">
+                            <div class="wallet-value-amount">${totalEUR.toLocaleString('it-IT', {minimumFractionDigits: 2})} €</div>
+                            <div class="wallet-value-label">Total value</div>
+                        </div>
+                        <div class="wallet-menu" onclick="event.stopPropagation(); removeWallet(${idx})">⋮</div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function formatTimeAgo(date) {
+            const now = new Date();
+            const past = new Date(date);
+            const diff = Math.floor((now - past) / 1000);
+            
+            if (diff < 60) return 'Just now';
+            if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+            if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+            return `${Math.floor(diff / 86400)}d ago`;
+        }
+        
+        // ==================== WALLET DETAIL ====================
+        function openWalletDetail(index) {
+            currentWalletIndex = index;
+            const wallet = wallets[index];
+            
+            document.getElementById('walletListView').style.display = 'none';
+            document.getElementById('walletDetailView').classList.add('active');
+            
+            document.getElementById('detailAddress').textContent = wallet.address;
+            document.getElementById('detailMeta').textContent = wallet.lastSync ? `Synced ${formatTimeAgo(wallet.lastSync)}` : 'Not synced yet';
+            
+            renderWalletDetail(wallet);
+        }
+        
+        function closeWalletDetail() {
+            currentWalletIndex = -1;
+            document.getElementById('walletListView').style.display = 'block';
+            document.getElementById('walletDetailView').classList.remove('active');
+        }
+        
+        function renderWalletDetail(wallet) {
+            const tokens = (wallet.tokens || []).filter(t => !isHidden(t)).sort((a, b) => (b.valueUSD || 0) - (a.valueUSD || 0));
+            const totalEUR = tokens.reduce((sum, t) => sum + ((t.valueUSD || 0) * EUR_USD), 0);
+            
+            document.getElementById('detailTotalValue').textContent = `${totalEUR.toLocaleString('it-IT', {minimumFractionDigits: 2})} €`;
+            
+            // Holdings list
+            const holdingsHtml = tokens.length === 0 
+                ? '<div style="padding:40px;text-align:center;color:var(--text-secondary);">No tokens found. Click Sync to scan.</div>'
+                : tokens.map(t => `
+                    <div class="token-row">
+                        <div class="token-info">
+                            <div class="token-icon">
+                                ${t.logo ? `<img src="${t.logo}" onerror="this.parentElement.textContent='${t.symbol.slice(0,2)}'">` : t.symbol.slice(0, 2)}
+                            </div>
+                            <span class="token-name">${t.symbol}</span>
+                        </div>
+                        <div class="token-balance">${formatBalance(t.balance)}</div>
+                        <div class="token-value">${((t.valueUSD || 0) * EUR_USD).toLocaleString('it-IT', {minimumFractionDigits: 2})}</div>
+                    </div>
+                `).join('');
+            
+            document.getElementById('holdingsList').innerHTML = holdingsHtml;
+            
+            // Chains list
+            const chainTotals = {};
+            tokens.forEach(t => {
+                const chain = t.chain || 'unknown';
+                if (!chainTotals[chain]) chainTotals[chain] = { tokens: 0, value: 0 };
+                chainTotals[chain].tokens++;
+                chainTotals[chain].value += (t.valueUSD || 0) * EUR_USD;
+            });
+            
+            const chainsHtml = Object.entries(chainTotals).map(([chain, data]) => {
+                const info = CHAIN_INFO[chain] || { name: chain, icon: '?', color: '#888' };
+                return `
+                    <div class="chain-item" style="cursor:pointer;" onclick="showChainTokensInWallet('${chain}')">
+                        <div class="chain-icon ${chain}">${info.icon}</div>
+                        <div class="chain-info">
+                            <div class="chain-name">
+                                ${info.name}
+                                <span class="badge badge-synced">SYNCED</span>
+                            </div>
+                            <div class="chain-address">${wallet.address.slice(0, 8)}...${wallet.address.slice(-6)}</div>
+                        </div>
+                        <div class="chain-stats">
+                            <div class="chain-stats-value">${data.tokens} tokens</div>
+                        </div>
+                        <div class="chain-value">
+                            <div class="chain-value-amount">${data.value.toLocaleString('it-IT', {minimumFractionDigits: 2})} €</div>
+                            <div class="chain-value-label">Total value</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            document.getElementById('chainsList').innerHTML = chainsHtml || '<div style="padding:20px;text-align:center;color:var(--text-secondary);">No chains found</div>';
+        }
+        
+        function formatBalance(balance) {
+            if (!balance) return '0';
+            if (balance >= 1e9) return (balance / 1e9).toFixed(2) + 'B';
+            if (balance >= 1e6) return (balance / 1e6).toFixed(2) + 'M';
+            if (balance >= 1e3) return (balance / 1e3).toFixed(2) + 'K';
+            if (balance >= 1) return balance.toFixed(4);
+            return balance.toFixed(8);
+        }
+        
+        function isHidden(token) {
+            const contractId = `contract:${(token.contractAddress || '').toLowerCase()}`;
+            const symbolId = `symbol:${(token.symbol || '').toUpperCase()}`;
+            return hiddenTokens.includes(contractId) || hiddenTokens.includes(symbolId);
+        }
+        
+        // ==================== DASHBOARD ====================
+        let portfolioChart = null;
+        
+        function updateDashboard() {
+            let totalUSD = 0;
+            let totalTokens = 0;
+            const chains = new Set();
+            const chainData = {};
+            const allTokens = [];
+            
+            // Wallets
+            wallets.forEach(w => {
+                (w.tokens || []).forEach(t => {
+                    if (!isHidden(t)) {
+                        totalUSD += t.valueUSD || 0;
+                        totalTokens++;
+                        if (t.chain) {
+                            chains.add(t.chain);
+                            if (!chainData[t.chain]) chainData[t.chain] = { tokens: [], value: 0 };
+                            chainData[t.chain].tokens.push(t);
+                            chainData[t.chain].value += t.valueUSD || 0;
+                        }
+                        allTokens.push(t);
+                    }
+                });
+            });
+            
+            // Exchanges
+            exchanges.forEach(ex => {
+                (ex.tokens || []).forEach(t => {
+                    totalUSD += t.valueUSD || 0;
+                    totalTokens++;
+                    chains.add('exchange');
+                    if (!chainData['exchange']) chainData['exchange'] = { tokens: [], value: 0 };
+                    chainData['exchange'].tokens.push({ ...t, exchange: ex.name });
+                    chainData['exchange'].value += t.valueUSD || 0;
+                    allTokens.push({ ...t, chain: 'exchange', exchange: ex.name });
+                });
+            });
+            
+            const totalEUR = totalUSD * EUR_USD;
+            
+            document.getElementById('totalValueUSD').textContent = totalUSD.toLocaleString('en-US', {minimumFractionDigits: 2});
+            document.getElementById('totalValueEUR').textContent = `${totalEUR.toLocaleString('it-IT', {minimumFractionDigits: 2})} €`;
+            document.getElementById('rwValue').textContent = `${totalEUR.toLocaleString('it-IT', {minimumFractionDigits: 2})} €`;
+            document.getElementById('statWallets').textContent = wallets.length;
+            document.getElementById('statTokens').textContent = totalTokens;
+            document.getElementById('statChains').textContent = chains.size;
+            document.getElementById('eurUsdRate').textContent = EUR_USD.toFixed(4);
+            
+            // Render chain distribution
+            renderChainDistribution(chainData, totalUSD);
+            
+            // Render top holdings
+            renderTopHoldings(allTokens);
+            
+            // Render portfolio chart
+            renderPortfolioChart(chainData);
+        }
+        
+        function renderChainDistribution(chainData, totalUSD) {
+            const container = document.getElementById('chainDistribution');
+            const sortedChains = Object.entries(chainData).sort((a, b) => b[1].value - a[1].value);
+            
+            const colors = {
+                'eth': '#627eea',
+                'polygon': '#8247e5',
+                'bsc': '#f3ba2f',
+                'arbitrum': '#28a0f0',
+                'base': '#0052ff',
+                'optimism': '#ff0420',
+                'avalanche': '#e84142',
+                'pulse': '#ff00ff',
+                'solana': '#14f195'
+            };
+            
+            container.innerHTML = sortedChains.map(([chain, data]) => {
+                const info = CHAIN_INFO[chain] || { name: chain, icon: '?', color: '#888' };
+                const percent = totalUSD > 0 ? ((data.value / totalUSD) * 100).toFixed(1) : 0;
+                const valueEUR = data.value * EUR_USD;
+                const color = colors[chain] || info.color;
+                
+                return `
+                    <div class="chain-card" onclick="openChainTokensModal('${chain}')">
+                        <div class="chain-card-header">
+                            <div class="chain-card-icon" style="background:${color};">${info.icon}</div>
+                            <div class="chain-card-info">
+                                <div class="chain-card-name">${info.name}</div>
+                                <div class="chain-card-tokens">${data.tokens.length} tokens</div>
+                            </div>
+                            <div class="chain-card-value">
+                                <div class="chain-card-amount">${valueEUR.toLocaleString('it-IT', {minimumFractionDigits: 0})} €</div>
+                                <div class="chain-card-percent">${percent}%</div>
+                            </div>
+                        </div>
+                        <div class="chain-card-bar">
+                            <div class="chain-card-bar-fill" style="width:${percent}%;background:${color};"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function renderTopHoldings(allTokens) {
+            const container = document.getElementById('topHoldingsList');
+            const sortedTokens = allTokens.sort((a, b) => (b.valueUSD || 0) - (a.valueUSD || 0)).slice(0, 10);
+            
+            if (sortedTokens.length === 0) {
+                container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary);">No tokens found</div>';
+                return;
+            }
+            
+            container.innerHTML = sortedTokens.map(t => `
+                <div class="token-row">
+                    <div class="token-info">
+                        <div class="token-icon">
+                            ${t.logo ? `<img src="${t.logo}" onerror="this.parentElement.textContent='${t.symbol.slice(0,2)}'">` : t.symbol.slice(0, 2)}
+                        </div>
+                        <span class="token-name">${t.symbol}</span>
+                        <span style="font-size:11px;color:var(--text-secondary);margin-left:8px;">${CHAIN_INFO[t.chain]?.name || t.chain}</span>
+                    </div>
+                    <div class="token-balance">${formatBalance(t.balance)}</div>
+                    <div class="token-value">${((t.valueUSD || 0) * EUR_USD).toLocaleString('it-IT', {minimumFractionDigits: 0})}</div>
+                </div>
+            `).join('');
+        }
+        
+        function renderPortfolioChart(chainData) {
+            const ctx = document.getElementById('portfolioChart');
+            if (!ctx) return;
+            
+            const labels = [];
+            const values = [];
+            const colors = [];
+            
+            const colorMap = {
+                'eth': '#627eea',
+                'polygon': '#8247e5',
+                'bsc': '#f3ba2f',
+                'arbitrum': '#28a0f0',
+                'base': '#0052ff',
+                'optimism': '#ff0420',
+                'avalanche': '#e84142',
+                'pulse': '#ff00ff',
+                'solana': '#14f195'
+            };
+            
+            Object.entries(chainData)
+                .sort((a, b) => b[1].value - a[1].value)
+                .forEach(([chain, data]) => {
+                    const info = CHAIN_INFO[chain] || { name: chain };
+                    labels.push(info.name);
+                    values.push(data.value * EUR_USD);
+                    colors.push(colorMap[chain] || '#888');
+                });
+            
+            if (portfolioChart) {
+                portfolioChart.destroy();
+            }
+            
+            portfolioChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: colors,
+                        borderColor: '#0d1117',
+                        borderWidth: 3,
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '65%',
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                color: '#e6edf3',
+                                padding: 15,
+                                font: { size: 12 },
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: '#21262d',
+                            titleColor: '#e6edf3',
+                            bodyColor: '#e6edf3',
+                            borderColor: '#30363d',
+                            borderWidth: 1,
+                            padding: 12,
+                            displayColors: true,
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw;
+                                    return ` ${value.toLocaleString('it-IT', {minimumFractionDigits: 0})} €`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Chain tokens modal
+        function openChainTokensModal(chain) {
+            const info = CHAIN_INFO[chain] || { name: chain, icon: '?', color: '#888' };
+            const colors = {
+                'eth': '#627eea', 'polygon': '#8247e5', 'bsc': '#f3ba2f',
+                'arbitrum': '#28a0f0', 'base': '#0052ff', 'optimism': '#ff0420',
+                'avalanche': '#e84142', 'pulse': '#ff00ff', 'solana': '#14f195'
+            };
+            
+            // Collect all tokens for this chain
+            const chainTokens = [];
+            wallets.forEach(w => {
+                (w.tokens || []).forEach(t => {
+                    if (t.chain === chain && !isHidden(t)) {
+                        chainTokens.push(t);
+                    }
+                });
+            });
+            
+            chainTokens.sort((a, b) => (b.valueUSD || 0) - (a.valueUSD || 0));
+            
+            const totalValue = chainTokens.reduce((sum, t) => sum + ((t.valueUSD || 0) * EUR_USD), 0);
+            
+            document.getElementById('modalChainIcon').style.background = colors[chain] || info.color;
+            document.getElementById('modalChainIcon').textContent = info.icon;
+            document.getElementById('modalChainName').textContent = info.name;
+            document.getElementById('modalChainValue').textContent = `${totalValue.toLocaleString('it-IT', {minimumFractionDigits: 0})} €`;
+            
+            document.getElementById('chainTokensList').innerHTML = chainTokens.length === 0
+                ? '<div style="padding:40px;text-align:center;color:var(--text-secondary);">No tokens found</div>'
+                : chainTokens.map(t => `
+                    <div class="chain-token-item">
+                        <div class="chain-token-info">
+                            <div class="chain-token-icon">
+                                ${t.logo ? `<img src="${t.logo}" onerror="this.parentElement.textContent='${t.symbol.slice(0,2)}'">` : t.symbol.slice(0, 2)}
+                            </div>
+                            <span class="chain-token-symbol">${t.symbol}</span>
+                        </div>
+                        <div class="chain-token-balance">${formatBalance(t.balance)}</div>
+                        <div class="chain-token-value">${((t.valueUSD || 0) * EUR_USD).toLocaleString('it-IT', {minimumFractionDigits: 2})}</div>
+                        <button class="chain-token-hide" onclick="hideToken('${t.symbol}', '${t.contractAddress || ''}'); closeChainTokensModal();" title="Hide">✕</button>
+                    </div>
+                `).join('');
+            
+            document.getElementById('chainTokensModal').classList.add('active');
+        }
+        
+        function closeChainTokensModal() {
+            document.getElementById('chainTokensModal').classList.remove('active');
+        }
+        
+        // Mostra token di una chain specifica nel wallet detail
+        function showChainTokensInWallet(chain) {
+            if (currentWalletIndex < 0) return;
+            
+            const wallet = wallets[currentWalletIndex];
+            const info = CHAIN_INFO[chain] || { name: chain, icon: '?', color: '#888' };
+            const colors = {
+                'eth': '#627eea', 'polygon': '#8247e5', 'bsc': '#f3ba2f',
+                'arbitrum': '#28a0f0', 'base': '#0052ff', 'optimism': '#ff0420',
+                'avalanche': '#e84142', 'pulse': '#ff00ff', 'solana': '#14f195'
+            };
+            
+            // Filtra token per questa chain
+            const chainTokens = (wallet.tokens || [])
+                .filter(t => t.chain === chain && !isHidden(t))
+                .sort((a, b) => (b.valueUSD || 0) - (a.valueUSD || 0));
+            
+            const totalValue = chainTokens.reduce((sum, t) => sum + ((t.valueUSD || 0) * EUR_USD), 0);
+            
+            document.getElementById('modalChainIcon').style.background = colors[chain] || info.color;
+            document.getElementById('modalChainIcon').textContent = info.icon;
+            document.getElementById('modalChainName').textContent = info.name;
+            document.getElementById('modalChainValue').textContent = `${totalValue.toLocaleString('it-IT', {minimumFractionDigits: 2})} €`;
+            
+            document.getElementById('chainTokensList').innerHTML = chainTokens.length === 0
+                ? '<div style="padding:40px;text-align:center;color:var(--text-secondary);">No tokens found</div>'
+                : chainTokens.map(t => `
+                    <div class="chain-token-item">
+                        <div class="chain-token-info">
+                            <div class="chain-token-icon">
+                                ${t.logo ? `<img src="${t.logo}" onerror="this.parentElement.textContent='${t.symbol.slice(0,2)}'">` : t.symbol.slice(0, 2)}
+                            </div>
+                            <span class="chain-token-symbol">${t.symbol}</span>
+                        </div>
+                        <div class="chain-token-balance">${formatBalance(t.balance)}</div>
+                        <div class="chain-token-value">${((t.valueUSD || 0) * EUR_USD).toLocaleString('it-IT', {minimumFractionDigits: 2})}</div>
+                        <button class="chain-token-hide" onclick="hideTokenAndRefresh('${t.symbol}', '${t.contractAddress || ''}', '${chain}')" title="Hide">✕</button>
+                    </div>
+                `).join('');
+            
+            document.getElementById('chainTokensModal').classList.add('active');
+        }
+        
+        function hideTokenAndRefresh(symbol, contractAddress, chain) {
+            if (contractAddress && contractAddress !== 'native') {
+                hiddenTokens.push(`contract:${contractAddress.toLowerCase()}`);
+            } else {
+                hiddenTokens.push(`symbol:${symbol.toUpperCase()}`);
+            }
+            
+            // Refresh wallet detail
+            if (currentWalletIndex >= 0) {
+                renderWalletDetail(wallets[currentWalletIndex]);
+            }
+            
+            // Re-open chain modal with updated data
+            showChainTokensInWallet(chain);
+            
+            updateDashboard();
+            renderWalletList();
+            saveToFirebase();
+        }
+        
+        function hideToken(symbol, contractAddress) {
+            if (contractAddress && contractAddress !== 'native') {
+                hiddenTokens.push(`contract:${contractAddress.toLowerCase()}`);
+            } else {
+                hiddenTokens.push(`symbol:${symbol.toUpperCase()}`);
+            }
+            updateDashboard();
+            renderWalletList();
+            saveToFirebase();
+        }
+        
+        // ==================== SCANNING ====================
+        async function scanAllWallets() {
+            for (let i = 0; i < wallets.length; i++) {
+                await scanWallet(i);
+            }
+            renderWalletList();
+            updateDashboard();
+            saveToFirebase();
+        }
+        
+        async function scanCurrentWallet() {
+            if (currentWalletIndex >= 0) {
+                await scanWallet(currentWalletIndex);
+                renderWalletDetail(wallets[currentWalletIndex]);
+                renderWalletList();
+                updateDashboard();
+                saveToFirebase();
+            }
+        }
+        
+        function deleteCurrentWallet() {
+            if (currentWalletIndex >= 0 && confirm('Remove this wallet?')) {
+                wallets.splice(currentWalletIndex, 1);
+                closeWalletDetail();
+                renderWalletList();
+                updateDashboard();
+                saveToFirebase();
+            }
+        }
+        
+        async function scanWallet(index) {
+            const wallet = wallets[index];
+            console.log(`🔍 Scanning ${wallet.name}...`);
+            
+            try {
+                await fetchPrices();
+                
+                if (isSolanaAddress(wallet.address)) {
+                    wallet.tokens = await getHeliusSolanaBalances(wallet.address);
+                    if (wallet.tokens.length === 0) {
+                        wallet.tokens = await getSolanaTokens(wallet.address);
+                    }
+                } else {
+                    wallet.tokens = await getCovalentBalances(wallet.address);
+                    if (wallet.tokens.length === 0) {
+                        wallet.tokens = await getAlchemyBalances(wallet.address);
+                    }
+                    // PulseChain
+                    const pulseTokens = await getPulseChainTokens(wallet.address);
+                    wallet.tokens.push(...pulseTokens);
+                }
+                
+                wallet.totalUSD = wallet.tokens.filter(t => !isHidden(t)).reduce((s, t) => s + (t.valueUSD || 0), 0);
+                wallet.lastSync = new Date().toISOString();
+                
+                console.log(`✅ Found ${wallet.tokens.length} tokens, $${wallet.totalUSD.toFixed(2)}`);
+            } catch (e) {
+                console.error('Scan error:', e);
+            }
+        }
+        
+        // ==================== API FUNCTIONS ====================
+        async function fetchPrices() {
+            try {
+                const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,binancecoin,solana,matic-network,avalanche-2,pulsechain,hex,usd-coin,tether,dai&vs_currencies=usd');
+                if (res.ok) {
+                    const data = await res.json();
+                    prices = {
+                        'BTC': data.bitcoin?.usd || 0,
+                        'ETH': data.ethereum?.usd || 0,
+                        'BNB': data.binancecoin?.usd || 0,
+                        'SOL': data.solana?.usd || 0,
+                        'MATIC': data['matic-network']?.usd || 0,
+                        'AVAX': data['avalanche-2']?.usd || 0,
+                        'PLS': data.pulsechain?.usd || 0,
+                        'HEX': data.hex?.usd || 0,
+                        'USDC': data['usd-coin']?.usd || 1,
+                        'USDT': data.tether?.usd || 1,
+                        'DAI': data.dai?.usd || 1
+                    };
+                }
+            } catch (e) {
+                console.error('Price fetch error:', e);
+            }
+        }
+        
+        async function fetchEurUsdRate() {
+            try {
+                const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+                if (res.ok) {
+                    const data = await res.json();
+                    EUR_USD = data.rates.EUR;
+                    document.getElementById('eurUsdRate').textContent = EUR_USD.toFixed(4);
+                }
+            } catch (e) {
+                console.error('EUR/USD rate error:', e);
+            }
+        }
+        
+        // Covalent API
+        async function getCovalentBalances(address) {
+            const key = localStorage.getItem('covalent_key');
+            const tokens = [];
+            if (!key) return tokens;
+            
+            const chains = {
+                'eth': 'eth-mainnet',
+                'polygon': 'matic-mainnet',
+                'bsc': 'bsc-mainnet',
+                'arbitrum': 'arbitrum-mainnet',
+                'base': 'base-mainnet',
+                'optimism': 'optimism-mainnet'
+            };
+            
+            for (const [chain, chainId] of Object.entries(chains)) {
+                try {
+                    console.log(`💎 Covalent scanning ${chain}...`);
+                    const res = await fetch(`https://api.covalenthq.com/v1/${chainId}/address/${address}/balances_v2/?key=${key}&nft=false&no-spam=true`);
+                    
+                    if (res.ok) {
+                        const data = await res.json();
+                        for (const item of (data.data?.items || [])) {
+                            if (!item.contract_ticker_symbol) continue;
+                            
+                            const balance = parseFloat(item.balance) / Math.pow(10, item.contract_decimals || 18);
+                            if (balance <= 0) continue;
+                            
+                            const symbol = item.contract_ticker_symbol.toUpperCase();
+                            const name = item.contract_name || symbol;
+                            const price = item.quote_rate || prices[symbol] || 0;
+                            const valueUSD = item.quote || (balance * price);
+                            
+                            if (isScamToken(name, symbol)) {
+                                console.log(`🚫 SCAM filtered: ${name}`);
+                                continue;
+                            }
+                            
+                            if (valueUSD > 100000 && !['ETH','BNB','MATIC','USDT','USDC','DAI','WBTC'].includes(symbol)) {
+                                console.log(`🚫 Suspicious filtered: ${symbol} $${valueUSD}`);
+                                continue;
+                            }
+                            
+                            tokens.push({
+                                symbol, name, chain, balance, price, valueUSD,
+                                logo: item.logo_url || getTokenLogo(symbol),
+                                contractAddress: item.native_token ? 'native' : item.contract_address
+                            });
+                        }
+                    }
+                    await new Promise(r => setTimeout(r, 150));
+                } catch (e) {
+                    console.error(`Covalent ${chain} error:`, e);
+                }
+            }
+            
+            return tokens;
+        }
+        
+        // Helius API (Solana)
+        async function getHeliusSolanaBalances(address) {
+            const key = localStorage.getItem('helius_key');
+            const tokens = [];
+            if (!key) return tokens;
+            
+            try {
+                console.log('☀️ Helius scanning Solana...');
+                const res = await fetch(`https://mainnet.helius-rpc.com/?api-key=${key}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        id: 'helius',
+                        method: 'searchAssets',
+                        params: {
+                            ownerAddress: address,
+                            tokenType: 'fungible',
+                            displayOptions: { showNativeBalance: true }
+                        }
+                    })
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    
+                    // Native SOL
+                    if (data.result?.nativeBalance) {
+                        const balance = data.result.nativeBalance.lamports / 1e9;
+                        if (balance > 0.0001) {
+                            tokens.push({
+                                symbol: 'SOL', name: 'Solana', chain: 'solana',
+                                balance, price: prices['SOL'] || 0,
+                                valueUSD: balance * (prices['SOL'] || 0),
+                                logo: getTokenLogo('SOL'), contractAddress: 'native'
+                            });
+                        }
+                    }
+                    
+                    // SPL Tokens
+                    for (const item of (data.result?.items || [])) {
+                        if (!item.token_info) continue;
+                        
+                        const symbol = (item.token_info.symbol || 'UNKNOWN').toUpperCase();
+                        const name = item.content?.metadata?.name || symbol;
+                        const balance = item.token_info.balance / Math.pow(10, item.token_info.decimals || 9);
+                        const price = item.token_info.price_info?.price_per_token || prices[symbol] || 0;
+                        const valueUSD = item.token_info.price_info?.total_price || (balance * price);
+                        
+                        if (balance <= 0 || valueUSD < 0.01) continue;
+                        if (isScamToken(name, symbol)) {
+                            console.log(`🚫 SCAM filtered: ${name}`);
+                            continue;
+                        }
+                        
+                        tokens.push({
+                            symbol, name, chain: 'solana', balance, price, valueUSD,
+                            logo: item.content?.links?.image || getTokenLogo(symbol),
+                            contractAddress: item.id
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error('Helius error:', e);
+            }
+            
+            return tokens;
+        }
+        
+        // Alchemy API (fallback)
+        async function getAlchemyBalances(address) {
+            const key = localStorage.getItem('alchemy_key');
+            const tokens = [];
+            if (!key) return tokens;
+            
+            // Simplified - just get native balance
+            const chains = {
+                'eth': `https://eth-mainnet.g.alchemy.com/v2/${key}`,
+                'polygon': `https://polygon-mainnet.g.alchemy.com/v2/${key}`
+            };
+            
+            for (const [chain, endpoint] of Object.entries(chains)) {
+                try {
+                    const res = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            jsonrpc: '2.0',
+                            method: 'eth_getBalance',
+                            params: [address, 'latest'],
+                            id: 1
+                        })
+                    });
+                    
+                    if (res.ok) {
+                        const data = await res.json();
+                        const balance = parseInt(data.result, 16) / 1e18;
+                        if (balance > 0.0001) {
+                            const symbol = chain === 'polygon' ? 'MATIC' : 'ETH';
+                            tokens.push({
+                                symbol, name: symbol, chain, balance,
+                                price: prices[symbol] || 0,
+                                valueUSD: balance * (prices[symbol] || 0),
+                                logo: getTokenLogo(symbol), contractAddress: 'native'
+                            });
+                        }
+                    }
+                } catch (e) {
+                    console.error(`Alchemy ${chain} error:`, e);
+                }
+            }
+            
+            return tokens;
+        }
+        
+        // PulseChain RPC
+        async function getPulseChainTokens(address) {
+            const tokens = [];
+            try {
+                const res = await fetch('https://rpc.pulsechain.com', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'eth_getBalance',
+                        params: [address, 'latest'],
+                        id: 1
+                    })
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    const balance = parseInt(data.result, 16) / 1e18;
+                    if (balance > 0.01) {
+                        tokens.push({
+                            symbol: 'PLS', name: 'PulseChain', chain: 'pulse',
+                            balance, price: prices['PLS'] || 0,
+                            valueUSD: balance * (prices['PLS'] || 0),
+                            logo: getTokenLogo('PLS'), contractAddress: 'native'
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error('PulseChain error:', e);
+            }
+            return tokens;
+        }
+        
+        // Solana RPC fallback
+        async function getSolanaTokens(address) {
+            const tokens = [];
+            try {
+                const res = await fetch('https://api.mainnet-beta.solana.com', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        id: 1,
+                        method: 'getBalance',
+                        params: [address]
+                    })
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    const balance = (data.result?.value || 0) / 1e9;
+                    if (balance > 0.001) {
+                        tokens.push({
+                            symbol: 'SOL', name: 'Solana', chain: 'solana',
+                            balance, price: prices['SOL'] || 0,
+                            valueUSD: balance * (prices['SOL'] || 0),
+                            logo: getTokenLogo('SOL'), contractAddress: 'native'
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error('Solana RPC error:', e);
+            }
+            return tokens;
+        }
+        
+        function getTokenLogo(symbol) {
+            const logos = {
+                'BTC': 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',
+                'ETH': 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
+                'BNB': 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',
+                'SOL': 'https://assets.coingecko.com/coins/images/4128/small/solana.png',
+                'MATIC': 'https://assets.coingecko.com/coins/images/4713/small/matic-token-icon.png',
+                'USDT': 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
+                'USDC': 'https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png',
+                'PLS': 'https://assets.coingecko.com/coins/images/25645/small/PLS.png'
+            };
+            return logos[symbol] || '';
+        }
+        
+        // ==================== EXCHANGES ====================
+        function saveBinanceKeys() {
+            const apiKey = document.getElementById('binanceApiKey').value.trim();
+            const secret = document.getElementById('binanceSecret').value.trim();
+            if (apiKey && secret) {
+                localStorage.setItem('binance_api_key', apiKey);
+                localStorage.setItem('binance_secret', secret);
+                document.getElementById('binanceApiKey').value = '';
+                document.getElementById('binanceSecret').value = '';
+                updateExchangeStatus();
+                alert('Binance API keys saved!');
+            }
+        }
+        
+        function saveBitgetKeys() {
+            const apiKey = document.getElementById('bitgetApiKey').value.trim();
+            const secret = document.getElementById('bitgetSecret').value.trim();
+            const passphrase = document.getElementById('bitgetPassphrase').value.trim();
+            if (apiKey && secret && passphrase) {
+                localStorage.setItem('bitget_api_key', apiKey);
+                localStorage.setItem('bitget_secret', secret);
+                localStorage.setItem('bitget_passphrase', passphrase);
+                document.getElementById('bitgetApiKey').value = '';
+                document.getElementById('bitgetSecret').value = '';
+                document.getElementById('bitgetPassphrase').value = '';
+                updateExchangeStatus();
+                alert('Bitget API keys saved!');
+            }
+        }
+        
+        function updateExchangeStatus() {
+            const binance = localStorage.getItem('binance_api_key');
+            const bitget = localStorage.getItem('bitget_api_key');
+            
+            const binanceEl = document.getElementById('binanceStatus');
+            const bitgetEl = document.getElementById('bitgetStatus');
+            
+            if (binanceEl) {
+                binanceEl.textContent = binance ? 'ON' : 'OFF';
+                binanceEl.className = `api-key-status ${binance ? 'on' : 'off'}`;
+            }
+            if (bitgetEl) {
+                bitgetEl.textContent = bitget ? 'ON' : 'OFF';
+                bitgetEl.className = `api-key-status ${bitget ? 'on' : 'off'}`;
+            }
+        }
+        
+        async function syncBinance() {
+            const apiKey = localStorage.getItem('binance_api_key');
+            const secret = localStorage.getItem('binance_secret');
+            
+            if (!apiKey || !secret) {
+                alert('Please save Binance API keys first');
+                return;
+            }
+            
+            alert('Binance sync requires a backend proxy due to CORS. For now, use CSV import or manual entry.');
+        }
+        
+        function importCryptocomCSV(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const text = e.target.result;
+                    const lines = text.split('\n');
+                    const holdings = {};
+                    
+                    // Parse Crypto.com CSV format
+                    for (let i = 1; i < lines.length; i++) {
+                        const line = lines[i].trim();
+                        if (!line) continue;
+                        
+                        const cols = line.split(',');
+                        // Crypto.com format varies, try to extract currency and amount
+                        if (cols.length >= 3) {
+                            const currency = cols[1]?.replace(/"/g, '').trim();
+                            const amount = parseFloat(cols[2]?.replace(/"/g, '')) || 0;
+                            
+                            if (currency && amount > 0) {
+                                holdings[currency] = (holdings[currency] || 0) + amount;
+                            }
+                        }
+                    }
+                    
+                    // Add to exchanges
+                    addExchangeHoldings('Crypto.com', holdings);
+                    alert('Crypto.com CSV imported!');
+                } catch (err) {
+                    alert('Error parsing CSV: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        function importNexoCSV(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const text = e.target.result;
+                    const lines = text.split('\n');
+                    const holdings = {};
+                    
+                    for (let i = 1; i < lines.length; i++) {
+                        const line = lines[i].trim();
+                        if (!line) continue;
+                        
+                        const cols = line.split(',');
+                        if (cols.length >= 4) {
+                            const currency = cols[1]?.replace(/"/g, '').trim();
+                            const amount = parseFloat(cols[3]?.replace(/"/g, '')) || 0;
+                            
+                            if (currency && amount > 0) {
+                                holdings[currency] = (holdings[currency] || 0) + amount;
+                            }
+                        }
+                    }
+                    
+                    addExchangeHoldings('Nexo', holdings);
+                    alert('Nexo CSV imported!');
+                } catch (err) {
+                    alert('Error parsing CSV: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        function importRevolutCSV(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const text = e.target.result;
+                    const lines = text.split('\n');
+                    const holdings = {};
+                    
+                    for (let i = 1; i < lines.length; i++) {
+                        const line = lines[i].trim();
+                        if (!line) continue;
+                        
+                        const cols = line.split(',');
+                        if (cols.length >= 3) {
+                            const currency = cols[0]?.replace(/"/g, '').trim();
+                            const amount = parseFloat(cols[2]?.replace(/"/g, '')) || 0;
+                            
+                            if (currency && amount > 0) {
+                                holdings[currency] = (holdings[currency] || 0) + amount;
+                            }
+                        }
+                    }
+                    
+                    addExchangeHoldings('Revolut', holdings);
+                    alert('Revolut CSV imported!');
+                } catch (err) {
+                    alert('Error parsing CSV: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        function addExchangeHoldings(exchangeName, holdings) {
+            // Remove existing exchange data
+            exchanges = exchanges.filter(e => e.name !== exchangeName);
+            
+            const tokens = [];
+            for (const [symbol, balance] of Object.entries(holdings)) {
+                const price = prices[symbol.toUpperCase()] || 0;
+                tokens.push({
+                    symbol: symbol.toUpperCase(),
+                    name: symbol,
+                    balance,
+                    price,
+                    valueUSD: balance * price,
+                    chain: 'exchange'
+                });
+            }
+            
+            exchanges.push({
+                name: exchangeName,
+                tokens,
+                totalUSD: tokens.reduce((s, t) => s + t.valueUSD, 0),
+                lastSync: new Date().toISOString()
+            });
+            
+            renderExchangeHoldings();
+            updateDashboard();
+            saveToFirebase();
+        }
+        
+        function renderExchangeHoldings() {
+            const container = document.getElementById('exchangeHoldingsList');
+            const totalEl = document.getElementById('exchangeTotalValue');
+            
+            if (exchanges.length === 0) {
+                container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary);">Connect an exchange or import CSV to see holdings</div>';
+                totalEl.textContent = '0 €';
+                return;
+            }
+            
+            const allTokens = [];
+            let totalUSD = 0;
+            
+            exchanges.forEach(ex => {
+                ex.tokens.forEach(t => {
+                    allTokens.push({ ...t, exchange: ex.name });
+                    totalUSD += t.valueUSD || 0;
+                });
+            });
+            
+            allTokens.sort((a, b) => (b.valueUSD || 0) - (a.valueUSD || 0));
+            
+            totalEl.textContent = `${(totalUSD * EUR_USD).toLocaleString('it-IT', {minimumFractionDigits: 2})} €`;
+            
+            container.innerHTML = allTokens.map(t => `
+                <div class="token-row">
+                    <div class="token-info">
+                        <div class="token-icon">${t.symbol.slice(0, 2)}</div>
+                        <span class="token-name">${t.symbol}</span>
+                        <span style="font-size:11px;color:var(--text-secondary);margin-left:8px;">${t.exchange}</span>
+                    </div>
+                    <div class="token-balance">${formatBalance(t.balance)}</div>
+                    <div class="token-value">${((t.valueUSD || 0) * EUR_USD).toLocaleString('it-IT', {minimumFractionDigits: 2})}</div>
+                </div>
+            `).join('');
+        }
+        
+        function openManualExchangeModal() {
+            const name = prompt('Exchange name (e.g., Kraken, Coinbase):');
+            if (!name) return;
+            
+            const holdings = prompt('Enter holdings (format: BTC:0.5,ETH:2.0,USDT:1000):');
+            if (!holdings) return;
+            
+            const parsed = {};
+            holdings.split(',').forEach(pair => {
+                const [symbol, amount] = pair.split(':');
+                if (symbol && amount) {
+                    parsed[symbol.trim().toUpperCase()] = parseFloat(amount) || 0;
+                }
+            });
+            
+            if (Object.keys(parsed).length > 0) {
+                addExchangeHoldings(name, parsed);
+                alert(`${name} holdings added!`);
+            }
+        }
+        
+        // ==================== API KEY MANAGEMENT ====================
+        function saveCovalentKey() {
+            const key = document.getElementById('covalentKey').value.trim();
+            if (key) {
+                localStorage.setItem('covalent_key', key);
+                document.getElementById('covalentKey').value = '';
+                updateApiStatus();
+                alert('Covalent API saved!');
+            }
+        }
+        
+        function saveHeliusKey() {
+            const key = document.getElementById('heliusKey').value.trim();
+            if (key) {
+                localStorage.setItem('helius_key', key);
+                document.getElementById('heliusKey').value = '';
+                updateApiStatus();
+                alert('Helius API saved!');
+            }
+        }
+        
+        function saveAlchemyKey() {
+            const key = document.getElementById('alchemyKey').value.trim();
+            if (key) {
+                localStorage.setItem('alchemy_key', key);
+                document.getElementById('alchemyKey').value = '';
+                updateApiStatus();
+                alert('Alchemy API saved!');
+            }
+        }
+        
+        function saveMoralisKey() {
+            const key = document.getElementById('moralisKey').value.trim();
+            if (key) {
+                localStorage.setItem('moralis_key', key);
+                document.getElementById('moralisKey').value = '';
+                updateApiStatus();
+                alert('Moralis API saved!');
+            }
+        }
+        
+        function saveClaudeKey() {
+            const key = document.getElementById('claudeKey').value.trim();
+            if (key.startsWith('sk-ant-')) {
+                localStorage.setItem('claude_key', key);
+                document.getElementById('claudeKey').value = '';
+                updateApiStatus();
+                alert('Claude API saved!');
+            }
+        }
+        
+        function updateApiStatus() {
+            const keys = ['covalent', 'helius', 'alchemy', 'moralis', 'claude'];
+            keys.forEach(name => {
+                const hasKey = localStorage.getItem(`${name}_key`);
+                const el = document.getElementById(`${name}Status`);
+                if (el) {
+                    el.textContent = hasKey ? 'ON' : 'OFF';
+                    el.className = `api-key-status ${hasKey ? 'on' : 'off'}`;
+                }
+            });
+        }
+        
+        // ==================== FIREBASE ====================
+        function saveToFirebase() {
+            if (saveTimeout) clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(async () => {
+                try {
+                    document.getElementById('syncStatus').textContent = 'Saving...';
+                    await db.collection('users').doc('moreno').set({
+                        wallets, exchanges, hiddenTokens, selectedYear, eurUsdRate: EUR_USD,
+                        lastUpdate: new Date().toISOString()
+                    });
+                    document.getElementById('syncStatus').textContent = 'Saved ✓';
+                } catch (e) {
+                    document.getElementById('syncStatus').textContent = 'Sync error';
+                    console.error('Firebase error:', e);
+                }
+            }, 2000);
+        }
+        
+        function forceSaveToFirebase() {
+            if (saveTimeout) clearTimeout(saveTimeout);
+            saveTimeout = null;
+            document.getElementById('syncStatus').textContent = 'Saving...';
+            
+            db.collection('users').doc('moreno').set({
+                wallets, exchanges, hiddenTokens, selectedYear, eurUsdRate: EUR_USD,
+                lastUpdate: new Date().toISOString()
+            }).then(() => {
+                document.getElementById('syncStatus').textContent = 'Saved ✓';
+                alert('Data saved to cloud!');
+            }).catch(e => {
+                document.getElementById('syncStatus').textContent = 'Error';
+                alert('Save error: ' + e.message);
+            });
+        }
+        
+        async function loadFromFirebase() {
+            try {
+                document.getElementById('syncStatus').textContent = 'Loading...';
+                const doc = await db.collection('users').doc('moreno').get();
+                
+                if (doc.exists) {
+                    const data = doc.data();
+                    wallets = data.wallets || [];
+                    exchanges = data.exchanges || [];
+                    hiddenTokens = data.hiddenTokens || [];
+                    selectedYear = data.selectedYear || 2025;
+                    EUR_USD = data.eurUsdRate || 0.92;
+                    
+                    document.querySelectorAll('.year-btn').forEach(btn => {
+                        btn.classList.toggle('active', btn.textContent == selectedYear);
+                    });
+                }
+                
+                renderWalletList();
+                renderExchangeHoldings();
+                updateDashboard();
+                updateExchangeStatus();
+                document.getElementById('syncStatus').textContent = 'Synced ✓';
+            } catch (e) {
+                document.getElementById('syncStatus').textContent = 'Offline';
+                console.error('Firebase load error:', e);
+            }
+        }
+        
+        // ==================== IMPORT/EXPORT ====================
+        function exportJSON() {
+            const data = { wallets, hiddenTokens, selectedYear, eurUsdRate: EUR_USD };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `crypto_portfolio_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+        }
+        
+        function importJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    wallets = data.wallets || [];
+                    hiddenTokens = data.hiddenTokens || [];
+                    selectedYear = data.selectedYear || 2025;
+                    EUR_USD = data.eurUsdRate || 0.92;
+                    
+                    renderWalletList();
+                    updateDashboard();
+                    saveToFirebase();
+                    alert('Import successful!');
+                } catch (err) {
+                    alert('Import error: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        function clearAllData() {
+            if (confirm('Delete ALL data? This cannot be undone!')) {
+                wallets = [];
+                hiddenTokens = [];
+                renderWalletList();
+                updateDashboard();
+                saveToFirebase();
+                alert('All data cleared');
+            }
+        }
+    </script>
+</body>
+</html>
