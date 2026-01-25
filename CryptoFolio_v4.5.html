@@ -3297,6 +3297,13 @@
                 }
             }
             
+            // === TATAX FORMAT ===
+            // Symbol,TokenAddress,TimeStamp,MovementType,Quantity,Countervalue,...
+            if (header.includes('symbol') && header.includes('movementtype') && header.includes('quantity')) {
+                console.log('Detected Tatax format');
+                return parseTataxCSV(lines);
+            }
+            
             console.log('No matching parser found, using generic');
             return parseGenericCSV(lines, exchId);
         }
@@ -3674,6 +3681,63 @@
             // Parser generico - cerca colonne comuni
             console.log('Using generic parser for', exchId);
             return [];
+        }
+        
+        // === TATAX PARSER ===
+        function parseTataxCSV(lines) {
+            // Format: "Symbol","TokenAddress","TimeStamp","MovementType","Quantity","Countervalue","SymbolCountervalue","SourceCountervalue","SourceSymbolCountervalue"
+            const transactions = [];
+            console.log('Parsing Tatax CSV, lines:', lines.length);
+            
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i];
+                if (!line.trim()) continue;
+                
+                const cols = parseCSVLine(line);
+                if (cols.length < 5) continue;
+                
+                let symbol = cols[0] || '';
+                const timestamp = cols[2] || '';
+                const moveType = (cols[3] || '').toUpperCase();
+                let quantity = cols[4] || '0';
+                
+                // Parse date
+                const date = new Date(timestamp);
+                if (isNaN(date.getTime())) continue;
+                
+                // Pulisci symbol (rimuovi .LENDING@BINANCE, .STAKING@BINANCE)
+                symbol = symbol.replace('.LENDING@BINANCE', '').replace('.STAKING@BINANCE', '');
+                
+                // Parse quantity (gestisce notazione scientifica come "1E+2")
+                let qtyNum = parseFloat(quantity);
+                if (isNaN(qtyNum)) qtyNum = 0;
+                
+                // Mappa MovementType alle nostre categorie
+                let type = 'other';
+                if (moveType === 'DEPOSIT') type = 'deposit';
+                else if (moveType === 'WITHDRAWAL') type = 'withdrawal';
+                else if (moveType === 'CREDIT') type = 'credit';
+                else if (moveType === 'DEBIT') type = 'debit';
+                else if (moveType === 'EXCHANGE_FEE') type = 'fee';
+                else if (moveType === 'EARN') type = 'earn';
+                else if (moveType.includes('FEE')) type = 'fee';
+                
+                transactions.push({
+                    date: date,
+                    type: type,
+                    coin: symbol,
+                    change: qtyNum,
+                    operation: moveType
+                });
+            }
+            
+            console.log('Tatax parsed', transactions.length, 'transactions');
+            if (transactions.length > 0) {
+                console.log('First tx:', transactions[0]);
+                console.log('Last tx:', transactions[transactions.length - 1]);
+            }
+            
+            return transactions;
         }
         
         function parseCSVLine(line) {
