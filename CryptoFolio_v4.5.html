@@ -20,6 +20,7 @@
         const db = firebase.firestore();
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
@@ -421,37 +422,17 @@
             
             <!-- EXCHANGE GRID -->
             <div id="exchangeGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;"></div>
-            
-            <!-- BINANCE LIVE (API) - Opzionale -->
-            <div class="card" style="margin-top:20px;opacity:0.7;">
-                <div class="card-header" style="cursor:pointer;" onclick="document.getElementById('binanceLiveSection').style.display = document.getElementById('binanceLiveSection').style.display === 'none' ? 'block' : 'none'">
-                    <div class="card-title">🔌 Binance API Live (opzionale)</div>
-                    <span style="font-size:12px;color:var(--text-secondary);">▼ Espandi</span>
-                </div>
-                <div id="binanceLiveSection" style="display:none;margin-top:16px;">
-                    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:12px;margin-bottom:16px;">
-                        <div class="input-group"><label>API Key</label><input type="password" id="binanceApiKey" placeholder="API Key..."></div>
-                        <div class="input-group"><label>Secret Key</label><input type="password" id="binanceSecretKey" placeholder="Secret Key..."></div>
-                        <div class="input-group" style="align-self:flex-end;"><button class="btn btn-primary" onclick="saveBinanceKeys()">💾</button></div>
-                    </div>
-                    <div style="display:flex;gap:12px;align-items:center;">
-                        <span id="binanceServerStatus" style="padding:4px 8px;border-radius:4px;font-size:11px;background:var(--bg-secondary);">Server Offline</span>
-                        <button class="btn btn-secondary" onclick="syncBinance()" id="binanceSyncBtn" style="padding:6px 12px;font-size:12px;">🔄 Sync Live</button>
-                        <span id="binanceSyncStatus" style="font-size:12px;color:var(--text-secondary);"></span>
-                    </div>
-                    <div id="binanceBalances" style="display:none;margin-top:16px;">
-                        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
-                            <div style="background:var(--bg-primary);border-radius:6px;padding:12px;text-align:center;"><div style="font-size:10px;color:var(--text-secondary);">SPOT</div><div id="binanceSpotTotal" style="font-size:16px;font-weight:600;color:var(--green);">€0</div></div>
-                            <div style="background:var(--bg-primary);border-radius:6px;padding:12px;text-align:center;"><div style="font-size:10px;color:var(--text-secondary);">EARN</div><div id="binanceEarnTotal" style="font-size:16px;font-weight:600;color:var(--accent);">€0</div></div>
-                            <div style="background:var(--bg-primary);border-radius:6px;padding:12px;text-align:center;"><div style="font-size:10px;color:var(--text-secondary);">STAKING</div><div id="binanceStakingTotal" style="font-size:16px;font-weight:600;color:#9945ff;">€0</div></div>
-                            <div style="background:rgba(243,186,47,0.2);border-radius:6px;padding:12px;text-align:center;"><div style="font-size:10px;color:#f3ba2f;">LIVE</div><div id="binanceTotalValue" style="font-size:16px;font-weight:600;color:#f3ba2f;">€0</div></div>
-                        </div>
-                        <div style="font-size:11px;color:var(--text-secondary);margin-top:8px;">📅 <span id="binanceLastUpdate">-</span></div>
-                        <div id="binanceTokensList" style="margin-top:12px;max-height:200px;overflow-y:auto;"></div>
-                    </div>
-                </div>
-            </div>
         </div>
+    </div>
+    
+    <!-- Hidden elements per evitare errori JS -->
+    <div style="display:none;">
+        <input id="binanceApiKey"><input id="binanceSecretKey">
+        <span id="binanceServerStatus"></span><span id="binanceSyncStatus"></span>
+        <span id="binanceSpotTotal"></span><span id="binanceEarnTotal"></span>
+        <span id="binanceStakingTotal"></span><span id="binanceTotalValue"></span>
+        <span id="binanceLastUpdate"></span><div id="binanceBalances"></div>
+        <div id="binanceTokensList"></div>
     </div>
 
     <script>
@@ -2567,25 +2548,29 @@
         }
         
         async function processZipFile(file, exchId) {
-            // Usa JSZip per estrarre
-            const JSZip = window.JSZip;
-            if (!JSZip) {
-                // Carica JSZip dinamicamente
-                await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
-            }
-            
-            const zip = await JSZip.loadAsync(file);
-            let allTransactions = [];
-            
-            for (const [path, zipEntry] of Object.entries(zip.files)) {
-                if (path.endsWith('.csv') && !path.includes('__MACOSX')) {
-                    const text = await zipEntry.async('text');
-                    const transactions = parseExchangeCSV(text, exchId);
-                    allTransactions.push(...transactions);
+            // Usa JSZip (già caricato nell'head)
+            try {
+                console.log('Processing ZIP file:', file.name);
+                const zip = await JSZip.loadAsync(file);
+                let allTransactions = [];
+                
+                for (const [path, zipEntry] of Object.entries(zip.files)) {
+                    console.log('ZIP entry:', path);
+                    if (path.endsWith('.csv') && !path.includes('__MACOSX') && !path.includes('.DS_Store')) {
+                        const text = await zipEntry.async('text');
+                        console.log('Parsing CSV:', path, 'length:', text.length);
+                        const transactions = parseExchangeCSV(text, exchId);
+                        console.log('Parsed', transactions.length, 'transactions from', path);
+                        allTransactions.push(...transactions);
+                    }
                 }
+                
+                return allTransactions;
+            } catch (e) {
+                console.error('ZIP processing error:', e);
+                alert('Errore lettura ZIP: ' + e.message);
+                return [];
             }
-            
-            return allTransactions;
         }
         
         function loadScript(src) {
@@ -3000,6 +2985,7 @@
             await loadBinanceFromFirebase();
             await loadExchangeDataFromFirebase();
             initChainSelector();
+            initExchangeGrid();
             updateBlacklist();
             updateWalletsList();
             updateWalletSelect();
