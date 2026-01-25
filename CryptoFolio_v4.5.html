@@ -2525,39 +2525,59 @@
         async function processExchangeFiles(files, exchId) {
             console.log('Processing files for', exchId, files.length, 'files');
             
-            let allTransactions = [];
-            
-            for (const file of files) {
-                if (file.name.endsWith('.zip')) {
-                    // Estrai ZIP
-                    const transactions = await processZipFile(file, exchId);
-                    allTransactions.push(...transactions);
-                } else if (file.name.endsWith('.csv')) {
-                    // Parse CSV direttamente
-                    const text = await file.text();
-                    const transactions = parseExchangeCSV(text, exchId);
-                    allTransactions.push(...transactions);
-                }
+            // Mostra stato caricamento
+            const dropzone = document.getElementById('dropzone-' + exchId);
+            if (dropzone) {
+                dropzone.innerHTML = '<div style="font-size:32px;margin-bottom:8px;">⏳</div><div style="color:var(--accent);font-size:13px;">Elaborazione in corso...</div>';
             }
             
-            if (allTransactions.length > 0) {
-                // Salva transazioni
-                if (!exchangeData[exchId]) {
-                    exchangeData[exchId] = { transactions: [], balances: {}, totals: {} };
+            let allTransactions = [];
+            
+            try {
+                for (const file of files) {
+                    console.log('Processing file:', file.name, 'size:', file.size);
+                    
+                    if (file.name.endsWith('.zip')) {
+                        // Estrai ZIP
+                        const transactions = await processZipFile(file, exchId);
+                        console.log('ZIP parsed:', transactions.length, 'transactions');
+                        allTransactions.push(...transactions);
+                    } else if (file.name.endsWith('.csv')) {
+                        // Parse CSV direttamente
+                        const text = await file.text();
+                        console.log('CSV loaded, length:', text.length);
+                        const transactions = parseExchangeCSV(text, exchId);
+                        console.log('CSV parsed:', transactions.length, 'transactions');
+                        allTransactions.push(...transactions);
+                    }
                 }
-                exchangeData[exchId].transactions = allTransactions;
                 
-                // Calcola saldi al 31/12
-                calculateExchangeBalances(exchId);
+                console.log('Total transactions:', allTransactions.length);
                 
-                // Aggiorna UI
-                initExchangeGrid();
-                updateExchangeTotals();
-                saveExchangeDataToFirebase();
-                
-                alert('✅ ' + exchId.toUpperCase() + ': Importate ' + allTransactions.length + ' transazioni!');
-            } else {
-                alert('❌ Nessuna transazione trovata nei file');
+                if (allTransactions.length > 0) {
+                    // Salva transazioni (solo totali per risparmiare spazio)
+                    if (!exchangeData[exchId]) {
+                        exchangeData[exchId] = { transactions: [], balances: {}, totals: {} };
+                    }
+                    exchangeData[exchId].transactions = allTransactions;
+                    
+                    // Calcola saldi al 31/12
+                    calculateExchangeBalances(exchId);
+                    
+                    // Aggiorna UI
+                    initExchangeGrid();
+                    updateExchangeTotals();
+                    saveExchangeDataToFirebase();
+                    
+                    alert('✅ ' + exchId.toUpperCase() + ': Importate ' + allTransactions.length + ' transazioni!');
+                } else {
+                    alert('❌ Nessuna transazione trovata nei file. Controlla la console (F12) per i dettagli.');
+                    initExchangeGrid(); // Ripristina dropzone
+                }
+            } catch (err) {
+                console.error('Error processing files:', err);
+                alert('❌ Errore: ' + err.message);
+                initExchangeGrid(); // Ripristina dropzone
             }
         }
         
@@ -2600,22 +2620,33 @@
         function parseExchangeCSV(text, exchId) {
             // Parser generico che adatta al formato dell'exchange
             const lines = text.trim().split('\n');
-            if (lines.length < 2) return [];
+            console.log('parseExchangeCSV for', exchId, '- lines:', lines.length);
+            
+            if (lines.length < 2) {
+                console.log('Not enough lines in CSV');
+                return [];
+            }
             
             const header = lines[0].toLowerCase();
+            console.log('Header (lowercase):', header.substring(0, 100));
             
             // Rileva il formato basandosi sull'header
-            if (header.includes('utc_time') && header.includes('operation') && header.includes('coin')) {
+            if (header.includes('utc_time') && header.includes('coin')) {
+                console.log('Detected Binance format');
                 return parseBinanceCSV(lines);
             }
+            
             // TODO: Aggiungere altri parser per altri exchange
-            // Per ora usa parser generico
+            console.log('No matching parser found, using generic');
             return parseGenericCSV(lines, exchId);
         }
         
         function parseBinanceCSV(lines) {
             // Formato: "User_ID","UTC_Time","Account","Operation","Coin","Change","Remark"
             const transactions = [];
+            console.log('Parsing Binance CSV, lines:', lines.length);
+            console.log('Header:', lines[0]);
+            console.log('First data line:', lines[1]);
             
             for (let i = 1; i < lines.length; i++) {
                 const line = lines[i];
@@ -2623,18 +2654,36 @@
                 
                 // Parse CSV con virgolette
                 const cols = parseCSVLine(line);
-                if (cols.length < 6) continue;
+                if (cols.length < 6) {
+                    console.log('Skipping line (not enough cols):', cols.length, line.substring(0, 50));
+                    continue;
+                }
                 
                 const [userId, utcTime, account, operation, coin, change, remark] = cols;
                 
+                // Parse date
+                const date = new Date(utcTime);
+                if (isNaN(date.getTime())) {
+                    console.log('Invalid date:', utcTime);
+                    continue;
+                }
+                
+                const changeNum = parseFloat(change) || 0;
+                
                 transactions.push({
-                    date: new Date(utcTime),
+                    date: date,
                     account: account,
                     operation: operation,
                     coin: coin,
-                    change: parseFloat(change) || 0,
+                    change: changeNum,
                     remark: remark || ''
                 });
+            }
+            
+            console.log('Parsed', transactions.length, 'transactions');
+            if (transactions.length > 0) {
+                console.log('First tx:', transactions[0]);
+                console.log('Last tx:', transactions[transactions.length - 1]);
             }
             
             return transactions;
@@ -2669,7 +2718,12 @@
         
         function calculateExchangeBalances(exchId) {
             const data = exchangeData[exchId];
-            if (!data || !data.transactions) return;
+            if (!data || !data.transactions) {
+                console.log('No transactions for', exchId);
+                return;
+            }
+            
+            console.log('Calculating balances for', exchId, 'with', data.transactions.length, 'transactions');
             
             // Ordina transazioni per data
             data.transactions.sort((a, b) => a.date - b.date);
@@ -2682,6 +2736,11 @@
             const years = [2021, 2022, 2023, 2024, 2025];
             let currentYearIndex = 0;
             
+            // Prima trova la data più vecchia
+            const firstDate = data.transactions[0]?.date;
+            const lastDate = data.transactions[data.transactions.length - 1]?.date;
+            console.log('Date range:', firstDate, 'to', lastDate);
+            
             for (const tx of data.transactions) {
                 // Aggiorna saldo
                 if (!balances[tx.coin]) balances[tx.coin] = 0;
@@ -2691,6 +2750,7 @@
                 while (currentYearIndex < years.length && tx.date > new Date(years[currentYearIndex], 11, 31, 23, 59, 59)) {
                     // Salva snapshot al 31/12
                     yearEndBalances[years[currentYearIndex]] = { ...balances };
+                    console.log('Snapshot for', years[currentYearIndex], '- coins:', Object.keys(balances).length);
                     currentYearIndex++;
                 }
             }
@@ -2700,6 +2760,10 @@
                 yearEndBalances[years[i]] = { ...balances };
             }
             
+            // Log dei saldi finali
+            console.log('Final balances (coins with value):', 
+                Object.entries(balances).filter(([c, a]) => a > 0.0001).map(([c, a]) => c + ': ' + a.toFixed(4)).join(', ').substring(0, 200));
+            
             // Calcola totali EUR per ogni anno
             for (const year of years) {
                 const yb = yearEndBalances[year] || {};
@@ -2708,7 +2772,9 @@
                 for (const [coin, amount] of Object.entries(yb)) {
                     if (amount <= 0) continue;
                     const price = getHistoricalPrice(coin, year);
-                    totalEur += amount * price * EUR_USD;
+                    if (price > 0) {
+                        totalEur += amount * price * EUR_USD;
+                    }
                 }
                 
                 yearEndTotals[year] = totalEur;
@@ -2717,7 +2783,7 @@
             data.balances = yearEndBalances;
             data.totals = yearEndTotals;
             
-            console.log('Calculated balances for', exchId, yearEndTotals);
+            console.log('Year-end totals (EUR):', yearEndTotals);
         }
         
         function getHistoricalPrice(coin, year) {
