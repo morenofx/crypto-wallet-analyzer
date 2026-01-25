@@ -118,6 +118,7 @@
                 <div class="nav-item active" onclick="showView('dashboard')"><span class="icon">📈</span><span>Dashboard</span></div>
                 <div class="nav-item" onclick="showView('wallets')"><span class="icon">👛</span><span>Wallets</span><span class="badge" id="walletCount">0</span></div>
                 <div class="nav-item" onclick="showView('exchanges')"><span class="icon">🏦</span><span>Exchanges</span><span class="badge" id="exchangeCount">0</span></div>
+                <div class="nav-item" onclick="showView('reconcile')"><span class="icon">🔗</span><span>Riconciliazione</span></div>
                 <div class="nav-item" onclick="showView('tax')"><span class="icon">📋</span><span>Tax Report</span></div>
                 <div class="nav-item" onclick="showView('api')"><span class="icon">🔌</span><span>API Connect</span><span class="badge" id="apiCount">0</span></div>
             </div>
@@ -471,6 +472,95 @@
         </div>
     </div>
     
+    <!-- RICONCILIAZIONE VIEW -->
+    <div class="main-content" id="reconcileView" style="display:none;">
+        <div class="header">
+            <h1>🔗 Riconciliazione Exchange ↔ Wallet</h1>
+        </div>
+        
+        <div class="card" style="margin-bottom:20px;">
+            <p style="color:var(--text-secondary);font-size:14px;line-height:1.6;margin-bottom:16px;">
+                Questo strumento <strong>collega le transazioni</strong> tra Exchange e Wallet per evitare doppi conteggi.<br>
+                <strong>Esempio:</strong> Un prelievo da Binance di 0.5 ETH viene collegato al deposito di 0.5 ETH sul tuo wallet.
+            </p>
+            
+            <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                <button class="btn btn-primary" onclick="loadReconciliationData()">📊 Carica Dati</button>
+                <button class="btn btn-secondary" onclick="runReconciliation()">🔗 Esegui Riconciliazione</button>
+                <button class="btn btn-secondary" onclick="exportReconciliationReport()">📥 Esporta Report</button>
+            </div>
+        </div>
+        
+        <!-- RIEPILOGO -->
+        <div class="card" style="margin-bottom:20px;">
+            <div class="card-header"><div class="card-title">📊 Riepilogo</div></div>
+            <div id="reconcileSummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
+                <div style="background:var(--bg-primary);padding:16px;border-radius:8px;text-align:center;">
+                    <div style="font-size:12px;color:var(--text-secondary);">Transazioni Exchange</div>
+                    <div id="reconcileExchCount" style="font-size:24px;font-weight:700;color:#f3ba2f;">0</div>
+                </div>
+                <div style="background:var(--bg-primary);padding:16px;border-radius:8px;text-align:center;">
+                    <div style="font-size:12px;color:var(--text-secondary);">Transazioni Wallet</div>
+                    <div id="reconcileWalletCount" style="font-size:24px;font-weight:700;color:var(--accent);">0</div>
+                </div>
+                <div style="background:var(--bg-primary);padding:16px;border-radius:8px;text-align:center;">
+                    <div style="font-size:12px;color:var(--text-secondary);">Match Trovati</div>
+                    <div id="reconcileMatchCount" style="font-size:24px;font-weight:700;color:var(--green);">0</div>
+                </div>
+                <div style="background:var(--bg-primary);padding:16px;border-radius:8px;text-align:center;">
+                    <div style="font-size:12px;color:var(--text-secondary);">Non Riconciliati</div>
+                    <div id="reconcileUnmatchedCount" style="font-size:24px;font-weight:700;color:var(--red);">0</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- FILTRI PER ANNO -->
+        <div class="card" style="margin-bottom:20px;">
+            <div class="card-header"><div class="card-title">📅 Filtra per Anno</div></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn btn-secondary reconcile-year-btn active" data-year="all" onclick="filterReconcileYear('all')">Tutti</button>
+                <button class="btn btn-secondary reconcile-year-btn" data-year="2021" onclick="filterReconcileYear('2021')">2021</button>
+                <button class="btn btn-secondary reconcile-year-btn" data-year="2022" onclick="filterReconcileYear('2022')">2022</button>
+                <button class="btn btn-secondary reconcile-year-btn" data-year="2023" onclick="filterReconcileYear('2023')">2023</button>
+                <button class="btn btn-secondary reconcile-year-btn" data-year="2024" onclick="filterReconcileYear('2024')">2024</button>
+                <button class="btn btn-secondary reconcile-year-btn" data-year="2025" onclick="filterReconcileYear('2025')">2025</button>
+            </div>
+        </div>
+        
+        <!-- MATCH TROVATI -->
+        <div class="card" style="margin-bottom:20px;">
+            <div class="card-header">
+                <div class="card-title">✅ Match Trovati</div>
+                <span id="matchCountBadge" style="background:var(--green);color:#000;padding:4px 12px;border-radius:12px;font-size:12px;font-weight:600;">0</span>
+            </div>
+            <div id="reconcileMatches" style="max-height:400px;overflow-y:auto;">
+                <div style="color:var(--text-secondary);text-align:center;padding:40px;">Clicca "Carica Dati" per iniziare</div>
+            </div>
+        </div>
+        
+        <!-- NON RICONCILIATI -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">⚠️ Transazioni Non Riconciliate</div>
+                <span id="unmatchedCountBadge" style="background:var(--red);color:#fff;padding:4px 12px;border-radius:12px;font-size:12px;font-weight:600;">0</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                <div>
+                    <h4 style="margin-bottom:12px;color:#f3ba2f;">🏦 Exchange (senza match wallet)</h4>
+                    <div id="unmatchedExchange" style="max-height:300px;overflow-y:auto;font-size:12px;">
+                        <div style="color:var(--text-secondary);text-align:center;padding:20px;">-</div>
+                    </div>
+                </div>
+                <div>
+                    <h4 style="margin-bottom:12px;color:var(--accent);">👛 Wallet (senza match exchange)</h4>
+                    <div id="unmatchedWallet" style="max-height:300px;overflow-y:auto;font-size:12px;">
+                        <div style="color:var(--text-secondary);text-align:center;padding:20px;">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <!-- Hidden elements per evitare errori JS -->
     <div style="display:none;">
         <input id="binanceApiKey"><input id="binanceSecretKey">
@@ -789,6 +879,7 @@
             document.getElementById('walletsView').style.display = view === 'wallets' ? 'block' : 'none';
             document.getElementById('walletDetailView').style.display = view === 'walletDetail' ? 'block' : 'none';
             document.getElementById('exchangesView').style.display = view === 'exchanges' ? 'block' : 'none';
+            document.getElementById('reconcileView').style.display = view === 'reconcile' ? 'block' : 'none';
             document.getElementById('taxView').style.display = view === 'tax' ? 'block' : 'none';
             document.getElementById('apiView').style.display = view === 'api' ? 'block' : 'none';
             document.querySelectorAll('.nav-item').forEach((e, i) => {
@@ -4026,6 +4117,401 @@
                 }
             }
         }
+        
+        // ==================== RICONCILIAZIONE ====================
+        let reconcileData = {
+            exchangeTx: [],   // Transazioni exchange (deposit/withdraw crypto)
+            walletTx: [],     // Transazioni wallet
+            matches: [],      // Match trovati
+            unmatchedExch: [],
+            unmatchedWallet: [],
+            currentYearFilter: 'all'
+        };
+        
+        async function loadReconciliationData() {
+            console.log('🔗 Caricamento dati per riconciliazione...');
+            
+            reconcileData.exchangeTx = [];
+            reconcileData.walletTx = [];
+            
+            // Mostra loading
+            document.getElementById('reconcileMatches').innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:40px;">⏳ Caricamento in corso...</div>';
+            
+            // 1. Carica transazioni Exchange (da exchangeData)
+            for (const exchId of Object.keys(exchangeData)) {
+                const data = exchangeData[exchId];
+                if (data.transactions && data.transactions.length > 0) {
+                    for (const tx of data.transactions) {
+                        // Filtra solo deposit e withdraw crypto (non fiat)
+                        if (tx.type && ['deposit', 'withdrawal', 'withdraw'].includes(tx.type.toLowerCase())) {
+                            // Escludi fiat
+                            if (['EUR', 'USD', 'GBP'].includes(tx.coin)) continue;
+                            
+                            reconcileData.exchangeTx.push({
+                                source: 'exchange',
+                                exchange: exchId,
+                                date: tx.date instanceof Date ? tx.date : new Date(tx.date),
+                                type: tx.type.toLowerCase().includes('withdraw') ? 'withdraw' : 'deposit',
+                                coin: tx.coin,
+                                amount: Math.abs(tx.amount || tx.change || 0),
+                                raw: tx
+                            });
+                        }
+                    }
+                }
+            }
+            
+            console.log(`📊 Exchange TX: ${reconcileData.exchangeTx.length}`);
+            
+            // 2. Carica transazioni Wallet da Moralis API
+            if (!apiKeys.moralis) {
+                alert('⚠️ Configura la Moralis API key in "API Connect" per caricare le transazioni wallet!');
+                updateReconcileSummary();
+                renderReconcileData();
+                return;
+            }
+            
+            const walletAddresses = Object.keys(walletResults);
+            if (walletAddresses.length === 0) {
+                alert('⚠️ Nessun wallet trovato!\nVai su "Wallets" e scansiona almeno un indirizzo.');
+                updateReconcileSummary();
+                renderReconcileData();
+                return;
+            }
+            
+            console.log(`📊 Caricamento storia per ${walletAddresses.length} wallet...`);
+            
+            // Chains da controllare
+            const chains = [
+                { id: '0x1', name: 'Ethereum' },
+                { id: '0x38', name: 'BSC' },
+                { id: '0x89', name: 'Polygon' },
+                { id: '0xa4b1', name: 'Arbitrum' },
+                { id: '0xa', name: 'Optimism' },
+                { id: '0x2105', name: 'Base' }
+            ];
+            
+            for (const address of walletAddresses) {
+                const walletName = walletResults[address]?.name || address.slice(0, 8);
+                console.log(`  📜 Caricamento storia wallet: ${walletName}...`);
+                
+                for (const chain of chains) {
+                    try {
+                        // Carica trasferimenti ERC20
+                        const erc20Url = `https://deep-index.moralis.io/api/v2.2/${address}/erc20/transfers?chain=${chain.id}&limit=100`;
+                        const erc20Response = await fetch(erc20Url, {
+                            headers: { 'X-API-Key': apiKeys.moralis }
+                        });
+                        
+                        if (erc20Response.ok) {
+                            const erc20Data = await erc20Response.json();
+                            
+                            for (const tx of (erc20Data.result || [])) {
+                                const isReceive = tx.to_address?.toLowerCase() === address.toLowerCase();
+                                const amount = parseFloat(tx.value) / Math.pow(10, parseInt(tx.token_decimals) || 18);
+                                
+                                if (amount > 0) {
+                                    reconcileData.walletTx.push({
+                                        source: 'wallet',
+                                        wallet: walletName,
+                                        address: address,
+                                        chain: chain.name,
+                                        date: new Date(tx.block_timestamp),
+                                        type: isReceive ? 'receive' : 'send',
+                                        coin: tx.token_symbol || 'UNKNOWN',
+                                        amount: amount,
+                                        from: tx.from_address,
+                                        to: tx.to_address,
+                                        txHash: tx.transaction_hash
+                                    });
+                                }
+                            }
+                        }
+                        
+                        // Carica transazioni native (ETH, BNB, MATIC, etc.)
+                        const nativeUrl = `https://deep-index.moralis.io/api/v2.2/${address}?chain=${chain.id}&limit=100`;
+                        const nativeResponse = await fetch(nativeUrl, {
+                            headers: { 'X-API-Key': apiKeys.moralis }
+                        });
+                        
+                        if (nativeResponse.ok) {
+                            const nativeData = await nativeResponse.json();
+                            
+                            // Map chain to native symbol
+                            const nativeSymbols = {
+                                '0x1': 'ETH', '0x38': 'BNB', '0x89': 'MATIC',
+                                '0xa4b1': 'ETH', '0xa': 'ETH', '0x2105': 'ETH'
+                            };
+                            
+                            for (const tx of (nativeData.result || [])) {
+                                const isReceive = tx.to_address?.toLowerCase() === address.toLowerCase();
+                                const amount = parseFloat(tx.value) / 1e18;
+                                
+                                if (amount > 0.0001) { // Ignora dust
+                                    reconcileData.walletTx.push({
+                                        source: 'wallet',
+                                        wallet: walletName,
+                                        address: address,
+                                        chain: chain.name,
+                                        date: new Date(tx.block_timestamp),
+                                        type: isReceive ? 'receive' : 'send',
+                                        coin: nativeSymbols[chain.id] || 'ETH',
+                                        amount: amount,
+                                        from: tx.from_address,
+                                        to: tx.to_address,
+                                        txHash: tx.hash
+                                    });
+                                }
+                            }
+                        }
+                        
+                        await new Promise(r => setTimeout(r, 100)); // Rate limit
+                        
+                    } catch (e) {
+                        console.warn(`Errore chain ${chain.name}:`, e.message);
+                    }
+                }
+            }
+            
+            // Ordina per data
+            reconcileData.walletTx.sort((a, b) => b.date - a.date);
+            
+            console.log(`📊 Wallet TX: ${reconcileData.walletTx.length}`);
+            
+            updateReconcileSummary();
+            renderReconcileData();
+            
+            alert(`✅ Caricamento completato!\n\n• ${reconcileData.exchangeTx.length} transazioni exchange (deposit/withdraw)\n• ${reconcileData.walletTx.length} transazioni wallet\n\nOra clicca "Esegui Riconciliazione" per trovare i match.`);
+        }
+        
+        function runReconciliation() {
+            console.log('🔗 Esecuzione riconciliazione...');
+            
+            reconcileData.matches = [];
+            reconcileData.unmatchedExch = [...reconcileData.exchangeTx];
+            reconcileData.unmatchedWallet = [...reconcileData.walletTx];
+            
+            // Algoritmo di matching
+            // Match: stesso coin, importo simile (±5%), data vicina (±24h)
+            
+            const AMOUNT_TOLERANCE = 0.05; // 5%
+            const TIME_TOLERANCE = 24 * 60 * 60 * 1000; // 24 ore in ms
+            
+            // Per ogni withdraw exchange, cerca deposit wallet
+            for (let i = reconcileData.unmatchedExch.length - 1; i >= 0; i--) {
+                const exchTx = reconcileData.unmatchedExch[i];
+                
+                if (exchTx.type !== 'withdraw') continue;
+                
+                // Cerca un deposit wallet corrispondente
+                for (let j = reconcileData.unmatchedWallet.length - 1; j >= 0; j--) {
+                    const walletTx = reconcileData.unmatchedWallet[j];
+                    
+                    if (walletTx.type !== 'receive' && walletTx.type !== 'deposit') continue;
+                    
+                    // Stesso coin?
+                    if (exchTx.coin.toUpperCase() !== walletTx.coin.toUpperCase()) continue;
+                    
+                    // Importo simile?
+                    const amountDiff = Math.abs(exchTx.amount - walletTx.amount) / exchTx.amount;
+                    if (amountDiff > AMOUNT_TOLERANCE) continue;
+                    
+                    // Data vicina?
+                    const timeDiff = Math.abs(exchTx.date.getTime() - walletTx.date.getTime());
+                    if (timeDiff > TIME_TOLERANCE) continue;
+                    
+                    // MATCH!
+                    reconcileData.matches.push({
+                        type: 'exchange_to_wallet',
+                        exchange: exchTx,
+                        wallet: walletTx,
+                        confidence: 1 - amountDiff,
+                        timeDiff: timeDiff / 1000 / 60 // minuti
+                    });
+                    
+                    // Rimuovi dai non-riconciliati
+                    reconcileData.unmatchedExch.splice(i, 1);
+                    reconcileData.unmatchedWallet.splice(j, 1);
+                    break;
+                }
+            }
+            
+            // Per ogni deposit exchange, cerca send wallet
+            for (let i = reconcileData.unmatchedExch.length - 1; i >= 0; i--) {
+                const exchTx = reconcileData.unmatchedExch[i];
+                
+                if (exchTx.type !== 'deposit') continue;
+                
+                for (let j = reconcileData.unmatchedWallet.length - 1; j >= 0; j--) {
+                    const walletTx = reconcileData.unmatchedWallet[j];
+                    
+                    if (walletTx.type !== 'send' && walletTx.type !== 'withdraw') continue;
+                    
+                    if (exchTx.coin.toUpperCase() !== walletTx.coin.toUpperCase()) continue;
+                    
+                    const amountDiff = Math.abs(exchTx.amount - walletTx.amount) / exchTx.amount;
+                    if (amountDiff > AMOUNT_TOLERANCE) continue;
+                    
+                    const timeDiff = Math.abs(exchTx.date.getTime() - walletTx.date.getTime());
+                    if (timeDiff > TIME_TOLERANCE) continue;
+                    
+                    reconcileData.matches.push({
+                        type: 'wallet_to_exchange',
+                        exchange: exchTx,
+                        wallet: walletTx,
+                        confidence: 1 - amountDiff,
+                        timeDiff: timeDiff / 1000 / 60
+                    });
+                    
+                    reconcileData.unmatchedExch.splice(i, 1);
+                    reconcileData.unmatchedWallet.splice(j, 1);
+                    break;
+                }
+            }
+            
+            console.log(`✅ Match trovati: ${reconcileData.matches.length}`);
+            console.log(`⚠️ Exchange non riconciliati: ${reconcileData.unmatchedExch.length}`);
+            console.log(`⚠️ Wallet non riconciliati: ${reconcileData.unmatchedWallet.length}`);
+            
+            updateReconcileSummary();
+            renderReconcileData();
+        }
+        
+        function updateReconcileSummary() {
+            document.getElementById('reconcileExchCount').textContent = reconcileData.exchangeTx.length;
+            document.getElementById('reconcileWalletCount').textContent = reconcileData.walletTx.length;
+            document.getElementById('reconcileMatchCount').textContent = reconcileData.matches.length;
+            document.getElementById('reconcileUnmatchedCount').textContent = 
+                reconcileData.unmatchedExch.length + reconcileData.unmatchedWallet.length;
+            
+            document.getElementById('matchCountBadge').textContent = reconcileData.matches.length;
+            document.getElementById('unmatchedCountBadge').textContent = 
+                reconcileData.unmatchedExch.length + reconcileData.unmatchedWallet.length;
+        }
+        
+        function filterReconcileYear(year) {
+            reconcileData.currentYearFilter = year;
+            
+            // Aggiorna bottoni
+            document.querySelectorAll('.reconcile-year-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.year === year) btn.classList.add('active');
+            });
+            
+            renderReconcileData();
+        }
+        
+        function renderReconcileData() {
+            const year = reconcileData.currentYearFilter;
+            
+            // Filtra per anno
+            const filterByYear = (tx) => {
+                if (year === 'all') return true;
+                const txYear = tx.date ? tx.date.getFullYear().toString() : '';
+                return txYear === year;
+            };
+            
+            // Render Matches
+            const matchesContainer = document.getElementById('reconcileMatches');
+            const filteredMatches = reconcileData.matches.filter(m => 
+                filterByYear(m.exchange) || filterByYear(m.wallet)
+            );
+            
+            if (filteredMatches.length === 0) {
+                matchesContainer.innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:40px;">Nessun match trovato</div>';
+            } else {
+                matchesContainer.innerHTML = filteredMatches.map(m => `
+                    <div style="display:flex;align-items:center;padding:12px;border-bottom:1px solid var(--border);gap:12px;">
+                        <div style="flex:1;background:#f3ba2f22;padding:8px;border-radius:6px;">
+                            <div style="font-size:11px;color:#f3ba2f;">🏦 ${m.exchange.exchange.toUpperCase()}</div>
+                            <div style="font-weight:600;">${m.exchange.type === 'withdraw' ? '📤' : '📥'} ${m.exchange.amount.toFixed(6)} ${m.exchange.coin}</div>
+                            <div style="font-size:11px;color:var(--text-secondary);">${m.exchange.date.toLocaleString('it-IT')}</div>
+                        </div>
+                        <div style="font-size:24px;color:var(--green);">↔️</div>
+                        <div style="flex:1;background:var(--accent)22;padding:8px;border-radius:6px;">
+                            <div style="font-size:11px;color:var(--accent);">👛 Wallet</div>
+                            <div style="font-weight:600;">${m.wallet.type === 'receive' ? '📥' : '📤'} ${m.wallet.amount.toFixed(6)} ${m.wallet.coin}</div>
+                            <div style="font-size:11px;color:var(--text-secondary);">${m.wallet.date.toLocaleString('it-IT')}</div>
+                        </div>
+                        <div style="text-align:center;padding:0 8px;">
+                            <div style="color:var(--green);font-weight:600;">${Math.round(m.confidence * 100)}%</div>
+                            <div style="font-size:10px;color:var(--text-secondary);">${Math.round(m.timeDiff)} min</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            // Render Unmatched Exchange
+            const unmatchedExchContainer = document.getElementById('unmatchedExchange');
+            const filteredUnmatchedExch = reconcileData.unmatchedExch.filter(filterByYear);
+            
+            if (filteredUnmatchedExch.length === 0) {
+                unmatchedExchContainer.innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:20px;">✅ Tutto riconciliato</div>';
+            } else {
+                unmatchedExchContainer.innerHTML = filteredUnmatchedExch.map(tx => `
+                    <div style="padding:8px;border-bottom:1px solid var(--border);">
+                        <div style="display:flex;justify-content:space-between;">
+                            <span style="color:#f3ba2f;">${tx.exchange}</span>
+                            <span>${tx.type === 'withdraw' ? '📤' : '📥'} ${tx.amount.toFixed(4)} ${tx.coin}</span>
+                        </div>
+                        <div style="color:var(--text-secondary);font-size:11px;">${tx.date.toLocaleString('it-IT')}</div>
+                    </div>
+                `).join('');
+            }
+            
+            // Render Unmatched Wallet
+            const unmatchedWalletContainer = document.getElementById('unmatchedWallet');
+            const filteredUnmatchedWallet = reconcileData.unmatchedWallet.filter(filterByYear);
+            
+            if (filteredUnmatchedWallet.length === 0) {
+                unmatchedWalletContainer.innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:20px;">✅ Tutto riconciliato</div>';
+            } else {
+                unmatchedWalletContainer.innerHTML = filteredUnmatchedWallet.map(tx => `
+                    <div style="padding:8px;border-bottom:1px solid var(--border);">
+                        <div style="display:flex;justify-content:space-between;">
+                            <span>${tx.type === 'receive' ? '📥' : '📤'} ${tx.amount.toFixed(4)} ${tx.coin}</span>
+                        </div>
+                        <div style="color:var(--text-secondary);font-size:11px;">${tx.date.toLocaleString('it-IT')}</div>
+                    </div>
+                `).join('');
+            }
+        }
+        
+        function exportReconciliationReport() {
+            let report = '=== REPORT RICONCILIAZIONE ===\n';
+            report += `Data: ${new Date().toLocaleString('it-IT')}\n\n`;
+            
+            report += `📊 RIEPILOGO\n`;
+            report += `Transazioni Exchange: ${reconcileData.exchangeTx.length}\n`;
+            report += `Transazioni Wallet: ${reconcileData.walletTx.length}\n`;
+            report += `Match trovati: ${reconcileData.matches.length}\n`;
+            report += `Non riconciliati: ${reconcileData.unmatchedExch.length + reconcileData.unmatchedWallet.length}\n\n`;
+            
+            report += `✅ MATCH TROVATI\n`;
+            for (const m of reconcileData.matches) {
+                report += `${m.exchange.date.toISOString().split('T')[0]} | ${m.exchange.exchange} ${m.exchange.type} ${m.exchange.amount} ${m.exchange.coin} ↔ Wallet ${m.wallet.type} | ${Math.round(m.confidence*100)}%\n`;
+            }
+            
+            report += `\n⚠️ EXCHANGE NON RICONCILIATI\n`;
+            for (const tx of reconcileData.unmatchedExch) {
+                report += `${tx.date.toISOString().split('T')[0]} | ${tx.exchange} | ${tx.type} ${tx.amount} ${tx.coin}\n`;
+            }
+            
+            report += `\n⚠️ WALLET NON RICONCILIATI\n`;
+            for (const tx of reconcileData.unmatchedWallet) {
+                report += `${tx.date.toISOString().split('T')[0]} | ${tx.type} ${tx.amount} ${tx.coin}\n`;
+            }
+            
+            // Download
+            const blob = new Blob([report], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `riconciliazione_${new Date().toISOString().split('T')[0]}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
         init();
     </script>
 </body>
