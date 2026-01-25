@@ -476,26 +476,31 @@
         
         <!-- API Section - Compatto -->
         <div class="api-section" style="padding:10px 15px;">
-            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                <div style="display:flex;align-items:center;gap:4px;">
+                    <span style="font-size:10px;">💎 Covalent:</span>
+                    <input type="password" id="covalentKey" class="api-input" placeholder="cqt_..." style="width:110px;padding:4px 6px;font-size:10px;">
+                    <button class="btn btn-small" style="background:#ff6b35;color:white;padding:3px 6px;font-size:9px;" onclick="saveCovalentKey()">Salva</button>
+                    <span id="covalentStatus" class="api-status off" style="font-size:9px;padding:2px 5px;">OFF</span>
+                </div>
                 <div style="display:flex;align-items:center;gap:4px;">
                     <span style="font-size:10px;">🦊 Moralis:</span>
-                    <input type="password" id="moralisKey" class="api-input" placeholder="eyJ..." style="width:120px;padding:4px 6px;font-size:10px;">
+                    <input type="password" id="moralisKey" class="api-input" placeholder="eyJ..." style="width:100px;padding:4px 6px;font-size:10px;">
                     <button class="btn btn-small" style="background:#00ff88;color:#000;padding:3px 6px;font-size:9px;" onclick="saveMoralisKey()">Salva</button>
                     <span id="moralisStatus" class="api-status off" style="font-size:9px;padding:2px 5px;">OFF</span>
                 </div>
                 <div style="display:flex;align-items:center;gap:4px;">
                     <span style="font-size:10px;">⚗️ Alchemy:</span>
-                    <input type="password" id="alchemyKey" class="api-input" placeholder="API key..." style="width:120px;padding:4px 6px;font-size:10px;">
+                    <input type="password" id="alchemyKey" class="api-input" placeholder="API key..." style="width:100px;padding:4px 6px;font-size:10px;">
                     <button class="btn btn-small" style="background:#0052ff;color:white;padding:3px 6px;font-size:9px;" onclick="saveAlchemyKey()">Salva</button>
                     <span id="alchemyStatus" class="api-status off" style="font-size:9px;padding:2px 5px;">OFF</span>
                 </div>
                 <div style="display:flex;align-items:center;gap:4px;">
                     <span style="font-size:10px;">🤖 Claude:</span>
-                    <input type="password" id="claudeKey" class="api-input" placeholder="sk-ant-..." style="width:120px;padding:4px 6px;font-size:10px;">
+                    <input type="password" id="claudeKey" class="api-input" placeholder="sk-ant-..." style="width:100px;padding:4px 6px;font-size:10px;">
                     <button class="btn btn-small" style="background:#a855f7;color:white;padding:3px 6px;font-size:9px;" onclick="saveClaudeKey()">Salva</button>
                     <span id="claudeStatus" class="api-status off" style="font-size:9px;padding:2px 5px;">OFF</span>
                 </div>
-                <span style="font-size:9px;color:#666;">💡 <a href="Crypto_Fiscal_Manager_v1.html" style="color:#f3ba2f;">Fiscal Manager</a></span>
             </div>
         </div>
         
@@ -913,6 +918,16 @@
         }
         
         // ==================== API MANAGEMENT ====================
+        function saveCovalentKey() {
+            const key = document.getElementById('covalentKey').value.trim();
+            if (key) {
+                localStorage.setItem('covalent_key', key);
+                document.getElementById('covalentKey').value = '';
+                updateApiStatus();
+                alert('Covalent API salvata! Questa è l\'API principale per tutte le chain.');
+            }
+        }
+        
         function saveMoralisKey() {
             const key = document.getElementById('moralisKey').value.trim();
             if (key) {
@@ -934,7 +949,6 @@
                 localStorage.setItem('alchemy_key', key);
                 document.getElementById('alchemyKey').value = '';
                 updateApiStatus();
-                alert('Alchemy API salvata! Verrà usata come fallback.');
             }
         }
         
@@ -948,14 +962,20 @@
         }
         
         function updateApiStatus() {
+            const covalent = localStorage.getItem('covalent_key');
             const moralis = localStorage.getItem('moralis_key');
             const alchemy = localStorage.getItem('alchemy_key');
             const claude = localStorage.getItem('claude_key');
             
+            const covalentEl = document.getElementById('covalentStatus');
             const moralisEl = document.getElementById('moralisStatus');
             const alchemyEl = document.getElementById('alchemyStatus');
             const claudeEl = document.getElementById('claudeStatus');
             
+            if (covalentEl) {
+                covalentEl.className = covalent ? 'api-status on' : 'api-status off';
+                covalentEl.textContent = covalent ? 'ON' : 'OFF';
+            }
             if (moralisEl) {
                 moralisEl.className = moralis ? 'api-status on' : 'api-status off';
                 moralisEl.textContent = moralis ? 'ON' : 'OFF';
@@ -1573,6 +1593,94 @@
                    hiddenTokens.includes(nameId);
         }
         
+        // ==================== COVALENT API (GoldRush) ====================
+        async function getCovalentBalances(address) {
+            const covalentKey = localStorage.getItem('covalent_key');
+            const tokens = [];
+            
+            if (!covalentKey) {
+                console.log('No Covalent key');
+                return tokens;
+            }
+            
+            // Covalent chain IDs
+            const covalentChains = {
+                'eth': 'eth-mainnet',
+                'polygon': 'matic-mainnet', 
+                'bsc': 'bsc-mainnet',
+                'arbitrum': 'arbitrum-mainnet',
+                'base': 'base-mainnet',
+                'optimism': 'optimism-mainnet',
+                'avalanche': 'avalanche-mainnet'
+            };
+            
+            for (const [chain, chainId] of Object.entries(covalentChains)) {
+                try {
+                    console.log(`💎 Covalent scanning ${chain}...`);
+                    
+                    const res = await fetch(
+                        `https://api.covalenthq.com/v1/${chainId}/address/${address}/balances_v2/?key=${covalentKey}&nft=false&no-spam=true`
+                    );
+                    
+                    if (res.ok) {
+                        const data = await res.json();
+                        const items = data.data?.items || [];
+                        
+                        for (const item of items) {
+                            if (!item.contract_ticker_symbol) continue;
+                            
+                            const balance = parseFloat(item.balance) / Math.pow(10, item.contract_decimals || 18);
+                            if (balance <= 0) continue;
+                            
+                            const symbol = item.contract_ticker_symbol.toUpperCase();
+                            const price = item.quote_rate || prices[symbol] || 0;
+                            const valueUSD = item.quote || (balance * price);
+                            
+                            // Filtro anti-scam
+                            const verified = isVerifiedToken(chain, item.contract_address);
+                            const famousSymbols = ['AAVE', 'UNI', 'LINK', 'DAI', 'USDC', 'USDT', 'WBTC', 'WETH', 'CAKE', 'COMP', 'MKR', 'BAT', 'ARB'];
+                            if (famousSymbols.includes(symbol) && verified === false && item.contract_address !== '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee') {
+                                console.log(`🚫 FAKE ${symbol} filtered`);
+                                continue;
+                            }
+                            
+                            const isKnownToken = ['ETH','BNB','MATIC','AVAX','USDT','USDC','DAI','WBTC','WETH'].includes(symbol);
+                            if (!isKnownToken && !verified && valueUSD > 100000) {
+                                console.log(`🚫 Suspicious ${symbol} filtered: $${valueUSD}`);
+                                continue;
+                            }
+                            
+                            // Determina se è native token
+                            const isNative = item.native_token || item.contract_address === '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
+                            
+                            tokens.push({
+                                symbol,
+                                name: item.contract_name || symbol,
+                                chain,
+                                balance,
+                                price,
+                                valueUSD,
+                                logo: item.logo_url || getTokenLogo(symbol),
+                                contractAddress: isNative ? 'native' : item.contract_address,
+                                verified: verified ? true : false
+                            });
+                        }
+                        
+                        console.log(`💎 ${chain}: found ${items.length} items`);
+                    } else {
+                        console.error(`Covalent ${chain} error:`, res.status);
+                    }
+                    
+                    await new Promise(r => setTimeout(r, 150)); // Rate limit
+                } catch (e) {
+                    console.error(`Covalent ${chain} error:`, e);
+                }
+            }
+            
+            console.log(`💎 Covalent total: ${tokens.length} tokens`);
+            return tokens;
+        }
+        
         // ==================== ALCHEMY API ====================
         async function getAlchemyBalances(address) {
             const alchemyKey = localStorage.getItem('alchemy_key');
@@ -1706,24 +1814,47 @@
         
         // ==================== MORALIS API ====================
         async function getMoralisBalances(address) {
+            const covalentKey = localStorage.getItem('covalent_key');
             const moralisKey = localStorage.getItem('moralis_key');
             const alchemyKey = localStorage.getItem('alchemy_key');
             let tokens = [];
             
-            // Prima prova Moralis
+            // 1. Prima prova Covalent (migliore - tutte le chain + prezzi)
+            if (covalentKey) {
+                console.log('💎 Using Covalent API...');
+                tokens = await getCovalentBalances(address);
+                if (tokens.length > 0) {
+                    // Aggiungi PulseChain separatamente (non supportato da Covalent)
+                    if (address.startsWith('0x')) {
+                        const pulseTokens = await getPulseChainTokens(address);
+                        tokens.push(...pulseTokens);
+                    }
+                    return tokens;
+                }
+            }
+            
+            // 2. Fallback a Moralis
             if (moralisKey) {
+                console.log('🦊 Fallback -> Moralis');
                 tokens = await getMoralisBalancesInternal(address, moralisKey);
                 if (tokens.length > 0) return tokens;
             }
             
-            // Fallback a Alchemy
+            // 3. Fallback a Alchemy
             if (alchemyKey) {
-                console.log('🔄 Moralis fallback -> Alchemy');
+                console.log('⚗️ Fallback -> Alchemy');
                 tokens = await getAlchemyBalances(address);
-                if (tokens.length > 0) return tokens;
+                if (tokens.length > 0) {
+                    // Aggiungi PulseChain
+                    if (address.startsWith('0x')) {
+                        const pulseTokens = await getPulseChainTokens(address);
+                        tokens.push(...pulseTokens);
+                    }
+                    return tokens;
+                }
             }
             
-            // Fallback finale a RPC pubblici
+            // 4. Fallback finale a RPC pubblici
             console.log('🔄 Fallback -> RPC pubblici');
             return await getFallbackBalances(address);
         }
