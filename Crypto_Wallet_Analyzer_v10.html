@@ -90,8 +90,15 @@
             transition: all 0.2s;
         }
         
-        .nav-item:hover { color: var(--text-primary); background: var(--bg-tertiary); }
-        .nav-item.active { color: var(--text-primary); background: var(--bg-tertiary); }
+        .nav-item:hover {
+            color: var(--text-primary);
+            background: var(--bg-tertiary);
+        }
+        
+        .nav-item.active {
+            color: var(--text-primary);
+            background: var(--bg-tertiary);
+        }
         
         .navbar-right {
             margin-left: auto;
@@ -115,16 +122,17 @@
             background: var(--accent-green);
         }
         
-        .home-link {
-            padding: 6px 12px;
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-size: 12px;
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #a855f7, #3b82f6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
         }
-        .home-link:hover { color: var(--text-primary); border-color: var(--accent-blue); }
         
         /* ===== MAIN LAYOUT ===== */
         .main-container {
@@ -132,13 +140,32 @@
             min-height: calc(100vh - 60px);
         }
         
-        .page { display: none; padding: 24px; max-width: 1400px; margin: 0 auto; }
-        .page.active { display: block; }
+        .page {
+            display: none;
+            padding: 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .page.active {
+            display: block;
+        }
         
         /* ===== DASHBOARD PAGE ===== */
-        .dashboard-header { margin-bottom: 24px; }
-        .dashboard-header h1 { font-size: 24px; font-weight: 600; margin-bottom: 8px; }
-        .dashboard-header p { color: var(--text-secondary); font-size: 14px; }
+        .dashboard-header {
+            margin-bottom: 24px;
+        }
+        
+        .dashboard-header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .dashboard-header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
         
         .stats-grid {
             display: grid;
@@ -162,9 +189,24 @@
             margin-bottom: 8px;
         }
         
-        .stat-value { font-size: 28px; font-weight: 700; }
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+        }
+        
         .stat-value.green { color: var(--accent-green); }
         .stat-value.blue { color: var(--accent-blue); }
+        
+        .stat-change {
+            font-size: 12px;
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .stat-change.positive { color: var(--accent-green); }
+        .stat-change.negative { color: var(--accent-red); }
         
         /* Total Value Card */
         .total-value-card {
@@ -182,79 +224,499 @@
             margin-bottom: 16px;
         }
         
-        .total-value-label { font-size: 14px; color: var(--text-secondary); margin-bottom: 4px; }
-        .total-value-amount { font-size: 42px; font-weight: 700; color: var(--accent-green); }
-        
-        .year-selector {
-            display: flex;
-            gap: 4px;
-            background: var(--bg-tertiary);
-            padding: 4px;
-            border-radius: 8px;
+        .total-value-label {
+            font-size: 14px;
+            color: var(--text-secondary);
         }
         
-        .year-btn {
-            padding: 6px 12px;
-            border: none;
-            background: transparent;
-            color: var(--text-secondary);
-            font-family: inherit;
+        .total-value-amount {
+            font-size: 42px;
+            font-weight: 700;
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+        
+        .currency-symbol {
+            color: #ff79c6;
+            font-size: 36px;
+        }
+        
+        .total-value-secondary {
+            display: flex;
+            gap: 32px;
+            margin-top: 16px;
+        }
+        
+        .secondary-stat {
+            text-align: right;
+        }
+        
+        .secondary-stat-label {
             font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .secondary-stat-value {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        /* ===== WALLETS PAGE ===== */
+        .wallets-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        
+        .wallets-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .wallets-title h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        .wallets-count {
+            background: var(--bg-tertiary);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .wallets-actions {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 14px;
             font-weight: 500;
             cursor: pointer;
-            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
             transition: all 0.2s;
         }
-        .year-btn:hover { color: var(--text-primary); }
-        .year-btn.active { background: var(--accent-blue); color: #fff; }
         
-        /* Two Column Layout */
-        .two-columns {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
+        .btn-primary {
+            background: var(--accent-blue);
+            color: #fff;
         }
         
-        @media (max-width: 1000px) {
-            .two-columns { grid-template-columns: 1fr; }
+        .btn-primary:hover {
+            background: #4393e6;
         }
         
-        .section-card {
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--border-color);
+        }
+        
+        .btn-success {
+            background: var(--accent-green);
+            color: #fff;
+        }
+        
+        .search-box {
+            position: relative;
+            margin-bottom: 16px;
+        }
+        
+        .search-input {
+            width: 100%;
+            max-width: 300px;
+            padding: 10px 16px 10px 40px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 14px;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+        
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+        }
+        
+        /* Wallet List */
+        .wallet-list {
             background: var(--bg-secondary);
             border: 1px solid var(--border-color);
             border-radius: 12px;
             overflow: hidden;
         }
         
-        .section-header {
-            padding: 16px 20px;
-            border-bottom: 1px solid var(--border-color);
+        .wallet-item {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-        }
-        
-        .section-title { font-size: 16px; font-weight: 600; }
-        
-        /* Chain Distribution */
-        .chain-card {
-            display: flex;
-            flex-direction: column;
-            padding: 14px 20px;
+            padding: 16px 20px;
             border-bottom: 1px solid var(--border-color);
             cursor: pointer;
             transition: background 0.2s;
         }
-        .chain-card:hover { background: var(--bg-tertiary); }
-        .chain-card:last-child { border-bottom: none; }
         
-        .chain-card-header {
+        .wallet-item:last-child {
+            border-bottom: none;
+        }
+        
+        .wallet-item:hover {
+            background: var(--bg-tertiary);
+        }
+        
+        .wallet-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            margin-right: 16px;
+            flex-shrink: 0;
+        }
+        
+        .wallet-icon.eth { background: linear-gradient(135deg, #627eea, #3c4fa0); }
+        .wallet-icon.sol { background: linear-gradient(135deg, #14f195, #9945ff); }
+        .wallet-icon.multi { background: linear-gradient(135deg, #3b82f6, #8b5cf6); }
+        
+        .wallet-info {
+            flex: 1;
+        }
+        
+        .wallet-name {
+            font-weight: 600;
+            font-size: 15px;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .wallet-address {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .badge-synced {
+            background: rgba(63, 185, 80, 0.2);
+            color: var(--accent-green);
+        }
+        
+        .badge-pending {
+            background: rgba(210, 153, 34, 0.2);
+            color: var(--accent-yellow);
+        }
+        
+        .badge-error {
+            background: rgba(248, 81, 73, 0.2);
+            color: var(--accent-red);
+        }
+        
+        .wallet-stats {
+            text-align: center;
+            margin-right: 24px;
+        }
+        
+        .wallet-stats-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+        
+        .wallet-stats-value {
+            font-size: 14px;
+            color: var(--accent-blue);
+        }
+        
+        .wallet-value {
+            text-align: right;
+            min-width: 120px;
+        }
+        
+        .wallet-value-amount {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .wallet-value-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+        
+        .wallet-menu {
+            margin-left: 16px;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+        
+        .wallet-menu:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+        
+        /* ===== WALLET DETAIL VIEW ===== */
+        .wallet-detail {
+            display: none;
+        }
+        
+        .wallet-detail.active {
+            display: block;
+        }
+        
+        .wallet-detail-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .back-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        
+        .back-btn:hover {
+            background: var(--border-color);
+        }
+        
+        .wallet-detail-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+        }
+        
+        .wallet-detail-info h1 {
+            font-size: 20px;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .wallet-detail-info p {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        .wallet-detail-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 12px;
+        }
+        
+        .holdings-section {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 24px;
+        }
+        
+        @media (max-width: 1024px) {
+            .holdings-section {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .holdings-panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+        }
+        
+        .holdings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .holdings-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .holdings-total {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .holdings-total-value {
+            font-size: 18px;
+            font-weight: 700;
+        }
+        
+        .holdings-table {
+            width: 100%;
+        }
+        
+        .holdings-table-header {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            padding: 12px 20px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .token-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            padding: 14px 20px;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            transition: background 0.2s;
+        }
+        
+        .token-row:hover {
+            background: var(--bg-tertiary);
+        }
+        
+        .token-row:last-child {
+            border-bottom: none;
+        }
+        
+        .token-info {
             display: flex;
             align-items: center;
             gap: 12px;
         }
         
-        .chain-card-icon {
+        .token-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            background: var(--bg-tertiary);
+        }
+        
+        .token-icon img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        
+        .token-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .token-balance {
+            font-size: 14px;
+            text-align: right;
+        }
+        
+        .token-value {
+            font-size: 14px;
+            text-align: right;
+            font-weight: 500;
+        }
+        
+        .token-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        
+        .token-action-btn {
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+        
+        .token-action-btn:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+        
+        /* Chain accounts panel */
+        .accounts-panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+        }
+        
+        .accounts-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .accounts-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .chain-item {
+            display: flex;
+            align-items: center;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .chain-item:last-child {
+            border-bottom: none;
+        }
+        
+        .chain-icon {
             width: 36px;
             height: 36px;
             border-radius: 8px;
@@ -262,127 +724,65 @@
             align-items: center;
             justify-content: center;
             font-size: 16px;
-            flex-shrink: 0;
+            margin-right: 12px;
         }
         
-        .chain-card-info { flex: 1; min-width: 0; }
-        .chain-card-name { font-weight: 600; font-size: 14px; }
-        .chain-card-tokens { font-size: 11px; color: var(--text-secondary); }
+        .chain-icon.eth { background: linear-gradient(135deg, #627eea, #3c4fa0); }
+        .chain-icon.polygon { background: linear-gradient(135deg, #8247e5, #5f3dc4); }
+        .chain-icon.bsc { background: linear-gradient(135deg, #f3ba2f, #c99a2e); }
+        .chain-icon.arbitrum { background: linear-gradient(135deg, #28a0f0, #1a6fc4); }
+        .chain-icon.base { background: linear-gradient(135deg, #0052ff, #0033cc); }
+        .chain-icon.optimism { background: linear-gradient(135deg, #ff0420, #cc0318); }
+        .chain-icon.solana { background: linear-gradient(135deg, #14f195, #9945ff); }
+        .chain-icon.pulse { background: linear-gradient(135deg, #ff00ff, #cc00cc); }
         
-        .chain-card-value { text-align: right; }
-        .chain-card-amount { font-size: 14px; font-weight: 600; }
-        .chain-card-percent { font-size: 11px; color: var(--text-secondary); }
-        
-        .chain-card-bar {
-            height: 4px;
-            background: var(--bg-tertiary);
-            border-radius: 2px;
-            margin-top: 10px;
-            overflow: hidden;
-        }
-        .chain-card-bar-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
-        
-        /* Token Rows */
-        .token-row {
-            display: flex;
-            align-items: center;
-            padding: 12px 20px;
-            border-bottom: 1px solid var(--border-color);
-        }
-        .token-row:last-child { border-bottom: none; }
-        
-        .token-info {
-            display: flex;
-            align-items: center;
-            gap: 10px;
+        .chain-info {
             flex: 1;
         }
         
-        .token-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: var(--bg-tertiary);
+        .chain-name {
+            font-weight: 600;
+            font-size: 14px;
             display: flex;
             align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            font-weight: 600;
-            overflow: hidden;
-        }
-        .token-icon img { width: 100%; height: 100%; object-fit: cover; }
-        
-        .token-name { font-weight: 500; font-size: 14px; }
-        .token-balance { color: var(--text-secondary); font-size: 13px; min-width: 100px; text-align: right; }
-        .token-value { font-weight: 600; font-size: 14px; min-width: 80px; text-align: right; }
-        
-        /* ===== WALLETS PAGE ===== */
-        .wallets-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 16px;
+            gap: 8px;
         }
         
-        .wallet-card {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 20px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .wallet-card:hover {
-            border-color: var(--accent-blue);
-            transform: translateY(-2px);
-        }
-        
-        .wallet-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 16px;
-        }
-        
-        .wallet-name { font-size: 16px; font-weight: 600; }
-        .wallet-address {
+        .chain-address {
             font-size: 12px;
             color: var(--text-secondary);
             font-family: 'JetBrains Mono', monospace;
         }
         
-        .wallet-value { font-size: 24px; font-weight: 700; color: var(--accent-green); text-align: right; }
-        .wallet-tokens { font-size: 12px; color: var(--text-secondary); text-align: right; }
-        
-        .wallet-chains {
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
-            margin-top: 12px;
+        .chain-stats {
+            text-align: center;
+            margin-right: 16px;
         }
         
-        .chain-badge {
-            padding: 4px 8px;
-            background: var(--bg-tertiary);
-            border-radius: 4px;
-            font-size: 11px;
+        .chain-stats-value {
+            font-size: 13px;
+            color: var(--accent-blue);
+        }
+        
+        .chain-stats-label {
+            font-size: 10px;
             color: var(--text-secondary);
         }
         
-        .add-wallet-card {
-            background: var(--bg-secondary);
-            border: 2px dashed var(--border-color);
-            border-radius: 12px;
-            padding: 40px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s;
+        .chain-value {
+            text-align: right;
+            min-width: 80px;
         }
-        .add-wallet-card:hover {
-            border-color: var(--accent-blue);
-            background: rgba(88, 166, 255, 0.05);
+        
+        .chain-value-amount {
+            font-size: 14px;
+            font-weight: 600;
         }
-        .add-wallet-icon { font-size: 32px; margin-bottom: 8px; }
-        .add-wallet-text { color: var(--text-secondary); font-size: 14px; }
+        
+        .chain-value-label {
+            font-size: 10px;
+            color: var(--text-secondary);
+        }
         
         /* ===== API KEYS PAGE ===== */
         .api-keys-grid {
@@ -415,15 +815,21 @@
             font-size: 20px;
         }
         
-        .api-key-icon.etherscan { background: linear-gradient(135deg, #21325b, #3c5a99); }
-        .api-key-icon.bscscan { background: linear-gradient(135deg, #f3ba2f, #c99a2e); }
-        .api-key-icon.polygonscan { background: linear-gradient(135deg, #8247e5, #5f3dc4); }
-        .api-key-icon.arbiscan { background: linear-gradient(135deg, #28a0f0, #1a6fc4); }
-        .api-key-icon.basescan { background: linear-gradient(135deg, #0052ff, #0033cc); }
+        .api-key-icon.covalent { background: linear-gradient(135deg, #ff6b35, #f7931a); }
         .api-key-icon.helius { background: linear-gradient(135deg, #9945ff, #14f195); }
+        .api-key-icon.alchemy { background: linear-gradient(135deg, #0052ff, #00d4aa); }
+        .api-key-icon.moralis { background: linear-gradient(135deg, #00ff88, #00d4aa); }
+        .api-key-icon.claude { background: linear-gradient(135deg, #a855f7, #6366f1); }
         
-        .api-key-info h3 { font-size: 16px; font-weight: 600; }
-        .api-key-info p { font-size: 12px; color: var(--text-secondary); }
+        .api-key-info h3 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .api-key-info p {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
         
         .api-key-status {
             margin-left: auto;
@@ -432,10 +838,21 @@
             font-size: 11px;
             font-weight: 600;
         }
-        .api-key-status.on { background: rgba(63, 185, 80, 0.2); color: var(--accent-green); }
-        .api-key-status.off { background: rgba(139, 148, 158, 0.2); color: var(--text-secondary); }
         
-        .api-key-input-group { display: flex; gap: 8px; }
+        .api-key-status.on {
+            background: rgba(63, 185, 80, 0.2);
+            color: var(--accent-green);
+        }
+        
+        .api-key-status.off {
+            background: rgba(139, 148, 158, 0.2);
+            color: var(--text-secondary);
+        }
+        
+        .api-key-input-group {
+            display: flex;
+            gap: 8px;
+        }
         
         .api-key-input {
             flex: 1;
@@ -447,101 +864,13 @@
             font-family: 'JetBrains Mono', monospace;
             font-size: 13px;
         }
-        .api-key-input:focus { outline: none; border-color: var(--accent-blue); }
         
-        .api-tip {
-            margin-top: 12px;
-            padding: 10px;
-            background: rgba(88, 166, 255, 0.1);
-            border-radius: 6px;
-            font-size: 11px;
-            color: var(--accent-blue);
-        }
-        .api-tip a { color: var(--accent-blue); }
-        
-        /* Buttons */
-        .btn {
-            padding: 10px 16px;
-            border: none;
-            border-radius: 6px;
-            font-family: inherit;
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .btn:hover { transform: translateY(-1px); }
-        .btn-primary { background: var(--accent-blue); color: #fff; }
-        .btn-success { background: var(--accent-green); color: #000; }
-        .btn-danger { background: var(--accent-red); color: #fff; }
-        .btn-small { padding: 6px 12px; font-size: 12px; }
-        
-        /* Modal */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
-            z-index: 2000;
-            align-items: center;
-            justify-content: center;
-        }
-        .modal-overlay.active { display: flex; }
-        
-        .modal {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            width: 100%;
-            max-width: 480px;
-            padding: 24px;
+        .api-key-input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
         }
         
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        .modal-header h2 { font-size: 20px; font-weight: 600; }
-        
-        .modal-close {
-            width: 32px; height: 32px;
-            border-radius: 6px;
-            background: var(--bg-tertiary);
-            border: none;
-            color: var(--text-secondary);
-            cursor: pointer;
-            font-size: 18px;
-        }
-        .modal-close:hover { background: var(--border-color); color: var(--text-primary); }
-        
-        .form-group { margin-bottom: 16px; }
-        .form-label { display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 6px; }
-        
-        .form-input {
-            width: 100%;
-            padding: 12px 14px;
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            color: var(--text-primary);
-            font-family: inherit;
-            font-size: 14px;
-        }
-        .form-input:focus { outline: none; border-color: var(--accent-blue); }
-        .form-input.mono { font-family: 'JetBrains Mono', monospace; }
-        
-        .modal-actions { display: flex; gap: 12px; margin-top: 24px; }
-        .modal-actions .btn { flex: 1; padding: 14px; }
-        
-        /* Portfolio Chart */
-        .chart-container {
-            padding: 20px;
-            height: 300px;
-        }
-        
-        /* Settings */
+        /* ===== SETTINGS PAGE ===== */
         .settings-section {
             background: var(--bg-secondary);
             border: 1px solid var(--border-color);
@@ -563,82 +892,428 @@
             padding: 16px 20px;
             border-bottom: 1px solid var(--border-color);
         }
-        .settings-row:last-child { border-bottom: none; }
         
-        .settings-label { font-size: 14px; }
-        .settings-label small { display: block; color: var(--text-secondary); font-size: 12px; margin-top: 2px; }
+        .settings-row:last-child {
+            border-bottom: none;
+        }
         
-        /* Utility */
+        .settings-label {
+            font-size: 14px;
+        }
+        
+        .settings-label small {
+            display: block;
+            color: var(--text-secondary);
+            font-size: 12px;
+            margin-top: 2px;
+        }
+        
+        /* ===== ADD WALLET MODAL ===== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-overlay.active {
+            display: flex;
+        }
+        
+        .modal {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 480px;
+            padding: 24px;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .modal-header h2 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+        
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            background: var(--bg-tertiary);
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 18px;
+        }
+        
+        .modal-close:hover {
+            background: var(--border-color);
+            color: var(--text-primary);
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 12px 14px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 14px;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+        
+        .form-input.mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+        
+        .modal-actions .btn {
+            flex: 1;
+        }
+        
+        /* Chain Distribution */
+        .chain-distribution {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+        
+        .chain-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .chain-card:hover {
+            border-color: var(--accent-blue);
+            transform: translateY(-2px);
+        }
+        
+        .chain-card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .chain-card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        
+        .chain-card-info {
+            flex: 1;
+        }
+        
+        .chain-card-name {
+            font-weight: 600;
+            font-size: 15px;
+        }
+        
+        .chain-card-tokens {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .chain-card-value {
+            text-align: right;
+        }
+        
+        .chain-card-amount {
+            font-size: 18px;
+            font-weight: 700;
+        }
+        
+        .chain-card-percent {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .chain-card-bar {
+            height: 4px;
+            background: var(--bg-tertiary);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .chain-card-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.3s;
+        }
+        
+        /* Chain tokens modal */
+        .chain-tokens-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        
+        .chain-tokens-modal.active {
+            display: flex;
+        }
+        
+        .chain-tokens-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chain-tokens-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .chain-tokens-header h2 {
+            flex: 1;
+            font-size: 18px;
+        }
+        
+        .chain-tokens-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 0;
+        }
+        
+        .chain-token-item {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr auto;
+            align-items: center;
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .chain-token-item:hover {
+            background: var(--bg-tertiary);
+        }
+        
+        .chain-token-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .chain-token-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--bg-tertiary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .chain-token-icon img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+        }
+        
+        .chain-token-symbol {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .chain-token-balance,
+        .chain-token-value {
+            text-align: right;
+            font-size: 13px;
+        }
+        
+        .chain-token-hide {
+            padding: 4px 8px;
+            background: transparent;
+            border: none;
+            color: var(--accent-red);
+            cursor: pointer;
+            opacity: 0.5;
+            font-size: 14px;
+        }
+        
+        .chain-token-hide:hover {
+            opacity: 1;
+        }
+        
+        /* ===== UTILITIES ===== */
+        .hidden { display: none !important; }
+        
         .text-green { color: var(--accent-green); }
         .text-red { color: var(--accent-red); }
-        .hidden { display: none; }
+        .text-blue { color: var(--accent-blue); }
+        .text-yellow { color: var(--accent-yellow); }
+        .text-secondary { color: var(--text-secondary); }
         
-        /* Log Console */
-        .log-console {
-            background: #000;
-            border-radius: 8px;
-            padding: 12px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            max-height: 200px;
-            overflow-y: auto;
-            margin-top: 16px;
+        /* ===== LOADING ===== */
+        .loading-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
         }
-        .log-line { padding: 2px 0; }
-        .log-info { color: #58a6ff; }
-        .log-success { color: #3fb950; }
-        .log-error { color: #f85149; }
-        .log-warning { color: #d29922; }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Year selector */
+        .year-selector {
+            display: flex;
+            gap: 8px;
+            margin-left: 24px;
+        }
+        
+        .year-btn {
+            padding: 6px 12px;
+            border-radius: 6px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-family: inherit;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        
+        .year-btn.active {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: #fff;
+        }
+        
+        .year-btn:hover:not(.active) {
+            background: var(--border-color);
+        }
     </style>
 </head>
 <body>
     <!-- NAVBAR -->
     <nav class="navbar">
-        <div class="navbar-brand">💎 Crypto Portfolio</div>
+        <div class="navbar-brand">
+            <span>💎</span>
+            Crypto Tracker v10
+        </div>
+        
         <div class="navbar-menu">
             <div class="nav-item active" onclick="showPage('dashboard')">Dashboard</div>
             <div class="nav-item" onclick="showPage('wallets')">Wallets</div>
             <div class="nav-item" onclick="showPage('exchanges')">Exchanges</div>
-            <div class="nav-item" onclick="showPage('apikeys')">🔑 API Keys</div>
+            <div class="nav-item" onclick="showPage('api-keys')">🔑 API Keys</div>
             <div class="nav-item" onclick="showPage('settings')">Settings</div>
         </div>
+        
+        <div class="year-selector">
+            <button class="year-btn" onclick="selectYear(2021)">2021</button>
+            <button class="year-btn" onclick="selectYear(2022)">2022</button>
+            <button class="year-btn" onclick="selectYear(2023)">2023</button>
+            <button class="year-btn" onclick="selectYear(2024)">2024</button>
+            <button class="year-btn active" onclick="selectYear(2025)">2025</button>
+        </div>
+        
         <div class="navbar-right">
             <div class="sync-status">
                 <div class="sync-dot"></div>
-                <span id="syncStatus">Synced</span>
+                <span id="syncStatus">Sincronizzato</span>
             </div>
-            <a href="index.html" class="home-link">🏠 Home</a>
+            <a href="index.html" style="padding:6px 12px;background:var(--bg-tertiary);border:1px solid var(--border-color);border-radius:6px;color:var(--text-secondary);text-decoration:none;font-size:12px;">🏠 Home</a>
         </div>
     </nav>
     
+    <!-- MAIN CONTAINER -->
     <div class="main-container">
+        
         <!-- DASHBOARD PAGE -->
-        <div id="page-dashboard" class="page active">
+        <div class="page active" id="page-dashboard">
             <div class="dashboard-header">
-                <h1>Portfolio Overview</h1>
-                <p>Valore totale del tuo portfolio crypto</p>
+                <h1>Dashboard</h1>
+                <p>Panoramica del tuo portfolio crypto</p>
             </div>
             
             <div class="total-value-card">
                 <div class="total-value-header">
                     <div>
-                        <div class="total-value-label">Valore Totale Portfolio</div>
-                        <div class="total-value-amount" id="totalValue">0 €</div>
-                        <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">
-                            EUR/USD: <span id="eurUsdRate">0.92</span>
+                        <div class="total-value-label">Total Value</div>
+                        <div class="total-value-amount">
+                            <span id="totalValueUSD">0</span>
+                            <span class="currency-symbol">$</span>
+                        </div>
+                        <div class="stat-change positive" id="totalChange">↑ 0%</div>
+                    </div>
+                    <div class="total-value-secondary">
+                        <div class="secondary-stat">
+                            <div class="secondary-stat-label">EUR Value</div>
+                            <div class="secondary-stat-value" id="totalValueEUR">0 €</div>
+                        </div>
+                        <div class="secondary-stat">
+                            <div class="secondary-stat-label">RW Value (1/1)</div>
+                            <div class="secondary-stat-value" id="rwValue">0 €</div>
                         </div>
                     </div>
-                    <div class="year-selector">
-                        <button class="year-btn" onclick="selectYear(2021)">2021</button>
-                        <button class="year-btn" onclick="selectYear(2022)">2022</button>
-                        <button class="year-btn" onclick="selectYear(2023)">2023</button>
-                        <button class="year-btn" onclick="selectYear(2024)">2024</button>
-                        <button class="year-btn active" onclick="selectYear(2025)">2025</button>
-                    </div>
                 </div>
-                <div style="display:flex;gap:10px;margin-top:16px;">
-                    <button class="btn btn-primary" onclick="scanAllWallets()">🔄 Scan All Wallets</button>
-                    <button class="btn btn-success" onclick="forceSaveToFirebase()">💾 Save to Cloud</button>
+                
+                <!-- Portfolio Chart -->
+                <div style="margin-top:24px;height:280px;display:flex;align-items:center;justify-content:center;">
+                    <canvas id="portfolioChart" style="max-width:500px;"></canvas>
                 </div>
             </div>
             
@@ -648,107 +1323,287 @@
                     <div class="stat-value blue" id="statWallets">0</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Chains</div>
-                    <div class="stat-value blue" id="statChains">0</div>
-                </div>
-                <div class="stat-card">
                     <div class="stat-label">Tokens</div>
-                    <div class="stat-value blue" id="statTokens">0</div>
+                    <div class="stat-value" id="statTokens">0</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">API Status</div>
-                    <div class="stat-value green" id="statApiStatus">--</div>
+                    <div class="stat-label">Chains</div>
+                    <div class="stat-value" id="statChains">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">EUR/USD Rate</div>
+                    <div class="stat-value text-secondary" style="font-size:18px;" id="eurUsdRate">0.92</div>
                 </div>
             </div>
             
-            <div class="two-columns">
-                <div class="section-card">
-                    <div class="section-header">
-                        <span class="section-title">📊 Chain Distribution</span>
+            <!-- Chain Distribution -->
+            <div style="margin-top:24px;">
+                <h2 style="font-size:18px;margin-bottom:16px;">Chain Distribution</h2>
+                <div class="chain-distribution" id="chainDistribution">
+                    <!-- Chains will be rendered here -->
+                </div>
+            </div>
+            
+            <!-- Top Holdings -->
+            <div style="margin-top:24px;">
+                <h2 style="font-size:18px;margin-bottom:16px;">Top Holdings</h2>
+                <div class="holdings-panel">
+                    <div class="holdings-table-header">
+                        <span>Coin</span>
+                        <span style="text-align:right">Balance</span>
+                        <span style="text-align:right">Value (EUR)</span>
                     </div>
-                    <div id="chainDistribution"></div>
-                </div>
-                
-                <div class="section-card">
-                    <div class="section-header">
-                        <span class="section-title">🏆 Top Holdings</span>
+                    <div id="topHoldingsList">
+                        <!-- Top tokens will be rendered here -->
                     </div>
-                    <div id="topHoldingsList"></div>
                 </div>
-            </div>
-            
-            <div class="section-card" style="margin-top:24px;">
-                <div class="section-header">
-                    <span class="section-title">📈 Portfolio Chart</span>
-                </div>
-                <div class="chart-container">
-                    <canvas id="portfolioChart"></canvas>
-                </div>
-            </div>
-            
-            <!-- Log Console -->
-            <div class="log-console" id="logConsole">
-                <div class="log-line log-info">🚀 Crypto Portfolio Tracker v10 - Etherscan Edition</div>
             </div>
         </div>
         
         <!-- WALLETS PAGE -->
-        <div id="page-wallets" class="page">
-            <div class="dashboard-header">
-                <h1>My Wallets</h1>
-                <p>Gestisci i tuoi wallet multi-chain</p>
+        <div class="page" id="page-wallets">
+            <div class="wallet-list-view" id="walletListView">
+                <div class="wallets-header">
+                    <div class="wallets-title">
+                        <h1>Wallets</h1>
+                        <span class="wallets-count" id="walletsCount">0</span>
+                    </div>
+                    <div class="wallets-actions">
+                        <button class="btn btn-primary" onclick="openAddWalletModal()">
+                            <span>+</span> Add wallet
+                        </button>
+                        <button class="btn btn-secondary" onclick="scanAllWallets()">
+                            <span>🔄</span> Sync all
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="search-box">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" class="search-input" placeholder="Find wallet..." id="walletSearch" oninput="filterWallets()">
+                </div>
+                
+                <div class="wallet-list" id="walletList">
+                    <!-- Wallets will be rendered here -->
+                </div>
             </div>
             
-            <div class="wallets-grid" id="walletsList">
-                <div class="add-wallet-card" onclick="openAddWalletModal()">
-                    <div class="add-wallet-icon">➕</div>
-                    <div class="add-wallet-text">Add Wallet</div>
+            <!-- Wallet Detail View -->
+            <div class="wallet-detail" id="walletDetailView">
+                <div class="wallet-detail-header">
+                    <button class="back-btn" onclick="closeWalletDetail()">←</button>
+                    <div class="wallet-detail-icon" id="detailIcon">💼</div>
+                    <div class="wallet-detail-info">
+                        <h1 id="detailAddress">0x...</h1>
+                        <p id="detailMeta">Added recently</p>
+                    </div>
+                    <div class="wallet-detail-actions">
+                        <button class="btn btn-primary" onclick="scanCurrentWallet()">
+                            <span>🔄</span> Sync now
+                        </button>
+                        <button class="btn btn-secondary" onclick="deleteCurrentWallet()">
+                            <span>🗑️</span> Remove
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="holdings-section">
+                    <div class="holdings-panel">
+                        <div class="holdings-header">
+                            <span class="holdings-title">Holdings</span>
+                            <div class="holdings-total">
+                                <span class="holdings-total-value" id="detailTotalValue">0 €</span>
+                            </div>
+                        </div>
+                        <div class="holdings-table-header">
+                            <span>Coin</span>
+                            <span style="text-align:right">Balance</span>
+                            <span style="text-align:right">Value (EUR)</span>
+                        </div>
+                        <div id="holdingsList">
+                            <!-- Tokens will be rendered here -->
+                        </div>
+                    </div>
+                    
+                    <div class="accounts-panel">
+                        <div class="accounts-header">
+                            <span class="accounts-title">Accounts</span>
+                            <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="scanCurrentWallet()">🔄</button>
+                        </div>
+                        <div id="chainsList">
+                            <!-- Chains will be rendered here -->
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
         
         <!-- EXCHANGES PAGE -->
-        <div id="page-exchanges" class="page">
+        <div class="page" id="page-exchanges">
             <div class="dashboard-header">
-                <h1>Exchange Holdings</h1>
-                <p>Aggiungi manualmente i saldi dai tuoi exchange</p>
+                <h1>Exchanges</h1>
+                <p>Connetti i tuoi exchange per importare saldi e transazioni</p>
             </div>
             
-            <div class="section-card">
-                <div class="section-header">
-                    <span class="section-title">💰 Exchange Totals</span>
-                    <button class="btn btn-primary btn-small" onclick="openManualExchangeModal()">+ Add Exchange</button>
+            <div class="api-keys-grid">
+                <!-- Binance -->
+                <div class="api-key-card">
+                    <div class="api-key-header">
+                        <div class="api-key-icon" style="background:linear-gradient(135deg, #f3ba2f, #c99a2e);">
+                            <img src="https://assets.coingecko.com/markets/images/52/small/binance.jpg" style="width:100%;height:100%;border-radius:10px;" onerror="this.parentElement.textContent='₿'">
+                        </div>
+                        <div class="api-key-info">
+                            <h3>Binance</h3>
+                            <p>Spot, Earn, Staking balances</p>
+                        </div>
+                        <span class="api-key-status off" id="binanceStatus">OFF</span>
+                    </div>
+                    <div class="api-key-input-group" style="margin-bottom:8px;">
+                        <input type="password" class="api-key-input" id="binanceApiKey" placeholder="API Key">
+                    </div>
+                    <div class="api-key-input-group">
+                        <input type="password" class="api-key-input" id="binanceSecret" placeholder="Secret Key">
+                        <button class="btn btn-primary" onclick="saveBinanceKeys()">Save</button>
+                    </div>
+                    <button class="btn btn-secondary" style="width:100%;margin-top:12px;" onclick="syncBinance()">
+                        🔄 Sync Binance
+                    </button>
                 </div>
-                <div id="exchangeHoldings" style="padding:20px;">
-                    <p style="color:var(--text-secondary);text-align:center;">Nessun exchange aggiunto. Clicca "Add Exchange" per aggiungere manualmente.</p>
+                
+                <!-- Bitget -->
+                <div class="api-key-card">
+                    <div class="api-key-header">
+                        <div class="api-key-icon" style="background:linear-gradient(135deg, #00f0ff, #0080ff);">
+                            <span style="font-size:16px;">B</span>
+                        </div>
+                        <div class="api-key-info">
+                            <h3>Bitget</h3>
+                            <p>Spot & Copy Trading</p>
+                        </div>
+                        <span class="api-key-status off" id="bitgetStatus">OFF</span>
+                    </div>
+                    <div class="api-key-input-group" style="margin-bottom:8px;">
+                        <input type="password" class="api-key-input" id="bitgetApiKey" placeholder="API Key">
+                    </div>
+                    <div class="api-key-input-group" style="margin-bottom:8px;">
+                        <input type="password" class="api-key-input" id="bitgetSecret" placeholder="Secret Key">
+                    </div>
+                    <div class="api-key-input-group">
+                        <input type="password" class="api-key-input" id="bitgetPassphrase" placeholder="Passphrase">
+                        <button class="btn btn-primary" onclick="saveBitgetKeys()">Save</button>
+                    </div>
+                </div>
+                
+                <!-- Crypto.com -->
+                <div class="api-key-card">
+                    <div class="api-key-header">
+                        <div class="api-key-icon" style="background:linear-gradient(135deg, #002D74, #001840);">
+                            <span style="font-size:14px;">C</span>
+                        </div>
+                        <div class="api-key-info">
+                            <h3>Crypto.com</h3>
+                            <p>App & Exchange</p>
+                        </div>
+                        <span class="api-key-status off" id="cryptocomStatus">OFF</span>
+                    </div>
+                    <div class="form-group" style="margin-top:12px;">
+                        <label class="form-label">Import CSV</label>
+                        <input type="file" id="cryptocomFile" accept=".csv" class="form-input" onchange="importCryptocomCSV(event)">
+                    </div>
+                </div>
+                
+                <!-- Nexo -->
+                <div class="api-key-card">
+                    <div class="api-key-header">
+                        <div class="api-key-icon" style="background:linear-gradient(135deg, #1e4dd8, #1a3fb0);">
+                            <span style="font-size:16px;">N</span>
+                        </div>
+                        <div class="api-key-info">
+                            <h3>Nexo</h3>
+                            <p>Earn & Credit</p>
+                        </div>
+                        <span class="api-key-status off" id="nexoStatus">OFF</span>
+                    </div>
+                    <div class="form-group" style="margin-top:12px;">
+                        <label class="form-label">Import CSV</label>
+                        <input type="file" id="nexoFile" accept=".csv" class="form-input" onchange="importNexoCSV(event)">
+                    </div>
+                </div>
+                
+                <!-- Revolut -->
+                <div class="api-key-card">
+                    <div class="api-key-header">
+                        <div class="api-key-icon" style="background:linear-gradient(135deg, #0666eb, #044bb5);">
+                            <span style="font-size:16px;">R</span>
+                        </div>
+                        <div class="api-key-info">
+                            <h3>Revolut</h3>
+                            <p>Crypto holdings</p>
+                        </div>
+                        <span class="api-key-status off" id="revolutStatus">OFF</span>
+                    </div>
+                    <div class="form-group" style="margin-top:12px;">
+                        <label class="form-label">Import CSV</label>
+                        <input type="file" id="revolutFile" accept=".csv" class="form-input" onchange="importRevolutCSV(event)">
+                    </div>
+                </div>
+                
+                <!-- Manual Entry -->
+                <div class="api-key-card">
+                    <div class="api-key-header">
+                        <div class="api-key-icon" style="background:linear-gradient(135deg, #6b7280, #4b5563);">
+                            <span style="font-size:18px;">+</span>
+                        </div>
+                        <div class="api-key-info">
+                            <h3>Other Exchange</h3>
+                            <p>Manual balance entry</p>
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary" style="width:100%;margin-top:12px;" onclick="openManualExchangeModal()">
+                        ➕ Add Manually
+                    </button>
                 </div>
             </div>
             
-            <div style="margin-top:20px;">
-                <div id="exchangeTotal" style="font-size:24px;font-weight:700;color:var(--accent-green);text-align:center;">0 €</div>
+            <!-- Exchange Holdings -->
+            <div style="margin-top:32px;">
+                <h2 style="font-size:18px;margin-bottom:16px;">Exchange Holdings</h2>
+                <div class="holdings-panel">
+                    <div class="holdings-header">
+                        <span class="holdings-title">All Exchanges</span>
+                        <div class="holdings-total">
+                            <span class="holdings-total-value" id="exchangeTotalValue">0 €</span>
+                        </div>
+                    </div>
+                    <div id="exchangeHoldingsList">
+                        <div style="padding:40px;text-align:center;color:var(--text-secondary);">
+                            Connect an exchange or import CSV to see holdings
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         
         <!-- API KEYS PAGE -->
-        <div id="page-apikeys" class="page">
+        <div class="page" id="page-api-keys">
             <div class="dashboard-header">
-                <h1>🔑 API Keys</h1>
-                <p>Configura le API gratuite per scansionare i wallet</p>
+                <h1>API Keys</h1>
+                <p>Gestisci le connessioni alle API blockchain - TUTTE GRATUITE!</p>
             </div>
             
-            <div style="background:rgba(63,185,80,0.1);border:1px solid var(--accent-green);border-radius:12px;padding:20px;margin-bottom:24px;">
-                <h3 style="color:var(--accent-green);margin-bottom:8px;">✅ Tutte le API sono GRATUITE!</h3>
-                <p style="font-size:13px;color:var(--text-secondary);">
-                    Etherscan e i block explorer derivati offrono 100.000 chiamate/giorno gratis. 
-                    Registrati su ogni sito e crea una API key.
+            <div style="background:rgba(63,185,80,0.1);border:1px solid var(--accent-green);border-radius:12px;padding:16px;margin-bottom:24px;">
+                <div style="display:flex;align-items:center;gap:8px;color:var(--accent-green);font-weight:600;">
+                    ✅ Tutte le API sono 100% GRATUITE - 100.000 chiamate/giorno ciascuna!
+                </div>
+                <p style="font-size:12px;color:var(--text-secondary);margin-top:8px;">
+                    Registrati su ogni block explorer e crea una API key. Stessa procedura per tutti.
                 </p>
             </div>
             
             <div class="api-keys-grid">
-                <!-- Etherscan -->
                 <div class="api-key-card">
                     <div class="api-key-header">
-                        <div class="api-key-icon etherscan">Ξ</div>
+                        <div class="api-key-icon" style="background:linear-gradient(135deg, #21325b, #3c5a99);">Ξ</div>
                         <div class="api-key-info">
                             <h3>Etherscan</h3>
                             <p>Ethereum Mainnet</p>
@@ -756,18 +1611,17 @@
                         <span class="api-key-status off" id="etherscanStatus">OFF</span>
                     </div>
                     <div class="api-key-input-group">
-                        <input type="text" class="api-key-input" id="etherscanKey" placeholder="API Key">
-                        <button class="btn btn-primary btn-small" onclick="saveApiKey('etherscan')">Save</button>
+                        <input type="password" class="api-key-input" id="etherscanKey" placeholder="API key...">
+                        <button class="btn btn-primary" onclick="saveEtherscanKey()">Save</button>
                     </div>
-                    <div class="api-tip">
-                        📌 <a href="https://etherscan.io/myapikey" target="_blank">etherscan.io/myapikey</a> - 100k calls/day FREE
+                    <div style="margin-top:8px;font-size:11px;color:var(--accent-blue);">
+                        📌 <a href="https://etherscan.io/myapikey" target="_blank" style="color:var(--accent-blue);">etherscan.io/myapikey</a>
                     </div>
                 </div>
                 
-                <!-- BSCScan -->
                 <div class="api-key-card">
                     <div class="api-key-header">
-                        <div class="api-key-icon bscscan">🔶</div>
+                        <div class="api-key-icon" style="background:linear-gradient(135deg, #f3ba2f, #c99a2e);">🔶</div>
                         <div class="api-key-info">
                             <h3>BSCScan</h3>
                             <p>Binance Smart Chain</p>
@@ -775,18 +1629,17 @@
                         <span class="api-key-status off" id="bscscanStatus">OFF</span>
                     </div>
                     <div class="api-key-input-group">
-                        <input type="text" class="api-key-input" id="bscscanKey" placeholder="API Key">
-                        <button class="btn btn-primary btn-small" onclick="saveApiKey('bscscan')">Save</button>
+                        <input type="password" class="api-key-input" id="bscscanKey" placeholder="API key...">
+                        <button class="btn btn-primary" onclick="saveBscscanKey()">Save</button>
                     </div>
-                    <div class="api-tip">
-                        📌 <a href="https://bscscan.com/myapikey" target="_blank">bscscan.com/myapikey</a> - 100k calls/day FREE
+                    <div style="margin-top:8px;font-size:11px;color:var(--accent-blue);">
+                        📌 <a href="https://bscscan.com/myapikey" target="_blank" style="color:var(--accent-blue);">bscscan.com/myapikey</a>
                     </div>
                 </div>
                 
-                <!-- PolygonScan -->
                 <div class="api-key-card">
                     <div class="api-key-header">
-                        <div class="api-key-icon polygonscan">⬡</div>
+                        <div class="api-key-icon" style="background:linear-gradient(135deg, #8247e5, #5f3dc4);">⬡</div>
                         <div class="api-key-info">
                             <h3>PolygonScan</h3>
                             <p>Polygon (MATIC)</p>
@@ -794,18 +1647,17 @@
                         <span class="api-key-status off" id="polygonscanStatus">OFF</span>
                     </div>
                     <div class="api-key-input-group">
-                        <input type="text" class="api-key-input" id="polygonscanKey" placeholder="API Key">
-                        <button class="btn btn-primary btn-small" onclick="saveApiKey('polygonscan')">Save</button>
+                        <input type="password" class="api-key-input" id="polygonscanKey" placeholder="API key...">
+                        <button class="btn btn-primary" onclick="savePolygonscanKey()">Save</button>
                     </div>
-                    <div class="api-tip">
-                        📌 <a href="https://polygonscan.com/myapikey" target="_blank">polygonscan.com/myapikey</a> - 100k calls/day FREE
+                    <div style="margin-top:8px;font-size:11px;color:var(--accent-blue);">
+                        📌 <a href="https://polygonscan.com/myapikey" target="_blank" style="color:var(--accent-blue);">polygonscan.com/myapikey</a>
                     </div>
                 </div>
                 
-                <!-- Arbiscan -->
                 <div class="api-key-card">
                     <div class="api-key-header">
-                        <div class="api-key-icon arbiscan">🔵</div>
+                        <div class="api-key-icon" style="background:linear-gradient(135deg, #28a0f0, #1a6fc4);">🔵</div>
                         <div class="api-key-info">
                             <h3>Arbiscan</h3>
                             <p>Arbitrum One</p>
@@ -813,18 +1665,17 @@
                         <span class="api-key-status off" id="arbiscanStatus">OFF</span>
                     </div>
                     <div class="api-key-input-group">
-                        <input type="text" class="api-key-input" id="arbiscanKey" placeholder="API Key">
-                        <button class="btn btn-primary btn-small" onclick="saveApiKey('arbiscan')">Save</button>
+                        <input type="password" class="api-key-input" id="arbiscanKey" placeholder="API key...">
+                        <button class="btn btn-primary" onclick="saveArbiscanKey()">Save</button>
                     </div>
-                    <div class="api-tip">
-                        📌 <a href="https://arbiscan.io/myapikey" target="_blank">arbiscan.io/myapikey</a> - 100k calls/day FREE
+                    <div style="margin-top:8px;font-size:11px;color:var(--accent-blue);">
+                        📌 <a href="https://arbiscan.io/myapikey" target="_blank" style="color:var(--accent-blue);">arbiscan.io/myapikey</a>
                     </div>
                 </div>
                 
-                <!-- BaseScan -->
                 <div class="api-key-card">
                     <div class="api-key-header">
-                        <div class="api-key-icon basescan">🔷</div>
+                        <div class="api-key-icon" style="background:linear-gradient(135deg, #0052ff, #0033cc);">🔷</div>
                         <div class="api-key-info">
                             <h3>BaseScan</h3>
                             <p>Base (Coinbase L2)</p>
@@ -832,83 +1683,89 @@
                         <span class="api-key-status off" id="basescanStatus">OFF</span>
                     </div>
                     <div class="api-key-input-group">
-                        <input type="text" class="api-key-input" id="basescanKey" placeholder="API Key">
-                        <button class="btn btn-primary btn-small" onclick="saveApiKey('basescan')">Save</button>
+                        <input type="password" class="api-key-input" id="basescanKey" placeholder="API key...">
+                        <button class="btn btn-primary" onclick="saveBasescanKey()">Save</button>
                     </div>
-                    <div class="api-tip">
-                        📌 <a href="https://basescan.org/myapikey" target="_blank">basescan.org/myapikey</a> - 100k calls/day FREE
+                    <div style="margin-top:8px;font-size:11px;color:var(--accent-blue);">
+                        📌 <a href="https://basescan.org/myapikey" target="_blank" style="color:var(--accent-blue);">basescan.org/myapikey</a>
                     </div>
                 </div>
                 
-                <!-- Helius (Solana) -->
                 <div class="api-key-card">
                     <div class="api-key-header">
-                        <div class="api-key-icon helius">◎</div>
+                        <div class="api-key-icon helius">☀️</div>
                         <div class="api-key-info">
                             <h3>Helius</h3>
-                            <p>Solana</p>
+                            <p>Solana tokens & NFTs</p>
                         </div>
                         <span class="api-key-status off" id="heliusStatus">OFF</span>
                     </div>
                     <div class="api-key-input-group">
-                        <input type="text" class="api-key-input" id="heliusKey" placeholder="API Key">
-                        <button class="btn btn-primary btn-small" onclick="saveApiKey('helius')">Save</button>
+                        <input type="password" class="api-key-input" id="heliusKey" placeholder="API key...">
+                        <button class="btn btn-primary" onclick="saveHeliusKey()">Save</button>
                     </div>
-                    <div class="api-tip">
-                        📌 <a href="https://dev.helius.xyz/" target="_blank">dev.helius.xyz</a> - 100k credits FREE
+                    <div style="margin-top:8px;font-size:11px;color:var(--accent-blue);">
+                        📌 <a href="https://dev.helius.xyz/" target="_blank" style="color:var(--accent-blue);">dev.helius.xyz</a> - 100k credits FREE
                     </div>
                 </div>
             </div>
         </div>
         
         <!-- SETTINGS PAGE -->
-        <div id="page-settings" class="page">
+        <div class="page" id="page-settings">
             <div class="dashboard-header">
-                <h1>⚙️ Settings</h1>
-                <p>Configurazione e gestione dati</p>
+                <h1>Settings</h1>
+                <p>Configura il tuo portfolio tracker</p>
             </div>
             
             <div class="settings-section">
-                <div class="settings-section-header">💾 Data Management</div>
+                <div class="settings-section-header">Data Management</div>
                 <div class="settings-row">
                     <div class="settings-label">
-                        Export JSON
-                        <small>Scarica backup completo</small>
+                        Export Portfolio
+                        <small>Download JSON backup of all data</small>
                     </div>
-                    <button class="btn btn-primary btn-small" onclick="exportJSON()">📥 Export</button>
+                    <button class="btn btn-secondary" onclick="exportJSON()">📥 Export</button>
                 </div>
                 <div class="settings-row">
                     <div class="settings-label">
-                        Import JSON
-                        <small>Ripristina da backup</small>
+                        Import Portfolio
+                        <small>Restore from JSON backup</small>
                     </div>
-                    <input type="file" id="importFile" class="hidden" accept=".json" onchange="importJSON(event)">
-                    <button class="btn btn-primary btn-small" onclick="document.getElementById('importFile').click()">📤 Import</button>
+                    <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">📤 Import</button>
+                    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
                 </div>
+                <div class="settings-row">
+                    <div class="settings-label">
+                        Force Sync to Cloud
+                        <small>Save current state to Firebase</small>
+                    </div>
+                    <button class="btn btn-primary" onclick="forceSaveToFirebase()">☁️ Sync</button>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <div class="settings-section-header">Display</div>
+                <div class="settings-row">
+                    <div class="settings-label">
+                        Currency
+                        <small>Primary display currency</small>
+                    </div>
+                    <select class="form-input" style="width:auto;">
+                        <option value="eur">EUR (€)</option>
+                        <option value="usd">USD ($)</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <div class="settings-section-header">Danger Zone</div>
                 <div class="settings-row">
                     <div class="settings-label">
                         Clear All Data
-                        <small>Elimina tutti i dati locali</small>
+                        <small>Remove all wallets and settings</small>
                     </div>
-                    <button class="btn btn-danger btn-small" onclick="clearAllData()">🗑️ Clear</button>
-                </div>
-            </div>
-            
-            <div class="settings-section">
-                <div class="settings-section-header">🔗 Hidden Tokens</div>
-                <div class="settings-row">
-                    <div class="settings-label">
-                        Tokens nascosti
-                        <small>Token filtrati dalla vista</small>
-                    </div>
-                    <span id="hiddenCount">0</span>
-                </div>
-                <div class="settings-row">
-                    <div class="settings-label">
-                        Reset filtri
-                        <small>Mostra di nuovo tutti i token</small>
-                    </div>
-                    <button class="btn btn-primary btn-small" onclick="resetHiddenTokens()">Reset</button>
+                    <button class="btn" style="background:var(--accent-red);color:#fff;" onclick="clearAllData()">🗑️ Clear</button>
                 </div>
             </div>
         </div>
@@ -922,103 +1779,117 @@
                 <button class="modal-close" onclick="closeAddWalletModal()">×</button>
             </div>
             <div class="form-group">
-                <label class="form-label">Wallet Name</label>
-                <input type="text" class="form-input" id="walletName" placeholder="es. MetaMask Main">
+                <label class="form-label">Wallet Address</label>
+                <input type="text" class="form-input mono" id="newWalletAddress" placeholder="0x... or Solana address">
             </div>
             <div class="form-group">
-                <label class="form-label">Address</label>
-                <input type="text" class="form-input mono" id="walletAddress" placeholder="0x... o indirizzo Solana">
+                <label class="form-label">Name (optional)</label>
+                <input type="text" class="form-input" id="newWalletName" placeholder="My Wallet">
             </div>
             <div class="modal-actions">
-                <button class="btn" style="background:var(--bg-tertiary);color:var(--text-primary);" onclick="closeAddWalletModal()">Cancel</button>
-                <button class="btn btn-success" onclick="addWallet()">Add Wallet</button>
+                <button class="btn btn-secondary" onclick="closeAddWalletModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="addWallet()">Add Wallet</button>
             </div>
         </div>
     </div>
     
     <!-- CHAIN TOKENS MODAL -->
-    <div class="modal-overlay" id="chainTokensModal">
-        <div class="modal" style="max-width:600px;">
-            <div class="modal-header">
-                <div style="display:flex;align-items:center;gap:12px;">
-                    <div class="chain-card-icon" id="modalChainIcon" style="width:40px;height:40px;">Ξ</div>
-                    <div>
-                        <h2 id="modalChainName">Ethereum</h2>
-                        <div style="font-size:14px;color:var(--accent-green);" id="modalChainValue">0 €</div>
-                    </div>
-                </div>
+    <div class="chain-tokens-modal" id="chainTokensModal">
+        <div class="chain-tokens-content">
+            <div class="chain-tokens-header">
+                <div class="chain-card-icon" id="modalChainIcon" style="width:36px;height:36px;">◆</div>
+                <h2 id="modalChainName">Ethereum</h2>
+                <span id="modalChainValue" style="font-size:18px;font-weight:700;">0 €</span>
                 <button class="modal-close" onclick="closeChainTokensModal()">×</button>
             </div>
-            <div id="chainTokensList" style="max-height:400px;overflow-y:auto;"></div>
+            <div class="chain-tokens-list" id="chainTokensList">
+                <!-- Tokens will be rendered here -->
+            </div>
         </div>
     </div>
-    
+
     <script>
-        // ==================== GLOBALS ====================
+        // ==================== STATE ====================
         let wallets = [];
         let exchanges = [];
         let hiddenTokens = [];
-        let prices = {};
-        let EUR_USD = 0.92;
         let selectedYear = 2025;
-        let portfolioChart = null;
-        let saveTimeout = null;
+        let EUR_USD = 0.92;
         let currentWalletIndex = -1;
+        let prices = {};
+        let saveTimeout = null;
         
-        // Chain configuration
         const CHAIN_INFO = {
-            'eth': { name: 'Ethereum', icon: 'Ξ', color: '#627eea' },
-            'bsc': { name: 'BNB Chain', icon: '🔶', color: '#f3ba2f' },
-            'polygon': { name: 'Polygon', icon: '⬡', color: '#8247e5' },
-            'arbitrum': { name: 'Arbitrum', icon: '🔵', color: '#28a0f0' },
-            'base': { name: 'Base', icon: '🔷', color: '#0052ff' },
-            'optimism': { name: 'Optimism', icon: '🔴', color: '#ff0420' },
-            'avalanche': { name: 'Avalanche', icon: '🔺', color: '#e84142' },
+            'eth': { name: 'Ethereum', icon: '◆', color: '#627eea' },
+            'polygon': { name: 'Polygon', icon: '◇', color: '#8247e5' },
+            'bsc': { name: 'BSC', icon: '◆', color: '#f3ba2f' },
+            'arbitrum': { name: 'Arbitrum', icon: '◆', color: '#28a0f0' },
+            'base': { name: 'Base', icon: '■', color: '#0052ff' },
+            'optimism': { name: 'Optimism', icon: '◯', color: '#ff0420' },
+            'avalanche': { name: 'Avalanche', icon: '▲', color: '#e84142' },
             'pulse': { name: 'PulseChain', icon: '💜', color: '#ff00ff' },
-            'solana': { name: 'Solana', icon: '◎', color: '#14f195' },
-            'exchange': { name: 'Exchange', icon: '💰', color: '#6b7280' }
+            'solana': { name: 'Solana', icon: '☀️', color: '#14f195' },
+            'fantom': { name: 'Fantom', icon: '👻', color: '#1969ff' },
+            'moonbeam': { name: 'Moonbeam', icon: '🌙', color: '#53cbc8' },
+            'scroll': { name: 'Scroll', icon: '📜', color: '#ffeeda' },
+            'zksync': { name: 'zkSync', icon: '⚡', color: '#8c8dfc' },
+            'linea': { name: 'Linea', icon: '▬', color: '#61dfff' },
+            'mantle': { name: 'Mantle', icon: '🏔️', color: '#000000' },
+            'gnosis': { name: 'Gnosis', icon: '🦉', color: '#04795b' },
+            'celo': { name: 'Celo', icon: '🟢', color: '#35d07f' },
+            'zora': { name: 'Zora', icon: '🌈', color: '#5b5bd6' },
+            'exchange': { name: 'Exchanges', icon: '🏦', color: '#6b7280' }
         };
         
-        // API endpoints for each chain
-        const CHAIN_APIS = {
-            'eth': { url: 'https://api.etherscan.io/api', keyName: 'etherscan' },
-            'bsc': { url: 'https://api.bscscan.com/api', keyName: 'bscscan' },
-            'polygon': { url: 'https://api.polygonscan.com/api', keyName: 'polygonscan' },
-            'arbitrum': { url: 'https://api.arbiscan.io/api', keyName: 'arbiscan' },
-            'base': { url: 'https://api.basescan.org/api', keyName: 'basescan' }
-        };
+        // Scam patterns
+        const SCAM_PATTERNS = [
+            /airdrop/i, /claim/i, /\.com$/i, /\.io$/i, /\.org$/i, /\.net$/i, /\.xyz$/i,
+            /reward/i, /bonus/i, /gift/i, /visit/i, /http/i, /www\./i,
+            /free.*token/i, /token.*free/i, /\.com\s/i, /\.io\s/i,
+            /swap.*reward/i, /defi.*bonus/i, /nft.*free/i,
+            /claim.*now/i, /get.*free/i, /withdraw/i
+        ];
         
-        // ==================== INIT ====================
-        document.addEventListener('DOMContentLoaded', async () => {
-            log('🚀 Initializing...', 'info');
-            updateApiStatus();
-            await fetchPrices();
-            await fetchEurUsdRate();
-            await loadFromFirebase();
-            log('✅ Ready!', 'success');
-        });
-        
-        // ==================== LOGGING ====================
-        function log(message, type = 'info') {
-            const console = document.getElementById('logConsole');
-            const line = document.createElement('div');
-            line.className = `log-line log-${type}`;
-            line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-            console.appendChild(line);
-            console.scrollTop = console.scrollHeight;
+        function isScamToken(name, symbol) {
+            const nameLC = (name || '').toLowerCase();
+            const symbolLC = (symbol || '').toLowerCase();
             
-            // Keep only last 50 lines
-            while (console.children.length > 50) {
-                console.removeChild(console.firstChild);
+            if (nameLC.includes('.com') || nameLC.includes('.io') || nameLC.includes('.org') || 
+                nameLC.includes('.net') || nameLC.includes('.xyz') || nameLC.includes('www.') ||
+                symbolLC.includes('.com') || symbolLC.includes('.io') || symbolLC.includes('www')) {
+                return true;
             }
+            
+            for (const pattern of SCAM_PATTERNS) {
+                if (pattern.test(name) || pattern.test(symbol)) return true;
+            }
+            
+            if (name && name.length > 35) return true;
+            if (symbol && symbol.length > 12) return true;
+            
+            return false;
         }
         
+        // ==================== INITIALIZATION ====================
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadFromFirebase();
+            updateApiStatus();
+            fetchEurUsdRate();
+            fetchPrices();
+        });
+        
         // ==================== NAVIGATION ====================
-        function showPage(page) {
+        function showPage(pageId) {
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            document.getElementById(`page-${page}`).classList.add('active');
+            
+            document.getElementById(`page-${pageId}`).classList.add('active');
             event.target.classList.add('active');
+            
+            if (pageId === 'wallets') {
+                document.getElementById('walletListView').style.display = 'block';
+                document.getElementById('walletDetailView').classList.remove('active');
+            }
         }
         
         function selectYear(year) {
@@ -1026,582 +1897,349 @@
             document.querySelectorAll('.year-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.textContent == year);
             });
-            updateDashboard();
+            
+            // Aggiorna RW Value con prezzo storico
+            updateRWValue();
             saveToFirebase();
         }
         
-        // ==================== API KEY MANAGEMENT ====================
-        function saveApiKey(name) {
-            const input = document.getElementById(`${name}Key`);
-            const key = input.value.trim();
-            if (key) {
-                localStorage.setItem(`${name}_key`, key);
-                input.value = '';
-                updateApiStatus();
-                log(`✅ ${name} API key saved!`, 'success');
-            }
-        }
-        
-        function updateApiStatus() {
-            const apis = ['etherscan', 'bscscan', 'polygonscan', 'arbiscan', 'basescan', 'helius'];
-            let activeCount = 0;
+        async function updateRWValue() {
+            // Prezzi storici al 1 gennaio di ogni anno (approssimati)
+            const historicalPrices = {
+                2021: { ETH: 730, BTC: 29000, BNB: 37, SOL: 1.5, MATIC: 0.017, PLS: 0, HEX: 0.003 },
+                2022: { ETH: 3700, BTC: 47000, BNB: 530, SOL: 170, MATIC: 2.5, PLS: 0, HEX: 0.35 },
+                2023: { ETH: 1200, BTC: 16500, BNB: 250, SOL: 10, MATIC: 0.75, PLS: 0.00005, HEX: 0.04 },
+                2024: { ETH: 2300, BTC: 42000, BNB: 310, SOL: 100, MATIC: 1.0, PLS: 0.00003, HEX: 0.008 },
+                2025: { ETH: 3400, BTC: 93000, BNB: 700, SOL: 190, MATIC: 0.45, PLS: 0.000012, HEX: 0.003 }
+            };
             
-            apis.forEach(name => {
-                const hasKey = localStorage.getItem(`${name}_key`);
-                const el = document.getElementById(`${name}Status`);
-                if (el) {
-                    el.textContent = hasKey ? 'ON' : 'OFF';
-                    el.className = `api-key-status ${hasKey ? 'on' : 'off'}`;
-                }
-                if (hasKey) activeCount++;
+            const yearPrices = historicalPrices[selectedYear] || historicalPrices[2025];
+            let rwValueUSD = 0;
+            
+            wallets.forEach(w => {
+                (w.tokens || []).forEach(t => {
+                    if (!isHidden(t)) {
+                        const symbol = t.symbol?.toUpperCase();
+                        if (yearPrices[symbol]) {
+                            rwValueUSD += (t.balance || 0) * yearPrices[symbol];
+                        } else if (['USDT', 'USDC', 'DAI', 'BUSD'].includes(symbol)) {
+                            rwValueUSD += t.balance || 0;
+                        } else {
+                            // Per token sconosciuti usa il valore attuale come approssimazione
+                            rwValueUSD += t.valueUSD || 0;
+                        }
+                    }
+                });
             });
             
-            document.getElementById('statApiStatus').textContent = `${activeCount}/${apis.length}`;
+            const rwValueEUR = rwValueUSD * EUR_USD;
+            document.getElementById('rwValue').textContent = `${rwValueEUR.toLocaleString('it-IT', {minimumFractionDigits: 0})} €`;
         }
         
-        // ==================== WALLET MANAGEMENT ====================
+        // ==================== MODAL ====================
         function openAddWalletModal() {
             document.getElementById('addWalletModal').classList.add('active');
+            document.getElementById('newWalletAddress').focus();
         }
         
         function closeAddWalletModal() {
             document.getElementById('addWalletModal').classList.remove('active');
-            document.getElementById('walletName').value = '';
-            document.getElementById('walletAddress').value = '';
+            document.getElementById('newWalletAddress').value = '';
+            document.getElementById('newWalletName').value = '';
         }
         
+        // ==================== WALLET MANAGEMENT ====================
         function addWallet() {
-            const name = document.getElementById('walletName').value.trim();
-            const address = document.getElementById('walletAddress').value.trim();
+            let address = document.getElementById('newWalletAddress').value.trim();
+            const name = document.getElementById('newWalletName').value.trim() || `Wallet ${wallets.length + 1}`;
             
-            if (!name || !address) {
-                alert('Please enter both name and address');
+            const isEVM = address.startsWith('0x') && address.length === 42;
+            const isSolana = isSolanaAddress(address);
+            
+            if (!isEVM && !isSolana) {
+                alert('Invalid address. Use 0x... for EVM or Solana address.');
                 return;
             }
             
-            wallets.push({
-                name,
-                address,
-                tokens: [],
-                totalUSD: 0,
+            if (isEVM) address = address.toLowerCase();
+            
+            if (wallets.find(w => w.address === address)) {
+                alert('Wallet already exists');
+                return;
+            }
+            
+            wallets.push({ 
+                address, 
+                name, 
+                tokens: [], 
+                totalUSD: 0, 
+                type: isSolana ? 'solana' : 'evm',
                 lastSync: null
             });
             
             closeAddWalletModal();
             renderWalletList();
+            updateDashboard();
             saveToFirebase();
-            log(`➕ Wallet added: ${name}`, 'success');
         }
         
+        function isSolanaAddress(address) {
+            if (!address || address.startsWith('0x')) return false;
+            if (address.length < 32 || address.length > 44) return false;
+            const base58Regex = /^[1-9A-HJ-NP-Za-km-z]+$/;
+            return base58Regex.test(address);
+        }
+        
+        function removeWallet(index) {
+            if (confirm('Remove this wallet?')) {
+                wallets.splice(index, 1);
+                renderWalletList();
+                updateDashboard();
+                saveToFirebase();
+            }
+        }
+        
+        function filterWallets() {
+            const search = document.getElementById('walletSearch').value.toLowerCase();
+            document.querySelectorAll('.wallet-item').forEach(item => {
+                const name = item.dataset.name?.toLowerCase() || '';
+                const address = item.dataset.address?.toLowerCase() || '';
+                item.style.display = (name.includes(search) || address.includes(search)) ? 'flex' : 'none';
+            });
+        }
+        
+        // ==================== RENDER WALLET LIST ====================
         function renderWalletList() {
-            const container = document.getElementById('walletsList');
+            const container = document.getElementById('walletList');
+            document.getElementById('walletsCount').textContent = wallets.length;
             
-            const walletCards = wallets.map((w, i) => {
-                const chains = [...new Set((w.tokens || []).map(t => t.chain))];
-                const valueEUR = (w.totalUSD || 0) * EUR_USD;
+            if (wallets.length === 0) {
+                container.innerHTML = `
+                    <div style="padding:40px;text-align:center;color:var(--text-secondary);">
+                        <p style="font-size:16px;margin-bottom:8px;">No wallets added yet</p>
+                        <p style="font-size:13px;">Click "Add wallet" to get started</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = wallets.map((w, idx) => {
+                const tokenCount = w.tokens?.filter(t => !isHidden(t)).length || 0;
+                const totalEUR = (w.totalUSD || 0) * EUR_USD;
+                const syncStatus = w.lastSync ? 'synced' : 'pending';
+                const iconClass = w.type === 'solana' ? 'sol' : 'multi';
                 
                 return `
-                    <div class="wallet-card" onclick="openWalletDetail(${i})">
-                        <div class="wallet-header">
-                            <div>
-                                <div class="wallet-name">${w.name}</div>
-                                <div class="wallet-address">${w.address.slice(0, 8)}...${w.address.slice(-6)}</div>
+                    <div class="wallet-item" data-name="${w.name}" data-address="${w.address}" onclick="openWalletDetail(${idx})">
+                        <div class="wallet-icon ${iconClass}">${w.type === 'solana' ? '☀️' : '💼'}</div>
+                        <div class="wallet-info">
+                            <div class="wallet-name">
+                                ${w.name}
+                                <span class="badge badge-${syncStatus}">${syncStatus.toUpperCase()}</span>
                             </div>
-                            <div>
-                                <div class="wallet-value">${valueEUR.toLocaleString('it-IT', {minimumFractionDigits: 0})} €</div>
-                                <div class="wallet-tokens">${(w.tokens || []).length} tokens</div>
-                            </div>
+                            <div class="wallet-address">${w.address.slice(0, 10)}...${w.address.slice(-6)}</div>
                         </div>
-                        <div class="wallet-chains">
-                            ${chains.map(c => `<span class="chain-badge">${CHAIN_INFO[c]?.icon || '?'} ${CHAIN_INFO[c]?.name || c}</span>`).join('')}
+                        <div class="wallet-stats">
+                            <div class="wallet-stats-value">${tokenCount} tokens</div>
+                            <div class="wallet-stats-label">${w.lastSync ? formatTimeAgo(w.lastSync) : 'Not synced'}</div>
+                        </div>
+                        <div class="wallet-value">
+                            <div class="wallet-value-amount">${totalEUR.toLocaleString('it-IT', {minimumFractionDigits: 2})} €</div>
+                            <div class="wallet-value-label">Total value</div>
+                        </div>
+                        <div class="wallet-menu" onclick="event.stopPropagation(); removeWallet(${idx})">⋮</div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function formatTimeAgo(date) {
+            const now = new Date();
+            const past = new Date(date);
+            const diff = Math.floor((now - past) / 1000);
+            
+            if (diff < 60) return 'Just now';
+            if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+            if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+            return `${Math.floor(diff / 86400)}d ago`;
+        }
+        
+        // ==================== WALLET DETAIL ====================
+        function openWalletDetail(index) {
+            currentWalletIndex = index;
+            const wallet = wallets[index];
+            
+            document.getElementById('walletListView').style.display = 'none';
+            document.getElementById('walletDetailView').classList.add('active');
+            
+            document.getElementById('detailAddress').textContent = wallet.address;
+            document.getElementById('detailMeta').textContent = wallet.lastSync ? `Synced ${formatTimeAgo(wallet.lastSync)}` : 'Not synced yet';
+            
+            renderWalletDetail(wallet);
+        }
+        
+        function closeWalletDetail() {
+            currentWalletIndex = -1;
+            document.getElementById('walletListView').style.display = 'block';
+            document.getElementById('walletDetailView').classList.remove('active');
+        }
+        
+        function renderWalletDetail(wallet, filterChain = null) {
+            const allTokens = (wallet.tokens || []).filter(t => !isHidden(t)).sort((a, b) => (b.valueUSD || 0) - (a.valueUSD || 0));
+            
+            // Filtra per chain se specificato
+            const tokens = filterChain 
+                ? allTokens.filter(t => t.chain === filterChain)
+                : allTokens;
+            
+            const totalEUR = tokens.reduce((sum, t) => sum + ((t.valueUSD || 0) * EUR_USD), 0);
+            const allTotalEUR = allTokens.reduce((sum, t) => sum + ((t.valueUSD || 0) * EUR_USD), 0);
+            
+            // Header Holdings
+            const holdingsTitle = filterChain 
+                ? `${CHAIN_INFO[filterChain]?.name || filterChain} Holdings`
+                : 'Holdings';
+            
+            document.getElementById('detailTotalValue').textContent = `${totalEUR.toLocaleString('it-IT', {minimumFractionDigits: 2})} €`;
+            
+            // Holdings list con header aggiornato
+            const holdingsHeader = document.querySelector('.holdings-title');
+            if (holdingsHeader) {
+                holdingsHeader.innerHTML = filterChain 
+                    ? `<span style="cursor:pointer;" onclick="renderWalletDetail(wallets[${currentWalletIndex}])">← Holdings</span> / ${CHAIN_INFO[filterChain]?.name || filterChain}`
+                    : 'Holdings';
+            }
+            
+            const holdingsHtml = tokens.length === 0 
+                ? '<div style="padding:40px;text-align:center;color:var(--text-secondary);">No tokens found. Click Sync to scan.</div>'
+                : tokens.map(t => `
+                    <div class="token-row">
+                        <div class="token-info">
+                            <div class="token-icon">
+                                ${t.logo ? `<img src="${t.logo}" onerror="this.parentElement.textContent='${t.symbol.slice(0,2)}'">` : t.symbol.slice(0, 2)}
+                            </div>
+                            <span class="token-name">${t.symbol}</span>
+                            ${!filterChain ? `<span style="font-size:10px;color:var(--text-secondary);margin-left:6px;">${CHAIN_INFO[t.chain]?.name || t.chain}</span>` : ''}
+                        </div>
+                        <div class="token-balance">${formatBalance(t.balance)}</div>
+                        <div class="token-value">${((t.valueUSD || 0) * EUR_USD).toLocaleString('it-IT', {minimumFractionDigits: 2})}</div>
+                    </div>
+                `).join('');
+            
+            document.getElementById('holdingsList').innerHTML = holdingsHtml;
+            
+            // Chains list
+            const chainTotals = {};
+            allTokens.forEach(t => {
+                const chain = t.chain || 'unknown';
+                if (!chainTotals[chain]) chainTotals[chain] = { tokens: 0, value: 0 };
+                chainTotals[chain].tokens++;
+                chainTotals[chain].value += (t.valueUSD || 0) * EUR_USD;
+            });
+            
+            const colors = {
+                'eth': '#627eea', 'polygon': '#8247e5', 'bsc': '#f3ba2f',
+                'arbitrum': '#28a0f0', 'base': '#0052ff', 'optimism': '#ff0420',
+                'avalanche': '#e84142', 'pulse': '#ff00ff', 'solana': '#14f195',
+                'fantom': '#1969ff', 'moonbeam': '#53cbc8', 'scroll': '#ffeeda',
+                'zksync': '#8c8dfc', 'linea': '#61dfff', 'mantle': '#000000',
+                'gnosis': '#04795b', 'celo': '#35d07f', 'zora': '#5b5bd6'
+            };
+            
+            const chainsHtml = Object.entries(chainTotals)
+                .sort((a, b) => b[1].value - a[1].value)
+                .map(([chain, data]) => {
+                const info = CHAIN_INFO[chain] || { name: chain, icon: '?', color: '#888' };
+                const isActive = filterChain === chain;
+                const bgStyle = isActive ? 'background:var(--bg-tertiary);border-left:3px solid var(--accent-blue);' : '';
+                return `
+                    <div class="chain-item" style="cursor:pointer;${bgStyle}" onclick="renderWalletDetail(wallets[${currentWalletIndex}], '${chain}')">
+                        <div class="chain-icon" style="background:${colors[chain] || info.color};">${info.icon}</div>
+                        <div class="chain-info">
+                            <div class="chain-name">
+                                ${info.name}
+                                <span class="badge badge-synced">SYNCED</span>
+                            </div>
+                            <div class="chain-address">${wallet.address.slice(0, 8)}...${wallet.address.slice(-6)}</div>
+                        </div>
+                        <div class="chain-stats">
+                            <div class="chain-stats-value" style="color:var(--accent-blue);">${data.tokens} tokens</div>
+                        </div>
+                        <div class="chain-value">
+                            <div class="chain-value-amount">${data.value.toLocaleString('it-IT', {minimumFractionDigits: 2})} €</div>
+                            <div class="chain-value-label">Total value</div>
                         </div>
                     </div>
                 `;
             }).join('');
             
-            container.innerHTML = walletCards + `
-                <div class="add-wallet-card" onclick="openAddWalletModal()">
-                    <div class="add-wallet-icon">➕</div>
-                    <div class="add-wallet-text">Add Wallet</div>
-                </div>
-            `;
-            
-            document.getElementById('statWallets').textContent = wallets.length;
+            document.getElementById('chainsList').innerHTML = chainsHtml || '<div style="padding:20px;text-align:center;color:var(--text-secondary);">No chains found</div>';
         }
         
-        function openWalletDetail(index) {
-            currentWalletIndex = index;
-            const wallet = wallets[index];
-            // For now, just scan the wallet
-            scanWallet(index).then(() => {
-                renderWalletList();
-                updateDashboard();
-            });
-        }
-        
-        // ==================== SCANNING ====================
-        async function scanAllWallets() {
-            log('🔄 Starting full scan...', 'info');
-            
-            for (let i = 0; i < wallets.length; i++) {
-                await scanWallet(i);
-            }
-            
-            renderWalletList();
-            updateDashboard();
-            saveToFirebase();
-            log('✅ All wallets scanned!', 'success');
-        }
-        
-        async function scanWallet(index) {
-            const wallet = wallets[index];
-            log(`🔍 Scanning ${wallet.name}...`, 'info');
-            
-            try {
-                await fetchPrices();
-                
-                if (isSolanaAddress(wallet.address)) {
-                    wallet.tokens = await getSolanaBalances(wallet.address);
-                } else {
-                    wallet.tokens = await getEVMBalances(wallet.address);
-                }
-                
-                wallet.totalUSD = wallet.tokens
-                    .filter(t => !isHidden(t))
-                    .reduce((s, t) => s + (t.valueUSD || 0), 0);
-                wallet.lastSync = new Date().toISOString();
-                
-                log(`✅ ${wallet.name}: ${wallet.tokens.length} tokens, $${wallet.totalUSD.toFixed(2)}`, 'success');
-            } catch (e) {
-                log(`❌ ${wallet.name}: ${e.message}`, 'error');
-            }
-        }
-        
-        // ==================== EVM CHAIN SCANNING (Etherscan API) ====================
-        async function getEVMBalances(address) {
-            const allTokens = [];
-            
-            // Scan each chain in parallel
-            const promises = Object.entries(CHAIN_APIS).map(async ([chain, config]) => {
-                const apiKey = localStorage.getItem(`${config.keyName}_key`);
-                if (!apiKey) {
-                    log(`⚠️ No API key for ${chain}`, 'warning');
-                    return [];
-                }
-                
-                try {
-                    const tokens = await scanChainWithEtherscan(address, chain, config.url, apiKey);
-                    return tokens;
-                } catch (e) {
-                    log(`❌ ${chain}: ${e.message}`, 'error');
-                    return [];
-                }
-            });
-            
-            // Add PulseChain (no API needed, uses RPC)
-            promises.push(getPulseChainTokens(address));
-            
-            const results = await Promise.all(promises);
-            results.forEach(tokens => allTokens.push(...tokens));
-            
-            return allTokens;
-        }
-        
-        async function scanChainWithEtherscan(address, chain, apiUrl, apiKey) {
-            const tokens = [];
-            const nativeSymbol = { 'eth': 'ETH', 'bsc': 'BNB', 'polygon': 'MATIC', 'arbitrum': 'ETH', 'base': 'ETH' }[chain];
-            
-            log(`💎 Scanning ${chain}...`, 'info');
-            
-            // 1. Get native balance
-            try {
-                const balanceUrl = `${apiUrl}?module=account&action=balance&address=${address}&tag=latest&apikey=${apiKey}`;
-                const balanceRes = await fetch(balanceUrl);
-                const balanceData = await balanceRes.json();
-                
-                if (balanceData.status === '1' && balanceData.result) {
-                    const balance = parseFloat(balanceData.result) / 1e18;
-                    if (balance > 0.0001) {
-                        const price = prices[nativeSymbol] || 0;
-                        tokens.push({
-                            symbol: nativeSymbol,
-                            name: nativeSymbol,
-                            chain,
-                            balance,
-                            price,
-                            valueUSD: balance * price,
-                            contractAddress: 'native',
-                            logo: getTokenLogo(nativeSymbol)
-                        });
-                        log(`  ${nativeSymbol}: ${balance.toFixed(4)}`, 'info');
-                    }
-                }
-            } catch (e) {
-                log(`  ❌ Native balance error: ${e.message}`, 'error');
-            }
-            
-            // 2. Get ERC-20 token balances using tokentx
-            try {
-                // First get token transfer history to find all tokens
-                const txUrl = `${apiUrl}?module=account&action=tokentx&address=${address}&startblock=0&endblock=99999999&sort=desc&apikey=${apiKey}`;
-                const txRes = await fetch(txUrl);
-                const txData = await txRes.json();
-                
-                if (txData.status === '1' && txData.result) {
-                    // Extract unique contract addresses
-                    const contracts = new Map();
-                    for (const tx of txData.result) {
-                        if (!contracts.has(tx.contractAddress)) {
-                            contracts.set(tx.contractAddress, {
-                                symbol: tx.tokenSymbol,
-                                name: tx.tokenName,
-                                decimals: parseInt(tx.tokenDecimal) || 18
-                            });
-                        }
-                        // Limit to 50 unique tokens to avoid rate limits
-                        if (contracts.size >= 50) break;
-                    }
-                    
-                    log(`  Found ${contracts.size} token contracts`, 'info');
-                    
-                    // Get balance for each token (with rate limiting)
-                    let count = 0;
-                    for (const [contractAddr, tokenInfo] of contracts) {
-                        if (count >= 30) break; // Limit to avoid rate limits
-                        
-                        try {
-                            // Rate limit: 5 calls per second
-                            if (count > 0 && count % 5 === 0) {
-                                await new Promise(r => setTimeout(r, 1100));
-                            }
-                            
-                            const tokenBalUrl = `${apiUrl}?module=account&action=tokenbalance&contractaddress=${contractAddr}&address=${address}&tag=latest&apikey=${apiKey}`;
-                            const tokenRes = await fetch(tokenBalUrl);
-                            const tokenData = await tokenRes.json();
-                            
-                            if (tokenData.status === '1' && tokenData.result && tokenData.result !== '0') {
-                                const balance = parseFloat(tokenData.result) / Math.pow(10, tokenInfo.decimals);
-                                
-                                if (balance > 0) {
-                                    const symbol = tokenInfo.symbol.toUpperCase();
-                                    const price = prices[symbol] || 0;
-                                    const valueUSD = balance * price;
-                                    
-                                    // Skip if looks like scam
-                                    if (isScamToken(tokenInfo.name, symbol)) {
-                                        continue;
-                                    }
-                                    
-                                    // Skip if value is suspiciously high for unknown token
-                                    const knownTokens = ['USDT','USDC','DAI','WBTC','WETH','SHIB','LINK','UNI','AAVE','PEPE','ARB','OP'];
-                                    if (valueUSD > 500000 && !knownTokens.includes(symbol)) {
-                                        continue;
-                                    }
-                                    
-                                    tokens.push({
-                                        symbol,
-                                        name: tokenInfo.name,
-                                        chain,
-                                        balance,
-                                        price,
-                                        valueUSD,
-                                        contractAddress: contractAddr,
-                                        logo: getTokenLogo(symbol)
-                                    });
-                                }
-                            }
-                            count++;
-                        } catch (e) {
-                            // Skip individual token errors
-                        }
-                    }
-                }
-            } catch (e) {
-                log(`  ❌ Token scan error: ${e.message}`, 'error');
-            }
-            
-            log(`  ✅ ${chain}: ${tokens.length} tokens found`, 'success');
-            return tokens;
-        }
-        
-        // ==================== PULSECHAIN (RPC, no API key needed) ====================
-        async function getPulseChainTokens(address) {
-            const tokens = [];
-            try {
-                const res = await fetch('https://rpc.pulsechain.com', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        jsonrpc: '2.0',
-                        method: 'eth_getBalance',
-                        params: [address, 'latest'],
-                        id: 1
-                    })
-                });
-                
-                if (res.ok) {
-                    const data = await res.json();
-                    const balance = parseInt(data.result, 16) / 1e18;
-                    if (balance > 0.01) {
-                        tokens.push({
-                            symbol: 'PLS',
-                            name: 'PulseChain',
-                            chain: 'pulse',
-                            balance,
-                            price: prices['PLS'] || 0,
-                            valueUSD: balance * (prices['PLS'] || 0),
-                            logo: getTokenLogo('PLS'),
-                            contractAddress: 'native'
-                        });
-                    }
-                }
-            } catch (e) {
-                // Silent fail for PulseChain
-            }
-            return tokens;
-        }
-        
-        // ==================== SOLANA ====================
-        function isSolanaAddress(addr) {
-            return addr && !addr.startsWith('0x') && addr.length >= 32 && addr.length <= 44;
-        }
-        
-        async function getSolanaBalances(address) {
-            const tokens = [];
-            const heliusKey = localStorage.getItem('helius_key');
-            
-            if (heliusKey) {
-                // Use Helius if available
-                try {
-                    log('☀️ Scanning Solana with Helius...', 'info');
-                    const res = await fetch(`https://mainnet.helius-rpc.com/?api-key=${heliusKey}`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            jsonrpc: '2.0',
-                            id: 'helius',
-                            method: 'searchAssets',
-                            params: {
-                                ownerAddress: address,
-                                tokenType: 'fungible',
-                                displayOptions: { showNativeBalance: true }
-                            }
-                        })
-                    });
-                    
-                    if (res.ok) {
-                        const data = await res.json();
-                        
-                        // Native SOL
-                        if (data.result?.nativeBalance) {
-                            const balance = data.result.nativeBalance.lamports / 1e9;
-                            if (balance > 0.0001) {
-                                tokens.push({
-                                    symbol: 'SOL',
-                                    name: 'Solana',
-                                    chain: 'solana',
-                                    balance,
-                                    price: prices['SOL'] || 0,
-                                    valueUSD: balance * (prices['SOL'] || 0),
-                                    logo: getTokenLogo('SOL'),
-                                    contractAddress: 'native'
-                                });
-                            }
-                        }
-                        
-                        // SPL Tokens
-                        for (const item of (data.result?.items || [])) {
-                            if (!item.token_info) continue;
-                            
-                            const symbol = (item.token_info.symbol || 'UNKNOWN').toUpperCase();
-                            const name = item.content?.metadata?.name || symbol;
-                            const balance = item.token_info.balance / Math.pow(10, item.token_info.decimals || 9);
-                            const price = item.token_info.price_info?.price_per_token || prices[symbol] || 0;
-                            const valueUSD = item.token_info.price_info?.total_price || (balance * price);
-                            
-                            if (balance <= 0 || valueUSD < 0.01) continue;
-                            if (isScamToken(name, symbol)) continue;
-                            
-                            tokens.push({
-                                symbol,
-                                name,
-                                chain: 'solana',
-                                balance,
-                                price,
-                                valueUSD,
-                                logo: item.content?.links?.image || getTokenLogo(symbol),
-                                contractAddress: item.id
-                            });
-                        }
-                    }
-                } catch (e) {
-                    log(`❌ Helius error: ${e.message}`, 'error');
-                }
-            } else {
-                // Fallback to public RPC (only native SOL)
-                try {
-                    const res = await fetch('https://api.mainnet-beta.solana.com', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            jsonrpc: '2.0',
-                            id: 1,
-                            method: 'getBalance',
-                            params: [address]
-                        })
-                    });
-                    
-                    if (res.ok) {
-                        const data = await res.json();
-                        const balance = (data.result?.value || 0) / 1e9;
-                        if (balance > 0.001) {
-                            tokens.push({
-                                symbol: 'SOL',
-                                name: 'Solana',
-                                chain: 'solana',
-                                balance,
-                                price: prices['SOL'] || 0,
-                                valueUSD: balance * (prices['SOL'] || 0),
-                                logo: getTokenLogo('SOL'),
-                                contractAddress: 'native'
-                            });
-                        }
-                    }
-                } catch (e) {
-                    log(`❌ Solana RPC error: ${e.message}`, 'error');
-                }
-            }
-            
-            return tokens;
-        }
-        
-        // ==================== PRICE FETCHING ====================
-        async function fetchPrices() {
-            try {
-                const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,binancecoin,solana,matic-network,avalanche-2,pulsechain,hex,usd-coin,tether,dai,arbitrum,optimism&vs_currencies=usd');
-                if (res.ok) {
-                    const data = await res.json();
-                    prices = {
-                        'BTC': data.bitcoin?.usd || 0,
-                        'ETH': data.ethereum?.usd || 0,
-                        'BNB': data.binancecoin?.usd || 0,
-                        'SOL': data.solana?.usd || 0,
-                        'MATIC': data['matic-network']?.usd || 0,
-                        'AVAX': data['avalanche-2']?.usd || 0,
-                        'PLS': data.pulsechain?.usd || 0,
-                        'HEX': data.hex?.usd || 0,
-                        'USDC': data['usd-coin']?.usd || 1,
-                        'USDT': data.tether?.usd || 1,
-                        'DAI': data.dai?.usd || 1,
-                        'ARB': data.arbitrum?.usd || 0,
-                        'OP': data.optimism?.usd || 0
-                    };
-                    log('💰 Prices updated', 'info');
-                }
-            } catch (e) {
-                log(`❌ Price fetch error: ${e.message}`, 'error');
-            }
-        }
-        
-        async function fetchEurUsdRate() {
-            try {
-                const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
-                if (res.ok) {
-                    const data = await res.json();
-                    EUR_USD = data.rates.EUR;
-                    document.getElementById('eurUsdRate').textContent = EUR_USD.toFixed(4);
-                }
-            } catch (e) {
-                console.error('EUR/USD rate error:', e);
-            }
-        }
-        
-        // ==================== HELPERS ====================
-        function isScamToken(name, symbol) {
-            const scamPatterns = [
-                'airdrop', 'visit', '.com', '.io', '.xyz', 'claim', 'reward',
-                'free', 'bonus', 'gift', 'promo', 'voucher', '$', '!',
-                'safemoon', 'babydoge', 'elonmusk', 'shiba2', 'doge2'
-            ];
-            const lower = (name + symbol).toLowerCase();
-            return scamPatterns.some(p => lower.includes(p));
+        function formatBalance(balance) {
+            if (!balance) return '0';
+            if (balance >= 1e9) return (balance / 1e9).toFixed(2) + 'B';
+            if (balance >= 1e6) return (balance / 1e6).toFixed(2) + 'M';
+            if (balance >= 1e3) return (balance / 1e3).toFixed(2) + 'K';
+            if (balance >= 1) return balance.toFixed(4);
+            return balance.toFixed(8);
         }
         
         function isHidden(token) {
-            if (hiddenTokens.includes(`symbol:${token.symbol.toUpperCase()}`)) return true;
-            if (token.contractAddress && hiddenTokens.includes(`contract:${token.contractAddress.toLowerCase()}`)) return true;
-            return false;
+            const contractId = `contract:${(token.contractAddress || '').toLowerCase()}`;
+            const symbolId = `symbol:${(token.symbol || '').toUpperCase()}`;
+            return hiddenTokens.includes(contractId) || hiddenTokens.includes(symbolId);
         }
         
-        function formatBalance(bal) {
-            if (bal >= 1000000) return (bal / 1000000).toFixed(2) + 'M';
-            if (bal >= 1000) return (bal / 1000).toFixed(2) + 'K';
-            if (bal >= 1) return bal.toFixed(2);
-            if (bal >= 0.0001) return bal.toFixed(4);
-            return bal.toExponential(2);
-        }
+        // ==================== DASHBOARD ====================
+        let portfolioChart = null;
         
-        function getTokenLogo(symbol) {
-            const logos = {
-                'BTC': 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',
-                'ETH': 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
-                'BNB': 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',
-                'SOL': 'https://assets.coingecko.com/coins/images/4128/small/solana.png',
-                'MATIC': 'https://assets.coingecko.com/coins/images/4713/small/matic-token-icon.png',
-                'USDT': 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
-                'USDC': 'https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png',
-                'PLS': 'https://assets.coingecko.com/coins/images/25645/small/PLS.png',
-                'ARB': 'https://assets.coingecko.com/coins/images/16547/small/photo_2023-03-29_21.47.00.jpeg',
-                'OP': 'https://assets.coingecko.com/coins/images/25244/small/Optimism.png'
-            };
-            return logos[symbol] || '';
-        }
-        
-        // ==================== DASHBOARD UPDATE ====================
         function updateDashboard() {
             let totalUSD = 0;
-            let tokenCount = 0;
+            let totalTokens = 0;
+            const chains = new Set();
             const chainData = {};
             const allTokens = [];
             
-            // Aggregate wallet data
+            // Wallets
             wallets.forEach(w => {
                 (w.tokens || []).forEach(t => {
-                    if (isHidden(t)) return;
-                    
-                    totalUSD += t.valueUSD || 0;
-                    tokenCount++;
-                    allTokens.push(t);
-                    
-                    if (!chainData[t.chain]) {
-                        chainData[t.chain] = { value: 0, tokens: [] };
+                    if (!isHidden(t)) {
+                        totalUSD += t.valueUSD || 0;
+                        totalTokens++;
+                        if (t.chain) {
+                            chains.add(t.chain);
+                            if (!chainData[t.chain]) chainData[t.chain] = { tokens: [], value: 0 };
+                            chainData[t.chain].tokens.push(t);
+                            chainData[t.chain].value += t.valueUSD || 0;
+                        }
+                        allTokens.push(t);
                     }
-                    chainData[t.chain].value += t.valueUSD || 0;
-                    chainData[t.chain].tokens.push(t);
                 });
             });
             
-            // Add exchange data
+            // Exchanges
             exchanges.forEach(ex => {
                 (ex.tokens || []).forEach(t => {
                     totalUSD += t.valueUSD || 0;
-                    tokenCount++;
-                    allTokens.push({ ...t, chain: 'exchange' });
-                    
-                    if (!chainData['exchange']) {
-                        chainData['exchange'] = { value: 0, tokens: [] };
-                    }
+                    totalTokens++;
+                    chains.add('exchange');
+                    if (!chainData['exchange']) chainData['exchange'] = { tokens: [], value: 0 };
+                    chainData['exchange'].tokens.push({ ...t, exchange: ex.name });
                     chainData['exchange'].value += t.valueUSD || 0;
-                    chainData['exchange'].tokens.push(t);
+                    allTokens.push({ ...t, chain: 'exchange', exchange: ex.name });
                 });
             });
             
-            // Update stats
-            document.getElementById('totalValue').textContent = 
-                `${(totalUSD * EUR_USD).toLocaleString('it-IT', {minimumFractionDigits: 0})} €`;
-            document.getElementById('statTokens').textContent = tokenCount;
-            document.getElementById('statChains').textContent = Object.keys(chainData).length;
-            document.getElementById('hiddenCount').textContent = hiddenTokens.length;
+            const totalEUR = totalUSD * EUR_USD;
+            
+            document.getElementById('totalValueUSD').textContent = totalUSD.toLocaleString('en-US', {minimumFractionDigits: 2});
+            document.getElementById('totalValueEUR').textContent = `${totalEUR.toLocaleString('it-IT', {minimumFractionDigits: 2})} €`;
+            document.getElementById('rwValue').textContent = `${totalEUR.toLocaleString('it-IT', {minimumFractionDigits: 2})} €`;
+            document.getElementById('statWallets').textContent = wallets.length;
+            document.getElementById('statTokens').textContent = totalTokens;
+            document.getElementById('statChains').textContent = chains.size;
+            document.getElementById('eurUsdRate').textContent = EUR_USD.toFixed(4);
             
             // Render chain distribution
             renderChainDistribution(chainData, totalUSD);
@@ -1609,7 +2247,7 @@
             // Render top holdings
             renderTopHoldings(allTokens);
             
-            // Render chart
+            // Render portfolio chart
             renderPortfolioChart(chainData);
         }
         
@@ -1617,20 +2255,38 @@
             const container = document.getElementById('chainDistribution');
             const sortedChains = Object.entries(chainData).sort((a, b) => b[1].value - a[1].value);
             
-            if (sortedChains.length === 0) {
-                container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary);">No data yet. Add a wallet and scan!</div>';
-                return;
-            }
+            const colors = {
+                'eth': '#627eea',
+                'polygon': '#8247e5',
+                'bsc': '#f3ba2f',
+                'arbitrum': '#28a0f0',
+                'base': '#0052ff',
+                'optimism': '#ff0420',
+                'avalanche': '#e84142',
+                'pulse': '#ff00ff',
+                'solana': '#14f195',
+                'fantom': '#1969ff',
+                'moonbeam': '#53cbc8',
+                'scroll': '#ffeeda',
+                'zksync': '#8c8dfc',
+                'linea': '#61dfff',
+                'mantle': '#000000',
+                'gnosis': '#04795b',
+                'celo': '#35d07f',
+                'zora': '#5b5bd6',
+                'exchange': '#6b7280'
+            };
             
             container.innerHTML = sortedChains.map(([chain, data]) => {
                 const info = CHAIN_INFO[chain] || { name: chain, icon: '?', color: '#888' };
                 const percent = totalUSD > 0 ? ((data.value / totalUSD) * 100).toFixed(1) : 0;
                 const valueEUR = data.value * EUR_USD;
+                const color = colors[chain] || info.color;
                 
                 return `
                     <div class="chain-card" onclick="openChainTokensModal('${chain}')">
                         <div class="chain-card-header">
-                            <div class="chain-card-icon" style="background:${info.color};">${info.icon}</div>
+                            <div class="chain-card-icon" style="background:${color};">${info.icon}</div>
                             <div class="chain-card-info">
                                 <div class="chain-card-name">${info.name}</div>
                                 <div class="chain-card-tokens">${data.tokens.length} tokens</div>
@@ -1641,7 +2297,7 @@
                             </div>
                         </div>
                         <div class="chain-card-bar">
-                            <div class="chain-card-bar-fill" style="width:${percent}%;background:${info.color};"></div>
+                            <div class="chain-card-bar-fill" style="width:${percent}%;background:${color};"></div>
                         </div>
                     </div>
                 `;
@@ -1667,7 +2323,7 @@
                         <span style="font-size:11px;color:var(--text-secondary);margin-left:8px;">${CHAIN_INFO[t.chain]?.name || t.chain}</span>
                     </div>
                     <div class="token-balance">${formatBalance(t.balance)}</div>
-                    <div class="token-value">${((t.valueUSD || 0) * EUR_USD).toLocaleString('it-IT', {minimumFractionDigits: 0})} €</div>
+                    <div class="token-value">${((t.valueUSD || 0) * EUR_USD).toLocaleString('it-IT', {minimumFractionDigits: 0})}</div>
                 </div>
             `).join('');
         }
@@ -1680,18 +2336,40 @@
             const values = [];
             const colors = [];
             
+            const colorMap = {
+                'eth': '#627eea',
+                'polygon': '#8247e5',
+                'bsc': '#f3ba2f',
+                'arbitrum': '#28a0f0',
+                'base': '#0052ff',
+                'optimism': '#ff0420',
+                'avalanche': '#e84142',
+                'pulse': '#ff00ff',
+                'solana': '#14f195',
+                'fantom': '#1969ff',
+                'moonbeam': '#53cbc8',
+                'scroll': '#ffeeda',
+                'zksync': '#8c8dfc',
+                'linea': '#61dfff',
+                'mantle': '#000000',
+                'gnosis': '#04795b',
+                'celo': '#35d07f',
+                'zora': '#5b5bd6',
+                'exchange': '#6b7280'
+            };
+            
             Object.entries(chainData)
                 .sort((a, b) => b[1].value - a[1].value)
                 .forEach(([chain, data]) => {
-                    const info = CHAIN_INFO[chain] || { name: chain, color: '#888' };
+                    const info = CHAIN_INFO[chain] || { name: chain };
                     labels.push(info.name);
                     values.push(data.value * EUR_USD);
-                    colors.push(info.color);
+                    colors.push(colorMap[chain] || '#888');
                 });
             
-            if (portfolioChart) portfolioChart.destroy();
-            
-            if (values.length === 0) return;
+            if (portfolioChart) {
+                portfolioChart.destroy();
+            }
             
             portfolioChart = new Chart(ctx, {
                 type: 'doughnut',
@@ -1727,9 +2405,11 @@
                             borderColor: '#30363d',
                             borderWidth: 1,
                             padding: 12,
+                            displayColors: true,
                             callbacks: {
                                 label: function(context) {
-                                    return ` ${context.raw.toLocaleString('it-IT', {minimumFractionDigits: 0})} €`;
+                                    const value = context.raw;
+                                    return ` ${value.toLocaleString('it-IT', {minimumFractionDigits: 0})} €`;
                                 }
                             }
                         }
@@ -1738,9 +2418,18 @@
             });
         }
         
-        // ==================== CHAIN TOKENS MODAL ====================
+        // Chain tokens modal
         function openChainTokensModal(chain) {
             const info = CHAIN_INFO[chain] || { name: chain, icon: '?', color: '#888' };
+            const colors = {
+                'eth': '#627eea', 'polygon': '#8247e5', 'bsc': '#f3ba2f',
+                'arbitrum': '#28a0f0', 'base': '#0052ff', 'optimism': '#ff0420',
+                'avalanche': '#e84142', 'pulse': '#ff00ff', 'solana': '#14f195',
+                'fantom': '#1969ff', 'moonbeam': '#53cbc8', 'scroll': '#ffeeda',
+                'zksync': '#8c8dfc', 'linea': '#61dfff', 'mantle': '#000000',
+                'gnosis': '#04795b', 'celo': '#35d07f', 'zora': '#5b5bd6',
+                'exchange': '#6b7280'
+            };
             
             // Collect all tokens for this chain
             const chainTokens = [];
@@ -1756,24 +2445,24 @@
             
             const totalValue = chainTokens.reduce((sum, t) => sum + ((t.valueUSD || 0) * EUR_USD), 0);
             
-            document.getElementById('modalChainIcon').style.background = info.color;
+            document.getElementById('modalChainIcon').style.background = colors[chain] || info.color;
             document.getElementById('modalChainIcon').textContent = info.icon;
             document.getElementById('modalChainName').textContent = info.name;
-            document.getElementById('modalChainValue').textContent = `${totalValue.toLocaleString('it-IT', {minimumFractionDigits: 2})} €`;
+            document.getElementById('modalChainValue').textContent = `${totalValue.toLocaleString('it-IT', {minimumFractionDigits: 0})} €`;
             
             document.getElementById('chainTokensList').innerHTML = chainTokens.length === 0
                 ? '<div style="padding:40px;text-align:center;color:var(--text-secondary);">No tokens found</div>'
                 : chainTokens.map(t => `
-                    <div class="token-row">
-                        <div class="token-info">
-                            <div class="token-icon">
+                    <div class="chain-token-item">
+                        <div class="chain-token-info">
+                            <div class="chain-token-icon">
                                 ${t.logo ? `<img src="${t.logo}" onerror="this.parentElement.textContent='${t.symbol.slice(0,2)}'">` : t.symbol.slice(0, 2)}
                             </div>
-                            <span class="token-name">${t.symbol}</span>
+                            <span class="chain-token-symbol">${t.symbol}</span>
                         </div>
-                        <div class="token-balance">${formatBalance(t.balance)}</div>
-                        <div class="token-value">${((t.valueUSD || 0) * EUR_USD).toLocaleString('it-IT', {minimumFractionDigits: 2})} €</div>
-                        <button class="btn btn-danger btn-small" onclick="hideToken('${t.symbol}', '${t.contractAddress || ''}')">✕</button>
+                        <div class="chain-token-balance">${formatBalance(t.balance)}</div>
+                        <div class="chain-token-value">${((t.valueUSD || 0) * EUR_USD).toLocaleString('it-IT', {minimumFractionDigits: 2})}</div>
+                        <button class="chain-token-hide" onclick="hideToken('${t.symbol}', '${t.contractAddress || ''}'); closeChainTokensModal();" title="Hide">✕</button>
                     </div>
                 `).join('');
             
@@ -1782,6 +2471,73 @@
         
         function closeChainTokensModal() {
             document.getElementById('chainTokensModal').classList.remove('active');
+        }
+        
+        // Mostra token di una chain specifica nel wallet detail
+        function showChainTokensInWallet(chain) {
+            if (currentWalletIndex < 0) return;
+            
+            const wallet = wallets[currentWalletIndex];
+            const info = CHAIN_INFO[chain] || { name: chain, icon: '?', color: '#888' };
+            const colors = {
+                'eth': '#627eea', 'polygon': '#8247e5', 'bsc': '#f3ba2f',
+                'arbitrum': '#28a0f0', 'base': '#0052ff', 'optimism': '#ff0420',
+                'avalanche': '#e84142', 'pulse': '#ff00ff', 'solana': '#14f195',
+                'fantom': '#1969ff', 'moonbeam': '#53cbc8', 'scroll': '#ffeeda',
+                'zksync': '#8c8dfc', 'linea': '#61dfff', 'mantle': '#000000',
+                'gnosis': '#04795b', 'celo': '#35d07f', 'zora': '#5b5bd6',
+                'exchange': '#6b7280'
+            };
+            
+            // Filtra token per questa chain
+            const chainTokens = (wallet.tokens || [])
+                .filter(t => t.chain === chain && !isHidden(t))
+                .sort((a, b) => (b.valueUSD || 0) - (a.valueUSD || 0));
+            
+            const totalValue = chainTokens.reduce((sum, t) => sum + ((t.valueUSD || 0) * EUR_USD), 0);
+            
+            document.getElementById('modalChainIcon').style.background = colors[chain] || info.color;
+            document.getElementById('modalChainIcon').textContent = info.icon;
+            document.getElementById('modalChainName').textContent = info.name;
+            document.getElementById('modalChainValue').textContent = `${totalValue.toLocaleString('it-IT', {minimumFractionDigits: 2})} €`;
+            
+            document.getElementById('chainTokensList').innerHTML = chainTokens.length === 0
+                ? '<div style="padding:40px;text-align:center;color:var(--text-secondary);">No tokens found</div>'
+                : chainTokens.map(t => `
+                    <div class="chain-token-item">
+                        <div class="chain-token-info">
+                            <div class="chain-token-icon">
+                                ${t.logo ? `<img src="${t.logo}" onerror="this.parentElement.textContent='${t.symbol.slice(0,2)}'">` : t.symbol.slice(0, 2)}
+                            </div>
+                            <span class="chain-token-symbol">${t.symbol}</span>
+                        </div>
+                        <div class="chain-token-balance">${formatBalance(t.balance)}</div>
+                        <div class="chain-token-value">${((t.valueUSD || 0) * EUR_USD).toLocaleString('it-IT', {minimumFractionDigits: 2})}</div>
+                        <button class="chain-token-hide" onclick="hideTokenAndRefresh('${t.symbol}', '${t.contractAddress || ''}', '${chain}')" title="Hide">✕</button>
+                    </div>
+                `).join('');
+            
+            document.getElementById('chainTokensModal').classList.add('active');
+        }
+        
+        function hideTokenAndRefresh(symbol, contractAddress, chain) {
+            if (contractAddress && contractAddress !== 'native') {
+                hiddenTokens.push(`contract:${contractAddress.toLowerCase()}`);
+            } else {
+                hiddenTokens.push(`symbol:${symbol.toUpperCase()}`);
+            }
+            
+            // Refresh wallet detail
+            if (currentWalletIndex >= 0) {
+                renderWalletDetail(wallets[currentWalletIndex]);
+            }
+            
+            // Re-open chain modal with updated data
+            showChainTokensInWallet(chain);
+            
+            updateDashboard();
+            renderWalletList();
+            saveToFirebase();
         }
         
         function hideToken(symbol, contractAddress) {
@@ -1793,19 +2549,628 @@
             updateDashboard();
             renderWalletList();
             saveToFirebase();
-            closeChainTokensModal();
         }
         
-        function resetHiddenTokens() {
-            if (confirm('Show all hidden tokens again?')) {
-                hiddenTokens = [];
-                updateDashboard();
+        // ==================== SCANNING ====================
+        async function scanAllWallets() {
+            for (let i = 0; i < wallets.length; i++) {
+                await scanWallet(i);
+            }
+            renderWalletList();
+            updateDashboard();
+            saveToFirebase();
+        }
+        
+        async function scanCurrentWallet() {
+            if (currentWalletIndex >= 0) {
+                await scanWallet(currentWalletIndex);
+                renderWalletDetail(wallets[currentWalletIndex]);
                 renderWalletList();
+                updateDashboard();
                 saveToFirebase();
             }
         }
         
+        function deleteCurrentWallet() {
+            if (currentWalletIndex >= 0 && confirm('Remove this wallet?')) {
+                wallets.splice(currentWalletIndex, 1);
+                closeWalletDetail();
+                renderWalletList();
+                updateDashboard();
+                saveToFirebase();
+            }
+        }
+        
+        async function scanWallet(index) {
+            const wallet = wallets[index];
+            console.log(`🔍 Scanning ${wallet.name}...`);
+            
+            try {
+                await fetchPrices();
+                
+                if (isSolanaAddress(wallet.address)) {
+                    wallet.tokens = await getHeliusSolanaBalances(wallet.address);
+                    if (wallet.tokens.length === 0) {
+                        wallet.tokens = await getSolanaTokens(wallet.address);
+                    }
+                } else {
+                    wallet.tokens = await getCovalentBalances(wallet.address);
+                    if (wallet.tokens.length === 0) {
+                        wallet.tokens = await getAlchemyBalances(wallet.address);
+                    }
+                    // PulseChain
+                    const pulseTokens = await getPulseChainTokens(wallet.address);
+                    wallet.tokens.push(...pulseTokens);
+                }
+                
+                wallet.totalUSD = wallet.tokens.filter(t => !isHidden(t)).reduce((s, t) => s + (t.valueUSD || 0), 0);
+                wallet.lastSync = new Date().toISOString();
+                
+                console.log(`✅ Found ${wallet.tokens.length} tokens, $${wallet.totalUSD.toFixed(2)}`);
+            } catch (e) {
+                console.error('Scan error:', e);
+            }
+        }
+        
+        // ==================== API FUNCTIONS ====================
+        async function fetchPrices() {
+            try {
+                const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,binancecoin,solana,matic-network,avalanche-2,pulsechain,hex,usd-coin,tether,dai&vs_currencies=usd');
+                if (res.ok) {
+                    const data = await res.json();
+                    prices = {
+                        'BTC': data.bitcoin?.usd || 0,
+                        'ETH': data.ethereum?.usd || 0,
+                        'BNB': data.binancecoin?.usd || 0,
+                        'SOL': data.solana?.usd || 0,
+                        'MATIC': data['matic-network']?.usd || 0,
+                        'AVAX': data['avalanche-2']?.usd || 0,
+                        'PLS': data.pulsechain?.usd || 0,
+                        'HEX': data.hex?.usd || 0,
+                        'USDC': data['usd-coin']?.usd || 1,
+                        'USDT': data.tether?.usd || 1,
+                        'DAI': data.dai?.usd || 1
+                    };
+                }
+            } catch (e) {
+                console.error('Price fetch error:', e);
+            }
+        }
+        
+        async function fetchEurUsdRate() {
+            try {
+                const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+                if (res.ok) {
+                    const data = await res.json();
+                    EUR_USD = data.rates.EUR;
+                    document.getElementById('eurUsdRate').textContent = EUR_USD.toFixed(4);
+                }
+            } catch (e) {
+                console.error('EUR/USD rate error:', e);
+            }
+        }
+        
+        // Etherscan API (and other block explorers)
+        async function getCovalentBalances(address) {
+            const tokens = [];
+            
+            // Chain configurations with their respective APIs
+            const chains = {
+                'eth': { url: 'https://api.etherscan.io/api', keyName: 'etherscan', native: 'ETH' },
+                'bsc': { url: 'https://api.bscscan.com/api', keyName: 'bscscan', native: 'BNB' },
+                'polygon': { url: 'https://api.polygonscan.com/api', keyName: 'polygonscan', native: 'MATIC' },
+                'arbitrum': { url: 'https://api.arbiscan.io/api', keyName: 'arbiscan', native: 'ETH' },
+                'base': { url: 'https://api.basescan.org/api', keyName: 'basescan', native: 'ETH' }
+            };
+            
+            // Scan each chain in parallel
+            const promises = Object.entries(chains).map(async ([chain, config]) => {
+                const apiKey = localStorage.getItem(`${config.keyName}_key`);
+                if (!apiKey) {
+                    console.log(`⚠️ No API key for ${chain}`);
+                    return [];
+                }
+                
+                try {
+                    console.log(`💎 Scanning ${chain} with ${config.keyName}...`);
+                    const chainTokens = [];
+                    
+                    // 1. Get native balance
+                    const balanceUrl = `${config.url}?module=account&action=balance&address=${address}&tag=latest&apikey=${apiKey}`;
+                    const balanceRes = await fetch(balanceUrl);
+                    const balanceData = await balanceRes.json();
+                    
+                    if (balanceData.status === '1' && balanceData.result) {
+                        const balance = parseFloat(balanceData.result) / 1e18;
+                        if (balance > 0.0001) {
+                            const symbol = config.native;
+                            const price = prices[symbol] || 0;
+                            chainTokens.push({
+                                symbol,
+                                name: symbol,
+                                chain,
+                                balance,
+                                price,
+                                valueUSD: balance * price,
+                                logo: getTokenLogo(symbol),
+                                contractAddress: 'native'
+                            });
+                            console.log(`  ${symbol}: ${balance.toFixed(4)}`);
+                        }
+                    }
+                    
+                    // 2. Get ERC-20 tokens via tokentx
+                    const txUrl = `${config.url}?module=account&action=tokentx&address=${address}&startblock=0&endblock=99999999&sort=desc&apikey=${apiKey}`;
+                    const txRes = await fetch(txUrl);
+                    const txData = await txRes.json();
+                    
+                    if (txData.status === '1' && txData.result) {
+                        // Extract unique contracts
+                        const contracts = new Map();
+                        for (const tx of txData.result) {
+                            if (!contracts.has(tx.contractAddress)) {
+                                contracts.set(tx.contractAddress, {
+                                    symbol: tx.tokenSymbol,
+                                    name: tx.tokenName,
+                                    decimals: parseInt(tx.tokenDecimal) || 18
+                                });
+                            }
+                            if (contracts.size >= 30) break; // Limit to avoid rate limits
+                        }
+                        
+                        console.log(`  Found ${contracts.size} token contracts`);
+                        
+                        // Get balance for each token (with rate limiting)
+                        let count = 0;
+                        for (const [contractAddr, tokenInfo] of contracts) {
+                            if (count >= 20) break;
+                            
+                            try {
+                                // Rate limit: pause every 5 calls
+                                if (count > 0 && count % 5 === 0) {
+                                    await new Promise(r => setTimeout(r, 1100));
+                                }
+                                
+                                const tokenBalUrl = `${config.url}?module=account&action=tokenbalance&contractaddress=${contractAddr}&address=${address}&tag=latest&apikey=${apiKey}`;
+                                const tokenRes = await fetch(tokenBalUrl);
+                                const tokenData = await tokenRes.json();
+                                
+                                if (tokenData.status === '1' && tokenData.result && tokenData.result !== '0') {
+                                    const balance = parseFloat(tokenData.result) / Math.pow(10, tokenInfo.decimals);
+                                    
+                                    if (balance > 0) {
+                                        const symbol = tokenInfo.symbol.toUpperCase();
+                                        const price = prices[symbol] || 0;
+                                        const valueUSD = balance * price;
+                                        
+                                        if (isScamToken(tokenInfo.name, symbol)) continue;
+                                        
+                                        const knownTokens = ['ETH','BNB','MATIC','USDT','USDC','DAI','WBTC','WETH','SHIB','BONE','LINK','UNI','AAVE','PEPE','ARB','OP'];
+                                        if (valueUSD > 500000 && !knownTokens.includes(symbol)) continue;
+                                        
+                                        chainTokens.push({
+                                            symbol,
+                                            name: tokenInfo.name,
+                                            chain,
+                                            balance,
+                                            price,
+                                            valueUSD,
+                                            logo: getTokenLogo(symbol),
+                                            contractAddress: contractAddr
+                                        });
+                                    }
+                                }
+                                count++;
+                            } catch (e) {
+                                // Skip individual token errors
+                            }
+                        }
+                    }
+                    
+                    console.log(`✅ ${chain}: ${chainTokens.length} tokens found`);
+                    return chainTokens;
+                } catch (e) {
+                    console.error(`❌ ${chain}:`, e.message);
+                    return [];
+                }
+            });
+            
+            const results = await Promise.all(promises);
+            results.forEach(chainTokens => tokens.push(...chainTokens));
+            
+            console.log(`💎 TOTAL: ${tokens.length} tokens`);
+            return tokens;
+        }
+        
+        // Helius API (Solana)
+        async function getHeliusSolanaBalances(address) {
+            const key = localStorage.getItem('helius_key');
+            const tokens = [];
+            if (!key) return tokens;
+            
+            try {
+                console.log('☀️ Helius scanning Solana...');
+                const res = await fetch(`https://mainnet.helius-rpc.com/?api-key=${key}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        id: 'helius',
+                        method: 'searchAssets',
+                        params: {
+                            ownerAddress: address,
+                            tokenType: 'fungible',
+                            displayOptions: { showNativeBalance: true }
+                        }
+                    })
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    
+                    // Native SOL
+                    if (data.result?.nativeBalance) {
+                        const balance = data.result.nativeBalance.lamports / 1e9;
+                        if (balance > 0.0001) {
+                            tokens.push({
+                                symbol: 'SOL', name: 'Solana', chain: 'solana',
+                                balance, price: prices['SOL'] || 0,
+                                valueUSD: balance * (prices['SOL'] || 0),
+                                logo: getTokenLogo('SOL'), contractAddress: 'native'
+                            });
+                        }
+                    }
+                    
+                    // SPL Tokens
+                    for (const item of (data.result?.items || [])) {
+                        if (!item.token_info) continue;
+                        
+                        const symbol = (item.token_info.symbol || 'UNKNOWN').toUpperCase();
+                        const name = item.content?.metadata?.name || symbol;
+                        const balance = item.token_info.balance / Math.pow(10, item.token_info.decimals || 9);
+                        const price = item.token_info.price_info?.price_per_token || prices[symbol] || 0;
+                        const valueUSD = item.token_info.price_info?.total_price || (balance * price);
+                        
+                        if (balance <= 0 || valueUSD < 0.01) continue;
+                        if (isScamToken(name, symbol)) {
+                            console.log(`🚫 SCAM filtered: ${name}`);
+                            continue;
+                        }
+                        
+                        tokens.push({
+                            symbol, name, chain: 'solana', balance, price, valueUSD,
+                            logo: item.content?.links?.image || getTokenLogo(symbol),
+                            contractAddress: item.id
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error('Helius error:', e);
+            }
+            
+            return tokens;
+        }
+        
+        // Alchemy API (no longer needed - using Etherscan APIs directly)
+        async function getAlchemyBalances(address) {
+            // This function is now deprecated - Etherscan APIs are used instead
+            console.log('ℹ️ Alchemy fallback not needed - using Etherscan APIs');
+            return [];
+        }
+        
+        // PulseChain RPC
+        async function getPulseChainTokens(address) {
+            const tokens = [];
+            try {
+                const res = await fetch('https://rpc.pulsechain.com', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'eth_getBalance',
+                        params: [address, 'latest'],
+                        id: 1
+                    })
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    const balance = parseInt(data.result, 16) / 1e18;
+                    if (balance > 0.01) {
+                        tokens.push({
+                            symbol: 'PLS', name: 'PulseChain', chain: 'pulse',
+                            balance, price: prices['PLS'] || 0,
+                            valueUSD: balance * (prices['PLS'] || 0),
+                            logo: getTokenLogo('PLS'), contractAddress: 'native'
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error('PulseChain error:', e);
+            }
+            return tokens;
+        }
+        
+        // Solana RPC fallback
+        async function getSolanaTokens(address) {
+            const tokens = [];
+            try {
+                const res = await fetch('https://api.mainnet-beta.solana.com', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        id: 1,
+                        method: 'getBalance',
+                        params: [address]
+                    })
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    const balance = (data.result?.value || 0) / 1e9;
+                    if (balance > 0.001) {
+                        tokens.push({
+                            symbol: 'SOL', name: 'Solana', chain: 'solana',
+                            balance, price: prices['SOL'] || 0,
+                            valueUSD: balance * (prices['SOL'] || 0),
+                            logo: getTokenLogo('SOL'), contractAddress: 'native'
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error('Solana RPC error:', e);
+            }
+            return tokens;
+        }
+        
+        function getTokenLogo(symbol) {
+            const logos = {
+                'BTC': 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',
+                'ETH': 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
+                'BNB': 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',
+                'SOL': 'https://assets.coingecko.com/coins/images/4128/small/solana.png',
+                'MATIC': 'https://assets.coingecko.com/coins/images/4713/small/matic-token-icon.png',
+                'USDT': 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
+                'USDC': 'https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png',
+                'PLS': 'https://assets.coingecko.com/coins/images/25645/small/PLS.png'
+            };
+            return logos[symbol] || '';
+        }
+        
         // ==================== EXCHANGES ====================
+        function saveBinanceKeys() {
+            const apiKey = document.getElementById('binanceApiKey').value.trim();
+            const secret = document.getElementById('binanceSecret').value.trim();
+            if (apiKey && secret) {
+                localStorage.setItem('binance_api_key', apiKey);
+                localStorage.setItem('binance_secret', secret);
+                document.getElementById('binanceApiKey').value = '';
+                document.getElementById('binanceSecret').value = '';
+                updateExchangeStatus();
+                alert('Binance API keys saved!');
+            }
+        }
+        
+        function saveBitgetKeys() {
+            const apiKey = document.getElementById('bitgetApiKey').value.trim();
+            const secret = document.getElementById('bitgetSecret').value.trim();
+            const passphrase = document.getElementById('bitgetPassphrase').value.trim();
+            if (apiKey && secret && passphrase) {
+                localStorage.setItem('bitget_api_key', apiKey);
+                localStorage.setItem('bitget_secret', secret);
+                localStorage.setItem('bitget_passphrase', passphrase);
+                document.getElementById('bitgetApiKey').value = '';
+                document.getElementById('bitgetSecret').value = '';
+                document.getElementById('bitgetPassphrase').value = '';
+                updateExchangeStatus();
+                alert('Bitget API keys saved!');
+            }
+        }
+        
+        function updateExchangeStatus() {
+            const binance = localStorage.getItem('binance_api_key');
+            const bitget = localStorage.getItem('bitget_api_key');
+            
+            const binanceEl = document.getElementById('binanceStatus');
+            const bitgetEl = document.getElementById('bitgetStatus');
+            
+            if (binanceEl) {
+                binanceEl.textContent = binance ? 'ON' : 'OFF';
+                binanceEl.className = `api-key-status ${binance ? 'on' : 'off'}`;
+            }
+            if (bitgetEl) {
+                bitgetEl.textContent = bitget ? 'ON' : 'OFF';
+                bitgetEl.className = `api-key-status ${bitget ? 'on' : 'off'}`;
+            }
+        }
+        
+        async function syncBinance() {
+            const apiKey = localStorage.getItem('binance_api_key');
+            const secret = localStorage.getItem('binance_secret');
+            
+            if (!apiKey || !secret) {
+                alert('Please save Binance API keys first');
+                return;
+            }
+            
+            alert('Binance sync requires a backend proxy due to CORS. For now, use CSV import or manual entry.');
+        }
+        
+        function importCryptocomCSV(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const text = e.target.result;
+                    const lines = text.split('\n');
+                    const holdings = {};
+                    
+                    // Parse Crypto.com CSV format
+                    for (let i = 1; i < lines.length; i++) {
+                        const line = lines[i].trim();
+                        if (!line) continue;
+                        
+                        const cols = line.split(',');
+                        // Crypto.com format varies, try to extract currency and amount
+                        if (cols.length >= 3) {
+                            const currency = cols[1]?.replace(/"/g, '').trim();
+                            const amount = parseFloat(cols[2]?.replace(/"/g, '')) || 0;
+                            
+                            if (currency && amount > 0) {
+                                holdings[currency] = (holdings[currency] || 0) + amount;
+                            }
+                        }
+                    }
+                    
+                    // Add to exchanges
+                    addExchangeHoldings('Crypto.com', holdings);
+                    alert('Crypto.com CSV imported!');
+                } catch (err) {
+                    alert('Error parsing CSV: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        function importNexoCSV(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const text = e.target.result;
+                    const lines = text.split('\n');
+                    const holdings = {};
+                    
+                    for (let i = 1; i < lines.length; i++) {
+                        const line = lines[i].trim();
+                        if (!line) continue;
+                        
+                        const cols = line.split(',');
+                        if (cols.length >= 4) {
+                            const currency = cols[1]?.replace(/"/g, '').trim();
+                            const amount = parseFloat(cols[3]?.replace(/"/g, '')) || 0;
+                            
+                            if (currency && amount > 0) {
+                                holdings[currency] = (holdings[currency] || 0) + amount;
+                            }
+                        }
+                    }
+                    
+                    addExchangeHoldings('Nexo', holdings);
+                    alert('Nexo CSV imported!');
+                } catch (err) {
+                    alert('Error parsing CSV: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        function importRevolutCSV(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const text = e.target.result;
+                    const lines = text.split('\n');
+                    const holdings = {};
+                    
+                    for (let i = 1; i < lines.length; i++) {
+                        const line = lines[i].trim();
+                        if (!line) continue;
+                        
+                        const cols = line.split(',');
+                        if (cols.length >= 3) {
+                            const currency = cols[0]?.replace(/"/g, '').trim();
+                            const amount = parseFloat(cols[2]?.replace(/"/g, '')) || 0;
+                            
+                            if (currency && amount > 0) {
+                                holdings[currency] = (holdings[currency] || 0) + amount;
+                            }
+                        }
+                    }
+                    
+                    addExchangeHoldings('Revolut', holdings);
+                    alert('Revolut CSV imported!');
+                } catch (err) {
+                    alert('Error parsing CSV: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        function addExchangeHoldings(exchangeName, holdings) {
+            // Remove existing exchange data
+            exchanges = exchanges.filter(e => e.name !== exchangeName);
+            
+            const tokens = [];
+            for (const [symbol, balance] of Object.entries(holdings)) {
+                const price = prices[symbol.toUpperCase()] || 0;
+                tokens.push({
+                    symbol: symbol.toUpperCase(),
+                    name: symbol,
+                    balance,
+                    price,
+                    valueUSD: balance * price,
+                    chain: 'exchange'
+                });
+            }
+            
+            exchanges.push({
+                name: exchangeName,
+                tokens,
+                totalUSD: tokens.reduce((s, t) => s + t.valueUSD, 0),
+                lastSync: new Date().toISOString()
+            });
+            
+            renderExchangeHoldings();
+            updateDashboard();
+            saveToFirebase();
+        }
+        
+        function renderExchangeHoldings() {
+            const container = document.getElementById('exchangeHoldingsList');
+            const totalEl = document.getElementById('exchangeTotalValue');
+            
+            if (exchanges.length === 0) {
+                container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary);">Connect an exchange or import CSV to see holdings</div>';
+                totalEl.textContent = '0 €';
+                return;
+            }
+            
+            const allTokens = [];
+            let totalUSD = 0;
+            
+            exchanges.forEach(ex => {
+                ex.tokens.forEach(t => {
+                    allTokens.push({ ...t, exchange: ex.name });
+                    totalUSD += t.valueUSD || 0;
+                });
+            });
+            
+            allTokens.sort((a, b) => (b.valueUSD || 0) - (a.valueUSD || 0));
+            
+            totalEl.textContent = `${(totalUSD * EUR_USD).toLocaleString('it-IT', {minimumFractionDigits: 2})} €`;
+            
+            container.innerHTML = allTokens.map(t => `
+                <div class="token-row">
+                    <div class="token-info">
+                        <div class="token-icon">${t.symbol.slice(0, 2)}</div>
+                        <span class="token-name">${t.symbol}</span>
+                        <span style="font-size:11px;color:var(--text-secondary);margin-left:8px;">${t.exchange}</span>
+                    </div>
+                    <div class="token-balance">${formatBalance(t.balance)}</div>
+                    <div class="token-value">${((t.valueUSD || 0) * EUR_USD).toLocaleString('it-IT', {minimumFractionDigits: 2})}</div>
+                </div>
+            `).join('');
+        }
+        
         function openManualExchangeModal() {
             const name = prompt('Exchange name (e.g., Kraken, Coinbase):');
             if (!name) return;
@@ -1813,74 +3178,91 @@
             const holdings = prompt('Enter holdings (format: BTC:0.5,ETH:2.0,USDT:1000):');
             if (!holdings) return;
             
-            const tokens = [];
+            const parsed = {};
             holdings.split(',').forEach(pair => {
                 const [symbol, amount] = pair.split(':');
                 if (symbol && amount) {
-                    const sym = symbol.trim().toUpperCase();
-                    const balance = parseFloat(amount) || 0;
-                    const price = prices[sym] || 0;
-                    tokens.push({
-                        symbol: sym,
-                        name: sym,
-                        balance,
-                        price,
-                        valueUSD: balance * price
-                    });
+                    parsed[symbol.trim().toUpperCase()] = parseFloat(amount) || 0;
                 }
             });
             
-            if (tokens.length > 0) {
-                exchanges.push({ name, tokens });
-                renderExchangeHoldings();
-                updateDashboard();
-                saveToFirebase();
-                log(`➕ Exchange added: ${name}`, 'success');
+            if (Object.keys(parsed).length > 0) {
+                addExchangeHoldings(name, parsed);
+                alert(`${name} holdings added!`);
             }
         }
         
-        function renderExchangeHoldings() {
-            const container = document.getElementById('exchangeHoldings');
-            const totalEl = document.getElementById('exchangeTotal');
-            
-            if (exchanges.length === 0) {
-                container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;">No exchanges added.</p>';
-                totalEl.textContent = '0 €';
-                return;
+        // ==================== API KEY MANAGEMENT ====================
+        function saveEtherscanKey() {
+            const key = document.getElementById('etherscanKey').value.trim();
+            if (key) {
+                localStorage.setItem('etherscan_key', key);
+                document.getElementById('etherscanKey').value = '';
+                updateApiStatus();
+                alert('Etherscan API saved!');
             }
-            
-            let totalUSD = 0;
-            
-            container.innerHTML = exchanges.map((ex, i) => {
-                const exTotal = ex.tokens.reduce((s, t) => s + (t.valueUSD || 0), 0);
-                totalUSD += exTotal;
-                
-                return `
-                    <div style="margin-bottom:16px;padding:16px;background:var(--bg-tertiary);border-radius:8px;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                            <strong>${ex.name}</strong>
-                            <div>
-                                <span style="color:var(--accent-green);margin-right:12px;">${(exTotal * EUR_USD).toLocaleString('it-IT')} €</span>
-                                <button class="btn btn-danger btn-small" onclick="removeExchange(${i})">🗑️</button>
-                            </div>
-                        </div>
-                        <div style="font-size:12px;color:var(--text-secondary);">
-                            ${ex.tokens.map(t => `${t.symbol}: ${formatBalance(t.balance)}`).join(' | ')}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            
-            totalEl.textContent = `${(totalUSD * EUR_USD).toLocaleString('it-IT')} €`;
         }
         
-        function removeExchange(index) {
-            if (confirm('Remove this exchange?')) {
-                exchanges.splice(index, 1);
-                renderExchangeHoldings();
-                updateDashboard();
-                saveToFirebase();
+        function saveBscscanKey() {
+            const key = document.getElementById('bscscanKey').value.trim();
+            if (key) {
+                localStorage.setItem('bscscan_key', key);
+                document.getElementById('bscscanKey').value = '';
+                updateApiStatus();
+                alert('BSCScan API saved!');
             }
+        }
+        
+        function savePolygonscanKey() {
+            const key = document.getElementById('polygonscanKey').value.trim();
+            if (key) {
+                localStorage.setItem('polygonscan_key', key);
+                document.getElementById('polygonscanKey').value = '';
+                updateApiStatus();
+                alert('PolygonScan API saved!');
+            }
+        }
+        
+        function saveArbiscanKey() {
+            const key = document.getElementById('arbiscanKey').value.trim();
+            if (key) {
+                localStorage.setItem('arbiscan_key', key);
+                document.getElementById('arbiscanKey').value = '';
+                updateApiStatus();
+                alert('Arbiscan API saved!');
+            }
+        }
+        
+        function saveBasescanKey() {
+            const key = document.getElementById('basescanKey').value.trim();
+            if (key) {
+                localStorage.setItem('basescan_key', key);
+                document.getElementById('basescanKey').value = '';
+                updateApiStatus();
+                alert('BaseScan API saved!');
+            }
+        }
+        
+        function saveHeliusKey() {
+            const key = document.getElementById('heliusKey').value.trim();
+            if (key) {
+                localStorage.setItem('helius_key', key);
+                document.getElementById('heliusKey').value = '';
+                updateApiStatus();
+                alert('Helius API saved!');
+            }
+        }
+        
+        function updateApiStatus() {
+            const apis = ['etherscan', 'bscscan', 'polygonscan', 'arbiscan', 'basescan', 'helius'];
+            apis.forEach(name => {
+                const hasKey = localStorage.getItem(`${name}_key`);
+                const el = document.getElementById(`${name}Status`);
+                if (el) {
+                    el.textContent = hasKey ? 'ON' : 'OFF';
+                    el.className = `api-key-status ${hasKey ? 'on' : 'off'}`;
+                }
+            });
         }
         
         // ==================== FIREBASE ====================
@@ -1903,6 +3285,7 @@
         
         function forceSaveToFirebase() {
             if (saveTimeout) clearTimeout(saveTimeout);
+            saveTimeout = null;
             document.getElementById('syncStatus').textContent = 'Saving...';
             
             db.collection('users').doc('moreno').set({
@@ -1910,10 +3293,10 @@
                 lastUpdate: new Date().toISOString()
             }).then(() => {
                 document.getElementById('syncStatus').textContent = 'Saved ✓';
-                log('💾 Data saved to cloud!', 'success');
+                alert('Data saved to cloud!');
             }).catch(e => {
                 document.getElementById('syncStatus').textContent = 'Error';
-                log(`❌ Save error: ${e.message}`, 'error');
+                alert('Save error: ' + e.message);
             });
         }
         
@@ -1933,30 +3316,28 @@
                     document.querySelectorAll('.year-btn').forEach(btn => {
                         btn.classList.toggle('active', btn.textContent == selectedYear);
                     });
-                    
-                    log(`📂 Loaded: ${wallets.length} wallets, ${exchanges.length} exchanges`, 'info');
                 }
                 
                 renderWalletList();
                 renderExchangeHoldings();
                 updateDashboard();
+                updateExchangeStatus();
                 document.getElementById('syncStatus').textContent = 'Synced ✓';
             } catch (e) {
                 document.getElementById('syncStatus').textContent = 'Offline';
-                log(`❌ Load error: ${e.message}`, 'error');
+                console.error('Firebase load error:', e);
             }
         }
         
         // ==================== IMPORT/EXPORT ====================
         function exportJSON() {
-            const data = { wallets, exchanges, hiddenTokens, selectedYear, eurUsdRate: EUR_USD };
+            const data = { wallets, hiddenTokens, selectedYear, eurUsdRate: EUR_USD };
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
             a.download = `crypto_portfolio_${new Date().toISOString().split('T')[0]}.json`;
             a.click();
-            log('📥 JSON exported', 'success');
         }
         
         function importJSON(event) {
@@ -1968,18 +3349,16 @@
                 try {
                     const data = JSON.parse(e.target.result);
                     wallets = data.wallets || [];
-                    exchanges = data.exchanges || [];
                     hiddenTokens = data.hiddenTokens || [];
                     selectedYear = data.selectedYear || 2025;
                     EUR_USD = data.eurUsdRate || 0.92;
                     
                     renderWalletList();
-                    renderExchangeHoldings();
                     updateDashboard();
                     saveToFirebase();
-                    log('📤 JSON imported successfully!', 'success');
+                    alert('Import successful!');
                 } catch (err) {
-                    log(`❌ Import error: ${err.message}`, 'error');
+                    alert('Import error: ' + err.message);
                 }
             };
             reader.readAsText(file);
@@ -1988,13 +3367,11 @@
         function clearAllData() {
             if (confirm('Delete ALL data? This cannot be undone!')) {
                 wallets = [];
-                exchanges = [];
                 hiddenTokens = [];
                 renderWalletList();
-                renderExchangeHoldings();
                 updateDashboard();
                 saveToFirebase();
-                log('🗑️ All data cleared', 'warning');
+                alert('All data cleared');
             }
         }
     </script>
