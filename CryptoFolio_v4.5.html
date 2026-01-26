@@ -3605,9 +3605,25 @@
                 const change = tx.change || 0;
                 const amtColor = change >= 0 ? 'var(--green)' : 'var(--red)';
                 
+                // Etichette più leggibili
+                const typeLabels = {
+                    deposit: 'Deposit',
+                    withdrawal: 'Withdraw',
+                    fiat_deposit: 'Fiat In',
+                    fiat_withdrawal: 'Fiat Out',
+                    trade: 'Trade',
+                    convert: 'Convert',
+                    staking: 'Staking',
+                    interest: 'Interest',
+                    dividend: 'Dividend',
+                    fee: 'Fee',
+                    dust: 'Dust'
+                };
+                const typeLabel = typeLabels[tx.type] || tx.type || '-';
+                
                 html += `<tr>
                     <td><div style="font-size:14px;font-weight:500;">${dateStr}</div><div style="font-size:12px;color:var(--text-secondary);">${timeStr}</div></td>
-                    <td><span style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:6px;font-size:12px;font-weight:500;background:${style.bg};color:${style.color};">${style.icon} ${tx.type || '-'}</span></td>
+                    <td><span style="display:inline-flex;flex-direction:row;align-items:center;gap:6px;padding:6px 10px;border-radius:6px;font-size:13px;font-weight:600;background:${style.bg};color:${style.color};white-space:nowrap;">${style.icon} ${typeLabel}</span></td>
                     <td style="font-weight:600;font-size:14px;">${tx.coin || '-'}</td>
                     <td style="text-align:right;color:${amtColor};font-weight:600;font-size:14px;">${formatNumber(amt)}</td>
                     <td style="font-size:13px;color:var(--text-secondary);">${tx.operation || '-'}</td>
