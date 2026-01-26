@@ -306,16 +306,17 @@
                 </div>
                 <div class="input-row" style="margin-top:16px;">
                     <div class="input-group" style="flex:3;">
-                        <label>API Key <a href="https://admin.moralis.io/api-keys" target="_blank" style="color:var(--accent);font-size:11px;margin-left:8px;">→ Ottieni gratis</a></label>
-                        <input type="password" id="moralisKey" placeholder="eyJhbGci..." autocomplete="off">
+                        <label>API Keys <span style="font-weight:normal;color:var(--text-secondary);">(1 per riga per cascata)</span> <a href="https://admin.moralis.io/api-keys" target="_blank" style="color:var(--accent);font-size:11px;margin-left:8px;">→ Ottieni gratis</a></label>
+                        <textarea id="moralisKey" rows="3" placeholder="eyJhbGci... (prima key)&#10;eyJhbGci... (seconda key)&#10;eyJhbGci... (terza key)" autocomplete="off" style="resize:vertical;min-height:60px;"></textarea>
                     </div>
                     <div class="input-group" style="flex:0;align-self:flex-end;">
                         <button class="btn btn-primary" onclick="saveMoralisKey()">💾 Salva</button>
                     </div>
                 </div>
                 <div style="margin-top:12px;padding:12px;background:var(--bg-primary);border-radius:8px;font-size:12px;">
-                    <strong>Chains supportate:</strong> Ethereum, BSC, Polygon, Arbitrum, Optimism, Base<br>
-                    <strong>Limite free:</strong> 25 req/sec, 10.000/giorno
+                    <strong>Chains supportate:</strong> Ethereum, BSC, Polygon, Arbitrum, Optimism, Base, Cronos<br>
+                    <strong>Limite free:</strong> 25 req/sec, 10.000/giorno per account<br>
+                    <strong>💡 Multi-account:</strong> Inserisci più keys (1 per riga) - quando una raggiunge il limite, passa alla successiva!
                 </div>
             </div>
             
@@ -679,6 +680,11 @@
         
         // Exchange values per Tax Report (31/12 di ogni anno)
         let exchangeValues = { 2021: 0, 2022: 0, 2023: 0, 2024: 0, 2025: 0 };
+        
+        // Multi-API Moralis (cascata)
+        let moralisKeys = []; // Array di API keys
+        let currentMoralisKeyIndex = 0;
+        let moralisKeyFailures = {}; // Traccia fallimenti per key
         
         // Exchange data from CSV imports
         let exchangeData = {}; // { binance: { transactions: [], balances: {2021: {BTC: 0.5, ...}}, totals: {2021: 1234, ...} }, ... }
@@ -1246,11 +1252,88 @@
                 alert('Inserisci una API key valida');
                 return;
             }
-            apiKeys.moralis = key;
+            
+            // Supporta multiple keys separate da virgola o a capo
+            const keys = key.split(/[,\n]/).map(k => k.trim()).filter(k => k.length > 10);
+            
+            if (keys.length === 0) {
+                alert('Inserisci almeno una API key valida');
+                return;
+            }
+            
+            // Salva array di keys
+            moralisKeys = keys;
+            currentMoralisKeyIndex = 0;
+            moralisKeyFailures = {};
+            
+            // Mantieni compatibilità con vecchio sistema
+            apiKeys.moralis = keys[0];
+            apiKeys.moralisKeys = keys;
+            
             localStorage.setItem('cryptofolio_apikeys', JSON.stringify(apiKeys));
+            localStorage.setItem('cryptofolio_moralis_keys', JSON.stringify(keys));
             saveToFirebase();
             updateApiStatus();
-            alert('✅ Moralis API key salvata!');
+            
+            if (keys.length > 1) {
+                alert(`✅ ${keys.length} Moralis API keys salvate!\n\nLe chiavi verranno usate in cascata quando una raggiunge il limite.`);
+            } else {
+                alert('✅ Moralis API key salvata!');
+            }
+        }
+        
+        // Funzione per ottenere la key Moralis corrente
+        function getMoralisKey() {
+            if (moralisKeys.length === 0) {
+                // Carica da localStorage se non ancora caricato
+                loadMoralisKeys();
+            }
+            
+            if (moralisKeys.length === 0) {
+                return apiKeys.moralis || null;
+            }
+            
+            return moralisKeys[currentMoralisKeyIndex] || moralisKeys[0];
+        }
+        
+        // Carica le keys Moralis
+        function loadMoralisKeys() {
+            try {
+                const saved = localStorage.getItem('cryptofolio_moralis_keys');
+                if (saved) {
+                    moralisKeys = JSON.parse(saved);
+                    console.log(`🔑 Caricate ${moralisKeys.length} Moralis API keys`);
+                } else if (apiKeys.moralis) {
+                    moralisKeys = [apiKeys.moralis];
+                }
+            } catch (e) {
+                if (apiKeys.moralis) {
+                    moralisKeys = [apiKeys.moralis];
+                }
+            }
+        }
+        
+        // Ruota alla prossima key quando una fallisce
+        function rotateMoralisKey(reason = '') {
+            if (moralisKeys.length <= 1) return false;
+            
+            const oldIndex = currentMoralisKeyIndex;
+            const oldKey = moralisKeys[oldIndex];
+            
+            // Segna questa key come fallita
+            moralisKeyFailures[oldKey] = (moralisKeyFailures[oldKey] || 0) + 1;
+            
+            // Passa alla prossima
+            currentMoralisKeyIndex = (currentMoralisKeyIndex + 1) % moralisKeys.length;
+            
+            // Se abbiamo provato tutte le keys, resetta i contatori
+            if (currentMoralisKeyIndex === 0) {
+                console.warn('⚠️ Tutte le Moralis API keys hanno raggiunto il limite!');
+                return false;
+            }
+            
+            console.log(`🔄 Moralis API key rotata: ${oldIndex + 1} → ${currentMoralisKeyIndex + 1} (${reason})`);
+            return true;
         }
         
         function saveEtherscanKey() {
@@ -1558,8 +1641,14 @@
             }
             
             // Fill input fields
-            if (document.getElementById('moralisKey') && apiKeys.moralis) {
-                document.getElementById('moralisKey').value = apiKeys.moralis;
+            if (document.getElementById('moralisKey')) {
+                // Mostra tutte le keys separate da newline
+                loadMoralisKeys();
+                if (moralisKeys.length > 0) {
+                    document.getElementById('moralisKey').value = moralisKeys.join('\n');
+                } else if (apiKeys.moralis) {
+                    document.getElementById('moralisKey').value = apiKeys.moralis;
+                }
             }
             if (document.getElementById('etherscanKey') && apiKeys.etherscan) {
                 document.getElementById('etherscanKey').value = apiKeys.etherscan;
@@ -1577,10 +1666,12 @@
                 let html = '';
                 
                 // Moralis
+                const moralisCount = moralisKeys.length || (apiKeys.moralis ? 1 : 0);
+                const moralisStatus = moralisCount > 1 ? `✓ ${moralisCount} keys` : (moralisCount === 1 ? '✓ Configurato' : '✗ Non configurato');
                 html += `<div style="padding:16px;background:var(--bg-primary);border-radius:10px;text-align:center;">
                     <div style="font-size:24px;margin-bottom:8px;">🟢</div>
                     <div style="font-weight:600;">Moralis</div>
-                    <div style="font-size:12px;color:${apiKeys.moralis ? 'var(--green)' : 'var(--red)'};">${apiKeys.moralis ? '✓ Configurato' : '✗ Non configurato'}</div>
+                    <div style="font-size:12px;color:${moralisCount > 0 ? 'var(--green)' : 'var(--red)'};">${moralisStatus}</div>
                 </div>`;
                 
                 // Etherscan
@@ -1708,22 +1799,43 @@
         }
         
         // ==================== MORALIS API ====================
-        async function fetchWithMoralis(addr, chainKey) {
-            if (!apiKeys.moralis || !MORALIS_CHAINS[chainKey]) return null;
+        async function fetchWithMoralis(addr, chainKey, retryCount = 0) {
+            const moralisKey = getMoralisKey();
+            if (!moralisKey || !MORALIS_CHAINS[chainKey]) return null;
             
             try {
                 const chain = MORALIS_CHAINS[chainKey];
                 
                 // Get native balance
                 const nativeRes = await fetch(`https://deep-index.moralis.io/api/v2.2/${addr}/balance?chain=${chain}`, {
-                    headers: { 'X-API-Key': apiKeys.moralis }
+                    headers: { 'X-API-Key': moralisKey }
                 });
+                
+                // Controlla rate limit
+                if (nativeRes.status === 429 || nativeRes.status === 400) {
+                    console.warn(`⚠️ Moralis rate limit (key ${currentMoralisKeyIndex + 1})`);
+                    if (rotateMoralisKey('rate limit') && retryCount < moralisKeys.length) {
+                        return fetchWithMoralis(addr, chainKey, retryCount + 1);
+                    }
+                    return null;
+                }
+                
                 const nativeData = await nativeRes.json();
                 
                 // Get token balances
                 const tokenRes = await fetch(`https://deep-index.moralis.io/api/v2.2/${addr}/erc20?chain=${chain}`, {
-                    headers: { 'X-API-Key': apiKeys.moralis }
+                    headers: { 'X-API-Key': moralisKey }
                 });
+                
+                // Controlla rate limit
+                if (tokenRes.status === 429 || tokenRes.status === 400) {
+                    console.warn(`⚠️ Moralis rate limit (key ${currentMoralisKeyIndex + 1})`);
+                    if (rotateMoralisKey('rate limit') && retryCount < moralisKeys.length) {
+                        return fetchWithMoralis(addr, chainKey, retryCount + 1);
+                    }
+                    return null;
+                }
+                
                 const tokenData = await tokenRes.json();
                 
                 return {
@@ -1732,6 +1844,10 @@
                 };
             } catch (e) {
                 console.error('Moralis error:', e);
+                // Prova a ruotare la key anche per errori di rete
+                if (rotateMoralisKey('network error') && retryCount < moralisKeys.length) {
+                    return fetchWithMoralis(addr, chainKey, retryCount + 1);
+                }
                 return null;
             }
         }
@@ -4584,11 +4700,24 @@
                 
                 for (const chain of chains) {
                     try {
+                        const moralisKey = getMoralisKey();
+                        if (!moralisKey) continue;
+                        
                         // Carica trasferimenti ERC20
                         const erc20Url = `https://deep-index.moralis.io/api/v2.2/${address}/erc20/transfers?chain=${chain.id}&limit=100`;
-                        const erc20Response = await fetch(erc20Url, {
-                            headers: { 'X-API-Key': apiKeys.moralis }
+                        let erc20Response = await fetch(erc20Url, {
+                            headers: { 'X-API-Key': moralisKey }
                         });
+                        
+                        // Gestisci rate limit
+                        if (erc20Response.status === 429 || erc20Response.status === 400) {
+                            console.warn(`⚠️ Rate limit su chain ${chain.name}, provo altra key...`);
+                            if (rotateMoralisKey('rate limit')) {
+                                erc20Response = await fetch(erc20Url, {
+                                    headers: { 'X-API-Key': getMoralisKey() }
+                                });
+                            }
+                        }
                         
                         if (erc20Response.ok) {
                             const erc20Data = await erc20Response.json();
@@ -4617,9 +4746,18 @@
                         
                         // Carica transazioni native (ETH, BNB, MATIC, etc.)
                         const nativeUrl = `https://deep-index.moralis.io/api/v2.2/${address}?chain=${chain.id}&limit=100`;
-                        const nativeResponse = await fetch(nativeUrl, {
-                            headers: { 'X-API-Key': apiKeys.moralis }
+                        let nativeResponse = await fetch(nativeUrl, {
+                            headers: { 'X-API-Key': getMoralisKey() }
                         });
+                        
+                        // Gestisci rate limit
+                        if (nativeResponse.status === 429 || nativeResponse.status === 400) {
+                            if (rotateMoralisKey('rate limit')) {
+                                nativeResponse = await fetch(nativeUrl, {
+                                    headers: { 'X-API-Key': getMoralisKey() }
+                                });
+                            }
+                        }
                         
                         if (nativeResponse.ok) {
                             const nativeData = await nativeResponse.json();
