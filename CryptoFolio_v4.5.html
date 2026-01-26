@@ -112,6 +112,34 @@
         .api-status { padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 600; }
         .api-status[id$="Status"] { background: var(--red); color: white; }
         .api-on { background: var(--green) !important; color: #000 !important; }
+        
+        /* Modal Styles */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; visibility: hidden; transition: all 0.3s ease; }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        .modal-content { background: var(--bg-card); border-radius: 16px; padding: 0; width: 90%; max-width: 480px; border: 1px solid var(--border); transform: scale(0.9); transition: transform 0.3s ease; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+        .modal-overlay.active .modal-content { transform: scale(1); }
+        .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid var(--border); background: linear-gradient(135deg, rgba(243,186,47,0.15), rgba(243,186,47,0.05)); border-radius: 16px 16px 0 0; }
+        .modal-header h3 { font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+        .modal-close { background: none; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer; padding: 4px; line-height: 1; transition: color 0.2s; }
+        .modal-close:hover { color: var(--red); }
+        .modal-body { padding: 24px; }
+        .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 12px; }
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; font-weight: 500; }
+        .form-input { width: 100%; padding: 12px 14px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 14px; transition: border-color 0.2s; }
+        .form-input:focus { outline: none; border-color: var(--accent); }
+        .form-input::placeholder { color: var(--text-secondary); }
+        .server-status-box { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--bg-primary); border-radius: 8px; margin-bottom: 20px; }
+        .server-status-label { font-size: 13px; color: var(--text-secondary); }
+        .server-status-badge { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px; }
+        .server-off { background: var(--red); color: #fff; }
+        .server-on { background: var(--green); color: #000; }
+        .api-help-link { display: block; text-align: center; font-size: 12px; color: var(--accent-light); margin-top: 16px; }
+        .api-help-link:hover { text-decoration: underline; }
+        .progress-container { margin-top: 20px; display: none; }
+        .progress-bar-bg { background: var(--bg-primary); border-radius: 6px; height: 8px; overflow: hidden; }
+        .progress-bar-fill { background: linear-gradient(90deg, #f3ba2f, #f0b90b); height: 100%; width: 0%; transition: width 0.3s ease; }
+        .progress-text { font-size: 12px; color: var(--text-secondary); margin-top: 8px; text-align: center; }
     </style>
 </head>
 <body>
@@ -122,6 +150,7 @@
                 <div class="nav-label">Menu</div>
                 <div class="nav-item active" onclick="showView('dashboard')"><span class="icon">📈</span><span>Dashboard</span></div>
                 <div class="nav-item" onclick="showView('wallets')"><span class="icon">👛</span><span>Wallets</span><span class="badge" id="walletCount">0</span></div>
+                <div class="nav-item" onclick="showView('transactions')"><span class="icon">📜</span><span>Transazioni</span><span class="badge" id="txCount">0</span></div>
                 <div class="nav-item" onclick="showView('nft')"><span class="icon">🖼️</span><span>NFT</span><span class="badge" id="nftCount">0</span></div>
                 <div class="nav-item" onclick="showView('exchanges')"><span class="icon">🏦</span><span>Exchanges</span><span class="badge" id="exchangeCount">0</span></div>
                 <div class="nav-item" onclick="showView('reconcile')"><span class="icon">🔗</span><span>Riconciliazione</span></div>
@@ -398,6 +427,128 @@
             <div class="card">
                 <div class="card-header"><div class="card-title">📊 Riepilogo API</div></div>
                 <div id="apiSummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;"></div>
+            </div>
+        </div>
+        
+        <!-- TRANSAZIONI -->
+        <div class="main-content" id="transactionsView" style="display:none;">
+            <div class="header">
+                <h1>📜 Transazioni</h1>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="exportTransactions()">📥 Esporta CSV</button>
+                    <button class="btn btn-primary" onclick="loadAllTransactions()">🔄 Aggiorna</button>
+                </div>
+            </div>
+            
+            <!-- Filtri -->
+            <div class="card" style="margin-bottom:20px;">
+                <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:12px;align-items:end;">
+                    <div>
+                        <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:4px;">🔍 Cerca</label>
+                        <input type="text" id="txSearch" placeholder="Cerca coin, operazione, txId..." 
+                               style="width:100%;padding:10px 14px;background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:14px;"
+                               oninput="filterTransactions()">
+                    </div>
+                    <div>
+                        <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:4px;">📦 Fonte</label>
+                        <select id="txSource" onchange="filterTransactions()" style="width:100%;padding:10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:13px;">
+                            <option value="">Tutte</option>
+                            <option value="wallet">🔗 Wallets</option>
+                            <option value="exchange">🏦 Exchanges</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:4px;">📋 Tipo</label>
+                        <select id="txType" onchange="filterTransactions()" style="width:100%;padding:10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:13px;">
+                            <option value="">Tutti</option>
+                            <option value="deposit">📥 Deposit</option>
+                            <option value="withdrawal">📤 Withdrawal</option>
+                            <option value="trade">📊 Trade</option>
+                            <option value="convert">🔄 Convert</option>
+                            <option value="staking">🥩 Staking</option>
+                            <option value="interest">💰 Interest</option>
+                            <option value="dividend">🎁 Dividend</option>
+                            <option value="fee">💸 Fee</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:4px;">📅 Da</label>
+                        <input type="date" id="txDateFrom" onchange="filterTransactions()" style="width:100%;padding:10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:13px;">
+                    </div>
+                    <div>
+                        <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:4px;">📅 A</label>
+                        <input type="date" id="txDateTo" onchange="filterTransactions()" style="width:100%;padding:10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:13px;">
+                    </div>
+                    <div>
+                        <button class="btn btn-secondary" onclick="resetTxFilters()" style="padding:10px 16px;">🗑️</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Stats -->
+            <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px;">
+                <div class="stat-card">
+                    <div class="stat-label">Totale Transazioni</div>
+                    <div class="stat-value" id="txTotalCount" style="font-size:24px;">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Filtrate</div>
+                    <div class="stat-value" id="txFilteredCount" style="font-size:24px;color:var(--accent);">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Depositi</div>
+                    <div class="stat-value" id="txDepositCount" style="font-size:24px;color:var(--green);">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Prelievi</div>
+                    <div class="stat-value" id="txWithdrawCount" style="font-size:24px;color:var(--red);">0</div>
+                </div>
+            </div>
+            
+            <!-- Tabella Transazioni -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">📜 Lista Transazioni</div>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <span style="font-size:12px;color:var(--text-secondary);">Ordina:</span>
+                        <select id="txSort" onchange="filterTransactions()" style="padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px;">
+                            <option value="date_desc">Data ↓</option>
+                            <option value="date_asc">Data ↑</option>
+                            <option value="amount_desc">Importo ↓</option>
+                            <option value="amount_asc">Importo ↑</option>
+                            <option value="coin_asc">Coin A-Z</option>
+                        </select>
+                        <span style="font-size:12px;color:var(--text-secondary);margin-left:8px;">Per pagina:</span>
+                        <select id="txPerPage" onchange="filterTransactions()" style="padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px;">
+                            <option value="25">25</option>
+                            <option value="50" selected>50</option>
+                            <option value="100">100</option>
+                            <option value="500">500</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="holdings-table" style="table-layout:auto;">
+                        <thead>
+                            <tr>
+                                <th style="width:140px;">Data</th>
+                                <th style="width:80px;">Tipo</th>
+                                <th style="width:100px;">Coin</th>
+                                <th style="width:120px;text-align:right;">Importo</th>
+                                <th style="width:150px;">Operazione</th>
+                                <th style="width:100px;">Fonte</th>
+                                <th style="width:auto;">Dettagli</th>
+                            </tr>
+                        </thead>
+                        <tbody id="txTableBody">
+                            <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-secondary);">
+                                Caricamento transazioni...
+                            </td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Paginazione -->
+                <div id="txPagination" style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);"></div>
             </div>
         </div>
         
@@ -698,7 +849,7 @@
         let saveTimeout = null;
         
         // Binance
-        const BINANCE_SERVER_URL = 'http://localhost:3456';
+        const BINANCE_SERVER_URL = 'http://localhost:3457';
         let binanceData = { balances: { spot: [], earn: [], staking: [] }, totals: { spot: 0, earn: 0, staking: 0 }, lastUpdate: null };
         
         // Exchange values per Tax Report (31/12 di ogni anno)
@@ -928,6 +1079,8 @@
             document.getElementById('dashboardView').style.display = view === 'dashboard' ? 'block' : 'none';
             document.getElementById('walletsView').style.display = view === 'wallets' ? 'block' : 'none';
             document.getElementById('walletDetailView').style.display = view === 'walletDetail' ? 'block' : 'none';
+            document.getElementById('transactionsView').style.display = view === 'transactions' ? 'block' : 'none';
+            document.getElementById('nftView').style.display = view === 'nft' ? 'block' : 'none';
             document.getElementById('exchangesView').style.display = view === 'exchanges' ? 'block' : 'none';
             document.getElementById('reconcileView').style.display = view === 'reconcile' ? 'block' : 'none';
             document.getElementById('taxView').style.display = view === 'tax' ? 'block' : 'none';
@@ -937,11 +1090,19 @@
                     (view === 'dashboard' && i === 0) || 
                     (view === 'wallets' && i === 1) || 
                     (view === 'walletDetail' && i === 1) || 
-                    (view === 'exchanges' && i === 2) ||
-                    (view === 'tax' && i === 3) ||
-                    (view === 'api' && i === 4)
+                    (view === 'transactions' && i === 2) ||
+                    (view === 'nft' && i === 3) ||
+                    (view === 'exchanges' && i === 4) ||
+                    (view === 'reconcile' && i === 5) ||
+                    (view === 'tax' && i === 6) ||
+                    (view === 'api' && i === 7)
                 );
             });
+            
+            // Carica transazioni quando si apre la vista
+            if (view === 'transactions') {
+                loadAllTransactions();
+            }
             
             // Aggiorna dropdown tax e mostra dati salvati
             if (view === 'tax') {
@@ -2968,6 +3129,320 @@
             }
         }
         
+        // ==================== TRANSACTIONS VIEW ====================
+        let allTransactions = [];
+        let filteredTransactions = [];
+        let currentTxPage = 1;
+        
+        function loadAllTransactions() {
+            allTransactions = [];
+            
+            // Carica transazioni da Exchange
+            for (const [exchId, data] of Object.entries(exchangeData)) {
+                if (data.transactions && data.transactions.length > 0) {
+                    const exchInfo = EXCHANGE_LIST.find(e => e.id === exchId) || { name: exchId, color: '#666' };
+                    for (const tx of data.transactions) {
+                        allTransactions.push({
+                            ...tx,
+                            date: tx.date instanceof Date ? tx.date : new Date(tx.date),
+                            source: 'exchange',
+                            sourceName: exchInfo.name,
+                            sourceColor: exchInfo.color,
+                            sourceId: exchId
+                        });
+                    }
+                }
+            }
+            
+            // Carica transazioni da Wallet scan (se disponibili)
+            // Nota: i wallet scan contengono balances, non singole transazioni
+            // Potremmo aggiungere qui la logica per transazioni wallet se implementata
+            
+            // Aggiorna contatore nel menu
+            const txCountEl = document.getElementById('txCount');
+            if (txCountEl) txCountEl.textContent = allTransactions.length;
+            
+            // Aggiorna statistiche
+            document.getElementById('txTotalCount').textContent = allTransactions.length.toLocaleString();
+            document.getElementById('txDepositCount').textContent = allTransactions.filter(t => t.type === 'deposit' || t.type === 'fiat_deposit').length.toLocaleString();
+            document.getElementById('txWithdrawCount').textContent = allTransactions.filter(t => t.type === 'withdrawal' || t.type === 'fiat_withdrawal').length.toLocaleString();
+            
+            // Applica filtri
+            filterTransactions();
+        }
+        
+        function filterTransactions() {
+            const search = (document.getElementById('txSearch')?.value || '').toLowerCase();
+            const source = document.getElementById('txSource')?.value || '';
+            const type = document.getElementById('txType')?.value || '';
+            const dateFrom = document.getElementById('txDateFrom')?.value;
+            const dateTo = document.getElementById('txDateTo')?.value;
+            const sort = document.getElementById('txSort')?.value || 'date_desc';
+            const perPage = parseInt(document.getElementById('txPerPage')?.value || '50');
+            
+            // Filtra
+            filteredTransactions = allTransactions.filter(tx => {
+                // Search
+                if (search) {
+                    const searchStr = `${tx.coin || ''} ${tx.operation || ''} ${tx.type || ''} ${tx.sourceName || ''} ${tx.txId || ''} ${tx.network || ''}`.toLowerCase();
+                    if (!searchStr.includes(search)) return false;
+                }
+                
+                // Source
+                if (source && tx.source !== source) return false;
+                
+                // Type
+                if (type && tx.type !== type) return false;
+                
+                // Date range
+                if (dateFrom) {
+                    const from = new Date(dateFrom);
+                    if (tx.date < from) return false;
+                }
+                if (dateTo) {
+                    const to = new Date(dateTo);
+                    to.setHours(23, 59, 59);
+                    if (tx.date > to) return false;
+                }
+                
+                return true;
+            });
+            
+            // Ordina
+            filteredTransactions.sort((a, b) => {
+                switch (sort) {
+                    case 'date_asc': return a.date - b.date;
+                    case 'date_desc': return b.date - a.date;
+                    case 'amount_asc': return Math.abs(a.amount || 0) - Math.abs(b.amount || 0);
+                    case 'amount_desc': return Math.abs(b.amount || 0) - Math.abs(a.amount || 0);
+                    case 'coin_asc': return (a.coin || '').localeCompare(b.coin || '');
+                    default: return b.date - a.date;
+                }
+            });
+            
+            // Aggiorna contatore filtrate
+            document.getElementById('txFilteredCount').textContent = filteredTransactions.length.toLocaleString();
+            
+            // Reset pagina se necessario
+            const totalPages = Math.ceil(filteredTransactions.length / perPage);
+            if (currentTxPage > totalPages) currentTxPage = 1;
+            
+            // Render
+            renderTransactionsTable(perPage);
+        }
+        
+        function renderTransactionsTable(perPage) {
+            const tbody = document.getElementById('txTableBody');
+            if (!tbody) return;
+            
+            if (filteredTransactions.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-secondary);">
+                    <div style="font-size:48px;margin-bottom:16px;">📭</div>
+                    <div>Nessuna transazione trovata</div>
+                    <div style="font-size:12px;margin-top:8px;">Importa dati da Exchanges o aggiungi wallet</div>
+                </td></tr>`;
+                document.getElementById('txPagination').innerHTML = '';
+                return;
+            }
+            
+            const start = (currentTxPage - 1) * perPage;
+            const end = Math.min(start + perPage, filteredTransactions.length);
+            const pageTx = filteredTransactions.slice(start, end);
+            
+            let html = '';
+            for (const tx of pageTx) {
+                const date = tx.date instanceof Date ? tx.date : new Date(tx.date);
+                const dateStr = date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                const timeStr = date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+                
+                // Tipo con colore
+                const typeColors = {
+                    deposit: { bg: 'rgba(0,206,201,0.15)', color: 'var(--green)', icon: '📥' },
+                    fiat_deposit: { bg: 'rgba(0,206,201,0.15)', color: 'var(--green)', icon: '💶' },
+                    withdrawal: { bg: 'rgba(255,107,107,0.15)', color: 'var(--red)', icon: '📤' },
+                    fiat_withdrawal: { bg: 'rgba(255,107,107,0.15)', color: 'var(--red)', icon: '💶' },
+                    trade: { bg: 'rgba(108,92,231,0.15)', color: 'var(--accent)', icon: '📊' },
+                    convert: { bg: 'rgba(243,186,47,0.15)', color: '#f3ba2f', icon: '🔄' },
+                    dust: { bg: 'rgba(243,186,47,0.15)', color: '#f3ba2f', icon: '🧹' },
+                    staking: { bg: 'rgba(0,206,201,0.15)', color: 'var(--green)', icon: '🥩' },
+                    interest: { bg: 'rgba(0,206,201,0.15)', color: 'var(--green)', icon: '💰' },
+                    dividend: { bg: 'rgba(0,206,201,0.15)', color: 'var(--green)', icon: '🎁' },
+                    fee: { bg: 'rgba(255,107,107,0.15)', color: 'var(--red)', icon: '💸' }
+                };
+                const typeStyle = typeColors[tx.type] || { bg: 'rgba(160,160,160,0.15)', color: 'var(--text-secondary)', icon: '•' };
+                
+                // Importo con segno
+                const amount = tx.amount || 0;
+                const change = tx.change || 0;
+                const amountColor = change >= 0 ? 'var(--green)' : 'var(--red)';
+                const amountSign = change >= 0 ? '+' : '';
+                
+                // Dettagli (txId, network, etc.)
+                let details = '';
+                if (tx.txId) {
+                    const shortTxId = tx.txId.length > 16 ? tx.txId.substring(0, 8) + '...' + tx.txId.substring(tx.txId.length - 6) : tx.txId;
+                    details = `<span style="font-family:monospace;font-size:11px;color:var(--text-secondary);">${shortTxId}</span>`;
+                }
+                if (tx.network) {
+                    details += ` <span style="font-size:10px;background:var(--bg-secondary);padding:2px 6px;border-radius:4px;">${tx.network}</span>`;
+                }
+                if (tx.symbol) {
+                    details += ` <span style="font-size:10px;color:var(--text-secondary);">${tx.symbol}</span>`;
+                }
+                
+                html += `<tr style="cursor:pointer;" onclick="showTxDetails('${tx.txId || ''}')">
+                    <td>
+                        <div style="font-size:13px;">${dateStr}</div>
+                        <div style="font-size:11px;color:var(--text-secondary);">${timeStr}</div>
+                    </td>
+                    <td>
+                        <span style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:6px;font-size:11px;background:${typeStyle.bg};color:${typeStyle.color};">
+                            ${typeStyle.icon} ${tx.type || '-'}
+                        </span>
+                    </td>
+                    <td>
+                        <span style="font-weight:600;">${tx.coin || '-'}</span>
+                    </td>
+                    <td style="text-align:right;">
+                        <span style="color:${amountColor};font-weight:600;">${amountSign}${formatNumber(amount)}</span>
+                    </td>
+                    <td>
+                        <span style="font-size:12px;color:var(--text-secondary);">${tx.operation || '-'}</span>
+                    </td>
+                    <td>
+                        <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;">
+                            <span style="width:8px;height:8px;border-radius:50%;background:${tx.sourceColor || '#666'};"></span>
+                            ${tx.sourceName || tx.source || '-'}
+                        </span>
+                    </td>
+                    <td>${details || '-'}</td>
+                </tr>`;
+            }
+            
+            tbody.innerHTML = html;
+            
+            // Paginazione
+            renderTxPagination(perPage);
+        }
+        
+        function renderTxPagination(perPage) {
+            const container = document.getElementById('txPagination');
+            if (!container) return;
+            
+            const totalPages = Math.ceil(filteredTransactions.length / perPage);
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            let html = '';
+            
+            // Prev
+            html += `<button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="goToTxPage(${currentTxPage - 1})" ${currentTxPage === 1 ? 'disabled' : ''}>← Prec</button>`;
+            
+            // Page numbers
+            const maxButtons = 5;
+            let startPage = Math.max(1, currentTxPage - Math.floor(maxButtons / 2));
+            let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+            if (endPage - startPage < maxButtons - 1) {
+                startPage = Math.max(1, endPage - maxButtons + 1);
+            }
+            
+            if (startPage > 1) {
+                html += `<button class="btn btn-secondary" style="padding:6px 10px;font-size:12px;" onclick="goToTxPage(1)">1</button>`;
+                if (startPage > 2) html += `<span style="color:var(--text-secondary);">...</span>`;
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const isActive = i === currentTxPage;
+                html += `<button class="btn ${isActive ? 'btn-primary' : 'btn-secondary'}" style="padding:6px 10px;font-size:12px;" onclick="goToTxPage(${i})">${i}</button>`;
+            }
+            
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) html += `<span style="color:var(--text-secondary);">...</span>`;
+                html += `<button class="btn btn-secondary" style="padding:6px 10px;font-size:12px;" onclick="goToTxPage(${totalPages})">${totalPages}</button>`;
+            }
+            
+            // Next
+            html += `<button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="goToTxPage(${currentTxPage + 1})" ${currentTxPage === totalPages ? 'disabled' : ''}>Succ →</button>`;
+            
+            // Info
+            html += `<span style="margin-left:12px;font-size:12px;color:var(--text-secondary);">
+                Pagina ${currentTxPage} di ${totalPages} (${filteredTransactions.length.toLocaleString()} transazioni)
+            </span>`;
+            
+            container.innerHTML = html;
+        }
+        
+        function goToTxPage(page) {
+            const perPage = parseInt(document.getElementById('txPerPage')?.value || '50');
+            const totalPages = Math.ceil(filteredTransactions.length / perPage);
+            
+            currentTxPage = Math.max(1, Math.min(page, totalPages));
+            renderTransactionsTable(perPage);
+        }
+        
+        function resetTxFilters() {
+            document.getElementById('txSearch').value = '';
+            document.getElementById('txSource').value = '';
+            document.getElementById('txType').value = '';
+            document.getElementById('txDateFrom').value = '';
+            document.getElementById('txDateTo').value = '';
+            document.getElementById('txSort').value = 'date_desc';
+            currentTxPage = 1;
+            filterTransactions();
+        }
+        
+        function showTxDetails(txId) {
+            if (!txId) return;
+            
+            const tx = filteredTransactions.find(t => t.txId === txId);
+            if (!tx) return;
+            
+            const details = `📅 Data: ${tx.date.toLocaleString('it-IT')}
+📋 Tipo: ${tx.type}
+🪙 Coin: ${tx.coin}
+💰 Importo: ${tx.amount}
+📝 Operazione: ${tx.operation || '-'}
+🏦 Fonte: ${tx.sourceName}
+🌐 Network: ${tx.network || '-'}
+🔗 TxID: ${tx.txId || '-'}`;
+            
+            alert(details);
+        }
+        
+        function formatNumber(num) {
+            if (num === undefined || num === null) return '-';
+            if (Math.abs(num) < 0.00001) return num.toExponential(2);
+            if (Math.abs(num) < 1) return num.toFixed(6);
+            if (Math.abs(num) < 100) return num.toFixed(4);
+            return num.toLocaleString('it-IT', { maximumFractionDigits: 2 });
+        }
+        
+        function exportTransactions() {
+            if (filteredTransactions.length === 0) {
+                alert('Nessuna transazione da esportare');
+                return;
+            }
+            
+            // Header CSV
+            let csv = 'Data,Tipo,Coin,Importo,Change,Operazione,Fonte,Network,TxID\n';
+            
+            for (const tx of filteredTransactions) {
+                const date = tx.date instanceof Date ? tx.date.toISOString() : tx.date;
+                csv += `"${date}","${tx.type || ''}","${tx.coin || ''}",${tx.amount || 0},${tx.change || 0},"${tx.operation || ''}","${tx.sourceName || ''}","${tx.network || ''}","${tx.txId || ''}"\n`;
+            }
+            
+            // Download
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `transazioni_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
         // ==================== EXCHANGES CSV ====================
         function initExchangeGrid() {
             const grid = document.getElementById('exchangeGrid');
@@ -3019,25 +3494,16 @@
                 // Dropzone (nascosta inizialmente)
                 html += '<div id="dropzone-' + exch.id + '" class="exchange-dropzone" style="display:none;margin-top:16px;">';
                 
-                // Se ha API (Binance), mostra sezione API
+                // Se ha API (Binance), mostra bottone per aprire modal
                 if (exch.hasApi) {
-                    html += '<div style="margin-bottom:16px;padding:16px;background:linear-gradient(135deg, rgba(243,186,47,0.1), rgba(243,186,47,0.05));border:1px solid rgba(243,186,47,0.3);border-radius:8px;">';
-                    html += '<div style="font-weight:600;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;">';
-                    html += '<div style="display:flex;align-items:center;gap:8px;">🔌 Importa via API <span style="font-size:10px;background:#f3ba2f;color:#000;padding:2px 6px;border-radius:4px;">RACCOMANDATO</span></div>';
-                    html += '<span id="serverStatus-' + exch.id + '" style="font-size:10px;padding:3px 8px;border-radius:4px;background:var(--red);color:#fff;">SERVER OFF</span>';
+                    const hasApiKeys = apiKeys.binanceTaxKey && apiKeys.binanceTaxSecret;
+                    html += '<div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;">';
+                    html += '<button class="btn" onclick="openBinanceApiModal()" style="background:linear-gradient(135deg, #f3ba2f, #f0b90b);color:#000;font-size:13px;flex:1;display:flex;align-items:center;justify-content:center;gap:8px;">';
+                    html += '<span>🔌</span> Importa via API';
+                    if (hasApiKeys) html += ' <span style="font-size:10px;opacity:0.7;">(configurato)</span>';
+                    html += '</button>';
+                    html += '<span id="serverStatus-' + exch.id + '" style="font-size:10px;padding:4px 10px;border-radius:12px;background:var(--red);color:#fff;white-space:nowrap;">⚫ OFF</span>';
                     html += '</div>';
-                    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">';
-                    html += '<input type="password" id="apiKey-' + exch.id + '" placeholder="API Key" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;padding:8px;font-size:12px;" value="' + (apiKeys.binanceTaxKey ? apiKeys.binanceTaxKey.substring(0,12) + '...' : '') + '">';
-                    html += '<input type="password" id="secretKey-' + exch.id + '" placeholder="Secret Key" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;padding:8px;font-size:12px;" value="' + (apiKeys.binanceTaxSecret ? '••••••••••' : '') + '">';
-                    html += '</div>';
-                    html += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">';
-                    html += '<button class="btn" onclick="saveAndDownloadExchangeApi(\'' + exch.id + '\')" style="background:#f3ba2f;color:#000;font-size:12px;">📥 Scarica via API</button>';
-                    html += '<button class="btn btn-secondary" onclick="checkBinanceServerStatus()" style="font-size:12px;">🔄 Check Server</button>';
-                    html += '<a href="https://www.binance.com/it/my/settings/api-management" target="_blank" style="font-size:11px;color:var(--accent);align-self:center;">→ Crea API report fiscale</a>';
-                    html += '</div>';
-                    html += '<div id="apiProgress-' + exch.id + '" style="display:none;margin-top:12px;"><div style="background:var(--bg-secondary);border-radius:4px;height:6px;overflow:hidden;"><div id="apiProgressBar-' + exch.id + '" style="background:#f3ba2f;height:100%;width:0%;transition:width 0.3s;"></div></div><div id="apiProgressText-' + exch.id + '" style="font-size:11px;color:var(--text-secondary);margin-top:4px;"></div></div>';
-                    html += '</div>';
-                    html += '<div style="text-align:center;color:var(--text-secondary);font-size:12px;margin-bottom:12px;">— oppure —</div>';
                 }
                 
                 // Dropzone CSV/ZIP
@@ -3085,18 +3551,26 @@
         // Verifica se il server Binance è attivo
         async function checkBinanceServerStatus() {
             const statusEl = document.getElementById('serverStatus-binance');
-            if (!statusEl) return;
+            const modalStatusEl = document.getElementById('modalServerStatus');
             
             try {
-                const response = await fetch('http://localhost:3456/status', { 
+                const response = await fetch('http://localhost:3457/status', { 
                     method: 'GET',
                     signal: AbortSignal.timeout(2000) 
                 });
                 
                 if (response.ok) {
-                    statusEl.textContent = 'SERVER ON';
-                    statusEl.style.background = 'var(--green)';
-                    statusEl.style.color = '#000';
+                    // Aggiorna badge nella card
+                    if (statusEl) {
+                        statusEl.textContent = '🟢 ON';
+                        statusEl.style.background = 'var(--green)';
+                        statusEl.style.color = '#000';
+                    }
+                    // Aggiorna badge nel modal
+                    if (modalStatusEl) {
+                        modalStatusEl.textContent = 'ONLINE';
+                        modalStatusEl.className = 'server-status-badge server-on';
+                    }
                     console.log('✅ Binance Tax Server attivo');
                     return true;
                 }
@@ -3104,11 +3578,207 @@
                 // Server non attivo
             }
             
-            statusEl.textContent = 'SERVER OFF';
-            statusEl.style.background = 'var(--red)';
-            statusEl.style.color = '#fff';
+            // Server offline
+            if (statusEl) {
+                statusEl.textContent = '⚫ OFF';
+                statusEl.style.background = 'var(--red)';
+                statusEl.style.color = '#fff';
+            }
+            if (modalStatusEl) {
+                modalStatusEl.textContent = 'OFFLINE';
+                modalStatusEl.className = 'server-status-badge server-off';
+            }
             console.log('⚠️ Binance Tax Server non attivo');
             return false;
+        }
+        
+        // Funzioni Modal Binance API
+        function openBinanceApiModal() {
+            const modal = document.getElementById('binanceApiModal');
+            const apiKeyInput = document.getElementById('modalApiKey');
+            const secretKeyInput = document.getElementById('modalSecretKey');
+            
+            // Pre-popola con chiavi salvate
+            if (apiKeys.binanceTaxKey) apiKeyInput.value = apiKeys.binanceTaxKey;
+            if (apiKeys.binanceTaxSecret) secretKeyInput.value = apiKeys.binanceTaxSecret;
+            
+            // Reset progress
+            document.getElementById('modalProgress').style.display = 'none';
+            document.getElementById('modalProgressBar').style.width = '0%';
+            document.getElementById('modalProgressText').textContent = '';
+            
+            modal.classList.add('active');
+            checkModalServerStatus();
+        }
+        
+        function closeBinanceApiModal() {
+            document.getElementById('binanceApiModal').classList.remove('active');
+        }
+        
+        async function checkModalServerStatus() {
+            const statusEl = document.getElementById('modalServerStatus');
+            const cardStatusEl = document.getElementById('serverStatus-binance');
+            
+            try {
+                const response = await fetch('http://localhost:3457/status', { 
+                    method: 'GET',
+                    signal: AbortSignal.timeout(2000) 
+                });
+                
+                if (response.ok) {
+                    statusEl.textContent = 'ONLINE';
+                    statusEl.className = 'server-status-badge server-on';
+                    if (cardStatusEl) {
+                        cardStatusEl.textContent = '🟢 ON';
+                        cardStatusEl.style.background = 'var(--green)';
+                        cardStatusEl.style.color = '#000';
+                    }
+                    return true;
+                }
+            } catch (e) {}
+            
+            statusEl.textContent = 'OFFLINE';
+            statusEl.className = 'server-status-badge server-off';
+            if (cardStatusEl) {
+                cardStatusEl.textContent = '⚫ OFF';
+                cardStatusEl.style.background = 'var(--red)';
+                cardStatusEl.style.color = '#fff';
+            }
+            return false;
+        }
+        
+        async function downloadFromModal() {
+            const apiKey = document.getElementById('modalApiKey').value.trim();
+            const secretKey = document.getElementById('modalSecretKey').value.trim();
+            const progressContainer = document.getElementById('modalProgress');
+            const progressBar = document.getElementById('modalProgressBar');
+            const progressText = document.getElementById('modalProgressText');
+            
+            if (!apiKey || !secretKey) {
+                alert('⚠️ Inserisci API Key e Secret Key!\n\nVai su Binance → Profilo → Gestione API → "Crea API report fiscale"');
+                return;
+            }
+            
+            // Salva le chiavi
+            apiKeys.binanceTaxKey = apiKey;
+            apiKeys.binanceTaxSecret = secretKey;
+            localStorage.setItem('cryptofolio_apikeys', JSON.stringify(apiKeys));
+            
+            // Mostra progress
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '5%';
+            progressText.textContent = 'Verifica server...';
+            
+            try {
+                // Verifica server
+                const serverOnline = await checkModalServerStatus();
+                if (!serverOnline) {
+                    throw new Error('Server non attivo! Avvia AVVIA_SERVER.command');
+                }
+                
+                progressBar.style.width = '10%';
+                progressText.textContent = 'Download in corso... (1-2 minuti)';
+                
+                // Download
+                const downloadUrl = `http://localhost:3457/download?apiKey=${encodeURIComponent(apiKey)}&secretKey=${encodeURIComponent(secretKey)}`;
+                const response = await fetch(downloadUrl);
+                const data = await response.json();
+                
+                if (data.error) throw new Error(data.error);
+                
+                let rawTransactions = data.transactions || [];
+                const txCount = data.count || rawTransactions.length;
+                
+                if (txCount === 0) {
+                    progressText.textContent = '⚠️ Nessuna transazione trovata';
+                    alert('⚠️ Nessuna transazione.\n\nVerifica di aver usato "API report fiscale"');
+                    return;
+                }
+                
+                progressBar.style.width = '70%';
+                progressText.textContent = `Elaborazione ${txCount} transazioni...`;
+                
+                // Converti le transazioni
+                const allTransactions = rawTransactions.map(tx => ({
+                    ...tx,
+                    date: new Date(tx.date),
+                    change: tx.change || tx.amount || 0
+                }));
+                
+                allTransactions.sort((a, b) => a.date - b.date);
+                
+                progressBar.style.width = '85%';
+                progressText.textContent = 'Calcolo saldi 31/12...';
+                
+                // Calcola saldi al 31/12
+                const balances = {};
+                const yearEndSnapshots = {};
+                const years = [2021, 2022, 2023, 2024, 2025];
+                let yearIndex = 0;
+                
+                for (const tx of allTransactions) {
+                    if (!balances[tx.coin]) balances[tx.coin] = 0;
+                    balances[tx.coin] += tx.change || 0;
+                    if (Math.abs(balances[tx.coin]) < 0.00000001) balances[tx.coin] = 0;
+                    
+                    while (yearIndex < years.length && tx.date > new Date(years[yearIndex], 11, 31, 23, 59, 59)) {
+                        yearEndSnapshots[years[yearIndex]] = { ...balances };
+                        yearIndex++;
+                    }
+                }
+                
+                for (let i = yearIndex; i < years.length; i++) {
+                    yearEndSnapshots[years[i]] = { ...balances };
+                }
+                
+                // Calcola totali EUR
+                const yearTotals = {};
+                for (const year of years) {
+                    let totalEur = 0;
+                    const snapshot = yearEndSnapshots[year] || {};
+                    for (const [coin, amount] of Object.entries(snapshot)) {
+                        if (amount <= 0) continue;
+                        const price = getHistoricalPrice(coin, year);
+                        totalEur += amount * price * EUR_USD;
+                    }
+                    yearTotals[year] = Math.round(totalEur * 100) / 100;
+                }
+                
+                // Salva
+                exchangeData['binance'] = {
+                    transactions: allTransactions,
+                    balances: yearEndSnapshots,
+                    totals: yearTotals,
+                    transactionCount: allTransactions.length,
+                    isManual: false,
+                    lastImport: new Date().toISOString(),
+                    source: 'api'
+                };
+                
+                progressBar.style.width = '100%';
+                progressText.textContent = `✅ ${txCount} transazioni importate!`;
+                
+                saveExchangeDataToFirebase();
+                initExchangeGrid();
+                updateExchangeTotals();
+                
+                // Chiudi modal dopo 1.5 secondi
+                setTimeout(() => {
+                    closeBinanceApiModal();
+                    alert(`✅ Binance importato!\n\n📊 ${txCount} transazioni`);
+                }, 1500);
+                
+            } catch (e) {
+                console.error('Binance API error:', e);
+                progressBar.style.width = '0%';
+                progressText.textContent = '❌ ' + e.message;
+                
+                if (e.message.includes('Failed to fetch') || e.message.includes('non attivo')) {
+                    alert('⚠️ Server non attivo!\n\nAvvia AVVIA_SERVER.command e riprova.');
+                } else {
+                    alert('❌ Errore: ' + e.message);
+                }
+            }
         }
         
         async function testExchangeApi(exchId) {
@@ -3123,11 +3793,11 @@
                 
                 try {
                     // Prima verifica che il server sia attivo
-                    const statusResponse = await fetch('http://localhost:3456/status');
+                    const statusResponse = await fetch('http://localhost:3457/status');
                     if (!statusResponse.ok) throw new Error('Server non attivo');
                     
                     // Test connessione Binance
-                    const testUrl = `http://localhost:3456/test?apiKey=${encodeURIComponent(apiKey)}&secretKey=${encodeURIComponent(secretKey)}`;
+                    const testUrl = `http://localhost:3457/test?apiKey=${encodeURIComponent(apiKey)}&secretKey=${encodeURIComponent(secretKey)}`;
                     const response = await fetch(testUrl);
                     const data = await response.json();
                     
@@ -3177,22 +3847,13 @@
                         throw new Error('Server non attivo');
                     }
                     
-                    // Download - prova prima /history poi /download
+                    // Download dati da server
                     if (progressText) progressText.textContent = 'Download in corso... (può richiedere 1-2 minuti)';
                     if (progressBar) progressBar.style.width = '10%';
                     
-                    let data;
-                    let downloadUrl = `http://localhost:3456/history?apiKey=${encodeURIComponent(apiKey)}&secretKey=${encodeURIComponent(secretKey)}`;
-                    
-                    try {
-                        const response = await fetch(downloadUrl);
-                        data = await response.json();
-                    } catch (e) {
-                        // Prova endpoint alternativo /download
-                        downloadUrl = `http://localhost:3456/download?apiKey=${encodeURIComponent(apiKey)}&secretKey=${encodeURIComponent(secretKey)}`;
-                        const response = await fetch(downloadUrl);
-                        data = await response.json();
-                    }
+                    const downloadUrl = `http://localhost:3457/download?apiKey=${encodeURIComponent(apiKey)}&secretKey=${encodeURIComponent(secretKey)}`;
+                    const response = await fetch(downloadUrl);
+                    const data = await response.json();
                     
                     // Gestisce diversi formati di risposta
                     if (data.error) {
@@ -5540,5 +6201,46 @@
         
         init();
     </script>
+    
+    <!-- Modal Binance API -->
+    <div id="binanceApiModal" class="modal-overlay" onclick="if(event.target===this)closeBinanceApiModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><img src="https://assets.coingecko.com/markets/images/52/small/binance.jpg" style="width:28px;height:28px;border-radius:6px;"> Binance Tax API</h3>
+                <button class="modal-close" onclick="closeBinanceApiModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="server-status-box">
+                    <span class="server-status-label">🖥️ Server Locale</span>
+                    <span id="modalServerStatus" class="server-status-badge server-off">OFFLINE</span>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">API Key</label>
+                    <input type="text" id="modalApiKey" class="form-input" placeholder="Incolla la tua API Key...">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Secret Key</label>
+                    <input type="password" id="modalSecretKey" class="form-input" placeholder="Incolla la tua Secret Key...">
+                </div>
+                
+                <a href="https://www.binance.com/it/my/settings/api-management" target="_blank" class="api-help-link">
+                    📋 Come creare API Report Fiscale su Binance →
+                </a>
+                
+                <div id="modalProgress" class="progress-container">
+                    <div class="progress-bar-bg">
+                        <div id="modalProgressBar" class="progress-bar-fill"></div>
+                    </div>
+                    <div id="modalProgressText" class="progress-text">Preparazione...</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="checkModalServerStatus()">🔄 Check Server</button>
+                <button class="btn btn-primary" onclick="downloadFromModal()" style="background:#f3ba2f;color:#000;">📥 Scarica Storico</button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
