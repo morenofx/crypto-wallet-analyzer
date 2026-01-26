@@ -997,7 +997,7 @@
                     apiKeys = data.apiKeys || {};
                     walletResults = data.walletResults || {};
                     taxReportData = data.taxReportData || null;
-                    exchangeValues = data.exchangeValues || { 2021: 0, 2022: 0, 2023: 0, 2024: 0, 2025: 0 };
+                    exchangeValues = data.exchangeValues || { 2021: 0, 2022: 0, 2023: 0, 2024: 0, 2025: 0, 2026: 0 };
                     
                     // Sync to localStorage
                     localStorage.setItem('cryptofolio_wallets', JSON.stringify(savedWallets));
@@ -1061,7 +1061,10 @@
             if (n < 0.0001 && n > 0) return n.toExponential(2); 
             return n.toLocaleString('en-US', {minimumFractionDigits: d, maximumFractionDigits: d}); 
         }
-        function formatEUR(n) { return n.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
+        function formatEUR(n) { 
+            if (n === null || n === undefined || isNaN(n)) return '0,00';
+            return n.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}); 
+        }
         function isSpam(name, sym) { 
             const n = (name||'').toLowerCase(), s = (sym||'').toLowerCase(); 
             const spam = ['visit', 'claim', 'reward', '.com', '.org', '.io', '.xyz', 'airdrop', 'bonus', 'free', 'gift', 'http', '$', '#']; 
@@ -3825,13 +3828,14 @@
                     yearEndSnapshots[years[i]] = { ...balances };
                 }
                 
-                // 🆕 USA SALDI REALI per il 2025 se disponibili!
+                // 🆕 USA SALDI REALI per 2025 e 2026 se disponibili!
                 const realBalances = data.realBalances || {};
                 const hasRealBalances = Object.keys(realBalances).length > 0;
                 
                 if (hasRealBalances) {
-                    console.log('✅ Usando SALDI REALI per 2025:', Object.keys(realBalances).length, 'asset');
+                    console.log('✅ Usando SALDI REALI per 2025/2026:', Object.keys(realBalances).length, 'asset');
                     yearEndSnapshots[2025] = { ...realBalances };
+                    yearEndSnapshots[2026] = { ...realBalances }; // Saldi attuali = 2026
                 }
                 
                 // Calcola totali EUR
@@ -3840,11 +3844,13 @@
                     let totalEur = 0;
                     const snapshot = yearEndSnapshots[year] || {};
                     for (const [coin, amount] of Object.entries(snapshot)) {
-                        if (amount <= 0) continue;
+                        if (!amount || amount <= 0) continue;
                         const price = getHistoricalPrice(coin, year);
-                        totalEur += amount * price * EUR_USD;
+                        if (price && !isNaN(price)) {
+                            totalEur += amount * price * EUR_USD;
+                        }
                     }
-                    yearTotals[year] = Math.round(totalEur * 100) / 100;
+                    yearTotals[year] = isNaN(totalEur) ? 0 : Math.round(totalEur * 100) / 100;
                 }
                 
                 // Salva
@@ -4894,20 +4900,23 @@
         
         function updateExchangeTotals() {
             const years = [2021, 2022, 2023, 2024, 2025, 2026];
-            const totals = { 2021: 0, 2022: 0, 2023: 0, 2024: 0, 2025: 0 };
+            const totals = { 2021: 0, 2022: 0, 2023: 0, 2024: 0, 2025: 0, 2026: 0 };
             
             for (const exchId of Object.keys(exchangeData)) {
                 const data = exchangeData[exchId];
                 if (data && data.totals) {
                     for (const y of years) {
-                        totals[y] += data.totals[y] || 0;
+                        const val = data.totals[y];
+                        if (val && !isNaN(val)) {
+                            totals[y] += val;
+                        }
                     }
                 }
             }
             
-            // Arrotonda a 2 decimali PRIMA di visualizzare
+            // Arrotonda a 2 decimali e gestisci NaN
             for (const y of years) {
-                totals[y] = Math.round(totals[y] * 100) / 100;
+                totals[y] = isNaN(totals[y]) ? 0 : Math.round(totals[y] * 100) / 100;
             }
             
             // Aggiorna UI
@@ -4941,7 +4950,7 @@
             if (!exchangeData[exchId]) {
                 exchangeData[exchId] = {};
             }
-            exchangeData[exchId].totals = { 2021: 0, 2022: 0, 2023: 0, 2024: 0, 2025: 0 };
+            exchangeData[exchId].totals = { 2021: 0, 2022: 0, 2023: 0, 2024: 0, 2025: 0, 2026: 0 };
             exchangeData[exchId].balances = {};
             exchangeData[exchId].transactions = [];
             exchangeData[exchId].transactionCount = 0;
@@ -4998,7 +5007,7 @@
             // Abilita inserimento manuale per exchange senza dati
             if (!exchangeData[exchId]) {
                 exchangeData[exchId] = { 
-                    totals: { 2021: 0, 2022: 0, 2023: 0, 2024: 0, 2025: 0 }, 
+                    totals: { 2021: 0, 2022: 0, 2023: 0, 2024: 0, 2025: 0, 2026: 0 }, 
                     balances: {}, 
                     transactions: [], 
                     isManual: true 
