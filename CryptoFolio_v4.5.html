@@ -564,10 +564,10 @@
             <div class="card" style="margin-bottom:20px;">
                 <div class="card-header"><div class="card-title">⚡ Azioni</div></div>
                 <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;">
-                    <!-- Binance API -->
+                    <!-- Exchange API (dinamico) -->
                     <div id="exchDetailApiSection" style="display:none;">
-                        <button class="btn" onclick="openBinanceApiModal()" style="background:#f3ba2f;color:#000;">
-                            🔗 Connetti API Binance
+                        <button id="exchDetailApiBtn" class="btn" onclick="openExchangeApiModal()" style="background:#f3ba2f;color:#000;">
+                            🔗 Connetti API
                         </button>
                         <span id="exchDetailServerStatus" style="margin-left:8px;font-size:12px;"></span>
                     </div>
@@ -875,7 +875,7 @@
         // Lista exchange supportati
         const EXCHANGE_LIST = [
             { id: 'binance', name: 'Binance', color: '#f3ba2f', icon: 'B', logo: 'https://assets.coingecko.com/markets/images/52/small/binance.jpg', hasApi: true },
-            { id: 'bitget', name: 'Bitget', color: '#00f0ff', icon: 'Bg', logo: 'https://assets.coingecko.com/markets/images/540/small/bitget.jpg' },
+            { id: 'bitget', name: 'Bitget', color: '#00f0ff', icon: 'Bg', logo: 'https://assets.coingecko.com/markets/images/540/small/bitget.jpg', hasApi: true },
             { id: 'bitpanda', name: 'Bitpanda', color: '#08b289', icon: 'Bp', logo: 'https://assets.coingecko.com/markets/images/237/small/bitpanda.jpg' },
             { id: 'bybit', name: 'Bybit', color: '#f7a600', icon: 'By', logo: 'https://assets.coingecko.com/markets/images/698/small/bybit_spot.png' },
             { id: 'bybit_eu', name: 'Bybit EU', color: '#f7a600', icon: 'BE', logo: 'https://assets.coingecko.com/markets/images/698/small/bybit_spot.png' },
@@ -3460,10 +3460,21 @@
             // Year grid
             renderExchDetailYearGrid(data);
             
-            // API section (solo Binance)
+            // API section (Binance, Bitget, ecc.)
             const apiSection = document.getElementById('exchDetailApiSection');
+            const apiBtn = document.getElementById('exchDetailApiBtn');
             if (exch.hasApi) {
                 apiSection.style.display = 'block';
+                // Configura pulsante in base all'exchange
+                if (exchId === 'binance') {
+                    apiBtn.textContent = '🔗 Connetti API Binance';
+                    apiBtn.style.background = '#f3ba2f';
+                    apiBtn.style.color = '#000';
+                } else if (exchId === 'bitget') {
+                    apiBtn.textContent = '🔗 Connetti API Bitget';
+                    apiBtn.style.background = '#00f0ff';
+                    apiBtn.style.color = '#000';
+                }
                 checkBinanceServerStatus();
             } else {
                 apiSection.style.display = 'none';
@@ -3673,6 +3684,8 @@
         function scanCurrentExchange() {
             if (currentDetailExchange === 'binance') {
                 openBinanceApiModal();
+            } else if (currentDetailExchange === 'bitget') {
+                openBitgetApiModal();
             } else {
                 document.getElementById('exchDetailFileInput').click();
             }
@@ -3742,6 +3755,17 @@
         }
         
         // Funzioni Modal Binance API
+        function openExchangeApiModal() {
+            // Apre il modal corretto in base all'exchange corrente
+            if (currentDetailExchange === 'binance') {
+                openBinanceApiModal();
+            } else if (currentDetailExchange === 'bitget') {
+                openBitgetApiModal();
+            } else {
+                alert('API non supportata per questo exchange');
+            }
+        }
+        
         function openBinanceApiModal() {
             const modal = document.getElementById('binanceApiModal');
             const apiKeyInput = document.getElementById('modalApiKey');
@@ -3975,6 +3999,230 @@
                 
                 if (e.message.includes('Failed to fetch') || e.message.includes('non attivo')) {
                     alert('⚠️ Server non attivo!\n\nAvvia AVVIA_SERVER.command e riprova.');
+                } else {
+                    alert('❌ Errore: ' + e.message);
+                }
+            }
+        }
+        
+        // ==================== BITGET API FUNCTIONS ====================
+        
+        function openBitgetApiModal() {
+            const modal = document.getElementById('bitgetApiModal');
+            const apiKeyInput = document.getElementById('bitgetModalApiKey');
+            const secretKeyInput = document.getElementById('bitgetModalSecretKey');
+            const passphraseInput = document.getElementById('bitgetModalPassphrase');
+            
+            // Pre-popola con chiavi salvate
+            if (apiKeys.bitgetApiKey) apiKeyInput.value = apiKeys.bitgetApiKey;
+            if (apiKeys.bitgetSecretKey) secretKeyInput.value = apiKeys.bitgetSecretKey;
+            if (apiKeys.bitgetPassphrase) passphraseInput.value = apiKeys.bitgetPassphrase;
+            
+            // Reset progress
+            document.getElementById('bitgetModalProgress').style.display = 'none';
+            document.getElementById('bitgetModalProgressBar').style.width = '0%';
+            document.getElementById('bitgetModalProgressText').textContent = '';
+            
+            modal.classList.add('active');
+            checkBitgetServerStatus();
+        }
+        
+        function closeBitgetApiModal() {
+            document.getElementById('bitgetApiModal').classList.remove('active');
+        }
+        
+        async function checkBitgetServerStatus() {
+            const statusEl = document.getElementById('bitgetModalServerStatus');
+            
+            try {
+                const response = await fetch('http://localhost:3457/status', { 
+                    method: 'GET',
+                    signal: AbortSignal.timeout(2000) 
+                });
+                
+                if (response.ok) {
+                    statusEl.textContent = 'ONLINE';
+                    statusEl.className = 'server-status-badge server-on';
+                    return true;
+                }
+            } catch (e) {}
+            
+            statusEl.textContent = 'OFFLINE';
+            statusEl.className = 'server-status-badge server-off';
+            return false;
+        }
+        
+        async function downloadFromBitgetModal() {
+            const apiKey = document.getElementById('bitgetModalApiKey').value.trim();
+            const secretKey = document.getElementById('bitgetModalSecretKey').value.trim();
+            const passphrase = document.getElementById('bitgetModalPassphrase').value.trim();
+            const progressContainer = document.getElementById('bitgetModalProgress');
+            const progressBar = document.getElementById('bitgetModalProgressBar');
+            const progressText = document.getElementById('bitgetModalProgressText');
+            
+            if (!apiKey || !secretKey || !passphrase) {
+                alert('⚠️ Inserisci API Key, Secret Key e Passphrase!\n\nVai su Bitget → Account → API');
+                return;
+            }
+            
+            // Salva le chiavi
+            apiKeys.bitgetApiKey = apiKey;
+            apiKeys.bitgetSecretKey = secretKey;
+            apiKeys.bitgetPassphrase = passphrase;
+            localStorage.setItem('cryptofolio_apikeys', JSON.stringify(apiKeys));
+            
+            // Mostra progress
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '5%';
+            progressText.textContent = 'Verifica server...';
+            
+            try {
+                // Verifica server
+                const serverOnline = await checkBitgetServerStatus();
+                if (!serverOnline) {
+                    throw new Error('Server non attivo! Avvia il server prima');
+                }
+                
+                progressBar.style.width = '10%';
+                progressText.textContent = 'Download in corso... (1-2 minuti)';
+                
+                // Download
+                const downloadUrl = `http://localhost:3457/bitget/download?apiKey=${encodeURIComponent(apiKey)}&secretKey=${encodeURIComponent(secretKey)}&passphrase=${encodeURIComponent(passphrase)}`;
+                const response = await fetch(downloadUrl);
+                const data = await response.json();
+                
+                if (data.error) throw new Error(data.error);
+                
+                let rawTransactions = data.transactions || [];
+                const txCount = data.count || rawTransactions.length;
+                
+                if (txCount === 0 && !data.realBalances) {
+                    progressText.textContent = '⚠️ Nessun dato trovato';
+                    alert('⚠️ Nessuna transazione o saldo trovato.\n\nVerifica che le API abbiano i permessi corretti.');
+                    return;
+                }
+                
+                progressBar.style.width = '70%';
+                progressText.textContent = `Elaborazione ${txCount} transazioni...`;
+                
+                // De-duplicazione
+                const seenTx = new Set();
+                const uniqueTransactions = rawTransactions.filter(tx => {
+                    const key = tx.id || `${tx.date}-${tx.coin}-${tx.amount}-${tx.type}`;
+                    if (seenTx.has(key)) return false;
+                    seenTx.add(key);
+                    return true;
+                });
+                
+                // Converti le transazioni
+                const allTransactions = uniqueTransactions.map(tx => ({
+                    ...tx,
+                    date: new Date(tx.date),
+                    change: tx.change || tx.amount || 0
+                }));
+                
+                allTransactions.sort((a, b) => a.date - b.date);
+                
+                progressBar.style.width = '85%';
+                progressText.textContent = 'Calcolo saldi 31/12...';
+                
+                // Calcola saldi al 31/12 dalle transazioni
+                const balances = {};
+                const yearEndSnapshots = {};
+                const years = [2021, 2022, 2023, 2024, 2025, 2026];
+                let yearIndex = 0;
+                
+                for (const tx of allTransactions) {
+                    if (!balances[tx.coin]) balances[tx.coin] = 0;
+                    balances[tx.coin] += tx.change || 0;
+                    if (Math.abs(balances[tx.coin]) < 0.00000001) balances[tx.coin] = 0;
+                    
+                    while (yearIndex < years.length && tx.date > new Date(years[yearIndex], 11, 31, 23, 59, 59)) {
+                        yearEndSnapshots[years[yearIndex]] = { ...balances };
+                        yearIndex++;
+                    }
+                }
+                
+                for (let i = yearIndex; i < years.length; i++) {
+                    yearEndSnapshots[years[i]] = { ...balances };
+                }
+                
+                // USA SALDI REALI per 2025 e 2026 se disponibili!
+                const realBalances = data.realBalances || {};
+                const hasRealBalances = Object.keys(realBalances).length > 0;
+                
+                if (hasRealBalances) {
+                    console.log('✅ Usando SALDI REALI Bitget per 2025/2026:', Object.keys(realBalances).length, 'asset');
+                    yearEndSnapshots[2025] = { ...realBalances };
+                    yearEndSnapshots[2026] = { ...realBalances };
+                }
+                
+                // Calcola totali EUR
+                const yearTotals = {};
+                for (const year of years) {
+                    let totalEur = 0;
+                    const snapshot = yearEndSnapshots[year] || {};
+                    for (const [coin, amount] of Object.entries(snapshot)) {
+                        if (!amount || amount <= 0) continue;
+                        const price = getHistoricalPrice(coin, year);
+                        if (price && !isNaN(price)) {
+                            totalEur += amount * price * EUR_USD;
+                        }
+                    }
+                    yearTotals[year] = isNaN(totalEur) ? 0 : Math.round(totalEur * 100) / 100;
+                }
+                
+                // Salva
+                exchangeData['bitget'] = {
+                    transactions: allTransactions,
+                    balances: yearEndSnapshots,
+                    realBalances: hasRealBalances ? realBalances : null,
+                    totals: yearTotals,
+                    transactionCount: allTransactions.length,
+                    isManual: false,
+                    lastImport: new Date().toISOString(),
+                    source: 'api'
+                };
+                
+                progressBar.style.width = '100%';
+                const realMsg = hasRealBalances ? ` (con saldi reali!)` : '';
+                progressText.textContent = `✅ ${txCount} transazioni importate${realMsg}`;
+                
+                saveExchangeDataToFirebase();
+                initExchangeGrid();
+                updateExchangeTotals();
+                
+                // Messaggio finale
+                let alertMsg = `✅ Bitget importato!\n\n📊 ${txCount} transazioni`;
+                if (hasRealBalances) {
+                    alertMsg += `\n\n💎 SALDI REALI:`;
+                    const topBalances = Object.entries(realBalances)
+                        .filter(([_, amt]) => amt > 0)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 5);
+                    for (const [coin, amt] of topBalances) {
+                        alertMsg += `\n   ${coin}: ${amt.toFixed(amt < 1 ? 6 : 2)}`;
+                    }
+                    alertMsg += `\n\n💰 Totale 2025: €${yearTotals[2025]?.toLocaleString('it-IT') || '?'}`;
+                }
+                
+                // Chiudi modal dopo 1.5 secondi
+                setTimeout(() => {
+                    closeBitgetApiModal();
+                    alert(alertMsg);
+                    // Aggiorna vista dettaglio se aperta
+                    if (currentDetailExchange === 'bitget') {
+                        openExchangeDetail('bitget');
+                    }
+                }, 1500);
+                
+            } catch (e) {
+                console.error('Bitget API error:', e);
+                progressBar.style.width = '0%';
+                progressText.textContent = '❌ ' + e.message;
+                
+                if (e.message.includes('Failed to fetch') || e.message.includes('non attivo')) {
+                    alert('⚠️ Server non attivo!\n\nAvvia il server e riprova.');
                 } else {
                     alert('❌ Errore: ' + e.message);
                 }
@@ -6444,6 +6692,52 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="checkModalServerStatus()">🔄 Check Server</button>
                 <button class="btn btn-primary" onclick="downloadFromModal()" style="background:#f3ba2f;color:#000;">📥 Scarica Storico</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- BITGET API MODAL -->
+    <div id="bitgetApiModal" class="modal-overlay" onclick="if(event.target===this)closeBitgetApiModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><img src="https://assets.coingecko.com/markets/images/540/small/bitget.jpg" style="width:28px;height:28px;border-radius:6px;"> Bitget API</h3>
+                <button class="modal-close" onclick="closeBitgetApiModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="server-status-box">
+                    <span class="server-status-label">🖥️ Server Locale</span>
+                    <span id="bitgetModalServerStatus" class="server-status-badge server-off">OFFLINE</span>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">API Key</label>
+                    <input type="text" id="bitgetModalApiKey" class="form-input" placeholder="Incolla la tua API Key...">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Secret Key</label>
+                    <input type="password" id="bitgetModalSecretKey" class="form-input" placeholder="Incolla la tua Secret Key...">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Passphrase</label>
+                    <input type="password" id="bitgetModalPassphrase" class="form-input" placeholder="Incolla la tua Passphrase...">
+                </div>
+                
+                <a href="https://www.bitget.com/account/newapi" target="_blank" class="api-help-link">
+                    📋 Come creare API su Bitget →
+                </a>
+                
+                <div id="bitgetModalProgress" class="progress-container">
+                    <div class="progress-bar-bg">
+                        <div id="bitgetModalProgressBar" class="progress-bar-fill"></div>
+                    </div>
+                    <div id="bitgetModalProgressText" class="progress-text">Preparazione...</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="checkBitgetServerStatus()">🔄 Check Server</button>
+                <button class="btn btn-primary" onclick="downloadFromBitgetModal()" style="background:#00f0ff;color:#000;">📥 Scarica Storico</button>
             </div>
         </div>
     </div>
