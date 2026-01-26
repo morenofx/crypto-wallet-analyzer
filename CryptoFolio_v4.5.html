@@ -3195,11 +3195,15 @@
         }
         
         function formatNumber(num) {
-            if (num === undefined || num === null) return '-';
-            if (Math.abs(num) < 0.00001) return num.toExponential(2);
-            if (Math.abs(num) < 1) return num.toFixed(6);
-            if (Math.abs(num) < 100) return num.toFixed(4);
-            return num.toLocaleString('it-IT', { maximumFractionDigits: 2 });
+            if (num === undefined || num === null || num === '') return '-';
+            const n = parseFloat(num);
+            if (isNaN(n)) return '-';
+            if (n === 0) return '0';
+            if (Math.abs(n) >= 1000000) return n.toLocaleString('it-IT', { maximumFractionDigits: 0 });
+            if (Math.abs(n) >= 1000) return n.toLocaleString('it-IT', { maximumFractionDigits: 2 });
+            if (Math.abs(n) >= 1) return n.toLocaleString('it-IT', { maximumFractionDigits: 4 });
+            if (Math.abs(n) >= 0.0001) return n.toFixed(6);
+            return n.toExponential(2);
         }
         
         // ==================== EXCHANGES CSV ====================
@@ -3612,9 +3616,10 @@
                 const dateStr = d.toLocaleDateString('it-IT');
                 const timeStr = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
                 const style = typeColors[tx.type] || { bg: 'rgba(160,160,160,0.15)', color: 'var(--text-secondary)', icon: '•' };
-                const amt = tx.amount || 0;
-                const change = tx.change || 0;
+                const amt = parseFloat(tx.amount) || 0;
+                const change = parseFloat(tx.change) || 0;
                 const amtColor = change >= 0 ? 'var(--green)' : 'var(--red)';
+                const sign = change >= 0 ? '+' : '';
                 
                 // Etichette più leggibili
                 const typeLabels = {
@@ -3636,7 +3641,7 @@
                     <td><div style="font-size:14px;font-weight:500;">${dateStr}</div><div style="font-size:12px;color:var(--text-secondary);">${timeStr}</div></td>
                     <td><span style="display:inline-flex;flex-direction:row;align-items:center;gap:6px;padding:6px 10px;border-radius:6px;font-size:13px;font-weight:600;background:${style.bg};color:${style.color};white-space:nowrap;">${style.icon} ${typeLabel}</span></td>
                     <td style="font-weight:600;font-size:14px;">${tx.coin || '-'}</td>
-                    <td style="text-align:right;color:${amtColor};font-weight:600;font-size:14px;">${formatNumber(amt)}</td>
+                    <td style="text-align:right;color:${amtColor};font-weight:600;font-size:14px;">${sign}${formatNumber(Math.abs(change) || amt)}</td>
                     <td style="font-size:13px;color:var(--text-secondary);">${tx.operation || '-'}</td>
                 </tr>`;
             }
@@ -5416,7 +5421,8 @@
                             operation: tx.operation || '',
                             type: tx.type || '',
                             coin: tx.coin || '',
-                            change: tx.change || 0
+                            amount: parseFloat(tx.amount) || Math.abs(parseFloat(tx.change)) || 0,
+                            change: parseFloat(tx.change) || 0
                         }));
                         
                         txToSave[exchId] = toSave;
@@ -5451,10 +5457,12 @@
                         exchangeData[exchId] = { transactions: [], totals: {}, balances: {} };
                     }
                     
-                    // Converti date da stringa a Date
+                    // Converti date da stringa a Date e assicura amount
                     exchangeData[exchId].transactions = txData[exchId].map(tx => ({
                         ...tx,
-                        date: new Date(tx.date)
+                        date: new Date(tx.date),
+                        amount: parseFloat(tx.amount) || Math.abs(parseFloat(tx.change)) || 0,
+                        change: parseFloat(tx.change) || 0
                     }));
                     totalLoaded += txData[exchId].length;
                 }
