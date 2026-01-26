@@ -348,49 +348,6 @@
                 </div>
             </div>
             
-            <!-- BINANCE TAX API -->
-            <div class="card" style="margin-bottom:20px;">
-                <div class="card-header">
-                    <div class="card-title" style="display:flex;align-items:center;gap:12px;">
-                        <span style="width:40px;height:40px;background:#f3ba2f;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;">🟡</span>
-                        <div>
-                            <div>Binance Tax API</div>
-                            <div style="font-size:12px;color:var(--text-secondary);font-weight:normal;">Download automatico • Tutte le transazioni • Tax Report</div>
-                        </div>
-                    </div>
-                    <span class="api-status" id="binanceTaxStatus">OFF</span>
-                </div>
-                <div class="input-row" style="margin-top:16px;">
-                    <div class="input-group" style="flex:2;">
-                        <label>API Key <a href="https://www.binance.com/it/my/settings/api-management" target="_blank" style="color:var(--accent);font-size:11px;margin-left:8px;">→ Crea API report fiscale</a></label>
-                        <input type="password" id="binanceTaxApiKey" placeholder="API Key..." autocomplete="off">
-                    </div>
-                    <div class="input-group" style="flex:2;">
-                        <label>Secret Key</label>
-                        <input type="password" id="binanceTaxSecretKey" placeholder="Secret Key..." autocomplete="off">
-                    </div>
-                    <div class="input-group" style="flex:0;align-self:flex-end;">
-                        <button class="btn btn-primary" onclick="saveBinanceTaxKeys()">💾 Salva</button>
-                    </div>
-                </div>
-                <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
-                    <button class="btn btn-secondary" onclick="downloadBinanceTaxData()">📥 Scarica Transazioni</button>
-                    <button class="btn btn-secondary" onclick="testBinanceTaxAPI()">🧪 Test Connessione</button>
-                </div>
-                <div style="margin-top:12px;padding:12px;background:var(--bg-primary);border-radius:8px;font-size:12px;">
-                    <strong>Come ottenere:</strong> Binance → Profilo → Gestione API → "Crea API report fiscale"<br>
-                    <strong>Dati scaricati:</strong> Depositi, Prelievi, Trade, Earn, Staking, Distribuzione<br>
-                    <strong>Note:</strong> API solo lettura, non può fare trading
-                </div>
-                <div id="binanceTaxProgress" style="display:none;margin-top:12px;padding:12px;background:var(--bg-primary);border-radius:8px;">
-                    <div style="font-size:12px;margin-bottom:8px;">⏳ Download in corso...</div>
-                    <div style="background:var(--bg-secondary);border-radius:4px;height:8px;overflow:hidden;">
-                        <div id="binanceTaxProgressBar" style="background:var(--accent);height:100%;width:0%;transition:width 0.3s;"></div>
-                    </div>
-                    <div id="binanceTaxProgressText" style="font-size:11px;color:var(--text-secondary);margin-top:4px;"></div>
-                </div>
-            </div>
-            
             <!-- PULSESCAN -->
             <div class="card" style="margin-bottom:20px;">
                 <div class="card-header">
@@ -761,31 +718,31 @@
         
         // Lista exchange supportati
         const EXCHANGE_LIST = [
-            { id: 'binance', name: 'Binance', color: '#f3ba2f', icon: 'B' },
-            { id: 'bitget', name: 'Bitget', color: '#00f0ff', icon: 'Bg' },
-            { id: 'bitpanda', name: 'Bitpanda', color: '#08b289', icon: 'Bp' },
-            { id: 'bybit', name: 'Bybit', color: '#f7a600', icon: 'By' },
-            { id: 'bybit_eu', name: 'Bybit EU', color: '#f7a600', icon: 'BE' },
-            { id: 'cake', name: 'Cake DeFi', color: '#00d395', icon: '🍰' },
-            { id: 'coinbase', name: 'Coinbase', color: '#0052ff', icon: 'Cb' },
-            { id: 'cosmos', name: 'Cosmos', color: '#2e3148', icon: '⚛️' },
-            { id: 'cryptocom_app', name: 'Crypto.com App', color: '#002d74', icon: 'Ca' },
-            { id: 'cryptocom_exchange', name: 'Crypto.com Exchange', color: '#002d74', icon: 'Ce' },
-            { id: 'gateio', name: 'Gate.io', color: '#17e6a1', icon: 'G' },
-            { id: 'kraken', name: 'Kraken', color: '#5741d9', icon: 'Kr' },
-            { id: 'kucoin', name: 'KuCoin', color: '#23af91', icon: 'Ku' },
-            { id: 'manta', name: 'Manta Pacific', color: '#1fc7d4', icon: '🐙' },
-            { id: 'mexc', name: 'MEXC', color: '#00b897', icon: 'Mx' },
-            { id: 'nexo', name: 'Nexo', color: '#1a4bff', icon: 'Nx' },
-            { id: 'okx', name: 'OKX', color: '#000000', icon: 'OK' },
-            { id: 'osmo', name: 'Osmosis', color: '#5e12a0', icon: '🧪' },
-            { id: 'pionex', name: 'Pionex', color: '#c8a02c', icon: 'Px' },
-            { id: 'pulsechain', name: 'PulseChain', color: '#00ff00', icon: '💚' },
-            { id: 'revolut', name: 'Revolut', color: '#0666eb', icon: 'Rv' },
-            { id: 'terra', name: 'Terra-LUNC', color: '#5493f7', icon: '🌙' },
-            { id: 'whitebit', name: 'WhiteBit', color: '#02c3bd', icon: 'Wb' },
-            { id: 'youholders', name: 'YouHodler', color: '#6c5ce7', icon: 'Yh' },
-            { id: 'youngplatform', name: 'Young Platform', color: '#ff6b35', icon: 'Yp' },
+            { id: 'binance', name: 'Binance', color: '#f3ba2f', icon: 'B', logo: 'https://assets.coingecko.com/markets/images/52/small/binance.jpg', hasApi: true },
+            { id: 'bitget', name: 'Bitget', color: '#00f0ff', icon: 'Bg', logo: 'https://assets.coingecko.com/markets/images/540/small/bitget.jpg' },
+            { id: 'bitpanda', name: 'Bitpanda', color: '#08b289', icon: 'Bp', logo: 'https://assets.coingecko.com/markets/images/237/small/bitpanda.jpg' },
+            { id: 'bybit', name: 'Bybit', color: '#f7a600', icon: 'By', logo: 'https://assets.coingecko.com/markets/images/698/small/bybit_spot.png' },
+            { id: 'bybit_eu', name: 'Bybit EU', color: '#f7a600', icon: 'BE', logo: 'https://assets.coingecko.com/markets/images/698/small/bybit_spot.png' },
+            { id: 'cake', name: 'Cake DeFi', color: '#00d395', icon: '🍰', logo: null },
+            { id: 'coinbase', name: 'Coinbase', color: '#0052ff', icon: 'Cb', logo: 'https://assets.coingecko.com/markets/images/23/small/Coinbase_Coin_Primary.png' },
+            { id: 'cosmos', name: 'Cosmos', color: '#2e3148', icon: '⚛️', logo: 'https://assets.coingecko.com/coins/images/1481/small/cosmos_hub.png' },
+            { id: 'cryptocom_app', name: 'Crypto.com App', color: '#002d74', icon: 'Ca', logo: 'https://assets.coingecko.com/markets/images/589/small/crypto_com.jpg' },
+            { id: 'cryptocom_exchange', name: 'Crypto.com Exchange', color: '#002d74', icon: 'Ce', logo: 'https://assets.coingecko.com/markets/images/589/small/crypto_com.jpg' },
+            { id: 'gateio', name: 'Gate.io', color: '#17e6a1', icon: 'G', logo: 'https://assets.coingecko.com/markets/images/60/small/gate_io.jpg' },
+            { id: 'kraken', name: 'Kraken', color: '#5741d9', icon: 'Kr', logo: 'https://assets.coingecko.com/markets/images/29/small/kraken.jpg' },
+            { id: 'kucoin', name: 'KuCoin', color: '#23af91', icon: 'Ku', logo: 'https://assets.coingecko.com/markets/images/61/small/kucoin.jpg' },
+            { id: 'manta', name: 'Manta Pacific', color: '#1fc7d4', icon: '🐙', logo: null },
+            { id: 'mexc', name: 'MEXC', color: '#00b897', icon: 'Mx', logo: 'https://assets.coingecko.com/markets/images/409/small/MEXC_logo_square.jpeg' },
+            { id: 'nexo', name: 'Nexo', color: '#1a4bff', icon: 'Nx', logo: 'https://assets.coingecko.com/coins/images/3695/small/nexo.png' },
+            { id: 'okx', name: 'OKX', color: '#000000', icon: 'OK', logo: 'https://assets.coingecko.com/markets/images/96/small/WeChat_Image_20220117220452.png' },
+            { id: 'osmo', name: 'Osmosis', color: '#5e12a0', icon: '🧪', logo: 'https://assets.coingecko.com/coins/images/16724/small/osmo.png' },
+            { id: 'pionex', name: 'Pionex', color: '#c8a02c', icon: 'Px', logo: 'https://assets.coingecko.com/markets/images/532/small/pionex.png' },
+            { id: 'pulsechain', name: 'PulseChain', color: '#00ff00', icon: '💚', logo: null },
+            { id: 'revolut', name: 'Revolut', color: '#0666eb', icon: 'Rv', logo: null },
+            { id: 'terra', name: 'Terra-LUNC', color: '#5493f7', icon: '🌙', logo: 'https://assets.coingecko.com/coins/images/8284/small/01_LussLogo_color.png' },
+            { id: 'whitebit', name: 'WhiteBit', color: '#02c3bd', icon: 'Wb', logo: 'https://assets.coingecko.com/markets/images/418/small/logo_wb_small.png' },
+            { id: 'youholders', name: 'YouHodler', color: '#6c5ce7', icon: 'Yh', logo: null },
+            { id: 'youngplatform', name: 'Young Platform', color: '#ff6b35', icon: 'Yp', logo: 'https://assets.coingecko.com/markets/images/770/small/LOGO.jpg' },
         ];
         
         // Moralis chain mapping
@@ -1440,378 +1397,6 @@
             alert('✅ Helius API key salvata! Solana scan migliorato.');
         }
         
-        // ==================== BINANCE TAX API ====================
-        function saveBinanceTaxKeys() {
-            const apiKey = document.getElementById('binanceTaxApiKey').value.trim();
-            const secretKey = document.getElementById('binanceTaxSecretKey').value.trim();
-            
-            if (!apiKey || !secretKey) {
-                alert('Inserisci sia API Key che Secret Key');
-                return;
-            }
-            
-            apiKeys.binanceTaxKey = apiKey;
-            apiKeys.binanceTaxSecret = secretKey;
-            localStorage.setItem('cryptofolio_apikeys', JSON.stringify(apiKeys));
-            saveToFirebase();
-            updateApiStatus();
-            alert('✅ Binance Tax API configurata!\n\nOra puoi cliccare "📥 Scarica Transazioni" per importare automaticamente.');
-        }
-        
-        async function testBinanceTaxAPI() {
-            if (!apiKeys.binanceTaxKey || !apiKeys.binanceTaxSecret) {
-                alert('⚠️ Configura prima API Key e Secret Key!');
-                return;
-            }
-            
-            try {
-                const timestamp = Date.now();
-                const params = `timestamp=${timestamp}`;
-                const signature = await signBinanceRequest(params, apiKeys.binanceTaxSecret);
-                
-                const response = await fetch(`https://api.binance.com/sapi/v1/account/status?${params}&signature=${signature}`, {
-                    headers: { 'X-MBX-APIKEY': apiKeys.binanceTaxKey }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    alert('✅ Connessione riuscita!\n\nStato account: ' + (data.data || 'OK'));
-                } else {
-                    const error = await response.json();
-                    alert('❌ Errore: ' + (error.msg || response.status));
-                }
-            } catch (e) {
-                alert('❌ Errore connessione: ' + e.message);
-            }
-        }
-        
-        async function signBinanceRequest(queryString, secret) {
-            // HMAC SHA256 signature
-            const encoder = new TextEncoder();
-            const key = await crypto.subtle.importKey(
-                'raw',
-                encoder.encode(secret),
-                { name: 'HMAC', hash: 'SHA-256' },
-                false,
-                ['sign']
-            );
-            const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(queryString));
-            return Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');
-        }
-        
-        async function downloadBinanceTaxData() {
-            if (!apiKeys.binanceTaxKey || !apiKeys.binanceTaxSecret) {
-                alert('⚠️ Configura prima API Key e Secret Key!');
-                return;
-            }
-            
-            const progressDiv = document.getElementById('binanceTaxProgress');
-            const progressBar = document.getElementById('binanceTaxProgressBar');
-            const progressText = document.getElementById('binanceTaxProgressText');
-            
-            progressDiv.style.display = 'block';
-            progressBar.style.width = '0%';
-            
-            const allTransactions = [];
-            const startTime = new Date('2017-01-01').getTime();
-            const endTime = Date.now();
-            
-            try {
-                // 1. Depositi (10%)
-                progressText.textContent = 'Scaricamento depositi crypto...';
-                progressBar.style.width = '10%';
-                const deposits = await fetchBinanceDeposits(startTime, endTime);
-                allTransactions.push(...deposits.map(d => ({
-                    date: new Date(d.insertTime),
-                    type: 'deposit',
-                    coin: d.coin,
-                    amount: parseFloat(d.amount),
-                    operation: 'Deposit',
-                    txId: d.txId,
-                    network: d.network
-                })));
-                console.log(`📥 Depositi: ${deposits.length}`);
-                
-                // 2. Prelievi (20%)
-                progressText.textContent = 'Scaricamento prelievi crypto...';
-                progressBar.style.width = '20%';
-                const withdrawals = await fetchBinanceWithdrawals(startTime, endTime);
-                allTransactions.push(...withdrawals.map(w => ({
-                    date: new Date(w.applyTime),
-                    type: 'withdrawal',
-                    coin: w.coin,
-                    amount: -parseFloat(w.amount),
-                    operation: 'Withdraw',
-                    txId: w.txId,
-                    network: w.network,
-                    fee: parseFloat(w.transactionFee || 0)
-                })));
-                console.log(`📤 Prelievi: ${withdrawals.length}`);
-                
-                // 3. Depositi Fiat (30%)
-                progressText.textContent = 'Scaricamento depositi fiat...';
-                progressBar.style.width = '30%';
-                const fiatDeposits = await fetchBinanceFiatDeposits();
-                allTransactions.push(...fiatDeposits.map(d => ({
-                    date: new Date(d.createTime),
-                    type: 'fiat_deposit',
-                    coin: d.fiatCurrency,
-                    amount: parseFloat(d.amount),
-                    operation: 'Fiat Deposit',
-                    status: d.status
-                })));
-                console.log(`💶 Depositi Fiat: ${fiatDeposits.length}`);
-                
-                // 4. Prelievi Fiat (40%)
-                progressText.textContent = 'Scaricamento prelievi fiat...';
-                progressBar.style.width = '40%';
-                const fiatWithdrawals = await fetchBinanceFiatWithdrawals();
-                allTransactions.push(...fiatWithdrawals.map(w => ({
-                    date: new Date(w.createTime),
-                    type: 'fiat_withdrawal',
-                    coin: w.fiatCurrency,
-                    amount: -parseFloat(w.amount),
-                    operation: 'Fiat Withdraw',
-                    status: w.status
-                })));
-                console.log(`💶 Prelievi Fiat: ${fiatWithdrawals.length}`);
-                
-                // 5. Distribuzione (50%)
-                progressText.textContent = 'Scaricamento distribuzione asset...';
-                progressBar.style.width = '50%';
-                const assetDividend = await fetchBinanceAssetDividend();
-                allTransactions.push(...assetDividend.map(d => ({
-                    date: new Date(d.divTime),
-                    type: 'dividend',
-                    coin: d.asset,
-                    amount: parseFloat(d.amount),
-                    operation: d.enInfo || 'Asset Dividend'
-                })));
-                console.log(`🎁 Distribuzione: ${assetDividend.length}`);
-                
-                // 6. Staking Rewards (60%)
-                progressText.textContent = 'Scaricamento staking rewards...';
-                progressBar.style.width = '60%';
-                const stakingRewards = await fetchBinanceStakingRewards();
-                allTransactions.push(...stakingRewards.map(s => ({
-                    date: new Date(s.time),
-                    type: 'staking',
-                    coin: s.asset,
-                    amount: parseFloat(s.amount),
-                    operation: 'Staking Reward'
-                })));
-                console.log(`🥩 Staking: ${stakingRewards.length}`);
-                
-                // 7. Earn Interest (70%)
-                progressText.textContent = 'Scaricamento interessi Earn...';
-                progressBar.style.width = '70%';
-                const earnInterest = await fetchBinanceEarnInterest();
-                allTransactions.push(...earnInterest.map(e => ({
-                    date: new Date(e.time),
-                    type: 'interest',
-                    coin: e.asset,
-                    amount: parseFloat(e.interest || e.amount),
-                    operation: 'Earn Interest'
-                })));
-                console.log(`📈 Earn: ${earnInterest.length}`);
-                
-                // 8. Trade History (80%)
-                progressText.textContent = 'Scaricamento storico trade... (può richiedere tempo)';
-                progressBar.style.width = '80%';
-                // Nota: lo storico trade richiede molte chiamate, lo facciamo per i principali pairs
-                
-                // 9. Finalizzazione (100%)
-                progressBar.style.width = '100%';
-                progressText.textContent = `✅ Completato! ${allTransactions.length} transazioni scaricate.`;
-                
-                // Salva in exchangeData
-                if (!exchangeData['binance']) {
-                    exchangeData['binance'] = { transactions: [], balances: {}, totals: {} };
-                }
-                exchangeData['binance'].transactions = allTransactions;
-                
-                // Calcola saldi
-                calculateExchangeBalances('binance');
-                
-                // Salva
-                saveExchangeDataToFirebase();
-                initExchangeGrid();
-                updateExchangeTotals();
-                
-                setTimeout(() => {
-                    progressDiv.style.display = 'none';
-                    alert(`✅ Download completato!\n\n📊 ${allTransactions.length} transazioni importate\n📥 ${deposits.length} depositi crypto\n📤 ${withdrawals.length} prelievi crypto\n🎁 ${assetDividend.length} distribuzione\n🥩 ${stakingRewards.length} staking\n📈 ${earnInterest.length} earn\n\nVai su "Exchanges" per vedere i risultati!`);
-                }, 1000);
-                
-            } catch (e) {
-                console.error('Binance Tax API error:', e);
-                progressDiv.style.display = 'none';
-                alert('❌ Errore: ' + e.message + '\n\nControlla che le API keys siano corrette e che siano state create come "API report fiscale".');
-            }
-        }
-        
-        async function fetchBinanceDeposits(startTime, endTime) {
-            const results = [];
-            const chunkSize = 90 * 24 * 60 * 60 * 1000; // 90 giorni in ms
-            
-            for (let start = startTime; start < endTime; start += chunkSize) {
-                const end = Math.min(start + chunkSize, endTime);
-                const timestamp = Date.now();
-                const params = `timestamp=${timestamp}&startTime=${start}&endTime=${end}`;
-                const signature = await signBinanceRequest(params, apiKeys.binanceTaxSecret);
-                
-                try {
-                    const response = await fetch(`https://api.binance.com/sapi/v1/capital/deposit/hisrec?${params}&signature=${signature}`, {
-                        headers: { 'X-MBX-APIKEY': apiKeys.binanceTaxKey }
-                    });
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        results.push(...(data || []));
-                    }
-                } catch (e) {
-                    console.warn('Fetch deposits error:', e);
-                }
-                
-                await sleep(200); // Rate limiting
-            }
-            
-            return results;
-        }
-        
-        async function fetchBinanceWithdrawals(startTime, endTime) {
-            const results = [];
-            const chunkSize = 90 * 24 * 60 * 60 * 1000;
-            
-            for (let start = startTime; start < endTime; start += chunkSize) {
-                const end = Math.min(start + chunkSize, endTime);
-                const timestamp = Date.now();
-                const params = `timestamp=${timestamp}&startTime=${start}&endTime=${end}`;
-                const signature = await signBinanceRequest(params, apiKeys.binanceTaxSecret);
-                
-                try {
-                    const response = await fetch(`https://api.binance.com/sapi/v1/capital/withdraw/history?${params}&signature=${signature}`, {
-                        headers: { 'X-MBX-APIKEY': apiKeys.binanceTaxKey }
-                    });
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        results.push(...(data || []));
-                    }
-                } catch (e) {
-                    console.warn('Fetch withdrawals error:', e);
-                }
-                
-                await sleep(200);
-            }
-            
-            return results;
-        }
-        
-        async function fetchBinanceFiatDeposits() {
-            const timestamp = Date.now();
-            const params = `timestamp=${timestamp}&transactionType=0`;
-            const signature = await signBinanceRequest(params, apiKeys.binanceTaxSecret);
-            
-            try {
-                const response = await fetch(`https://api.binance.com/sapi/v1/fiat/orders?${params}&signature=${signature}`, {
-                    headers: { 'X-MBX-APIKEY': apiKeys.binanceTaxKey }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    return data.data || [];
-                }
-            } catch (e) {
-                console.warn('Fetch fiat deposits error:', e);
-            }
-            return [];
-        }
-        
-        async function fetchBinanceFiatWithdrawals() {
-            const timestamp = Date.now();
-            const params = `timestamp=${timestamp}&transactionType=1`;
-            const signature = await signBinanceRequest(params, apiKeys.binanceTaxSecret);
-            
-            try {
-                const response = await fetch(`https://api.binance.com/sapi/v1/fiat/orders?${params}&signature=${signature}`, {
-                    headers: { 'X-MBX-APIKEY': apiKeys.binanceTaxKey }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    return data.data || [];
-                }
-            } catch (e) {
-                console.warn('Fetch fiat withdrawals error:', e);
-            }
-            return [];
-        }
-        
-        async function fetchBinanceAssetDividend() {
-            const results = [];
-            const timestamp = Date.now();
-            const params = `timestamp=${timestamp}&limit=500`;
-            const signature = await signBinanceRequest(params, apiKeys.binanceTaxSecret);
-            
-            try {
-                const response = await fetch(`https://api.binance.com/sapi/v1/asset/assetDividend?${params}&signature=${signature}`, {
-                    headers: { 'X-MBX-APIKEY': apiKeys.binanceTaxKey }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    return data.rows || [];
-                }
-            } catch (e) {
-                console.warn('Fetch asset dividend error:', e);
-            }
-            return [];
-        }
-        
-        async function fetchBinanceStakingRewards() {
-            const timestamp = Date.now();
-            const params = `timestamp=${timestamp}&product=STAKING&size=100`;
-            const signature = await signBinanceRequest(params, apiKeys.binanceTaxSecret);
-            
-            try {
-                const response = await fetch(`https://api.binance.com/sapi/v1/staking/stakingRecord?${params}&signature=${signature}`, {
-                    headers: { 'X-MBX-APIKEY': apiKeys.binanceTaxKey }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    return data.rows || [];
-                }
-            } catch (e) {
-                console.warn('Fetch staking rewards error:', e);
-            }
-            return [];
-        }
-        
-        async function fetchBinanceEarnInterest() {
-            const timestamp = Date.now();
-            const params = `timestamp=${timestamp}&size=100`;
-            const signature = await signBinanceRequest(params, apiKeys.binanceTaxSecret);
-            
-            try {
-                const response = await fetch(`https://api.binance.com/sapi/v1/simple-earn/flexible/history/rewardsRecord?${params}&signature=${signature}`, {
-                    headers: { 'X-MBX-APIKEY': apiKeys.binanceTaxKey }
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    return data.rows || [];
-                }
-            } catch (e) {
-                console.warn('Fetch earn interest error:', e);
-            }
-            return [];
-        }
-        
-        function sleep(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms));
-        }
         function updateApiStatus() {
             // Update status badges
             const moralisStatus = document.getElementById('moralisStatus');
@@ -1845,25 +1430,6 @@
                 } else {
                     heliusStatus.textContent = 'OFF';
                     heliusStatus.classList.remove('api-on');
-                }
-            }
-            
-            // Binance Tax API status
-            const binanceTaxStatus = document.getElementById('binanceTaxStatus');
-            if (binanceTaxStatus) {
-                if (apiKeys.binanceTaxKey && apiKeys.binanceTaxSecret) {
-                    binanceTaxStatus.textContent = 'ON';
-                    binanceTaxStatus.classList.add('api-on');
-                    binanceTaxStatus.style.background = '#f3ba2f';
-                    binanceTaxStatus.style.color = '#000';
-                    // Popola i campi
-                    const keyInput = document.getElementById('binanceTaxApiKey');
-                    const secretInput = document.getElementById('binanceTaxSecretKey');
-                    if (keyInput && !keyInput.value) keyInput.value = apiKeys.binanceTaxKey.substring(0, 12) + '...';
-                    if (secretInput && !secretInput.value) secretInput.value = '••••••••••••';
-                } else {
-                    binanceTaxStatus.textContent = 'OFF';
-                    binanceTaxStatus.classList.remove('api-on');
                 }
             }
             
@@ -3417,20 +2983,30 @@
                 const total2024 = data.totals ? (data.totals[2024] || 0) : 0;
                 const isZeroed = data.isZeroed || false;
                 const isManual = data.isManual || false;
+                const source = data.source || '';
                 
                 html += '<div class="card exchange-card" id="exch-' + exch.id + '" style="position:relative;overflow:hidden;">';
                 html += '<div class="card-header" style="cursor:pointer;" onclick="toggleExchangeDropzone(\'' + exch.id + '\')">';
                 html += '<div class="card-title" style="display:flex;align-items:center;gap:12px;">';
-                html += '<span style="width:40px;height:40px;background:' + exch.color + ';border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:bold;color:#fff;">' + exch.icon + '</span>';
+                
+                // Logo o icona fallback
+                if (exch.logo) {
+                    html += '<img src="' + exch.logo + '" style="width:40px;height:40px;border-radius:10px;object-fit:cover;" onerror="this.outerHTML=\'<span style=\\\'width:40px;height:40px;background:' + exch.color + ';border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:bold;color:#fff;\\\'>' + exch.icon + '</span>\'">';
+                } else {
+                    html += '<span style="width:40px;height:40px;background:' + exch.color + ';border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:bold;color:#fff;">' + exch.icon + '</span>';
+                }
+                
                 html += '<div><div style="font-size:14px;">' + exch.name + '</div>';
                 if (isZeroed) {
                     html += '<div style="font-size:11px;color:var(--yellow);">⚠️ Azzerato (vuoto)</div>';
+                } else if (source === 'api') {
+                    html += '<div style="font-size:11px;color:var(--green);">✓ ' + txCount + ' tx (via API)</div>';
                 } else if (isManual && txCount === 0) {
                     html += '<div style="font-size:11px;color:var(--accent);">✏️ Valori manuali</div>';
                 } else if (hasData) {
                     html += '<div style="font-size:11px;color:var(--green);">✓ ' + (txCount > 0 ? txCount + ' tx' : 'Dati salvati') + '</div>';
                 } else {
-                    html += '<div style="font-size:11px;color:var(--text-secondary);">📂 Importa CSV</div>';
+                    html += '<div style="font-size:11px;color:var(--text-secondary);">📂 Importa CSV' + (exch.hasApi ? ' o 🔌 API' : '') + '</div>';
                 }
                 html += '</div></div>';
                 if (hasData && total2024 > 0) {
@@ -3441,18 +3017,40 @@
                 html += '</div>';
                 
                 // Dropzone (nascosta inizialmente)
-                html += '<div id="dropzone-' + exch.id + '" class="exchange-dropzone" style="display:none;margin-top:16px;border:2px dashed var(--border);border-radius:8px;padding:24px;text-align:center;transition:all 0.3s;"';
+                html += '<div id="dropzone-' + exch.id + '" class="exchange-dropzone" style="display:none;margin-top:16px;">';
+                
+                // Se ha API (Binance), mostra sezione API
+                if (exch.hasApi) {
+                    html += '<div style="margin-bottom:16px;padding:16px;background:linear-gradient(135deg, rgba(243,186,47,0.1), rgba(243,186,47,0.05));border:1px solid rgba(243,186,47,0.3);border-radius:8px;">';
+                    html += '<div style="font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px;">🔌 Importa via API <span style="font-size:10px;background:#f3ba2f;color:#000;padding:2px 6px;border-radius:4px;">RACCOMANDATO</span></div>';
+                    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">';
+                    html += '<input type="password" id="apiKey-' + exch.id + '" placeholder="API Key" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;padding:8px;font-size:12px;" value="' + (apiKeys.binanceTaxKey ? apiKeys.binanceTaxKey.substring(0,12) + '...' : '') + '">';
+                    html += '<input type="password" id="secretKey-' + exch.id + '" placeholder="Secret Key" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;padding:8px;font-size:12px;" value="' + (apiKeys.binanceTaxSecret ? '••••••••••' : '') + '">';
+                    html += '</div>';
+                    html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+                    html += '<button class="btn" onclick="saveAndDownloadExchangeApi(\'' + exch.id + '\')" style="background:#f3ba2f;color:#000;font-size:12px;">📥 Scarica via API</button>';
+                    html += '<button class="btn btn-secondary" onclick="testExchangeApi(\'' + exch.id + '\')" style="font-size:12px;">🧪 Test</button>';
+                    html += '<a href="https://www.binance.com/it/my/settings/api-management" target="_blank" style="font-size:11px;color:var(--accent);align-self:center;">→ Crea API report fiscale</a>';
+                    html += '</div>';
+                    html += '<div id="apiProgress-' + exch.id + '" style="display:none;margin-top:12px;"><div style="background:var(--bg-secondary);border-radius:4px;height:6px;overflow:hidden;"><div id="apiProgressBar-' + exch.id + '" style="background:#f3ba2f;height:100%;width:0%;transition:width 0.3s;"></div></div><div id="apiProgressText-' + exch.id + '" style="font-size:11px;color:var(--text-secondary);margin-top:4px;"></div></div>';
+                    html += '</div>';
+                    html += '<div style="text-align:center;color:var(--text-secondary);font-size:12px;margin-bottom:12px;">— oppure —</div>';
+                }
+                
+                // Dropzone CSV/ZIP
+                html += '<div style="border:2px dashed var(--border);border-radius:8px;padding:24px;text-align:center;transition:all 0.3s;"';
                 html += ' ondragover="handleDragOver(event, \'' + exch.id + '\')" ondragleave="handleDragLeave(event, \'' + exch.id + '\')" ondrop="handleDrop(event, \'' + exch.id + '\')">';
                 html += '<div style="font-size:32px;margin-bottom:8px;">📂</div>';
                 html += '<div style="color:var(--text-secondary);font-size:13px;">Trascina ZIP o CSV qui</div>';
                 html += '<input type="file" id="file-' + exch.id + '" accept=".csv,.zip" multiple style="display:none;" onchange="handleFileSelect(event, \'' + exch.id + '\')">';
                 html += '<button class="btn btn-secondary" onclick="document.getElementById(\'file-' + exch.id + '\').click()" style="margin-top:12px;font-size:12px;">📁 Sfoglia</button>';
-                html += '<button class="btn" onclick="enableManualEntry(\'' + exch.id + '\')" style="margin-top:12px;margin-left:8px;font-size:12px;background:var(--accent);">✏️ Inserisci manuale</button>';
+                html += '<button class="btn" onclick="enableManualEntry(\'' + exch.id + '\')" style="margin-top:12px;margin-left:8px;font-size:12px;background:var(--accent);">✏️ Manuale</button>';
                 if (hasData) {
                     html += '<button class="btn" onclick="zeroExchangeData(\'' + exch.id + '\')" style="margin-top:12px;margin-left:8px;font-size:12px;background:var(--yellow);color:#000;">🔄 Azzera</button>';
                     html += '<button class="btn" onclick="clearExchangeData(\'' + exch.id + '\')" style="margin-top:12px;margin-left:8px;font-size:12px;background:var(--red);">🗑️ Reset</button>';
                 }
                 html += '</div>';
+                html += '</div>'; // Fine dropzone container
                 
                 // Totali per anno (se presenti) - con possibilità di modifica manuale
                 if (hasData && data.totals) {
@@ -3474,6 +3072,383 @@
             }
             
             grid.innerHTML = html;
+        }
+        
+        // ==================== EXCHANGE API FUNCTIONS ====================
+        async function testExchangeApi(exchId) {
+            if (exchId === 'binance') {
+                const apiKey = document.getElementById('apiKey-binance')?.value.trim();
+                const secretKey = document.getElementById('secretKey-binance')?.value.trim();
+                
+                if (!apiKey || !secretKey || apiKey.includes('...') || secretKey.includes('••')) {
+                    alert('⚠️ Inserisci API Key e Secret Key valide!');
+                    return;
+                }
+                
+                try {
+                    const timestamp = Date.now();
+                    const params = `timestamp=${timestamp}`;
+                    const signature = await signBinanceRequest(params, secretKey);
+                    
+                    const response = await fetch(`https://api.binance.com/sapi/v1/account/status?${params}&signature=${signature}`, {
+                        headers: { 'X-MBX-APIKEY': apiKey }
+                    });
+                    
+                    if (response.ok) {
+                        alert('✅ Connessione riuscita! API valida.');
+                    } else {
+                        const error = await response.json();
+                        alert('❌ Errore: ' + (error.msg || response.status));
+                    }
+                } catch (e) {
+                    alert('❌ Errore: ' + e.message);
+                }
+            }
+        }
+        
+        async function saveAndDownloadExchangeApi(exchId) {
+            if (exchId === 'binance') {
+                const apiKey = document.getElementById('apiKey-binance')?.value.trim();
+                const secretKey = document.getElementById('secretKey-binance')?.value.trim();
+                
+                if (!apiKey || !secretKey || apiKey.includes('...') || secretKey.includes('••')) {
+                    alert('⚠️ Inserisci API Key e Secret Key valide!\n\nVai su Binance → Profilo → Gestione API → "Crea API report fiscale"');
+                    return;
+                }
+                
+                // Salva le chiavi
+                apiKeys.binanceTaxKey = apiKey;
+                apiKeys.binanceTaxSecret = secretKey;
+                localStorage.setItem('cryptofolio_apikeys', JSON.stringify(apiKeys));
+                
+                // Mostra progresso
+                const progress = document.getElementById('apiProgress-binance');
+                const progressBar = document.getElementById('apiProgressBar-binance');
+                const progressText = document.getElementById('apiProgressText-binance');
+                if (progress) progress.style.display = 'block';
+                
+                await downloadBinanceTaxData(progressBar, progressText);
+            }
+        }
+        
+        async function signBinanceRequest(queryString, secret) {
+            const encoder = new TextEncoder();
+            const key = await crypto.subtle.importKey(
+                'raw',
+                encoder.encode(secret),
+                { name: 'HMAC', hash: 'SHA-256' },
+                false,
+                ['sign']
+            );
+            const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(queryString));
+            return Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        
+        async function downloadBinanceTaxData(progressBar, progressText) {
+            const allTransactions = [];
+            const startTime = new Date('2017-01-01').getTime();
+            const endTime = Date.now();
+            
+            try {
+                // 1. Depositi (15%)
+                if (progressText) progressText.textContent = 'Scaricamento depositi crypto...';
+                if (progressBar) progressBar.style.width = '15%';
+                const deposits = await fetchBinanceDeposits(startTime, endTime);
+                allTransactions.push(...deposits.map(d => ({
+                    date: new Date(d.insertTime),
+                    type: 'deposit',
+                    coin: d.coin,
+                    amount: parseFloat(d.amount),
+                    change: parseFloat(d.amount),
+                    operation: 'Deposit'
+                })));
+                console.log(`📥 Depositi: ${deposits.length}`);
+                
+                // 2. Prelievi (30%)
+                if (progressText) progressText.textContent = 'Scaricamento prelievi crypto...';
+                if (progressBar) progressBar.style.width = '30%';
+                const withdrawals = await fetchBinanceWithdrawals(startTime, endTime);
+                allTransactions.push(...withdrawals.map(w => ({
+                    date: new Date(w.applyTime),
+                    type: 'withdrawal',
+                    coin: w.coin,
+                    amount: parseFloat(w.amount),
+                    change: -parseFloat(w.amount),
+                    operation: 'Withdraw'
+                })));
+                console.log(`📤 Prelievi: ${withdrawals.length}`);
+                
+                // 3. Distribuzione (45%)
+                if (progressText) progressText.textContent = 'Scaricamento distribuzione...';
+                if (progressBar) progressBar.style.width = '45%';
+                const dividend = await fetchBinanceAssetDividend();
+                allTransactions.push(...dividend.map(d => ({
+                    date: new Date(d.divTime),
+                    type: 'dividend',
+                    coin: d.asset,
+                    amount: parseFloat(d.amount),
+                    change: parseFloat(d.amount),
+                    operation: d.enInfo || 'Dividend'
+                })));
+                console.log(`🎁 Distribuzione: ${dividend.length}`);
+                
+                // 4. Staking (60%)
+                if (progressText) progressText.textContent = 'Scaricamento staking...';
+                if (progressBar) progressBar.style.width = '60%';
+                const staking = await fetchBinanceStakingRewards();
+                allTransactions.push(...staking.map(s => ({
+                    date: new Date(s.time),
+                    type: 'staking',
+                    coin: s.asset,
+                    amount: parseFloat(s.amount),
+                    change: parseFloat(s.amount),
+                    operation: 'Staking'
+                })));
+                console.log(`🥩 Staking: ${staking.length}`);
+                
+                // 5. Earn (75%)
+                if (progressText) progressText.textContent = 'Scaricamento interessi Earn...';
+                if (progressBar) progressBar.style.width = '75%';
+                const earn = await fetchBinanceEarnInterest();
+                allTransactions.push(...earn.map(e => ({
+                    date: new Date(e.time),
+                    type: 'interest',
+                    coin: e.asset,
+                    amount: parseFloat(e.interest || e.amount),
+                    change: parseFloat(e.interest || e.amount),
+                    operation: 'Earn Interest'
+                })));
+                console.log(`📈 Earn: ${earn.length}`);
+                
+                // 6. Fiat Deposits (85%)
+                if (progressText) progressText.textContent = 'Scaricamento depositi fiat...';
+                if (progressBar) progressBar.style.width = '85%';
+                const fiatDep = await fetchBinanceFiatDeposits();
+                allTransactions.push(...fiatDep.map(d => ({
+                    date: new Date(d.createTime),
+                    type: 'fiat_deposit',
+                    coin: d.fiatCurrency,
+                    amount: parseFloat(d.amount),
+                    change: parseFloat(d.amount),
+                    operation: 'Fiat Deposit'
+                })));
+                
+                // 7. Fiat Withdrawals (95%)
+                if (progressText) progressText.textContent = 'Scaricamento prelievi fiat...';
+                if (progressBar) progressBar.style.width = '95%';
+                const fiatWith = await fetchBinanceFiatWithdrawals();
+                allTransactions.push(...fiatWith.map(w => ({
+                    date: new Date(w.createTime),
+                    type: 'fiat_withdrawal',
+                    coin: w.fiatCurrency,
+                    amount: parseFloat(w.amount),
+                    change: -parseFloat(w.amount),
+                    operation: 'Fiat Withdraw'
+                })));
+                
+                // Ordina per data
+                allTransactions.sort((a, b) => a.date - b.date);
+                
+                // Calcola saldi al 31/12
+                if (progressText) progressText.textContent = 'Calcolo saldi 31/12...';
+                if (progressBar) progressBar.style.width = '100%';
+                
+                const balances = {};
+                const yearEndSnapshots = {};
+                const years = [2021, 2022, 2023, 2024, 2025];
+                let yearIndex = 0;
+                
+                for (const tx of allTransactions) {
+                    if (!balances[tx.coin]) balances[tx.coin] = 0;
+                    balances[tx.coin] += tx.change;
+                    if (Math.abs(balances[tx.coin]) < 0.00000001) balances[tx.coin] = 0;
+                    
+                    while (yearIndex < years.length && tx.date > new Date(years[yearIndex], 11, 31, 23, 59, 59)) {
+                        yearEndSnapshots[years[yearIndex]] = { ...balances };
+                        yearIndex++;
+                    }
+                }
+                
+                for (let i = yearIndex; i < years.length; i++) {
+                    yearEndSnapshots[years[i]] = { ...balances };
+                }
+                
+                // Calcola totali EUR
+                const yearTotals = {};
+                for (const year of years) {
+                    let totalEur = 0;
+                    const snapshot = yearEndSnapshots[year] || {};
+                    for (const [coin, amount] of Object.entries(snapshot)) {
+                        if (amount <= 0) continue;
+                        const price = getHistoricalPrice(coin, year);
+                        totalEur += amount * price * EUR_USD;
+                    }
+                    yearTotals[year] = Math.round(totalEur * 100) / 100;
+                }
+                
+                // Salva
+                exchangeData['binance'] = {
+                    transactions: allTransactions,
+                    balances: yearEndSnapshots,
+                    totals: yearTotals,
+                    transactionCount: allTransactions.length,
+                    isManual: false,
+                    lastImport: new Date().toISOString(),
+                    source: 'api'
+                };
+                
+                saveExchangeDataToFirebase();
+                initExchangeGrid();
+                updateExchangeTotals();
+                
+                if (progressText) progressText.textContent = `✅ ${allTransactions.length} transazioni importate!`;
+                
+                setTimeout(() => {
+                    alert(`✅ Binance Tax API completato!\n\n📊 ${allTransactions.length} transazioni\n📥 ${deposits.length} depositi\n📤 ${withdrawals.length} prelievi\n🎁 ${dividend.length} distribuzione\n🥩 ${staking.length} staking\n📈 ${earn.length} earn`);
+                }, 500);
+                
+            } catch (e) {
+                console.error('Binance Tax API error:', e);
+                if (progressText) progressText.textContent = '❌ Errore: ' + e.message;
+                alert('❌ Errore: ' + e.message + '\n\nAssicurati di aver creato "API report fiscale" (non API normale!)');
+            }
+        }
+        
+        async function fetchBinanceDeposits(startTime, endTime) {
+            const results = [];
+            const chunkSize = 90 * 24 * 60 * 60 * 1000;
+            
+            for (let start = startTime; start < endTime; start += chunkSize) {
+                const end = Math.min(start + chunkSize, endTime);
+                const timestamp = Date.now();
+                const params = `timestamp=${timestamp}&startTime=${start}&endTime=${end}`;
+                const signature = await signBinanceRequest(params, apiKeys.binanceTaxSecret);
+                
+                try {
+                    const response = await fetch(`https://api.binance.com/sapi/v1/capital/deposit/hisrec?${params}&signature=${signature}`, {
+                        headers: { 'X-MBX-APIKEY': apiKeys.binanceTaxKey }
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        results.push(...(data || []));
+                    }
+                } catch (e) {}
+                await sleep(200);
+            }
+            return results;
+        }
+        
+        async function fetchBinanceWithdrawals(startTime, endTime) {
+            const results = [];
+            const chunkSize = 90 * 24 * 60 * 60 * 1000;
+            
+            for (let start = startTime; start < endTime; start += chunkSize) {
+                const end = Math.min(start + chunkSize, endTime);
+                const timestamp = Date.now();
+                const params = `timestamp=${timestamp}&startTime=${start}&endTime=${end}`;
+                const signature = await signBinanceRequest(params, apiKeys.binanceTaxSecret);
+                
+                try {
+                    const response = await fetch(`https://api.binance.com/sapi/v1/capital/withdraw/history?${params}&signature=${signature}`, {
+                        headers: { 'X-MBX-APIKEY': apiKeys.binanceTaxKey }
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        results.push(...(data || []));
+                    }
+                } catch (e) {}
+                await sleep(200);
+            }
+            return results;
+        }
+        
+        async function fetchBinanceFiatDeposits() {
+            const timestamp = Date.now();
+            const params = `timestamp=${timestamp}&transactionType=0`;
+            const signature = await signBinanceRequest(params, apiKeys.binanceTaxSecret);
+            
+            try {
+                const response = await fetch(`https://api.binance.com/sapi/v1/fiat/orders?${params}&signature=${signature}`, {
+                    headers: { 'X-MBX-APIKEY': apiKeys.binanceTaxKey }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.data || [];
+                }
+            } catch (e) {}
+            return [];
+        }
+        
+        async function fetchBinanceFiatWithdrawals() {
+            const timestamp = Date.now();
+            const params = `timestamp=${timestamp}&transactionType=1`;
+            const signature = await signBinanceRequest(params, apiKeys.binanceTaxSecret);
+            
+            try {
+                const response = await fetch(`https://api.binance.com/sapi/v1/fiat/orders?${params}&signature=${signature}`, {
+                    headers: { 'X-MBX-APIKEY': apiKeys.binanceTaxKey }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.data || [];
+                }
+            } catch (e) {}
+            return [];
+        }
+        
+        async function fetchBinanceAssetDividend() {
+            const timestamp = Date.now();
+            const params = `timestamp=${timestamp}&limit=500`;
+            const signature = await signBinanceRequest(params, apiKeys.binanceTaxSecret);
+            
+            try {
+                const response = await fetch(`https://api.binance.com/sapi/v1/asset/assetDividend?${params}&signature=${signature}`, {
+                    headers: { 'X-MBX-APIKEY': apiKeys.binanceTaxKey }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.rows || [];
+                }
+            } catch (e) {}
+            return [];
+        }
+        
+        async function fetchBinanceStakingRewards() {
+            const timestamp = Date.now();
+            const params = `timestamp=${timestamp}&product=STAKING&size=100`;
+            const signature = await signBinanceRequest(params, apiKeys.binanceTaxSecret);
+            
+            try {
+                const response = await fetch(`https://api.binance.com/sapi/v1/staking/stakingRecord?${params}&signature=${signature}`, {
+                    headers: { 'X-MBX-APIKEY': apiKeys.binanceTaxKey }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.rows || [];
+                }
+            } catch (e) {}
+            return [];
+        }
+        
+        async function fetchBinanceEarnInterest() {
+            const timestamp = Date.now();
+            const params = `timestamp=${timestamp}&size=100`;
+            const signature = await signBinanceRequest(params, apiKeys.binanceTaxSecret);
+            
+            try {
+                const response = await fetch(`https://api.binance.com/sapi/v1/simple-earn/flexible/history/rewardsRecord?${params}&signature=${signature}`, {
+                    headers: { 'X-MBX-APIKEY': apiKeys.binanceTaxKey }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.rows || [];
+                }
+            } catch (e) {}
+            return [];
+        }
+        
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
         }
         
         function toggleExchangeDropzone(exchId) {
