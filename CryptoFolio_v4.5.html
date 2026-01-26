@@ -702,7 +702,7 @@
             // Aggiunti per Crypto.com e Cosmos
             'cosmos': { 2020: 5.0, 2021: 44, 2022: 9.3, 2023: 10.5, 2024: 6.7, 2025: 7.0, 2026: 8.0 },
             'crypto-com-chain': { 2020: 0.06, 2021: 0.60, 2022: 0.057, 2023: 0.073, 2024: 0.12, 2025: 0.10, 2026: 0.12 },
-            'terra-luna': { 2020: 0.64, 2021: 93, 2022: 0.00017, 2023: 0.00015, 2024: 0.00010, 2025: 0.00008, 2026: 0.0001 },
+            'terra-luna': { 2020: 0.64, 2021: 93, 2022: 0.00017, 2023: 0.00015, 2024: 0.00008, 2025: 0.00004, 2026: 0.00004 },
             'osmosis': { 2020: 0, 2021: 10.5, 2022: 0.8, 2023: 0.5, 2024: 0.4, 2025: 0.35, 2026: 0.40 },
             'litecoin': { 2020: 125, 2021: 148, 2022: 70, 2023: 73, 2024: 103, 2025: 100, 2026: 110 },
             'uniswap': { 2020: 3.5, 2021: 17.5, 2022: 5.2, 2023: 6.3, 2024: 13.5, 2025: 14.0, 2026: 15.0 },
@@ -3081,6 +3081,105 @@
         }
         
         // ==================== EXCHANGES CSV ====================
+        // Mostra dettagli calcolo per un anno specifico
+        function showYearDetails(exchId, year) {
+            const data = exchangeData[exchId];
+            if (!data) {
+                alert('Nessun dato disponibile');
+                return;
+            }
+            
+            const balances = data.balances?.[year] || {};
+            const realBalances = data.realBalances || {};
+            
+            // Per 2025/2026 usa saldi reali se disponibili
+            const useReal = (year >= 2025) && Object.keys(realBalances).length > 0;
+            const snapshot = useReal ? realBalances : balances;
+            
+            let details = `📊 DETTAGLIO ${year} - ${exchId.toUpperCase()}\n`;
+            details += `${'─'.repeat(40)}\n\n`;
+            
+            if (useReal) {
+                details += `✅ Usando SALDI REALI\n\n`;
+            } else {
+                details += `📈 Usando saldi calcolati dalle transazioni\n\n`;
+            }
+            
+            let totalEur = 0;
+            const items = [];
+            
+            for (const [coin, amount] of Object.entries(snapshot)) {
+                if (!amount || amount <= 0) continue;
+                const price = getHistoricalPrice(coin, year);
+                const eurValue = amount * price * EUR_USD;
+                totalEur += eurValue;
+                items.push({ coin, amount, price, eurValue });
+            }
+            
+            // Ordina per valore EUR
+            items.sort((a, b) => b.eurValue - a.eurValue);
+            
+            for (const item of items.slice(0, 15)) {
+                const amtStr = item.amount < 1 ? item.amount.toFixed(6) : item.amount.toLocaleString('it-IT', { maximumFractionDigits: 2 });
+                const priceStr = item.price < 0.01 ? item.price.toExponential(2) : item.price.toFixed(4);
+                details += `${item.coin}: ${amtStr}\n`;
+                details += `   Prezzo: $${priceStr} → €${item.eurValue.toFixed(2)}\n\n`;
+            }
+            
+            if (items.length > 15) {
+                details += `... e altri ${items.length - 15} token\n\n`;
+            }
+            
+            details += `${'─'.repeat(40)}\n`;
+            details += `💰 TOTALE: €${totalEur.toFixed(2)}\n`;
+            details += `\n⚠️ I prezzi sono stime storiche, potrebbero non essere accurati.`;
+            
+            alert(details);
+        }
+        
+        // Mostra tutti i saldi di un exchange
+        function showExchangeBalances(exchId) {
+            const data = exchangeData[exchId];
+            if (!data) {
+                alert('Nessun dato disponibile');
+                return;
+            }
+            
+            const realBalances = data.realBalances || {};
+            const hasReal = Object.keys(realBalances).length > 0;
+            
+            let details = `💎 SALDI ${exchId.toUpperCase()}\n`;
+            details += `${'─'.repeat(40)}\n\n`;
+            
+            if (hasReal) {
+                details += `✅ SALDI REALI (da API):\n\n`;
+                const items = Object.entries(realBalances)
+                    .filter(([_, amt]) => amt > 0)
+                    .sort((a, b) => b[1] - a[1]);
+                
+                for (const [coin, amount] of items) {
+                    const amtStr = amount < 1 ? amount.toFixed(8) : amount.toLocaleString('it-IT', { maximumFractionDigits: 4 });
+                    const price2026 = getHistoricalPrice(coin, 2026);
+                    const eurValue = amount * price2026 * EUR_USD;
+                    details += `${coin}: ${amtStr}`;
+                    if (price2026 > 0) {
+                        details += ` → €${eurValue.toFixed(2)}`;
+                    } else {
+                        details += ` (no price)`;
+                    }
+                    details += `\n`;
+                }
+                
+                details += `\n${'─'.repeat(40)}\n`;
+                details += `📊 Totale token: ${items.length}`;
+            } else {
+                details += `⚠️ Nessun saldo reale disponibile.\n`;
+                details += `I saldi sono calcolati dalle transazioni.`;
+            }
+            
+            alert(details);
+        }
+        
         function initExchangeGrid() {
             const grid = document.getElementById('exchangeGrid');
             if (!grid) return;
@@ -3176,7 +3275,7 @@
                     for (const y of [2021, 2022, 2023, 2024, 2025, 2026]) {
                         const val = data.totals[y] || 0;
                         const txCount = txByYear[y] || 0;
-                        html += '<div style="background:var(--bg-primary);padding:8px 4px;border-radius:6px;text-align:center;">';
+                        html += '<div style="background:var(--bg-primary);padding:8px 4px;border-radius:6px;text-align:center;cursor:pointer;" onclick="showYearDetails(\'' + exch.id + '\',' + y + ')" title="Clicca per dettagli">';
                         html += '<div style="font-size:12px;font-weight:600;color:var(--text-primary);">' + y + '</div>';
                         html += '<div style="font-size:14px;font-weight:700;color:var(--green);margin:4px 0;">€' + val.toFixed(0) + '</div>';
                         if (txCount > 0) {
@@ -3191,7 +3290,7 @@
                     // Mostra totale transazioni
                     const totalTx = data.transactionCount || (data.transactions ? data.transactions.length : 0);
                     if (totalTx > 0) {
-                        html += '<div style="margin-top:8px;text-align:center;font-size:11px;color:var(--text-secondary);">📜 ' + totalTx + ' transazioni totali</div>';
+                        html += '<div style="margin-top:8px;text-align:center;font-size:11px;color:var(--text-secondary);">📜 ' + totalTx + ' transazioni totali | <a href="#" onclick="showExchangeBalances(\'' + exch.id + '\');return false;" style="color:var(--accent);">👁️ Vedi saldi</a></div>';
                     }
                 }
                 
