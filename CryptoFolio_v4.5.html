@@ -636,14 +636,14 @@
                     </div>
                 </div>
                 <div style="overflow-x:auto;margin-top:12px;">
-                    <table class="holdings-table" style="table-layout:auto;">
+                    <table class="holdings-table" style="table-layout:auto;font-size:14px;">
                         <thead>
                             <tr>
-                                <th style="width:130px;">Data</th>
-                                <th style="width:80px;">Tipo</th>
-                                <th style="width:80px;">Coin</th>
-                                <th style="width:100px;text-align:right;">Importo</th>
-                                <th>Operazione</th>
+                                <th style="width:140px;font-size:13px;">Data</th>
+                                <th style="width:100px;font-size:13px;">Tipo</th>
+                                <th style="width:90px;font-size:13px;">Coin</th>
+                                <th style="width:120px;text-align:right;font-size:13px;">Importo</th>
+                                <th style="font-size:13px;">Operazione</th>
                             </tr>
                         </thead>
                         <tbody id="exchDetailTxTable">
@@ -3606,11 +3606,11 @@
                 const amtColor = change >= 0 ? 'var(--green)' : 'var(--red)';
                 
                 html += `<tr>
-                    <td><div style="font-size:12px;">${dateStr}</div><div style="font-size:10px;color:var(--text-secondary);">${timeStr}</div></td>
-                    <td><span style="display:inline-flex;align-items:center;gap:3px;padding:3px 6px;border-radius:4px;font-size:10px;background:${style.bg};color:${style.color};">${style.icon} ${tx.type || '-'}</span></td>
-                    <td style="font-weight:600;">${tx.coin || '-'}</td>
-                    <td style="text-align:right;color:${amtColor};font-weight:600;">${formatNumber(amt)}</td>
-                    <td style="font-size:11px;color:var(--text-secondary);">${tx.operation || '-'}</td>
+                    <td><div style="font-size:14px;font-weight:500;">${dateStr}</div><div style="font-size:12px;color:var(--text-secondary);">${timeStr}</div></td>
+                    <td><span style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:6px;font-size:12px;font-weight:500;background:${style.bg};color:${style.color};">${style.icon} ${tx.type || '-'}</span></td>
+                    <td style="font-weight:600;font-size:14px;">${tx.coin || '-'}</td>
+                    <td style="text-align:right;color:${amtColor};font-weight:600;font-size:14px;">${formatNumber(amt)}</td>
+                    <td style="font-size:13px;color:var(--text-secondary);">${tx.operation || '-'}</td>
                 </tr>`;
             }
             tbody.innerHTML = html;
@@ -3831,8 +3831,26 @@
                 progressBar.style.width = '70%';
                 progressText.textContent = `Elaborazione ${txCount} transazioni...`;
                 
+                // 🔑 De-duplicazione transazioni (Binance a volte restituisce duplicati)
+                const seenTx = new Set();
+                const uniqueTransactions = rawTransactions.filter(tx => {
+                    // Chiave unica basata su txId O combinazione data+coin+amount+type
+                    const key = tx.txId || `${tx.date}-${tx.coin}-${tx.amount}-${tx.type}`;
+                    if (seenTx.has(key)) {
+                        console.log('⚠️ Duplicato rimosso:', tx.type, tx.coin, tx.amount);
+                        return false;
+                    }
+                    seenTx.add(key);
+                    return true;
+                });
+                
+                const removedCount = rawTransactions.length - uniqueTransactions.length;
+                if (removedCount > 0) {
+                    console.log(`🔑 Rimossi ${removedCount} duplicati`);
+                }
+                
                 // Converti le transazioni
-                const allTransactions = rawTransactions.map(tx => ({
+                const allTransactions = uniqueTransactions.map(tx => ({
                     ...tx,
                     date: new Date(tx.date),
                     change: tx.change || tx.amount || 0
