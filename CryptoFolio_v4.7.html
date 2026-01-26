@@ -2538,6 +2538,21 @@
                 scannedAt: Date.now()
             };
             
+            // Download transazioni se Moralis disponibile
+            if (apiKeys.moralis && addr.startsWith('0x')) {
+                const scanDateEl = document.getElementById('detailScanDate');
+                scanDateEl.innerHTML = '📥 Download transazioni...';
+                
+                const txData = await downloadWalletTransactions(addr, (status) => {
+                    scanDateEl.innerHTML = `📥 ${status}`;
+                });
+                walletTransactions[addr.toLowerCase()] = txData;
+                saveWalletTransactions();
+                
+                const txCount = txData.nativeTx.length + txData.tokenTx.length;
+                scanDateEl.innerHTML = `✅ ${txCount} transazioni scaricate`;
+            }
+            
             // Aggiorna display
             displayWalletDetail();
             updateWalletsList();
