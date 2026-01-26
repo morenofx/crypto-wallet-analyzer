@@ -4089,7 +4089,7 @@
         
         async function saveExchangeDataToFirebase() {
             try {
-                // Salva solo totali e balances, NON le transazioni (troppo grandi per Firebase)
+                // Salva solo totali e balances in Firebase (le transazioni sono troppo grandi)
                 const dataToSave = {};
                 for (const exchId of Object.keys(exchangeData)) {
                     const data = exchangeData[exchId];
@@ -4108,8 +4108,72 @@
                     lastUpdate: new Date().toISOString()
                 });
                 console.log('✅ Exchange data saved to Firebase');
+                
+                // Salva transazioni deposit/withdraw in localStorage per riconciliazione
+                saveExchangeTransactionsToLocalStorage();
             } catch (e) {
                 console.error('Exchange Firebase save error:', e);
+            }
+        }
+        
+        function saveExchangeTransactionsToLocalStorage() {
+            try {
+                // Salva solo transazioni deposit/withdraw (per riconciliazione)
+                const txToSave = {};
+                for (const exchId of Object.keys(exchangeData)) {
+                    const data = exchangeData[exchId];
+                    if (data.transactions && data.transactions.length > 0) {
+                        // Filtra solo deposit/withdraw
+                        const filtered = data.transactions.filter(tx => {
+                            const op = (tx.operation || '').toLowerCase();
+                            const type = (tx.type || '').toLowerCase();
+                            return op.includes('deposit') || op.includes('withdraw') || 
+                                   type === 'deposit' || type === 'withdrawal' || type === 'withdraw';
+                        }).map(tx => ({
+                            date: tx.date instanceof Date ? tx.date.toISOString() : tx.date,
+                            operation: tx.operation || tx.type || '',
+                            type: tx.type || '',
+                            coin: tx.coin,
+                            change: tx.change
+                        }));
+                        
+                        if (filtered.length > 0) {
+                            txToSave[exchId] = filtered;
+                        }
+                    }
+                }
+                
+                localStorage.setItem('cryptofolio_exchange_tx', JSON.stringify(txToSave));
+                console.log('💾 Transazioni exchange salvate in localStorage');
+            } catch (e) {
+                console.warn('Errore salvataggio transazioni localStorage:', e);
+            }
+        }
+        
+        function loadExchangeTransactionsFromLocalStorage() {
+            try {
+                const saved = localStorage.getItem('cryptofolio_exchange_tx');
+                if (!saved) return;
+                
+                const txData = JSON.parse(saved);
+                let totalLoaded = 0;
+                
+                for (const exchId of Object.keys(txData)) {
+                    if (!exchangeData[exchId]) {
+                        exchangeData[exchId] = { transactions: [], totals: {}, balances: {} };
+                    }
+                    
+                    // Converti date da stringa a Date
+                    exchangeData[exchId].transactions = txData[exchId].map(tx => ({
+                        ...tx,
+                        date: new Date(tx.date)
+                    }));
+                    totalLoaded += txData[exchId].length;
+                }
+                
+                console.log(`📂 Caricate ${totalLoaded} transazioni exchange da localStorage`);
+            } catch (e) {
+                console.warn('Errore caricamento transazioni localStorage:', e);
             }
         }
         
@@ -4120,10 +4184,10 @@
                     const data = doc.data();
                     const savedData = data.data || {};
                     
-                    // Carica solo totali e balances (le transazioni non sono salvate)
+                    // Carica solo totali e balances da Firebase
                     for (const exchId of Object.keys(savedData)) {
                         exchangeData[exchId] = {
-                            transactions: [], // Vuoto - dovrà reimportare
+                            transactions: [], // Vuoto - verrà caricato da localStorage
                             totals: savedData[exchId].totals || {},
                             balances: savedData[exchId].balances || {},
                             transactionCount: savedData[exchId].transactionCount || 0,
@@ -4133,6 +4197,9 @@
                     }
                     
                     console.log('✅ Exchange data loaded from Firebase:', Object.keys(exchangeData).length, 'exchanges');
+                    
+                    // Carica transazioni da localStorage
+                    loadExchangeTransactionsFromLocalStorage();
                 }
             } catch (e) {
                 console.error('Exchange Firebase load error:', e);
