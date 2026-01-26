@@ -295,18 +295,10 @@
             <div class="card" style="margin-bottom:20px;">
                 <div class="card-header">
                     <div class="card-title">🧮 Step 2: Calcola Saldi al 31/12</div>
-                    <div style="display:flex;gap:8px;align-items:center;">
-                        <select id="taxYearSelect" style="background:var(--bg-primary);color:var(--text-primary);border:none;padding:8px 12px;border-radius:6px;">
-                            <option value="2024">2024</option>
-                            <option value="2023">2023</option>
-                            <option value="2022">2022</option>
-                            <option value="2021">2021</option>
-                        </select>
-                        <button class="btn btn-primary" onclick="calculateWalletBalances()">🧮 Calcola</button>
-                    </div>
+                    <button class="btn btn-primary" onclick="calculateAllYearsBalances()">🧮 Calcola Tutti gli Anni</button>
                 </div>
                 <p style="color:var(--text-secondary);font-size:13px;margin-bottom:12px;">
-                    Ricostruisce i saldi token per ogni wallet al 31 dicembre dell'anno selezionato.
+                    Ricostruisce i saldi token per ogni wallet al 31 dicembre di ogni anno (2021-2026).
                 </p>
                 <div id="walletBalancesResult"></div>
             </div>
@@ -2151,8 +2143,72 @@
         // ==================== CALCOLO SALDI STORICI ====================
         
         function calculateWalletBalances() {
-            const year = parseInt(document.getElementById('taxYearSelect').value);
+            const year = parseInt(document.getElementById('taxYearSelect')?.value || 2024);
+            return calculateBalancesForYear(year);
+        }
+        
+        function calculateBalancesForYear(year) {
             const endOfYear = new Date(year, 11, 31, 23, 59, 59);
+            const results = {};
+            
+            for (const addr in walletTxHistory) {
+                const data = walletTxHistory[addr];
+                const balances = {};
+                
+                // Calcola saldi native (ETH, BNB, etc.)
+                for (const tx of data.nativeTx) {
+                    const txDate = new Date(tx.date);
+                    if (txDate > endOfYear) continue;
+                    
+                    const chainSymbol = CHAINS[tx.chain]?.symbol || 'ETH';
+                    if (!balances[chainSymbol]) balances[chainSymbol] = { amount: 0, name: chainSymbol, contract: 'native' };
+                    
+                    const value = Number(tx.value) / 1e18;
+                    
+                    if (tx.to?.toLowerCase() === addr) {
+                        balances[chainSymbol].amount += value;
+                    } else if (tx.from?.toLowerCase() === addr) {
+                        balances[chainSymbol].amount -= value;
+                    }
+                }
+                
+                // Calcola saldi token (con filtro spam)
+                for (const tx of data.tokenTx) {
+                    const txDate = new Date(tx.date);
+                    if (txDate > endOfYear) continue;
+                    
+                    const symbol = tx.symbol || 'UNKNOWN';
+                    const name = tx.name || symbol;
+                    const contract = tx.contract || '';
+                    
+                    // FILTRO SPAM
+                    if (isSpam(name, symbol)) continue;
+                    if (isBlacklisted(contract)) continue;
+                    
+                    if (!balances[symbol]) balances[symbol] = { amount: 0, name, contract };
+                    
+                    const decimals = tx.decimals || 18;
+                    const value = Number(tx.value) / Math.pow(10, decimals);
+                    
+                    if (tx.to?.toLowerCase() === addr) {
+                        balances[symbol].amount += value;
+                    } else if (tx.from?.toLowerCase() === addr) {
+                        balances[symbol].amount -= value;
+                    }
+                }
+                
+                // Rimuovi saldi negativi o troppo piccoli
+                for (const sym in balances) {
+                    if (balances[sym].amount < 0.0001) delete balances[sym];
+                }
+                
+                results[addr] = { balances, wallet: data.wallet };
+            }
+            
+            return results;
+        }
+        
+        function calculateAllYearsBalances() {
             const resultDiv = document.getElementById('walletBalancesResult');
             
             if (Object.keys(walletTxHistory).length === 0) {
@@ -2162,80 +2218,112 @@
                 }
             }
             
+            const years = [2021, 2022, 2023, 2024, 2025, 2026];
             walletHistoricalBalances = {};
-            let html = '';
             
-            for (const addr in walletTxHistory) {
-                const data = walletTxHistory[addr];
-                const balances = {}; // { symbol: amount }
-                
-                // Calcola saldi native (ETH, BNB, etc.)
-                for (const tx of data.nativeTx) {
-                    const txDate = new Date(tx.date);
-                    if (txDate > endOfYear) continue;
-                    
-                    const chainSymbol = CHAINS[tx.chain]?.symbol || 'ETH';
-                    if (!balances[chainSymbol]) balances[chainSymbol] = 0;
-                    
-                    const value = Number(tx.value) / 1e18;
-                    
-                    if (tx.to?.toLowerCase() === addr) {
-                        balances[chainSymbol] += value; // IN
-                    } else if (tx.from?.toLowerCase() === addr) {
-                        balances[chainSymbol] -= value; // OUT
+            // Calcola per ogni anno
+            for (const year of years) {
+                const yearResults = calculateBalancesForYear(year);
+                for (const addr in yearResults) {
+                    if (!walletHistoricalBalances[addr]) {
+                        walletHistoricalBalances[addr] = { wallet: yearResults[addr].wallet, years: {} };
                     }
+                    walletHistoricalBalances[addr].years[year] = yearResults[addr].balances;
                 }
-                
-                // Calcola saldi token
-                for (const tx of data.tokenTx) {
-                    const txDate = new Date(tx.date);
-                    if (txDate > endOfYear) continue;
+            }
+            
+            // Calcola valore EUR per ogni anno usando prezzi storici
+            const walletTotals = {}; // { year: eurValue }
+            for (const year of years) walletTotals[year] = 0;
+            
+            for (const addr in walletHistoricalBalances) {
+                const walletData = walletHistoricalBalances[addr];
+                for (const year of years) {
+                    const balances = walletData.years[year] || {};
+                    let yearTotal = 0;
                     
-                    const symbol = tx.symbol || 'UNKNOWN';
-                    if (!balances[symbol]) balances[symbol] = 0;
-                    
-                    const decimals = tx.decimals || 18;
-                    const value = Number(tx.value) / Math.pow(10, decimals);
-                    
-                    if (tx.to?.toLowerCase() === addr) {
-                        balances[symbol] += value; // IN
-                    } else if (tx.from?.toLowerCase() === addr) {
-                        balances[symbol] -= value; // OUT
+                    for (const sym in balances) {
+                        const amount = balances[sym].amount || balances[sym] || 0;
+                        const price = getHistoricalPrice(sym, year);
+                        yearTotal += amount * price;
                     }
+                    
+                    walletTotals[year] += yearTotal;
                 }
-                
-                // Rimuovi saldi negativi o troppo piccoli
-                for (const sym in balances) {
-                    if (balances[sym] < 0.0001) delete balances[sym];
-                }
-                
-                walletHistoricalBalances[addr] = { year, balances, wallet: data.wallet };
-                
-                // UI per questo wallet
-                const tokenList = Object.entries(balances)
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 10)
-                    .map(([sym, amt]) => `<span style="background:var(--bg-secondary);padding:4px 8px;border-radius:4px;font-size:12px;">${sym}: ${amt.toFixed(4)}</span>`)
-                    .join(' ');
-                
+            }
+            
+            // Mostra tabella riepilogativa
+            let html = '<div style="margin-bottom:16px;font-weight:600;">📅 Valore Wallet al 31/12 (da transazioni)</div>';
+            html += '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:20px;">';
+            
+            for (const year of years) {
+                const value = walletTotals[year];
                 html += `
-                    <div style="background:var(--bg-primary);padding:16px;border-radius:8px;margin-bottom:12px;">
-                        <div style="font-weight:600;margin-bottom:8px;">👛 ${data.wallet}</div>
-                        <div style="display:flex;flex-wrap:wrap;gap:6px;">${tokenList || '<span style="color:var(--text-secondary);">Nessun saldo</span>'}</div>
+                    <div style="background:var(--bg-primary);padding:16px;border-radius:8px;text-align:center;">
+                        <div style="font-size:14px;color:var(--text-secondary);margin-bottom:4px;">${year}</div>
+                        <div style="font-size:18px;font-weight:700;color:var(--accent);">€${value.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
                     </div>
                 `;
             }
+            html += '</div>';
             
-            if (!html) {
-                html = '<p style="color:var(--text-secondary);">Nessun dato disponibile</p>';
+            // Dettaglio per wallet
+            html += '<div style="margin-top:20px;">';
+            html += '<div style="font-weight:600;margin-bottom:12px;">📝 Dettaglio per Wallet</div>';
+            
+            for (const addr in walletHistoricalBalances) {
+                const walletData = walletHistoricalBalances[addr];
+                html += `<div style="background:var(--bg-primary);padding:16px;border-radius:8px;margin-bottom:12px;">`;
+                html += `<div style="font-weight:600;margin-bottom:12px;">👛 ${walletData.wallet}</div>`;
+                html += '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;">';
+                
+                for (const year of years) {
+                    const balances = walletData.years[year] || {};
+                    let yearTotal = 0;
+                    const tokens = [];
+                    
+                    for (const sym in balances) {
+                        const amount = balances[sym].amount || balances[sym] || 0;
+                        const price = getHistoricalPrice(sym, year);
+                        const value = amount * price;
+                        yearTotal += value;
+                        if (value > 1) {
+                            tokens.push({ sym, amount, value });
+                        }
+                    }
+                    
+                    tokens.sort((a, b) => b.value - a.value);
+                    const topTokens = tokens.slice(0, 3).map(t => t.sym).join(', ');
+                    
+                    html += `
+                        <div style="background:var(--bg-secondary);padding:8px;border-radius:6px;text-align:center;">
+                            <div style="font-size:11px;color:var(--text-secondary);">${year}</div>
+                            <div style="font-size:14px;font-weight:600;color:${yearTotal > 0 ? 'var(--green)' : 'var(--text-secondary)'};">€${yearTotal.toLocaleString('it-IT', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</div>
+                            <div style="font-size:9px;color:var(--text-secondary);margin-top:2px;">${topTokens || '-'}</div>
+                        </div>
+                    `;
+                }
+                
+                html += '</div></div>';
             }
-            
-            html = `<div style="margin-bottom:12px;font-weight:600;">📅 Saldi al 31/12/${year}</div>` + html;
+            html += '</div>';
             
             // Salva
             localStorage.setItem('cryptofolio_historical_balances', JSON.stringify(walletHistoricalBalances));
             
             resultDiv.innerHTML = html;
+        }
+        
+        function getHistoricalPrice(symbol, year) {
+            const sym = symbol.toUpperCase();
+            const prices = HISTORICAL_PRICES[sym.toLowerCase()] || HISTORICAL_PRICES[SYMBOL_TO_CG[sym]?.toLowerCase()];
+            if (prices && prices[year]) return prices[year];
+            
+            // Stablecoin
+            if (['USDT', 'USDC', 'DAI', 'BUSD', 'FDUSD', 'TUSD'].includes(sym)) return 0.93;
+            if (['EUR', 'EURS'].includes(sym)) return 1;
+            
+            return 0;
         }
         
         // ==================== WALLET MANAGEMENT ====================
