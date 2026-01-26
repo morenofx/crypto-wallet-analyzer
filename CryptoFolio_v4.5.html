@@ -698,7 +698,7 @@
         let saveTimeout = null;
         
         // Binance
-        const BINANCE_SERVER_URL = 'http://localhost:3457';
+        const BINANCE_SERVER_URL = 'http://localhost:3456';
         let binanceData = { balances: { spot: [], earn: [], staking: [] }, totals: { spot: 0, earn: 0, staking: 0 }, lastUpdate: null };
         
         // Exchange values per Tax Report (31/12 di ogni anno)
@@ -3022,14 +3022,17 @@
                 // Se ha API (Binance), mostra sezione API
                 if (exch.hasApi) {
                     html += '<div style="margin-bottom:16px;padding:16px;background:linear-gradient(135deg, rgba(243,186,47,0.1), rgba(243,186,47,0.05));border:1px solid rgba(243,186,47,0.3);border-radius:8px;">';
-                    html += '<div style="font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px;">🔌 Importa via API <span style="font-size:10px;background:#f3ba2f;color:#000;padding:2px 6px;border-radius:4px;">RACCOMANDATO</span></div>';
+                    html += '<div style="font-weight:600;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;">';
+                    html += '<div style="display:flex;align-items:center;gap:8px;">🔌 Importa via API <span style="font-size:10px;background:#f3ba2f;color:#000;padding:2px 6px;border-radius:4px;">RACCOMANDATO</span></div>';
+                    html += '<span id="serverStatus-' + exch.id + '" style="font-size:10px;padding:3px 8px;border-radius:4px;background:var(--red);color:#fff;">SERVER OFF</span>';
+                    html += '</div>';
                     html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">';
                     html += '<input type="password" id="apiKey-' + exch.id + '" placeholder="API Key" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;padding:8px;font-size:12px;" value="' + (apiKeys.binanceTaxKey ? apiKeys.binanceTaxKey.substring(0,12) + '...' : '') + '">';
                     html += '<input type="password" id="secretKey-' + exch.id + '" placeholder="Secret Key" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;padding:8px;font-size:12px;" value="' + (apiKeys.binanceTaxSecret ? '••••••••••' : '') + '">';
                     html += '</div>';
-                    html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+                    html += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">';
                     html += '<button class="btn" onclick="saveAndDownloadExchangeApi(\'' + exch.id + '\')" style="background:#f3ba2f;color:#000;font-size:12px;">📥 Scarica via API</button>';
-                    html += '<button class="btn btn-secondary" onclick="testExchangeApi(\'' + exch.id + '\')" style="font-size:12px;">🧪 Test</button>';
+                    html += '<button class="btn btn-secondary" onclick="checkBinanceServerStatus()" style="font-size:12px;">🔄 Check Server</button>';
                     html += '<a href="https://www.binance.com/it/my/settings/api-management" target="_blank" style="font-size:11px;color:var(--accent);align-self:center;">→ Crea API report fiscale</a>';
                     html += '</div>';
                     html += '<div id="apiProgress-' + exch.id + '" style="display:none;margin-top:12px;"><div style="background:var(--bg-secondary);border-radius:4px;height:6px;overflow:hidden;"><div id="apiProgressBar-' + exch.id + '" style="background:#f3ba2f;height:100%;width:0%;transition:width 0.3s;"></div></div><div id="apiProgressText-' + exch.id + '" style="font-size:11px;color:var(--text-secondary);margin-top:4px;"></div></div>';
@@ -3072,9 +3075,42 @@
             }
             
             grid.innerHTML = html;
+            
+            // Verifica automaticamente lo stato del server Binance
+            checkBinanceServerStatus();
         }
         
         // ==================== EXCHANGE API FUNCTIONS ====================
+        
+        // Verifica se il server Binance è attivo
+        async function checkBinanceServerStatus() {
+            const statusEl = document.getElementById('serverStatus-binance');
+            if (!statusEl) return;
+            
+            try {
+                const response = await fetch('http://localhost:3456/status', { 
+                    method: 'GET',
+                    signal: AbortSignal.timeout(2000) 
+                });
+                
+                if (response.ok) {
+                    statusEl.textContent = 'SERVER ON';
+                    statusEl.style.background = 'var(--green)';
+                    statusEl.style.color = '#000';
+                    console.log('✅ Binance Tax Server attivo');
+                    return true;
+                }
+            } catch (e) {
+                // Server non attivo
+            }
+            
+            statusEl.textContent = 'SERVER OFF';
+            statusEl.style.background = 'var(--red)';
+            statusEl.style.color = '#fff';
+            console.log('⚠️ Binance Tax Server non attivo');
+            return false;
+        }
+        
         async function testExchangeApi(exchId) {
             if (exchId === 'binance') {
                 const apiKey = document.getElementById('apiKey-binance')?.value.trim();
@@ -3087,11 +3123,11 @@
                 
                 try {
                     // Prima verifica che il server sia attivo
-                    const statusResponse = await fetch('http://localhost:3457/status');
+                    const statusResponse = await fetch('http://localhost:3456/status');
                     if (!statusResponse.ok) throw new Error('Server non attivo');
                     
                     // Test connessione Binance
-                    const testUrl = `http://localhost:3457/test?apiKey=${encodeURIComponent(apiKey)}&secretKey=${encodeURIComponent(secretKey)}`;
+                    const testUrl = `http://localhost:3456/test?apiKey=${encodeURIComponent(apiKey)}&secretKey=${encodeURIComponent(secretKey)}`;
                     const response = await fetch(testUrl);
                     const data = await response.json();
                     
@@ -3136,28 +3172,51 @@
                     if (progressText) progressText.textContent = 'Verifica server...';
                     if (progressBar) progressBar.style.width = '5%';
                     
-                    const statusResponse = await fetch('http://localhost:3457/status');
-                    if (!statusResponse.ok) throw new Error('Server non attivo');
+                    const serverOnline = await checkBinanceServerStatus();
+                    if (!serverOnline) {
+                        throw new Error('Server non attivo');
+                    }
                     
-                    // Download
+                    // Download - prova prima /history poi /download
                     if (progressText) progressText.textContent = 'Download in corso... (può richiedere 1-2 minuti)';
                     if (progressBar) progressBar.style.width = '10%';
                     
-                    const downloadUrl = `http://localhost:3457/download?apiKey=${encodeURIComponent(apiKey)}&secretKey=${encodeURIComponent(secretKey)}`;
-                    const response = await fetch(downloadUrl);
-                    const data = await response.json();
+                    let data;
+                    let downloadUrl = `http://localhost:3456/history?apiKey=${encodeURIComponent(apiKey)}&secretKey=${encodeURIComponent(secretKey)}`;
                     
-                    if (!data.success) {
-                        throw new Error(data.error || 'Download fallito');
+                    try {
+                        const response = await fetch(downloadUrl);
+                        data = await response.json();
+                    } catch (e) {
+                        // Prova endpoint alternativo /download
+                        downloadUrl = `http://localhost:3456/download?apiKey=${encodeURIComponent(apiKey)}&secretKey=${encodeURIComponent(secretKey)}`;
+                        const response = await fetch(downloadUrl);
+                        data = await response.json();
+                    }
+                    
+                    // Gestisce diversi formati di risposta
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    // Estrai transazioni (supporta entrambi i formati)
+                    let rawTransactions = data.transactions || [];
+                    const txCount = data.count || rawTransactions.length;
+                    
+                    if (txCount === 0) {
+                        if (progressText) progressText.textContent = '⚠️ Nessuna transazione trovata';
+                        alert('⚠️ Nessuna transazione trovata.\n\nVerifica che:\n1. Hai usato "API report fiscale" (non API normale)\n2. Hai transazioni su Binance');
+                        return;
                     }
                     
                     if (progressBar) progressBar.style.width = '80%';
-                    if (progressText) progressText.textContent = 'Elaborazione transazioni...';
+                    if (progressText) progressText.textContent = `Elaborazione ${txCount} transazioni...`;
                     
                     // Converti le transazioni
-                    const allTransactions = data.transactions.map(tx => ({
+                    const allTransactions = rawTransactions.map(tx => ({
                         ...tx,
-                        date: new Date(tx.date)
+                        date: new Date(tx.date),
+                        change: tx.change || tx.amount || 0
                     }));
                     
                     // Ordina per data
@@ -3218,9 +3277,18 @@
                     initExchangeGrid();
                     updateExchangeTotals();
                     
-                    const s = data.summary;
+                    // Conta tipi di transazione
+                    const summary = data.summary || {};
+                    const deposits = summary.deposits || allTransactions.filter(t => t.type === 'deposit').length;
+                    const withdrawals = summary.withdrawals || allTransactions.filter(t => t.type === 'withdrawal').length;
+                    const dividends = summary.dividend || summary.dividends || allTransactions.filter(t => t.type === 'dividend').length;
+                    const staking = summary.staking || allTransactions.filter(t => t.type === 'staking').length;
+                    const earn = summary.earn || allTransactions.filter(t => t.type === 'interest').length;
+                    const converts = summary.conversions || summary.converts || allTransactions.filter(t => t.type === 'convert' || t.type === 'dust').length;
+                    const trades = summary.trades || allTransactions.filter(t => t.type === 'trade').length;
+                    
                     setTimeout(() => {
-                        alert(`✅ Binance Tax API completato!\n\n📊 ${allTransactions.length} transazioni totali\n📥 ${s.deposits} depositi crypto\n📤 ${s.withdrawals} prelievi crypto\n💶 ${s.fiatDeposits} depositi fiat\n💶 ${s.fiatWithdrawals} prelievi fiat\n🎁 ${s.dividend} distribuzione\n🥩 ${s.staking} staking\n📈 ${s.earn} earn\n🔄 ${s.conversions} conversioni`);
+                        alert(`✅ Binance Tax API completato!\n\n📊 ${allTransactions.length} transazioni totali\n📥 ${deposits} depositi\n📤 ${withdrawals} prelievi\n🎁 ${dividends} distribuzione\n🔄 ${converts} conversioni\n📈 ${trades} trades\n🥩 ${staking} staking\n💰 ${earn} earn`);
                     }, 500);
                     
                 } catch (e) {
