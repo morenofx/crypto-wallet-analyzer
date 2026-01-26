@@ -122,6 +122,7 @@
                 <div class="nav-label">Menu</div>
                 <div class="nav-item active" onclick="showView('dashboard')"><span class="icon">📈</span><span>Dashboard</span></div>
                 <div class="nav-item" onclick="showView('wallets')"><span class="icon">👛</span><span>Wallets</span><span class="badge" id="walletCount">0</span></div>
+                <div class="nav-item" onclick="showView('nft')"><span class="icon">🖼️</span><span>NFT</span><span class="badge" id="nftCount">0</span></div>
                 <div class="nav-item" onclick="showView('exchanges')"><span class="icon">🏦</span><span>Exchanges</span><span class="badge" id="exchangeCount">0</span></div>
                 <div class="nav-item" onclick="showView('reconcile')"><span class="icon">🔗</span><span>Riconciliazione</span></div>
                 <div class="nav-item" onclick="showView('tax')"><span class="icon">📋</span><span>Tax Report</span></div>
@@ -433,6 +434,63 @@
             <div class="card">
                 <div class="card-header"><div class="card-title">📊 Riepilogo API</div></div>
                 <div id="apiSummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;"></div>
+        </div>
+        
+        <!-- NFT -->
+        <div class="main-content" id="nftView" style="display:none;">
+            <div class="header"><h1>🖼️ NFT Portfolio</h1><div class="header-actions"><button class="btn btn-primary" onclick="scanAllNFTs()">🔍 Scansiona NFT</button></div></div>
+            
+            <div class="card" style="margin-bottom:20px;">
+                <p style="color:var(--text-secondary);font-size:14px;line-height:1.6;">
+                    Visualizza i tuoi <strong>NFT</strong> su tutte le chain EVM e Solana.<br>
+                    Puoi inserire il <strong>prezzo di acquisto</strong> per calcolare guadagni/perdite.
+                </p>
+            </div>
+            
+            <!-- RIEPILOGO NFT -->
+            <div class="card" style="margin-bottom:20px;">
+                <div class="card-header"><div class="card-title">📊 Riepilogo</div></div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;">
+                    <div style="background:var(--bg-primary);padding:16px;border-radius:8px;text-align:center;">
+                        <div style="font-size:12px;color:var(--text-secondary);">NFT Totali</div>
+                        <div id="nftTotalCount" style="font-size:24px;font-weight:700;color:var(--accent);">0</div>
+                    </div>
+                    <div style="background:var(--bg-primary);padding:16px;border-radius:8px;text-align:center;">
+                        <div style="font-size:12px;color:var(--text-secondary);">Valore Stimato</div>
+                        <div id="nftTotalValue" style="font-size:24px;font-weight:700;color:var(--green);">€0</div>
+                    </div>
+                    <div style="background:var(--bg-primary);padding:16px;border-radius:8px;text-align:center;">
+                        <div style="font-size:12px;color:var(--text-secondary);">Costo Acquisto</div>
+                        <div id="nftTotalCost" style="font-size:24px;font-weight:700;color:var(--text-secondary);">€0</div>
+                    </div>
+                    <div style="background:var(--bg-primary);padding:16px;border-radius:8px;text-align:center;">
+                        <div style="font-size:12px;color:var(--text-secondary);">P/L</div>
+                        <div id="nftTotalPL" style="font-size:24px;font-weight:700;">€0</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- LISTA NFT -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">🖼️ I Tuoi NFT</div>
+                    <div style="display:flex;gap:8px;">
+                        <select id="nftChainFilter" onchange="filterNFTsByChain()" style="background:var(--bg-primary);color:var(--text-primary);border:none;padding:8px 12px;border-radius:6px;">
+                            <option value="all">Tutte le chain</option>
+                            <option value="eth">Ethereum</option>
+                            <option value="polygon">Polygon</option>
+                            <option value="bsc">BSC</option>
+                            <option value="arbitrum">Arbitrum</option>
+                            <option value="base">Base</option>
+                            <option value="solana">Solana</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="nftGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;padding:16px 0;">
+                    <div style="color:var(--text-secondary);text-align:center;padding:40px;grid-column:1/-1;">
+                        Nessun NFT trovato. Clicca "🔍 Scansiona NFT" per cercare i tuoi NFT.
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -686,6 +744,10 @@
         let currentMoralisKeyIndex = 0;
         let moralisKeyFailures = {}; // Traccia fallimenti per key
         
+        // NFT data
+        let nftData = []; // Array di NFT: { tokenId, name, collection, image, chain, contract, floorPrice, purchasePrice, wallet }
+        let nftPurchasePrices = {}; // { contract_tokenId: purchasePrice } - prezzi di acquisto manuali
+        
         // Exchange data from CSV imports
         let exchangeData = {}; // { binance: { transactions: [], balances: {2021: {BTC: 0.5, ...}}, totals: {2021: 1234, ...} }, ... }
         
@@ -927,11 +989,17 @@
             
             // Carica dati riconciliazione da localStorage
             if (view === 'reconcile') {
-                if (reconcileData.exchangeTx.length === 0 && reconcileData.walletTx.length === 0) {
+                // Carica sempre da localStorage se non ci sono dati in memoria
+                const hasData = reconcileData.exchangeTx.length > 0 || reconcileData.walletTx.length > 0 || reconcileData.matches.length > 0;
+                if (!hasData) {
                     if (loadReconcileFromLocalStorage()) {
                         updateReconcileSummary();
                         renderReconcileData();
                     }
+                } else {
+                    // Aggiorna la UI con i dati esistenti
+                    updateReconcileSummary();
+                    renderReconcileData();
                 }
             }
             
@@ -4384,6 +4452,7 @@
             updateApiCount();
             updateExchangeCount();
             updateExchangeTotals();
+            loadNFTDataFromLocalStorage(); // Carica NFT salvati
             
             // Mostra API key se configurata
             if (apiKeys.moralis && apiKeys.etherscan) {
@@ -4960,6 +5029,9 @@
             updateReconcileSummary();
             renderReconcileData();
             
+            // Salva i risultati in localStorage
+            saveReconcileToLocalStorage();
+            
             // Alert con risultati
             alert(`✅ Riconciliazione completata!\n\n• Match trovati: ${reconcileData.matches.length}\n• Exchange non riconciliati: ${reconcileData.unmatchedExch.length}\n• Wallet non riconciliati: ${reconcileData.unmatchedWallet.length}\n\nControlla i risultati sotto.`);
         }
@@ -5084,20 +5156,44 @@
         
         function saveReconcileToLocalStorage() {
             try {
-                // Salva solo i dati essenziali (senza funzioni o oggetti complessi)
+                // Salva tutti i dati della riconciliazione (inclusi i match!)
                 const dataToSave = {
                     exchangeTx: reconcileData.exchangeTx.map(tx => ({
                         ...tx,
-                        date: tx.date instanceof Date ? tx.date.toISOString() : tx.date
+                        date: tx.date instanceof Date ? tx.date.toISOString() : tx.date,
+                        raw: undefined // Rimuovi oggetti complessi
                     })),
                     walletTx: reconcileData.walletTx.map(tx => ({
+                        ...tx,
+                        date: tx.date instanceof Date ? tx.date.toISOString() : tx.date
+                    })),
+                    matches: reconcileData.matches.map(m => ({
+                        type: m.type,
+                        confidence: m.confidence,
+                        timeDiff: m.timeDiff,
+                        exchange: m.exchange ? {
+                            ...m.exchange,
+                            date: m.exchange.date instanceof Date ? m.exchange.date.toISOString() : m.exchange.date,
+                            raw: undefined
+                        } : null,
+                        wallet: m.wallet ? {
+                            ...m.wallet,
+                            date: m.wallet.date instanceof Date ? m.wallet.date.toISOString() : m.wallet.date
+                        } : null
+                    })),
+                    unmatchedExch: reconcileData.unmatchedExch.map(tx => ({
+                        ...tx,
+                        date: tx.date instanceof Date ? tx.date.toISOString() : tx.date,
+                        raw: undefined
+                    })),
+                    unmatchedWallet: reconcileData.unmatchedWallet.map(tx => ({
                         ...tx,
                         date: tx.date instanceof Date ? tx.date.toISOString() : tx.date
                     })),
                     savedAt: new Date().toISOString()
                 };
                 localStorage.setItem('reconcileData', JSON.stringify(dataToSave));
-                console.log('💾 Riconciliazione salvata in localStorage');
+                console.log(`💾 Riconciliazione salvata: ${reconcileData.matches.length} match`);
             } catch (e) {
                 console.warn('Errore salvataggio localStorage:', e);
             }
@@ -5118,13 +5214,306 @@
                     ...tx,
                     date: new Date(tx.date)
                 }));
+                reconcileData.matches = (data.matches || []).map(m => ({
+                    ...m,
+                    exchange: m.exchange ? { ...m.exchange, date: new Date(m.exchange.date) } : null,
+                    wallet: m.wallet ? { ...m.wallet, date: new Date(m.wallet.date) } : null
+                }));
+                reconcileData.unmatchedExch = (data.unmatchedExch || []).map(tx => ({
+                    ...tx,
+                    date: new Date(tx.date)
+                }));
+                reconcileData.unmatchedWallet = (data.unmatchedWallet || []).map(tx => ({
+                    ...tx,
+                    date: new Date(tx.date)
+                }));
                 
-                console.log(`📂 Caricati da localStorage: ${reconcileData.exchangeTx.length} exchange, ${reconcileData.walletTx.length} wallet`);
+                console.log(`📂 Caricati da localStorage: ${reconcileData.exchangeTx.length} exchange, ${reconcileData.walletTx.length} wallet, ${reconcileData.matches.length} match`);
                 return true;
             } catch (e) {
                 console.warn('Errore caricamento localStorage:', e);
                 return false;
             }
+        }
+        
+        // ==================== NFT FUNCTIONS ====================
+        async function scanAllNFTs() {
+            const walletAddresses = Object.keys(walletResults);
+            if (walletAddresses.length === 0) {
+                alert('⚠️ Nessun wallet trovato!\nVai su "Wallets" e scansiona almeno un indirizzo.');
+                return;
+            }
+            
+            const moralisKey = getMoralisKey();
+            if (!moralisKey) {
+                alert('⚠️ Configura la Moralis API key in "API Connect" per scansionare gli NFT!');
+                return;
+            }
+            
+            document.getElementById('nftGrid').innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:40px;grid-column:1/-1;">⏳ Scansione NFT in corso...</div>';
+            
+            nftData = [];
+            
+            // Chain da scansionare (EVM)
+            const evmChains = [
+                { key: 'eth', id: '0x1', name: 'Ethereum' },
+                { key: 'polygon', id: '0x89', name: 'Polygon' },
+                { key: 'bsc', id: '0x38', name: 'BSC' },
+                { key: 'arbitrum', id: '0xa4b1', name: 'Arbitrum' },
+                { key: 'base', id: '0x2105', name: 'Base' }
+            ];
+            
+            for (const address of walletAddresses) {
+                const walletName = walletResults[address]?.name || address.slice(0, 8);
+                console.log(`🖼️ Scansione NFT per ${walletName}...`);
+                
+                // Determina se è EVM o Solana
+                if (address.startsWith('0x')) {
+                    // EVM - scansiona tutte le chain
+                    for (const chain of evmChains) {
+                        try {
+                            const nfts = await fetchNFTsFromMoralis(address, chain.id, chain.name, walletName);
+                            if (nfts && nfts.length > 0) {
+                                nftData.push(...nfts);
+                                console.log(`  ✅ ${chain.name}: ${nfts.length} NFT`);
+                            }
+                        } catch (e) {
+                            console.warn(`  ⚠️ Errore ${chain.name}:`, e);
+                        }
+                    }
+                } else if (address.length > 30) {
+                    // Solana
+                    try {
+                        const nfts = await fetchNFTsFromHelius(address, walletName);
+                        if (nfts && nfts.length > 0) {
+                            nftData.push(...nfts);
+                            console.log(`  ✅ Solana: ${nfts.length} NFT`);
+                        }
+                    } catch (e) {
+                        console.warn('  ⚠️ Errore Solana:', e);
+                    }
+                }
+            }
+            
+            // Carica prezzi di acquisto da localStorage
+            loadNFTPurchasePrices();
+            
+            // Aggiorna UI
+            updateNFTSummary();
+            renderNFTGrid();
+            saveNFTDataToLocalStorage();
+            
+            alert(`✅ Scansione completata!\n\nTrovati ${nftData.length} NFT`);
+        }
+        
+        async function fetchNFTsFromMoralis(address, chainId, chainName, walletName, retryCount = 0) {
+            const moralisKey = getMoralisKey();
+            if (!moralisKey) return [];
+            
+            try {
+                const url = `https://deep-index.moralis.io/api/v2.2/${address}/nft?chain=${chainId}&format=decimal&media_items=true`;
+                const response = await fetch(url, {
+                    headers: { 'X-API-Key': moralisKey }
+                });
+                
+                // Rate limit handling
+                if (response.status === 429 || response.status === 400) {
+                    if (rotateMoralisKey('rate limit') && retryCount < moralisKeys.length) {
+                        return fetchNFTsFromMoralis(address, chainId, chainName, walletName, retryCount + 1);
+                    }
+                    return [];
+                }
+                
+                if (!response.ok) return [];
+                
+                const data = await response.json();
+                const nfts = [];
+                
+                for (const nft of (data.result || [])) {
+                    // Parse metadata
+                    let metadata = {};
+                    try {
+                        if (nft.metadata) {
+                            metadata = typeof nft.metadata === 'string' ? JSON.parse(nft.metadata) : nft.metadata;
+                        }
+                    } catch (e) {}
+                    
+                    // Get image
+                    let image = metadata.image || nft.token_uri || '';
+                    if (image.startsWith('ipfs://')) {
+                        image = image.replace('ipfs://', 'https://ipfs.io/ipfs/');
+                    }
+                    
+                    nfts.push({
+                        tokenId: nft.token_id,
+                        name: metadata.name || nft.name || `#${nft.token_id}`,
+                        collection: nft.name || 'Unknown Collection',
+                        image: image,
+                        chain: chainName,
+                        chainKey: chainId,
+                        contract: nft.token_address,
+                        wallet: walletName,
+                        floorPrice: 0, // TODO: fetch floor price
+                        floorPriceUSD: 0
+                    });
+                }
+                
+                return nfts;
+            } catch (e) {
+                console.error('Moralis NFT error:', e);
+                return [];
+            }
+        }
+        
+        async function fetchNFTsFromHelius(address, walletName) {
+            if (!apiKeys.helius) return [];
+            
+            try {
+                const url = `https://api.helius.xyz/v0/addresses/${address}/nfts?api-key=${apiKeys.helius}`;
+                const response = await fetch(url);
+                
+                if (!response.ok) return [];
+                
+                const data = await response.json();
+                const nfts = [];
+                
+                for (const nft of (data.nfts || data || [])) {
+                    nfts.push({
+                        tokenId: nft.mint || nft.id,
+                        name: nft.name || 'Solana NFT',
+                        collection: nft.collectionName || nft.collection?.name || 'Unknown',
+                        image: nft.image || nft.content?.links?.image || '',
+                        chain: 'Solana',
+                        chainKey: 'solana',
+                        contract: nft.mint || nft.id,
+                        wallet: walletName,
+                        floorPrice: 0,
+                        floorPriceUSD: 0
+                    });
+                }
+                
+                return nfts;
+            } catch (e) {
+                console.error('Helius NFT error:', e);
+                return [];
+            }
+        }
+        
+        function renderNFTGrid(filterChain = 'all') {
+            const grid = document.getElementById('nftGrid');
+            
+            let filteredNFTs = nftData;
+            if (filterChain !== 'all') {
+                filteredNFTs = nftData.filter(nft => nft.chainKey === filterChain || nft.chain.toLowerCase() === filterChain);
+            }
+            
+            if (filteredNFTs.length === 0) {
+                grid.innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:40px;grid-column:1/-1;">Nessun NFT trovato.</div>';
+                return;
+            }
+            
+            let html = '';
+            for (const nft of filteredNFTs) {
+                const nftKey = `${nft.contract}_${nft.tokenId}`;
+                const purchasePrice = nftPurchasePrices[nftKey] || 0;
+                const currentValue = nft.floorPriceUSD || 0;
+                const pl = currentValue - purchasePrice;
+                const plColor = pl >= 0 ? 'var(--green)' : 'var(--red)';
+                
+                html += `
+                <div class="card" style="padding:0;overflow:hidden;">
+                    <div style="height:200px;background:var(--bg-primary);display:flex;align-items:center;justify-content:center;overflow:hidden;">
+                        ${nft.image ? 
+                            `<img src="${nft.image}" alt="${nft.name}" style="max-width:100%;max-height:100%;object-fit:contain;" onerror="this.parentElement.innerHTML='🖼️'">` : 
+                            '<span style="font-size:48px;">🖼️</span>'
+                        }
+                    </div>
+                    <div style="padding:12px;">
+                        <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nft.name}</div>
+                        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">${nft.collection}</div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                            <span style="font-size:11px;padding:4px 8px;background:var(--bg-primary);border-radius:4px;">${nft.chain}</span>
+                            <span style="font-size:11px;color:var(--text-secondary);">${nft.wallet}</span>
+                        </div>
+                        <div style="border-top:1px solid var(--bg-primary);padding-top:8px;margin-top:8px;">
+                            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+                                <span>Costo:</span>
+                                <input type="number" value="${purchasePrice}" 
+                                    style="width:80px;background:var(--bg-primary);border:none;color:var(--text-primary);text-align:right;padding:2px 6px;border-radius:4px;"
+                                    onchange="setNFTPurchasePrice('${nftKey}', this.value)"
+                                    placeholder="€0">
+                            </div>
+                            ${purchasePrice > 0 ? `
+                            <div style="display:flex;justify-content:space-between;font-size:12px;">
+                                <span>P/L:</span>
+                                <span style="color:${plColor};font-weight:600;">€${pl.toFixed(2)}</span>
+                            </div>` : ''}
+                        </div>
+                    </div>
+                </div>`;
+            }
+            
+            grid.innerHTML = html;
+        }
+        
+        function filterNFTsByChain() {
+            const filter = document.getElementById('nftChainFilter').value;
+            renderNFTGrid(filter);
+        }
+        
+        function setNFTPurchasePrice(nftKey, price) {
+            nftPurchasePrices[nftKey] = parseFloat(price) || 0;
+            localStorage.setItem('cryptofolio_nft_prices', JSON.stringify(nftPurchasePrices));
+            updateNFTSummary();
+            console.log(`💾 NFT ${nftKey}: costo €${price}`);
+        }
+        
+        function loadNFTPurchasePrices() {
+            try {
+                const saved = localStorage.getItem('cryptofolio_nft_prices');
+                if (saved) {
+                    nftPurchasePrices = JSON.parse(saved);
+                }
+            } catch (e) {}
+        }
+        
+        function updateNFTSummary() {
+            const totalCount = nftData.length;
+            let totalValue = 0;
+            let totalCost = 0;
+            
+            for (const nft of nftData) {
+                const nftKey = `${nft.contract}_${nft.tokenId}`;
+                totalValue += nft.floorPriceUSD || 0;
+                totalCost += nftPurchasePrices[nftKey] || 0;
+            }
+            
+            const pl = totalValue - totalCost;
+            const plColor = pl >= 0 ? 'var(--green)' : 'var(--red)';
+            
+            document.getElementById('nftTotalCount').textContent = totalCount;
+            document.getElementById('nftTotalValue').textContent = '€' + totalValue.toFixed(0);
+            document.getElementById('nftTotalCost').textContent = '€' + totalCost.toFixed(0);
+            document.getElementById('nftTotalPL').textContent = '€' + pl.toFixed(0);
+            document.getElementById('nftTotalPL').style.color = plColor;
+            document.getElementById('nftCount').textContent = totalCount;
+        }
+        
+        function saveNFTDataToLocalStorage() {
+            try {
+                localStorage.setItem('cryptofolio_nfts', JSON.stringify(nftData));
+            } catch (e) {}
+        }
+        
+        function loadNFTDataFromLocalStorage() {
+            try {
+                const saved = localStorage.getItem('cryptofolio_nfts');
+                if (saved) {
+                    nftData = JSON.parse(saved);
+                    loadNFTPurchasePrices();
+                    updateNFTSummary();
+                }
+            } catch (e) {}
         }
         
         function exportReconciliationReport() {
