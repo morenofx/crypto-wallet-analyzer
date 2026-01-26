@@ -1908,15 +1908,20 @@
         async function fetchNativeTxMoralis(addr, chainKey, cursor = null, retryCount = 0) {
             const moralisKey = getMoralisKey();
             const chain = MORALIS_CHAINS[chainKey];
-            if (!moralisKey || !chain) return { result: [], cursor: null };
+            if (!moralisKey || !chain) {
+                console.log(`❌ No moralis key or chain not supported: ${chainKey}`);
+                return { result: [], cursor: null };
+            }
             
             try {
                 let url = `https://deep-index.moralis.io/api/v2.2/${addr}?chain=${chain}&limit=100`;
                 if (cursor) url += `&cursor=${cursor}`;
                 
+                console.log(`📡 Fetching native tx: ${chainKey}`);
                 const res = await fetch(url, { headers: { 'X-API-Key': moralisKey } });
                 
                 if (res.status === 429 || res.status === 400) {
+                    console.log(`⚠️ Rate limit on ${chainKey}, rotating key...`);
                     if (rotateMoralisKey('rate limit') && retryCount < moralisKeys.length) {
                         await new Promise(r => setTimeout(r, 300));
                         return fetchNativeTxMoralis(addr, chainKey, cursor, retryCount + 1);
@@ -1925,6 +1930,7 @@
                 }
                 
                 const data = await res.json();
+                console.log(`✅ Got ${data.result?.length || 0} native tx from ${chainKey}`);
                 return { result: data.result || [], cursor: data.cursor || null };
             } catch (e) {
                 console.error('Moralis native tx error:', e);
@@ -2357,20 +2363,30 @@
             const container = document.getElementById('detailTxContent');
             const addrLower = currentDetailWallet.address.toLowerCase();
             
+            console.log('🔍 displayWalletTransactions for:', addrLower.slice(0,10));
+            console.log('📦 walletTransactions keys:', Object.keys(walletTransactions));
+            
             // Carica da localStorage se non in memoria
             if (!walletTransactions[addrLower]) {
+                console.log('📂 Not in memory, loading from localStorage...');
                 loadWalletTransactions();
+                console.log('📦 After load, keys:', Object.keys(walletTransactions));
             }
             
             const txData = walletTransactions[addrLower];
+            console.log('📊 txData:', txData ? `native=${txData.nativeTx?.length}, token=${txData.tokenTx?.length}` : 'NULL');
             
-            if (!txData || (txData.nativeTx.length === 0 && txData.tokenTx.length === 0)) {
+            if (!txData || ((txData.nativeTx?.length || 0) === 0 && (txData.tokenTx?.length || 0) === 0)) {
                 container.innerHTML = `
                     <div class="card">
                         <div class="empty-state">
                             <div class="icon">📭</div>
                             <h3>Nessuna transazione</h3>
                             <p style="color:var(--text-secondary);">Scansiona il wallet per scaricare le transazioni</p>
+                            <p style="color:var(--yellow);font-size:12px;margin-top:12px;">
+                                ⚠️ Moralis supporta solo: Ethereum, BSC, Polygon, Arbitrum, Base, Cronos<br>
+                                PulseChain e Solana non sono supportati per le transazioni.
+                            </p>
                         </div>
                     </div>`;
                 return;
