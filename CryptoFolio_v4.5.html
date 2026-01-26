@@ -3229,9 +3229,15 @@
             
             let totalEur = 0;
             const items = [];
+            let skippedLD = 0;
             
             for (const [coin, amount] of Object.entries(snapshot)) {
                 if (!amount || amount <= 0) continue;
+                // 🚫 Salta token LD* (duplicati Earn)
+                if (coin.startsWith('LD')) {
+                    skippedLD++;
+                    continue;
+                }
                 const price = getHistoricalPrice(coin, year);
                 const eurValue = amount * price * EUR_USD;
                 totalEur += eurValue;
@@ -3254,7 +3260,10 @@
             
             details += `${'─'.repeat(40)}\n`;
             details += `💰 TOTALE: €${totalEur.toFixed(2)}\n`;
-            details += `\n⚠️ I prezzi sono stime storiche, potrebbero non essere accurati.`;
+            if (skippedLD > 0) {
+                details += `\n⚠️ Esclusi ${skippedLD} token LD* (duplicati Earn)`;
+            }
+            details += `\n💡 I prezzi sono stime storiche.`;
             
             alert(details);
         }
@@ -3274,26 +3283,53 @@
             details += `${'─'.repeat(40)}\n\n`;
             
             if (hasReal) {
-                details += `✅ SALDI REALI (da API):\n\n`;
-                const items = Object.entries(realBalances)
-                    .filter(([_, amt]) => amt > 0)
-                    .sort((a, b) => b[1] - a[1]);
+                // Separa token normali da token LD* (Earn)
+                const normalTokens = [];
+                const earnTokens = [];
+                let totalEur = 0;
                 
-                for (const [coin, amount] of items) {
-                    const amtStr = amount < 1 ? amount.toFixed(8) : amount.toLocaleString('it-IT', { maximumFractionDigits: 4 });
-                    const price2026 = getHistoricalPrice(coin, 2026);
-                    const eurValue = amount * price2026 * EUR_USD;
-                    details += `${coin}: ${amtStr}`;
-                    if (price2026 > 0) {
-                        details += ` → €${eurValue.toFixed(2)}`;
+                for (const [coin, amount] of Object.entries(realBalances)) {
+                    if (amount <= 0) continue;
+                    if (coin.startsWith('LD')) {
+                        earnTokens.push([coin, amount]);
                     } else {
-                        details += ` (no price)`;
+                        normalTokens.push([coin, amount]);
+                        const price = getHistoricalPrice(coin, 2026);
+                        totalEur += amount * price * EUR_USD;
+                    }
+                }
+                
+                // Ordina per quantità
+                normalTokens.sort((a, b) => b[1] - a[1]);
+                earnTokens.sort((a, b) => b[1] - a[1]);
+                
+                details += `✅ SALDI REALI (Spot + Earn):\n\n`;
+                for (const [coin, amount] of normalTokens) {
+                    const amtStr = amount < 1 ? amount.toFixed(6) : amount.toLocaleString('it-IT', { maximumFractionDigits: 2 });
+                    const price = getHistoricalPrice(coin, 2026);
+                    const eurValue = amount * price * EUR_USD;
+                    details += `${coin}: ${amtStr}`;
+                    if (price > 0) {
+                        details += ` → €${eurValue.toFixed(2)}`;
                     }
                     details += `\n`;
                 }
                 
+                if (earnTokens.length > 0) {
+                    details += `\n🔒 TOKEN IN EARN (già inclusi sopra):\n`;
+                    for (const [coin, amount] of earnTokens.slice(0, 10)) {
+                        const realCoin = coin.substring(2); // Rimuovi "LD"
+                        const amtStr = amount < 1 ? amount.toFixed(6) : amount.toLocaleString('it-IT', { maximumFractionDigits: 2 });
+                        details += `${coin} (=${realCoin}): ${amtStr}\n`;
+                    }
+                    if (earnTokens.length > 10) {
+                        details += `... e altri ${earnTokens.length - 10}\n`;
+                    }
+                }
+                
                 details += `\n${'─'.repeat(40)}\n`;
-                details += `📊 Totale token: ${items.length}`;
+                details += `💰 TOTALE: €${totalEur.toFixed(2)}\n`;
+                details += `📊 Token: ${normalTokens.length} (+ ${earnTokens.length} in Earn)`;
             } else {
                 details += `⚠️ Nessun saldo reale disponibile.\n`;
                 details += `I saldi sono calcolati dalle transazioni.`;
@@ -3481,7 +3517,7 @@
         function renderExchDetailBalances(balances) {
             const container = document.getElementById('exchDetailBalances');
             const items = Object.entries(balances)
-                .filter(([_, amt]) => amt > 0)
+                .filter(([coin, amt]) => amt > 0 && !coin.startsWith('LD')) // Escludi token LD* (Earn duplicati)
                 .sort((a, b) => {
                     const priceA = getHistoricalPrice(a[0], 2026) * a[1];
                     const priceB = getHistoricalPrice(b[0], 2026) * b[1];
@@ -3845,6 +3881,11 @@
                     const snapshot = yearEndSnapshots[year] || {};
                     for (const [coin, amount] of Object.entries(snapshot)) {
                         if (!amount || amount <= 0) continue;
+                        // 🚫 Salta i token LD* (sono duplicati dei token in Earn)
+                        if (coin.startsWith('LD')) {
+                            console.log('⚠️ Saltato token Earn duplicato:', coin);
+                            continue;
+                        }
                         const price = getHistoricalPrice(coin, year);
                         if (price && !isNaN(price)) {
                             totalEur += amount * price * EUR_USD;
@@ -4039,6 +4080,8 @@
                         const snapshot = yearEndSnapshots[year] || {};
                         for (const [coin, amount] of Object.entries(snapshot)) {
                             if (amount <= 0) continue;
+                            // 🚫 Salta token LD* (duplicati Earn)
+                            if (coin.startsWith('LD')) continue;
                             const price = getHistoricalPrice(coin, year);
                             totalEur += amount * price * EUR_USD;
                         }
