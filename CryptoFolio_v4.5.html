@@ -150,7 +150,6 @@
                 <div class="nav-label">Menu</div>
                 <div class="nav-item active" onclick="showView('dashboard')"><span class="icon">📈</span><span>Dashboard</span></div>
                 <div class="nav-item" onclick="showView('wallets')"><span class="icon">👛</span><span>Wallets</span><span class="badge" id="walletCount">0</span></div>
-                <div class="nav-item" onclick="showView('transactions')"><span class="icon">📜</span><span>Transazioni</span><span class="badge" id="txCount">0</span></div>
                 <div class="nav-item" onclick="showView('nft')"><span class="icon">🖼️</span><span>NFT</span><span class="badge" id="nftCount">0</span></div>
                 <div class="nav-item" onclick="showView('exchanges')"><span class="icon">🏦</span><span>Exchanges</span><span class="badge" id="exchangeCount">0</span></div>
                 <div class="nav-item" onclick="showView('reconcile')"><span class="icon">🔗</span><span>Riconciliazione</span></div>
@@ -431,165 +430,6 @@
             <div class="card">
                 <div class="card-header"><div class="card-title">📊 Riepilogo API</div></div>
                 <div id="apiSummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;"></div>
-            </div>
-        </div>
-        
-        <!-- TRANSAZIONI -->
-        <div class="main-content" id="transactionsView" style="display:none;">
-            <div class="header">
-                <h1>📜 Transazioni</h1>
-                <div class="header-actions">
-                    <button class="btn btn-secondary" onclick="exportTransactions()">📥 Esporta CSV</button>
-                    <button class="btn btn-primary" onclick="loadAllTransactions()">🔄 Aggiorna</button>
-                </div>
-            </div>
-            
-            <!-- Filtri -->
-            <div class="card" style="margin-bottom:20px;">
-                <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:12px;align-items:end;">
-                    <div>
-                        <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:4px;">🔍 Cerca</label>
-                        <input type="text" id="txSearch" placeholder="Cerca coin, operazione, txId..." 
-                               style="width:100%;padding:10px 14px;background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:14px;"
-                               oninput="filterTransactions()">
-                    </div>
-                    <div>
-                        <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:4px;">📦 Fonte</label>
-                        <select id="txSource" onchange="filterTransactions()" style="width:100%;padding:10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:13px;">
-                            <option value="">Tutte</option>
-                            <option value="wallet">🔗 Wallets</option>
-                            <option value="exchange">🏦 Exchanges</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:4px;">📋 Tipo</label>
-                        <select id="txType" onchange="filterTransactions()" style="width:100%;padding:10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:13px;">
-                            <option value="">Tutti</option>
-                            <option value="deposit">📥 Deposit</option>
-                            <option value="withdrawal">📤 Withdrawal</option>
-                            <option value="trade">📊 Trade</option>
-                            <option value="convert">🔄 Convert</option>
-                            <option value="staking">🥩 Staking</option>
-                            <option value="interest">💰 Interest</option>
-                            <option value="dividend">🎁 Dividend</option>
-                            <option value="fee">💸 Fee</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:4px;">📅 Da</label>
-                        <input type="date" id="txDateFrom" onchange="filterTransactions()" style="width:100%;padding:10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:13px;">
-                    </div>
-                    <div>
-                        <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:4px;">📅 A</label>
-                        <input type="date" id="txDateTo" onchange="filterTransactions()" style="width:100%;padding:10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:13px;">
-                    </div>
-                    <div>
-                        <button class="btn btn-secondary" onclick="resetTxFilters()" style="padding:10px 16px;">🗑️</button>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Stats -->
-            <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px;">
-                <div class="stat-card">
-                    <div class="stat-label">Totale Transazioni</div>
-                    <div class="stat-value" id="txTotalCount" style="font-size:24px;">0</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Filtrate</div>
-                    <div class="stat-value" id="txFilteredCount" style="font-size:24px;color:var(--accent);">0</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Depositi</div>
-                    <div class="stat-value" id="txDepositCount" style="font-size:24px;color:var(--green);">0</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Prelievi</div>
-                    <div class="stat-value" id="txWithdrawCount" style="font-size:24px;color:var(--red);">0</div>
-                </div>
-            </div>
-            
-            <!-- Transazioni per Anno -->
-            <div class="card" style="margin-bottom:20px;">
-                <div class="card-header"><div class="card-title">📅 Transazioni per Anno</div></div>
-                <div id="txByYearGrid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-top:12px;">
-                    <div style="background:var(--bg-primary);border-radius:8px;padding:16px;text-align:center;">
-                        <div style="font-size:14px;font-weight:600;color:var(--text-primary);">2021</div>
-                        <div id="txYear2021" style="font-size:22px;font-weight:700;color:var(--accent);margin-top:4px;">0</div>
-                        <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">transazioni</div>
-                    </div>
-                    <div style="background:var(--bg-primary);border-radius:8px;padding:16px;text-align:center;">
-                        <div style="font-size:14px;font-weight:600;color:var(--text-primary);">2022</div>
-                        <div id="txYear2022" style="font-size:22px;font-weight:700;color:var(--accent);margin-top:4px;">0</div>
-                        <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">transazioni</div>
-                    </div>
-                    <div style="background:var(--bg-primary);border-radius:8px;padding:16px;text-align:center;">
-                        <div style="font-size:14px;font-weight:600;color:var(--text-primary);">2023</div>
-                        <div id="txYear2023" style="font-size:22px;font-weight:700;color:var(--accent);margin-top:4px;">0</div>
-                        <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">transazioni</div>
-                    </div>
-                    <div style="background:var(--bg-primary);border-radius:8px;padding:16px;text-align:center;">
-                        <div style="font-size:14px;font-weight:600;color:var(--text-primary);">2024</div>
-                        <div id="txYear2024" style="font-size:22px;font-weight:700;color:var(--accent);margin-top:4px;">0</div>
-                        <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">transazioni</div>
-                    </div>
-                    <div style="background:var(--bg-primary);border-radius:8px;padding:16px;text-align:center;">
-                        <div style="font-size:14px;font-weight:600;color:var(--text-primary);">2025</div>
-                        <div id="txYear2025" style="font-size:22px;font-weight:700;color:var(--accent);margin-top:4px;">0</div>
-                        <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">transazioni</div>
-                    </div>
-                    <div style="background:var(--bg-primary);border-radius:8px;padding:16px;text-align:center;">
-                        <div style="font-size:14px;font-weight:600;color:var(--text-primary);">2026</div>
-                        <div id="txYear2026" style="font-size:22px;font-weight:700;color:var(--accent);margin-top:4px;">0</div>
-                        <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">transazioni</div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Tabella Transazioni -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">📜 Lista Transazioni</div>
-                    <div style="display:flex;gap:8px;align-items:center;">
-                        <span style="font-size:12px;color:var(--text-secondary);">Ordina:</span>
-                        <select id="txSort" onchange="filterTransactions()" style="padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px;">
-                            <option value="date_desc">Data ↓</option>
-                            <option value="date_asc">Data ↑</option>
-                            <option value="amount_desc">Importo ↓</option>
-                            <option value="amount_asc">Importo ↑</option>
-                            <option value="coin_asc">Coin A-Z</option>
-                        </select>
-                        <span style="font-size:12px;color:var(--text-secondary);margin-left:8px;">Per pagina:</span>
-                        <select id="txPerPage" onchange="filterTransactions()" style="padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px;">
-                            <option value="25">25</option>
-                            <option value="50" selected>50</option>
-                            <option value="100">100</option>
-                            <option value="500">500</option>
-                        </select>
-                    </div>
-                </div>
-                <div style="overflow-x:auto;">
-                    <table class="holdings-table" style="table-layout:auto;">
-                        <thead>
-                            <tr>
-                                <th style="width:140px;">Data</th>
-                                <th style="width:80px;">Tipo</th>
-                                <th style="width:100px;">Coin</th>
-                                <th style="width:120px;text-align:right;">Importo</th>
-                                <th style="width:150px;">Operazione</th>
-                                <th style="width:100px;">Fonte</th>
-                                <th style="width:auto;">Dettagli</th>
-                            </tr>
-                        </thead>
-                        <tbody id="txTableBody">
-                            <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-secondary);">
-                                Caricamento transazioni...
-                            </td></tr>
-                        </tbody>
-                    </table>
-                </div>
-                <!-- Paginazione -->
-                <div id="txPagination" style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);"></div>
             </div>
         </div>
         
@@ -1127,7 +967,6 @@
             document.getElementById('dashboardView').style.display = view === 'dashboard' ? 'block' : 'none';
             document.getElementById('walletsView').style.display = view === 'wallets' ? 'block' : 'none';
             document.getElementById('walletDetailView').style.display = view === 'walletDetail' ? 'block' : 'none';
-            document.getElementById('transactionsView').style.display = view === 'transactions' ? 'block' : 'none';
             document.getElementById('nftView').style.display = view === 'nft' ? 'block' : 'none';
             document.getElementById('exchangesView').style.display = view === 'exchanges' ? 'block' : 'none';
             document.getElementById('reconcileView').style.display = view === 'reconcile' ? 'block' : 'none';
@@ -1138,19 +977,13 @@
                     (view === 'dashboard' && i === 0) || 
                     (view === 'wallets' && i === 1) || 
                     (view === 'walletDetail' && i === 1) || 
-                    (view === 'transactions' && i === 2) ||
-                    (view === 'nft' && i === 3) ||
-                    (view === 'exchanges' && i === 4) ||
-                    (view === 'reconcile' && i === 5) ||
-                    (view === 'tax' && i === 6) ||
-                    (view === 'api' && i === 7)
+                    (view === 'nft' && i === 2) ||
+                    (view === 'exchanges' && i === 3) ||
+                    (view === 'reconcile' && i === 4) ||
+                    (view === 'tax' && i === 5) ||
+                    (view === 'api' && i === 6)
                 );
             });
-            
-            // Carica transazioni quando si apre la vista
-            if (view === 'transactions') {
-                loadAllTransactions();
-            }
             
             // Aggiorna dropdown tax e mostra dati salvati
             if (view === 'tax') {
@@ -3236,276 +3069,7 @@
                 }
             }
             
-            // Carica transazioni da Wallet scan (se disponibili)
-            // Nota: i wallet scan contengono balances, non singole transazioni
-            // Potremmo aggiungere qui la logica per transazioni wallet se implementata
-            
-            // Aggiorna contatore nel menu
-            const txCountEl = document.getElementById('txCount');
-            if (txCountEl) txCountEl.textContent = allTransactions.length;
-            
-            // Aggiorna statistiche generali
-            document.getElementById('txTotalCount').textContent = allTransactions.length.toLocaleString();
-            document.getElementById('txDepositCount').textContent = allTransactions.filter(t => t.type === 'deposit' || t.type === 'fiat_deposit').length.toLocaleString();
-            document.getElementById('txWithdrawCount').textContent = allTransactions.filter(t => t.type === 'withdrawal' || t.type === 'fiat_withdrawal').length.toLocaleString();
-            
-            // Conta transazioni per anno
-            const txByYear = { 2021: 0, 2022: 0, 2023: 0, 2024: 0, 2025: 0, 2026: 0 };
-            for (const tx of allTransactions) {
-                const year = tx.date.getFullYear();
-                if (txByYear[year] !== undefined) {
-                    txByYear[year]++;
-                }
-            }
-            
-            // Aggiorna UI transazioni per anno
-            for (const year of [2021, 2022, 2023, 2024, 2025, 2026]) {
-                const el = document.getElementById('txYear' + year);
-                if (el) el.textContent = txByYear[year].toLocaleString();
-            }
-            
-            // Applica filtri
-            filterTransactions();
-        }
-        
-        function filterTransactions() {
-            const search = (document.getElementById('txSearch')?.value || '').toLowerCase();
-            const source = document.getElementById('txSource')?.value || '';
-            const type = document.getElementById('txType')?.value || '';
-            const dateFrom = document.getElementById('txDateFrom')?.value;
-            const dateTo = document.getElementById('txDateTo')?.value;
-            const sort = document.getElementById('txSort')?.value || 'date_desc';
-            const perPage = parseInt(document.getElementById('txPerPage')?.value || '50');
-            
-            // Filtra
-            filteredTransactions = allTransactions.filter(tx => {
-                // Search
-                if (search) {
-                    const searchStr = `${tx.coin || ''} ${tx.operation || ''} ${tx.type || ''} ${tx.sourceName || ''} ${tx.txId || ''} ${tx.network || ''}`.toLowerCase();
-                    if (!searchStr.includes(search)) return false;
-                }
-                
-                // Source
-                if (source && tx.source !== source) return false;
-                
-                // Type
-                if (type && tx.type !== type) return false;
-                
-                // Date range
-                if (dateFrom) {
-                    const from = new Date(dateFrom);
-                    if (tx.date < from) return false;
-                }
-                if (dateTo) {
-                    const to = new Date(dateTo);
-                    to.setHours(23, 59, 59);
-                    if (tx.date > to) return false;
-                }
-                
-                return true;
-            });
-            
-            // Ordina
-            filteredTransactions.sort((a, b) => {
-                switch (sort) {
-                    case 'date_asc': return a.date - b.date;
-                    case 'date_desc': return b.date - a.date;
-                    case 'amount_asc': return Math.abs(a.amount || 0) - Math.abs(b.amount || 0);
-                    case 'amount_desc': return Math.abs(b.amount || 0) - Math.abs(a.amount || 0);
-                    case 'coin_asc': return (a.coin || '').localeCompare(b.coin || '');
-                    default: return b.date - a.date;
-                }
-            });
-            
-            // Aggiorna contatore filtrate
-            document.getElementById('txFilteredCount').textContent = filteredTransactions.length.toLocaleString();
-            
-            // Reset pagina se necessario
-            const totalPages = Math.ceil(filteredTransactions.length / perPage);
-            if (currentTxPage > totalPages) currentTxPage = 1;
-            
-            // Render
-            renderTransactionsTable(perPage);
-        }
-        
-        function renderTransactionsTable(perPage) {
-            const tbody = document.getElementById('txTableBody');
-            if (!tbody) return;
-            
-            if (filteredTransactions.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-secondary);">
-                    <div style="font-size:48px;margin-bottom:16px;">📭</div>
-                    <div>Nessuna transazione trovata</div>
-                    <div style="font-size:12px;margin-top:8px;">Importa dati da Exchanges o aggiungi wallet</div>
-                </td></tr>`;
-                document.getElementById('txPagination').innerHTML = '';
-                return;
-            }
-            
-            const start = (currentTxPage - 1) * perPage;
-            const end = Math.min(start + perPage, filteredTransactions.length);
-            const pageTx = filteredTransactions.slice(start, end);
-            
-            let html = '';
-            for (const tx of pageTx) {
-                const date = tx.date instanceof Date ? tx.date : new Date(tx.date);
-                const dateStr = date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                const timeStr = date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-                
-                // Tipo con colore
-                const typeColors = {
-                    deposit: { bg: 'rgba(0,206,201,0.15)', color: 'var(--green)', icon: '📥' },
-                    fiat_deposit: { bg: 'rgba(0,206,201,0.15)', color: 'var(--green)', icon: '💶' },
-                    withdrawal: { bg: 'rgba(255,107,107,0.15)', color: 'var(--red)', icon: '📤' },
-                    fiat_withdrawal: { bg: 'rgba(255,107,107,0.15)', color: 'var(--red)', icon: '💶' },
-                    trade: { bg: 'rgba(108,92,231,0.15)', color: 'var(--accent)', icon: '📊' },
-                    convert: { bg: 'rgba(243,186,47,0.15)', color: '#f3ba2f', icon: '🔄' },
-                    dust: { bg: 'rgba(243,186,47,0.15)', color: '#f3ba2f', icon: '🧹' },
-                    staking: { bg: 'rgba(0,206,201,0.15)', color: 'var(--green)', icon: '🥩' },
-                    interest: { bg: 'rgba(0,206,201,0.15)', color: 'var(--green)', icon: '💰' },
-                    dividend: { bg: 'rgba(0,206,201,0.15)', color: 'var(--green)', icon: '🎁' },
-                    fee: { bg: 'rgba(255,107,107,0.15)', color: 'var(--red)', icon: '💸' }
-                };
-                const typeStyle = typeColors[tx.type] || { bg: 'rgba(160,160,160,0.15)', color: 'var(--text-secondary)', icon: '•' };
-                
-                // Importo con segno
-                const amount = tx.amount || 0;
-                const change = tx.change || 0;
-                const amountColor = change >= 0 ? 'var(--green)' : 'var(--red)';
-                const amountSign = change >= 0 ? '+' : '';
-                
-                // Dettagli (txId, network, etc.)
-                let details = '';
-                if (tx.txId) {
-                    const shortTxId = tx.txId.length > 16 ? tx.txId.substring(0, 8) + '...' + tx.txId.substring(tx.txId.length - 6) : tx.txId;
-                    details = `<span style="font-family:monospace;font-size:11px;color:var(--text-secondary);">${shortTxId}</span>`;
-                }
-                if (tx.network) {
-                    details += ` <span style="font-size:10px;background:var(--bg-secondary);padding:2px 6px;border-radius:4px;">${tx.network}</span>`;
-                }
-                if (tx.symbol) {
-                    details += ` <span style="font-size:10px;color:var(--text-secondary);">${tx.symbol}</span>`;
-                }
-                
-                html += `<tr style="cursor:pointer;" onclick="showTxDetails('${tx.txId || ''}')">
-                    <td>
-                        <div style="font-size:13px;">${dateStr}</div>
-                        <div style="font-size:11px;color:var(--text-secondary);">${timeStr}</div>
-                    </td>
-                    <td>
-                        <span style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:6px;font-size:11px;background:${typeStyle.bg};color:${typeStyle.color};">
-                            ${typeStyle.icon} ${tx.type || '-'}
-                        </span>
-                    </td>
-                    <td>
-                        <span style="font-weight:600;">${tx.coin || '-'}</span>
-                    </td>
-                    <td style="text-align:right;">
-                        <span style="color:${amountColor};font-weight:600;">${amountSign}${formatNumber(amount)}</span>
-                    </td>
-                    <td>
-                        <span style="font-size:12px;color:var(--text-secondary);">${tx.operation || '-'}</span>
-                    </td>
-                    <td>
-                        <span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;">
-                            <span style="width:8px;height:8px;border-radius:50%;background:${tx.sourceColor || '#666'};"></span>
-                            ${tx.sourceName || tx.source || '-'}
-                        </span>
-                    </td>
-                    <td>${details || '-'}</td>
-                </tr>`;
-            }
-            
-            tbody.innerHTML = html;
-            
-            // Paginazione
-            renderTxPagination(perPage);
-        }
-        
-        function renderTxPagination(perPage) {
-            const container = document.getElementById('txPagination');
-            if (!container) return;
-            
-            const totalPages = Math.ceil(filteredTransactions.length / perPage);
-            if (totalPages <= 1) {
-                container.innerHTML = '';
-                return;
-            }
-            
-            let html = '';
-            
-            // Prev
-            html += `<button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="goToTxPage(${currentTxPage - 1})" ${currentTxPage === 1 ? 'disabled' : ''}>← Prec</button>`;
-            
-            // Page numbers
-            const maxButtons = 5;
-            let startPage = Math.max(1, currentTxPage - Math.floor(maxButtons / 2));
-            let endPage = Math.min(totalPages, startPage + maxButtons - 1);
-            if (endPage - startPage < maxButtons - 1) {
-                startPage = Math.max(1, endPage - maxButtons + 1);
-            }
-            
-            if (startPage > 1) {
-                html += `<button class="btn btn-secondary" style="padding:6px 10px;font-size:12px;" onclick="goToTxPage(1)">1</button>`;
-                if (startPage > 2) html += `<span style="color:var(--text-secondary);">...</span>`;
-            }
-            
-            for (let i = startPage; i <= endPage; i++) {
-                const isActive = i === currentTxPage;
-                html += `<button class="btn ${isActive ? 'btn-primary' : 'btn-secondary'}" style="padding:6px 10px;font-size:12px;" onclick="goToTxPage(${i})">${i}</button>`;
-            }
-            
-            if (endPage < totalPages) {
-                if (endPage < totalPages - 1) html += `<span style="color:var(--text-secondary);">...</span>`;
-                html += `<button class="btn btn-secondary" style="padding:6px 10px;font-size:12px;" onclick="goToTxPage(${totalPages})">${totalPages}</button>`;
-            }
-            
-            // Next
-            html += `<button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="goToTxPage(${currentTxPage + 1})" ${currentTxPage === totalPages ? 'disabled' : ''}>Succ →</button>`;
-            
-            // Info
-            html += `<span style="margin-left:12px;font-size:12px;color:var(--text-secondary);">
-                Pagina ${currentTxPage} di ${totalPages} (${filteredTransactions.length.toLocaleString()} transazioni)
-            </span>`;
-            
-            container.innerHTML = html;
-        }
-        
-        function goToTxPage(page) {
-            const perPage = parseInt(document.getElementById('txPerPage')?.value || '50');
-            const totalPages = Math.ceil(filteredTransactions.length / perPage);
-            
-            currentTxPage = Math.max(1, Math.min(page, totalPages));
-            renderTransactionsTable(perPage);
-        }
-        
-        function resetTxFilters() {
-            document.getElementById('txSearch').value = '';
-            document.getElementById('txSource').value = '';
-            document.getElementById('txType').value = '';
-            document.getElementById('txDateFrom').value = '';
-            document.getElementById('txDateTo').value = '';
-            document.getElementById('txSort').value = 'date_desc';
-            currentTxPage = 1;
-            filterTransactions();
-        }
-        
-        function showTxDetails(txId) {
-            if (!txId) return;
-            
-            const tx = filteredTransactions.find(t => t.txId === txId);
-            if (!tx) return;
-            
-            const details = `📅 Data: ${tx.date.toLocaleString('it-IT')}
-📋 Tipo: ${tx.type}
-🪙 Coin: ${tx.coin}
-💰 Importo: ${tx.amount}
-📝 Operazione: ${tx.operation || '-'}
-🏦 Fonte: ${tx.sourceName}
-🌐 Network: ${tx.network || '-'}
-🔗 TxID: ${tx.txId || '-'}`;
-            
-            alert(details);
+            return allTransactions;
         }
         
         function formatNumber(num) {
@@ -3514,30 +3078,6 @@
             if (Math.abs(num) < 1) return num.toFixed(6);
             if (Math.abs(num) < 100) return num.toFixed(4);
             return num.toLocaleString('it-IT', { maximumFractionDigits: 2 });
-        }
-        
-        function exportTransactions() {
-            if (filteredTransactions.length === 0) {
-                alert('Nessuna transazione da esportare');
-                return;
-            }
-            
-            // Header CSV
-            let csv = 'Data,Tipo,Coin,Importo,Change,Operazione,Fonte,Network,TxID\n';
-            
-            for (const tx of filteredTransactions) {
-                const date = tx.date instanceof Date ? tx.date.toISOString() : tx.date;
-                csv += `"${date}","${tx.type || ''}","${tx.coin || ''}",${tx.amount || 0},${tx.change || 0},"${tx.operation || ''}","${tx.sourceName || ''}","${tx.network || ''}","${tx.txId || ''}"\n`;
-            }
-            
-            // Download
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `transazioni_${new Date().toISOString().split('T')[0]}.csv`;
-            a.click();
-            URL.revokeObjectURL(url);
         }
         
         // ==================== EXCHANGES CSV ====================
@@ -3618,20 +3158,41 @@
                 html += '</div>';
                 html += '</div>'; // Fine dropzone container
                 
-                // Totali per anno (se presenti) - con possibilità di modifica manuale
+                // Totali per anno (se presenti) - NON modificabili + conteggio transazioni
                 if (hasData && data.totals) {
+                    // Conta transazioni per anno per questo exchange
+                    const txByYear = { 2021: 0, 2022: 0, 2023: 0, 2024: 0, 2025: 0, 2026: 0 };
+                    if (data.transactions && data.transactions.length > 0) {
+                        for (const tx of data.transactions) {
+                            const txDate = tx.date instanceof Date ? tx.date : new Date(tx.date);
+                            const year = txDate.getFullYear();
+                            if (txByYear[year] !== undefined) {
+                                txByYear[year]++;
+                            }
+                        }
+                    }
+                    
                     html += '<div style="margin-top:12px;display:grid;grid-template-columns:repeat(6,1fr);gap:6px;font-size:11px;">';
                     for (const y of [2021, 2022, 2023, 2024, 2025, 2026]) {
                         const val = data.totals[y] || 0;
-                        html += '<div style="background:var(--bg-primary);padding:6px;border-radius:4px;text-align:center;">';
-                        html += '<div style="color:var(--text-secondary);">' + y + '</div>';
-                        html += '<input type="number" id="manual-' + exch.id + '-' + y + '" value="' + val.toFixed(2) + '" ';
-                        html += 'style="width:100%;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;padding:4px;text-align:center;font-size:11px;font-weight:600;color:var(--green);" ';
-                        html += 'onchange="updateManualExchangeValue(\'' + exch.id + '\',' + y + ',this.value)">';
+                        const txCount = txByYear[y] || 0;
+                        html += '<div style="background:var(--bg-primary);padding:8px 4px;border-radius:6px;text-align:center;">';
+                        html += '<div style="font-size:12px;font-weight:600;color:var(--text-primary);">' + y + '</div>';
+                        html += '<div style="font-size:14px;font-weight:700;color:var(--green);margin:4px 0;">€' + val.toFixed(0) + '</div>';
+                        if (txCount > 0) {
+                            html += '<div style="font-size:9px;color:var(--accent);background:rgba(108,92,231,0.15);padding:2px 4px;border-radius:3px;">' + txCount + ' tx</div>';
+                        } else {
+                            html += '<div style="font-size:9px;color:var(--text-secondary);">-</div>';
+                        }
                         html += '</div>';
                     }
                     html += '</div>';
-                    html += '<div style="margin-top:8px;text-align:center;"><button class="btn btn-secondary" onclick="saveManualExchangeValues(\'' + exch.id + '\')" style="font-size:11px;">💾 Salva valori manuali</button></div>';
+                    
+                    // Mostra totale transazioni
+                    const totalTx = data.transactionCount || (data.transactions ? data.transactions.length : 0);
+                    if (totalTx > 0) {
+                        html += '<div style="margin-top:8px;text-align:center;font-size:11px;color:var(--text-secondary);">📜 ' + totalTx + ' transazioni totali</div>';
+                    }
                 }
                 
                 html += '</div>';
