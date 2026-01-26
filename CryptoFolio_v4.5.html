@@ -488,13 +488,12 @@
                 Questo strumento <strong>collega le transazioni</strong> tra Exchange e Wallet per evitare doppi conteggi.<br>
                 <strong>Esempio:</strong> Un prelievo da Binance di 0.5 ETH viene collegato al deposito di 0.5 ETH sul tuo wallet.
             </p>
+            <p style="color:var(--accent);font-size:13px;margin-bottom:16px;">
+                💡 <strong>I CSV caricati nella sezione "Exchanges" vengono letti automaticamente!</strong> Non serve ricaricarli qui.
+            </p>
             
             <div style="display:flex;gap:12px;flex-wrap:wrap;">
-                <button class="btn btn-primary" onclick="loadReconciliationData()">📊 Carica Dati Wallet</button>
-                <label class="btn btn-secondary" style="cursor:pointer;margin:0;">
-                    📁 Importa CSV Exchange
-                    <input type="file" accept=".csv" onchange="importExchangeCSVForReconcile(this.files[0])" style="display:none;">
-                </label>
+                <button class="btn btn-primary" onclick="loadReconciliationData()">📊 Carica Dati (Exchange + Wallet)</button>
                 <button class="btn btn-secondary" onclick="runReconciliation()">🔗 Esegui Riconciliazione</button>
                 <button class="btn btn-secondary" onclick="exportReconciliationReport()">📥 Esporta Report</button>
                 <button class="btn btn-secondary" onclick="resetReconciliationData()" style="background:var(--red);">🗑️ Reset</button>
@@ -4374,7 +4373,8 @@
         async function loadReconciliationData() {
             console.log('🔗 Caricamento dati per riconciliazione...');
             
-            // RESET solo wallet, NON exchange (potrebbero essere già caricati da CSV)
+            // RESET tutti i dati di riconciliazione
+            reconcileData.exchangeTx = [];
             reconcileData.walletTx = [];
             reconcileData.matches = [];
             reconcileData.unmatchedExch = [];
@@ -4383,35 +4383,75 @@
             // Mostra loading
             document.getElementById('reconcileMatches').innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:40px;">⏳ Caricamento in corso...</div>';
             
-            // 1. Carica transazioni Exchange (da exchangeData)
+            // 1. Carica transazioni Exchange (da exchangeData - CSV già importati)
+            console.log('📊 Checking exchangeData:', Object.keys(exchangeData));
+            
             for (const exchId of Object.keys(exchangeData)) {
                 const data = exchangeData[exchId];
+                console.log(`  📊 ${exchId}: ${data.transactions?.length || 0} transazioni`);
+                
                 if (data.transactions && data.transactions.length > 0) {
                     for (const tx of data.transactions) {
-                        // Filtra solo deposit e withdraw crypto (non fiat)
-                        if (tx.type && ['deposit', 'withdrawal', 'withdraw'].includes(tx.type.toLowerCase())) {
-                            // Escludi fiat
-                            if (['EUR', 'USD', 'GBP'].includes(tx.coin)) continue;
-                            
-                            reconcileData.exchangeTx.push({
-                                source: 'exchange',
-                                exchange: exchId,
-                                date: tx.date instanceof Date ? tx.date : new Date(tx.date),
-                                type: tx.type.toLowerCase().includes('withdraw') ? 'withdraw' : 'deposit',
-                                coin: tx.coin,
-                                amount: Math.abs(tx.amount || tx.change || 0),
-                                raw: tx
-                            });
+                        // Identifica tipo transazione
+                        const operation = (tx.operation || '').toLowerCase();
+                        const txType = (tx.type || '').toLowerCase();
+                        const coin = tx.coin || '';
+                        const change = tx.change || tx.amount || 0;
+                        
+                        // Escludi fiat
+                        if (['EUR', 'USD', 'GBP'].includes(coin.toUpperCase())) continue;
+                        
+                        // Identifica deposit/withdraw
+                        let finalType = null;
+                        
+                        // Metodo 1: dal campo type (Tatax)
+                        if (txType === 'withdrawal' || txType === 'withdraw') {
+                            finalType = 'withdraw';
+                        } else if (txType === 'deposit') {
+                            finalType = 'deposit';
                         }
+                        // Metodo 2: dal campo operation (Binance, altri)
+                        else if (operation.includes('withdraw') || operation.includes('prelievo') || operation.includes('send')) {
+                            finalType = 'withdraw';
+                        } else if (operation.includes('deposit') || operation.includes('versamento') || operation.includes('receive')) {
+                            finalType = 'deposit';
+                        }
+                        // Metodo 3: crypto_withdrawal/crypto_deposit (Crypto.com)
+                        else if (operation.includes('crypto_withdrawal')) {
+                            finalType = 'withdraw';
+                        } else if (operation.includes('crypto_deposit')) {
+                            finalType = 'deposit';
+                        }
+                        
+                        // Solo deposit e withdraw
+                        if (!finalType) continue;
+                        
+                        const amount = Math.abs(change);
+                        if (amount < 0.0000001) continue;
+                        
+                        reconcileData.exchangeTx.push({
+                            source: 'exchange',
+                            exchange: exchId,
+                            date: tx.date instanceof Date ? tx.date : new Date(tx.date),
+                            type: finalType,
+                            coin: coin.toUpperCase(),
+                            amount: amount,
+                            raw: tx
+                        });
                     }
                 }
             }
             
-            console.log(`📊 Exchange TX: ${reconcileData.exchangeTx.length}`);
+            console.log(`📊 Exchange TX per riconciliazione: ${reconcileData.exchangeTx.length}`);
+            
+            // Debug: mostra alcuni esempi
+            if (reconcileData.exchangeTx.length > 0) {
+                console.log('Sample exchange TX:', reconcileData.exchangeTx.slice(0, 5));
+            }
             
             // 2. Carica transazioni Wallet da Moralis API
             if (!apiKeys.moralis) {
-                alert('⚠️ Configura la Moralis API key in "API Connect" per caricare le transazioni wallet!');
+                alert(`📊 Dati caricati!\n\n• ${reconcileData.exchangeTx.length} transazioni exchange (dai CSV)\n\n⚠️ Configura la Moralis API key in "API Connect" per caricare anche le transazioni wallet!`);
                 updateReconcileSummary();
                 renderReconcileData();
                 return;
@@ -4419,7 +4459,7 @@
             
             const walletAddresses = Object.keys(walletResults);
             if (walletAddresses.length === 0) {
-                alert('⚠️ Nessun wallet trovato!\nVai su "Wallets" e scansiona almeno un indirizzo.');
+                alert(`📊 Dati caricati!\n\n• ${reconcileData.exchangeTx.length} transazioni exchange (dai CSV)\n\n⚠️ Nessun wallet trovato! Vai su "Wallets" e scansiona almeno un indirizzo.`);
                 updateReconcileSummary();
                 renderReconcileData();
                 return;
@@ -4540,17 +4580,17 @@
             
             // Controllo dati mancanti
             if (reconcileData.exchangeTx.length === 0 && reconcileData.walletTx.length === 0) {
-                alert('⚠️ Nessun dato da riconciliare!\n\n1. Clicca "Importa CSV Exchange" per caricare le transazioni exchange\n2. Clicca "Carica Dati Wallet" per scaricare la storia wallet\n3. Poi clicca "Esegui Riconciliazione"');
+                alert('⚠️ Nessun dato da riconciliare!\n\n1. Vai su "Exchanges" e importa i CSV\n2. Vai su "Wallets" e scansiona i tuoi indirizzi\n3. Torna qui e clicca "Carica Dati (Exchange + Wallet)"\n4. Poi clicca "Esegui Riconciliazione"');
                 return;
             }
             
             if (reconcileData.exchangeTx.length === 0) {
-                alert('⚠️ Mancano le transazioni Exchange!\n\nClicca "📁 Importa CSV Exchange" per caricare il CSV di Binance (o altro exchange).\n\nSolo dopo potrai trovare i match con le transazioni wallet.');
+                alert('⚠️ Mancano le transazioni Exchange!\n\nVai su "📊 Exchanges" e importa i CSV dei tuoi exchange.\n\nLe transazioni deposit/withdraw verranno lette automaticamente.');
                 return;
             }
             
             if (reconcileData.walletTx.length === 0) {
-                alert('⚠️ Mancano le transazioni Wallet!\n\nClicca "📊 Carica Dati Wallet" per scaricare la storia dei tuoi wallet.\n\nSolo dopo potrai trovare i match con le transazioni exchange.');
+                alert('⚠️ Mancano le transazioni Wallet!\n\nClicca "📊 Carica Dati (Exchange + Wallet)" per scaricare la storia dei tuoi wallet da Moralis.');
                 return;
             }
             
