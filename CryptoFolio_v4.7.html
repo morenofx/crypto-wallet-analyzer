@@ -1904,20 +1904,45 @@
         
         // ==================== WALLET TRANSACTIONS (MORALIS + ETHERSCAN FALLBACK) ====================
         
-        // Etherscan API endpoints
+        // Etherscan-compatible API endpoints (include PulseScan)
         const ETHERSCAN_TX_APIS = {
             eth: 'https://api.etherscan.io/api',
             bsc: 'https://api.bscscan.com/api',
             polygon: 'https://api.polygonscan.com/api',
             arbitrum: 'https://api.arbiscan.io/api',
-            base: 'https://api.basescan.org/api'
+            base: 'https://api.basescan.org/api',
+            pulse: 'https://api.scan.pulsechain.com/api'  // PulseScan - no API key needed!
         };
         
-        // Scarica transazioni via Etherscan (fallback)
+        // Scarica transazioni via Etherscan/PulseScan (fallback)
         async function fetchTxEtherscan(addr, chainKey, type = 'native') {
             const apiUrl = ETHERSCAN_TX_APIS[chainKey];
+            if (!apiUrl) return [];
+            
+            // PulseScan non richiede API key
+            const needsKey = chainKey !== 'pulse';
             const etherscanKey = apiKeys.etherscan;
-            if (!apiUrl || !etherscanKey) return [];
+            if (needsKey && !etherscanKey) return [];
+            
+            try {
+                const action = type === 'native' ? 'txlist' : 'tokentx';
+                let url = `${apiUrl}?module=account&action=${action}&address=${addr}&startblock=0&endblock=99999999&sort=desc`;
+                if (needsKey) url += `&apikey=${etherscanKey}`;
+                
+                console.log(`📡 ${chainKey === 'pulse' ? 'PulseScan' : 'Etherscan'} ${type} tx: ${chainKey}`);
+                const res = await fetch(url);
+                const data = await res.json();
+                
+                if (data.status === '1' && Array.isArray(data.result)) {
+                    console.log(`✅ Got ${data.result.length} ${type} tx from ${chainKey}`);
+                    return data.result;
+                }
+                return [];
+            } catch (e) {
+                console.error(`Scanner error (${chainKey}):`, e);
+                return [];
+            }
+        }
             
             try {
                 const action = type === 'native' ? 'txlist' : 'tokentx';
@@ -1936,19 +1961,25 @@
             }
         }
         
-        // Scarica transazioni native (ETH, BNB transfers) - Moralis con Etherscan fallback
+        // Scarica transazioni native (ETH, BNB transfers) - Moralis con Etherscan/PulseScan fallback
         async function fetchNativeTxMoralis(addr, chainKey, cursor = null, retryCount = 0) {
             if (moralisKeys.length === 0) loadMoralisKeys();
             
             const moralisKey = getMoralisKey();
             const chain = MORALIS_CHAINS[chainKey];
             
+            // PulseChain: usa direttamente PulseScan (non supportato da Moralis)
+            if (chainKey === 'pulse') {
+                console.log(`📡 PulseScan native tx: pulse`);
+                const results = await fetchTxEtherscan(addr, 'pulse', 'native');
+                return { result: results, cursor: null, source: 'pulsescan' };
+            }
+            
             // Se non c'è Moralis o chain non supportata, prova Etherscan
             if (!moralisKey || !chain) {
-                if (ETHERSCAN_TX_APIS[chainKey] && apiKeys.etherscan) {
+                if (ETHERSCAN_TX_APIS[chainKey]) {
                     console.log(`📡 Etherscan fallback native tx: ${chainKey}`);
                     const results = await fetchTxEtherscan(addr, chainKey, 'native');
-                    console.log(`✅ Etherscan: ${results.length} native tx from ${chainKey}`);
                     return { result: results, cursor: null, source: 'etherscan' };
                 }
                 return { result: [], cursor: null };
@@ -1994,18 +2025,24 @@
             }
         }
         
-        // Scarica trasferimenti token ERC20 - Moralis con Etherscan fallback
+        // Scarica trasferimenti token ERC20 - Moralis con Etherscan/PulseScan fallback
         async function fetchTokenTxMoralis(addr, chainKey, cursor = null, retryCount = 0) {
             if (moralisKeys.length === 0) loadMoralisKeys();
             
             const moralisKey = getMoralisKey();
             const chain = MORALIS_CHAINS[chainKey];
             
+            // PulseChain: usa direttamente PulseScan
+            if (chainKey === 'pulse') {
+                console.log(`📡 PulseScan token tx: pulse`);
+                const results = await fetchTxEtherscan(addr, 'pulse', 'token');
+                return { result: results, cursor: null, source: 'pulsescan' };
+            }
+            
             if (!moralisKey || !chain) {
-                if (ETHERSCAN_TX_APIS[chainKey] && apiKeys.etherscan) {
+                if (ETHERSCAN_TX_APIS[chainKey]) {
                     console.log(`📡 Etherscan fallback token tx: ${chainKey}`);
                     const results = await fetchTxEtherscan(addr, chainKey, 'token');
-                    console.log(`✅ Etherscan: ${results.length} token tx from ${chainKey}`);
                     return { result: results, cursor: null, source: 'etherscan' };
                 }
                 return { result: [], cursor: null };
@@ -2048,7 +2085,7 @@
         // Scarica tutte le transazioni per un wallet (formato compatto)
         async function downloadWalletTransactions(addr, progressCallback) {
             const addrLower = addr.toLowerCase();
-            const chainsToScan = ['eth', 'polygon', 'bsc', 'arbitrum', 'base'];
+            const chainsToScan = ['eth', 'polygon', 'bsc', 'arbitrum', 'base', 'pulse'];
             
             console.log(`🚀 Download transazioni per ${addrLower.slice(0,10)}...`);
             
@@ -2065,7 +2102,7 @@
                 for (const tx of nativeResult) {
                     let value, date;
                     
-                    if (nativeSource === 'etherscan') {
+                    if (nativeSource === 'etherscan' || nativeSource === 'pulsescan') {
                         value = tx.value ? Number(tx.value) / 1e18 : 0;
                         date = tx.timeStamp ? new Date(tx.timeStamp * 1000).toISOString().slice(0, 10) : '';
                     } else {
@@ -2075,7 +2112,7 @@
                     
                     if (value < 0.0000001) continue;
                     
-                    const toAddr = (nativeSource === 'etherscan' ? tx.to : tx.to_address)?.toLowerCase();
+                    const toAddr = (nativeSource === 'etherscan' || nativeSource === 'pulsescan' ? tx.to : tx.to_address)?.toLowerCase();
                     
                     nativeTx.push({
                         d: date,
@@ -2096,7 +2133,7 @@
                 for (const tx of tokenResult) {
                     let symbol, name, value, date, toAddr;
                     
-                    if (tokenSource === 'etherscan') {
+                    if (tokenSource === 'etherscan' || tokenSource === 'pulsescan') {
                         symbol = tx.tokenSymbol || 'UNKNOWN';
                         name = tx.tokenName || symbol;
                         const decimals = parseInt(tx.tokenDecimal) || 18;
@@ -6408,8 +6445,8 @@
                 }
                 
                 // Converti nativeTx in formato riconciliazione
-                const chainSymbols = { eth: 'ETH', bsc: 'BNB', polygon: 'MATIC', arbitrum: 'ETH', base: 'ETH', cronos: 'CRO' };
-                const chainNames = { eth: 'Ethereum', bsc: 'BSC', polygon: 'Polygon', arbitrum: 'Arbitrum', base: 'Base', cronos: 'Cronos' };
+                const chainSymbols = { eth: 'ETH', bsc: 'BNB', polygon: 'MATIC', arbitrum: 'ETH', base: 'ETH', cronos: 'CRO', pulse: 'PLS' };
+                const chainNames = { eth: 'Ethereum', bsc: 'BSC', polygon: 'Polygon', arbitrum: 'Arbitrum', base: 'Base', cronos: 'Cronos', pulse: 'PulseChain' };
                 
                 for (const tx of (txData.nativeTx || [])) {
                     reconcileData.walletTx.push({
