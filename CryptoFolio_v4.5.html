@@ -4200,12 +4200,15 @@
                     }
                     
                     console.log('✅ Exchange data loaded from Firebase:', Object.keys(exchangeData).length, 'exchanges');
-                    
-                    // Carica transazioni da localStorage
-                    loadExchangeTransactionsFromLocalStorage();
                 }
+                
+                // SEMPRE carica transazioni da localStorage (anche se Firebase è vuoto)
+                loadExchangeTransactionsFromLocalStorage();
+                
             } catch (e) {
                 console.error('Exchange Firebase load error:', e);
+                // Prova comunque a caricare da localStorage
+                loadExchangeTransactionsFromLocalStorage();
             }
         }
         
