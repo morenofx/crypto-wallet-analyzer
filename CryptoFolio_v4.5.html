@@ -889,9 +889,10 @@
         // NFT data
         let nftData = []; // Array di NFT: { tokenId, name, collection, image, chain, contract, floorPrice, purchasePrice, wallet }
         let nftPurchasePrices = {}; // { contract_tokenId: purchasePrice } - prezzi di acquisto manuali
-        let nftBlacklist = []; // Array di NFT ID da nascondere (scam): "contract_tokenId"
+        let nftBlacklist = new Set(); // Set di NFT ID da nascondere (scam): "contract_tokenId"
         let nftPage = 1; // Pagina corrente NFT
         const NFT_PER_PAGE = 50; // NFT per pagina
+        let nftRendered = false; // Flag per evitare rendering automatico
         
         // Wallet transactions
         let walletTransactions = []; // Transazioni del wallet corrente
@@ -1011,18 +1012,8 @@
                     
                     console.log('✅ Firebase loaded:', savedWallets.length, 'wallets,', Object.keys(walletResults).length, 'scan results', taxReportData ? ', tax report cached' : '');
                     
-                    // Carica NFT da Firebase
-                    if (doc.data().nftData) {
-                        const cloudNFTs = doc.data().nftData;
-                        if (cloudNFTs.length > 0) {
-                            nftData = cloudNFTs;
-                            console.log(`☁️ NFT caricati da Firebase: ${nftData.length}`);
-                            loadNFTPurchasePrices();
-                            loadNFTBlacklist();
-                            updateNFTSummary();
-                            renderNFTGrid();
-                        }
-                    }
+                    // NFT vengono caricati lazy quando si apre la sezione
+                    // Non caricare qui per evitare rallentamenti con molti NFT
                 }
                 
                 updateSyncStatus('Connesso ✓', 'var(--green)');
@@ -1151,6 +1142,22 @@
                     (view === 'api' && i === 6)
                 );
             });
+            
+            // Renderizza NFT solo quando si apre la sezione (lazy load)
+            if (view === 'nft') {
+                if (nftData.length === 0) {
+                    // Carica NFT da localStorage se non ancora caricati
+                    loadNFTDataFromLocalStorage();
+                }
+                // Aggiorna summary e renderizza
+                if (nftData.length > 0) {
+                    updateNFTSummary();
+                    if (!nftRendered) {
+                        nftRendered = true;
+                        setTimeout(() => renderNFTGrid(), 50);
+                    }
+                }
+            }
             
             // Aggiorna dropdown tax e mostra dati salvati
             if (view === 'tax') {
@@ -5866,8 +5873,8 @@
             updateApiCount();
             updateExchangeCount();
             updateExchangeTotals();
-            loadNFTBlacklist(); // Carica blacklist NFT
-            loadNFTDataFromLocalStorage(); // Carica NFT salvati
+            loadNFTBlacklist(); // Carica blacklist NFT (leggero)
+            // NFT vengono caricati lazy quando si apre la sezione
             
             // Mostra API key se configurata
             if (apiKeys.moralis && apiKeys.etherscan) {
@@ -6824,7 +6831,7 @@
             // Filtra per chain e rimuovi blacklistati
             let filteredNFTs = nftData.filter(nft => {
                 const nftKey = `${nft.contract}_${nft.tokenId}`;
-                if (nftBlacklist.includes(nftKey)) return false; // Nascondi blacklistati
+                if (nftBlacklist.has(nftKey)) return false; // Nascondi blacklistati
                 if (filterChain !== 'all' && nft.chainKey !== filterChain && nft.chain.toLowerCase() !== filterChain) return false;
                 return true;
             });
@@ -6909,7 +6916,7 @@
             // Nascondi tutti gli NFT della pagina corrente
             const filteredNFTs = nftData.filter(nft => {
                 const nftKey = `${nft.contract}_${nft.tokenId}`;
-                if (nftBlacklist.includes(nftKey)) return false;
+                if (nftBlacklist.has(nftKey)) return false;
                 if (filterChain !== 'all' && nft.chainKey !== filterChain && nft.chain.toLowerCase() !== filterChain) return false;
                 return true;
             });
@@ -6933,11 +6940,9 @@
             if (confirm) {
                 for (const nft of toHide) {
                     const nftKey = `${nft.contract}_${nft.tokenId}`;
-                    if (!nftBlacklist.includes(nftKey)) {
-                        nftBlacklist.push(nftKey);
-                    }
+                    nftBlacklist.add(nftKey);
                 }
-                localStorage.setItem('cryptofolio_nft_blacklist', JSON.stringify(nftBlacklist));
+                saveNFTBlacklist();
                 updateNFTBlacklistButton();
                 updateNFTSummary();
                 renderNFTGrid(filterChain);
@@ -6951,9 +6956,9 @@
         }
         
         function blacklistNFT(nftKey) {
-            if (!nftBlacklist.includes(nftKey)) {
-                nftBlacklist.push(nftKey);
-                localStorage.setItem('cryptofolio_nft_blacklist', JSON.stringify(nftBlacklist));
+            if (!nftBlacklist.has(nftKey)) {
+                nftBlacklist.add(nftKey);
+                saveNFTBlacklist();
                 updateNFTBlacklistButton();
                 updateNFTSummary();
                 const filter = document.getElementById('nftChainFilter')?.value || 'all';
@@ -6962,8 +6967,8 @@
         }
         
         function removeFromNFTBlacklist(nftKey) {
-            nftBlacklist = nftBlacklist.filter(k => k !== nftKey);
-            localStorage.setItem('cryptofolio_nft_blacklist', JSON.stringify(nftBlacklist));
+            nftBlacklist.delete(nftKey);
+            saveNFTBlacklist();
             updateNFTBlacklistButton();
             updateNFTSummary();
             const filter = document.getElementById('nftChainFilter')?.value || 'all';
@@ -6972,24 +6977,29 @@
         
         function loadNFTBlacklist() {
             try {
-                nftBlacklist = JSON.parse(localStorage.getItem('cryptofolio_nft_blacklist') || '[]');
+                const saved = JSON.parse(localStorage.getItem('cryptofolio_nft_blacklist') || '[]');
+                nftBlacklist = new Set(saved);
                 updateNFTBlacklistButton();
             } catch (e) {
-                nftBlacklist = [];
+                nftBlacklist = new Set();
             }
+        }
+        
+        function saveNFTBlacklist() {
+            localStorage.setItem('cryptofolio_nft_blacklist', JSON.stringify([...nftBlacklist]));
         }
         
         function updateNFTBlacklistButton() {
             const btn = document.getElementById('nftBlacklistBtn');
             const count = document.getElementById('nftBlacklistCount');
             if (btn && count) {
-                count.textContent = nftBlacklist.length;
-                btn.style.display = nftBlacklist.length > 0 ? 'inline-flex' : 'none';
+                count.textContent = nftBlacklist.size;
+                btn.style.display = nftBlacklist.size > 0 ? 'inline-flex' : 'none';
             }
         }
         
         function showNFTBlacklist() {
-            if (nftBlacklist.length === 0) {
+            if (nftBlacklist.size === 0) {
                 alert('Nessun NFT nascosto');
                 return;
             }
@@ -6997,7 +7007,7 @@
             // Trova info NFT blacklistati
             const blacklistedNFTs = nftData.filter(nft => {
                 const nftKey = `${nft.contract}_${nft.tokenId}`;
-                return nftBlacklist.includes(nftKey);
+                return nftBlacklist.has(nftKey);
             });
             
             let html = '<div style="max-height:400px;overflow-y:auto;">';
@@ -7007,7 +7017,7 @@
                 const nftKey = `${nft.contract}_${nft.tokenId}`;
                 html += `<div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg-primary);border-radius:8px;margin-bottom:8px;cursor:pointer;" onclick="removeFromNFTBlacklist('${nftKey}');this.remove();">
                     <div style="width:50px;height:50px;background:var(--bg-secondary);border-radius:6px;display:flex;align-items:center;justify-content:center;overflow:hidden;">
-                        ${nft.image ? `<img src="${nft.image}" style="max-width:100%;max-height:100%;">` : '🖼️'}
+                        ${nft.image ? `<img src="${nft.image}" loading="lazy" style="max-width:100%;max-height:100%;">` : '🖼️'}
                     </div>
                     <div style="flex:1;">
                         <div style="font-weight:600;">${nft.name}</div>
@@ -7018,10 +7028,11 @@
             }
             
             // Aggiungi anche quelli non più in nftData (già eliminati dalla scansione)
-            const orphanKeys = nftBlacklist.filter(key => !blacklistedNFTs.some(nft => `${nft.contract}_${nft.tokenId}` === key));
-            if (orphanKeys.length > 0) {
+            const validNftKeys = new Set(nftData.map(nft => `${nft.contract}_${nft.tokenId}`));
+            const orphanCount = [...nftBlacklist].filter(key => !validNftKeys.has(key)).length;
+            if (orphanCount > 0) {
                 html += `<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--bg-primary);">
-                    <p style="color:var(--text-secondary);font-size:12px;margin-bottom:8px;">${orphanKeys.length} NFT non più presenti nei wallet</p>
+                    <p style="color:var(--text-secondary);font-size:12px;margin-bottom:8px;">${orphanCount} NFT non più presenti nei wallet</p>
                     <button class="btn btn-secondary" onclick="clearOrphanNFTBlacklist()" style="font-size:12px;">🗑️ Pulisci lista</button>
                 </div>`;
             }
@@ -7035,7 +7046,7 @@
             modal.innerHTML = `
                 <div class="modal-content" style="max-width:500px;">
                     <div class="modal-header">
-                        <h3>🚫 NFT Nascosti (${nftBlacklist.length})</h3>
+                        <h3>🚫 NFT Nascosti (${nftBlacklist.size})</h3>
                         <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
                     </div>
                     <div class="modal-body">${html}</div>
@@ -7046,12 +7057,12 @@
         
         function clearOrphanNFTBlacklist() {
             // Rimuovi dalla blacklist gli NFT che non esistono più in nftData
-            const validKeys = nftData.map(nft => `${nft.contract}_${nft.tokenId}`);
-            nftBlacklist = nftBlacklist.filter(key => validKeys.includes(key));
-            localStorage.setItem('cryptofolio_nft_blacklist', JSON.stringify(nftBlacklist));
+            const validKeys = new Set(nftData.map(nft => `${nft.contract}_${nft.tokenId}`));
+            nftBlacklist = new Set([...nftBlacklist].filter(key => validKeys.has(key)));
+            saveNFTBlacklist();
             updateNFTBlacklistButton();
             document.querySelector('.modal-overlay')?.remove();
-            if (nftBlacklist.length > 0) {
+            if (nftBlacklist.size > 0) {
                 showNFTBlacklist();
             }
         }
@@ -7069,13 +7080,13 @@
             ];
             
             let scamCount = 0;
-            const newBlacklist = [...nftBlacklist];
+            const newBlacklist = new Set(nftBlacklist);
             
             for (const nft of nftData) {
                 const nftKey = `${nft.contract}_${nft.tokenId}`;
                 
                 // Salta se già blacklistato
-                if (newBlacklist.includes(nftKey)) continue;
+                if (newBlacklist.has(nftKey)) continue;
                 
                 // Salta se ha un costo inserito (l'utente lo considera reale)
                 if (nftPurchasePrices[nftKey] > 0) continue;
@@ -7098,7 +7109,7 @@
                 }
                 
                 if (isScam) {
-                    newBlacklist.push(nftKey);
+                    newBlacklist.add(nftKey);
                     scamCount++;
                 }
             }
@@ -7112,14 +7123,14 @@
             
             if (confirm) {
                 nftBlacklist = newBlacklist;
-                localStorage.setItem('cryptofolio_nft_blacklist', JSON.stringify(nftBlacklist));
+                saveNFTBlacklist();
                 updateNFTBlacklistButton();
                 updateNFTSummary();
                 nftPage = 1; // Reset alla prima pagina
                 const filter = document.getElementById('nftChainFilter')?.value || 'all';
                 renderNFTGrid(filter);
                 
-                alert(`✅ Nascosti ${scamCount} NFT scam!\n\nOra hai ${nftData.length - nftBlacklist.length} NFT visibili.`);
+                alert(`✅ Nascosti ${scamCount} NFT scam!\n\nOra hai ${nftData.length - nftBlacklist.size} NFT visibili.`);
             }
         }
         
@@ -7143,7 +7154,7 @@
             // Filtra NFT non blacklistati
             const visibleNFTs = nftData.filter(nft => {
                 const nftKey = `${nft.contract}_${nft.tokenId}`;
-                return !nftBlacklist.includes(nftKey);
+                return !nftBlacklist.has(nftKey);
             });
             
             const totalCount = visibleNFTs.length;
@@ -7222,8 +7233,8 @@
                     nftData = JSON.parse(saved);
                     console.log(`📂 NFT caricati da localStorage: ${nftData.length}`);
                     loadNFTPurchasePrices();
-                    updateNFTSummary();
-                    renderNFTGrid();
+                    // updateNFTSummary chiamato solo quando si renderizza
+                    nftRendered = false;
                 }
             } catch (e) {
                 console.error('❌ Errore caricamento NFT:', e);
@@ -7241,8 +7252,7 @@
                             nftData = cloudNFTs;
                             console.log(`☁️ NFT caricati da Firebase: ${nftData.length}`);
                             loadNFTPurchasePrices();
-                            updateNFTSummary();
-                            renderNFTGrid();
+                            nftRendered = false; // NON renderizzare - lazy load
                             // Aggiorna localStorage
                             try {
                                 localStorage.setItem('cryptofolio_nfts', JSON.stringify(nftData));
