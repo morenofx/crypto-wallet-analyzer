@@ -4088,8 +4088,11 @@
         }
         
         async function saveExchangeDataToFirebase() {
+            // PRIMA salva in localStorage (sempre!)
+            saveExchangeTransactionsToLocalStorage();
+            
+            // POI prova a salvare in Firebase
             try {
-                // Salva solo totali e balances in Firebase (le transazioni sono troppo grandi)
                 const dataToSave = {};
                 for (const exchId of Object.keys(exchangeData)) {
                     const data = exchangeData[exchId];
@@ -4108,9 +4111,6 @@
                     lastUpdate: new Date().toISOString()
                 });
                 console.log('✅ Exchange data saved to Firebase');
-                
-                // Salva transazioni deposit/withdraw in localStorage per riconciliazione
-                saveExchangeTransactionsToLocalStorage();
             } catch (e) {
                 console.error('Exchange Firebase save error:', e);
             }
@@ -4118,35 +4118,38 @@
         
         function saveExchangeTransactionsToLocalStorage() {
             try {
-                // Salva solo transazioni deposit/withdraw (per riconciliazione)
+                // Salva TUTTE le transazioni per riconciliazione
                 const txToSave = {};
+                let totalSaved = 0;
+                
                 for (const exchId of Object.keys(exchangeData)) {
                     const data = exchangeData[exchId];
                     if (data.transactions && data.transactions.length > 0) {
-                        // Filtra solo deposit/withdraw
-                        const filtered = data.transactions.filter(tx => {
-                            const op = (tx.operation || '').toLowerCase();
-                            const type = (tx.type || '').toLowerCase();
-                            return op.includes('deposit') || op.includes('withdraw') || 
-                                   type === 'deposit' || type === 'withdrawal' || type === 'withdraw';
-                        }).map(tx => ({
+                        // Salva tutte le transazioni (max 5000 per exchange)
+                        const toSave = data.transactions.slice(0, 5000).map(tx => ({
                             date: tx.date instanceof Date ? tx.date.toISOString() : tx.date,
-                            operation: tx.operation || tx.type || '',
+                            operation: tx.operation || '',
                             type: tx.type || '',
-                            coin: tx.coin,
-                            change: tx.change
+                            coin: tx.coin || '',
+                            change: tx.change || 0
                         }));
                         
-                        if (filtered.length > 0) {
-                            txToSave[exchId] = filtered;
-                        }
+                        txToSave[exchId] = toSave;
+                        totalSaved += toSave.length;
+                        console.log(`💾 ${exchId}: ${toSave.length} transazioni`);
                     }
                 }
                 
                 localStorage.setItem('cryptofolio_exchange_tx', JSON.stringify(txToSave));
-                console.log('💾 Transazioni exchange salvate in localStorage');
+                console.log(`💾 Totale ${totalSaved} transazioni salvate in localStorage`);
+                
+                // Conferma visiva
+                if (totalSaved > 0) {
+                    console.log('✅ Transazioni pronte per riconciliazione!');
+                }
             } catch (e) {
                 console.warn('Errore salvataggio transazioni localStorage:', e);
+                alert('⚠️ Errore salvataggio: ' + e.message);
             }
         }
         
@@ -4449,6 +4452,33 @@
             
             // Mostra loading
             document.getElementById('reconcileMatches').innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:40px;">⏳ Caricamento in corso...</div>';
+            
+            // DEBUG: Mostra stato exchangeData
+            const exchKeys = Object.keys(exchangeData);
+            let debugInfo = `📊 Exchange trovati: ${exchKeys.length}\n`;
+            let totalTx = 0;
+            
+            for (const exchId of exchKeys) {
+                const data = exchangeData[exchId];
+                const txCount = data.transactions?.length || 0;
+                totalTx += txCount;
+                debugInfo += `  • ${exchId}: ${txCount} transazioni\n`;
+            }
+            
+            console.log(debugInfo);
+            
+            if (totalTx === 0) {
+                // Prova a caricare da localStorage
+                console.log('⚠️ Nessuna transazione in memoria, provo localStorage...');
+                loadExchangeTransactionsFromLocalStorage();
+                
+                // Ricontrolla
+                totalTx = 0;
+                for (const exchId of Object.keys(exchangeData)) {
+                    totalTx += exchangeData[exchId].transactions?.length || 0;
+                }
+                console.log(`📂 Dopo localStorage: ${totalTx} transazioni`);
+            }
             
             // 1. Carica transazioni Exchange (da exchangeData - CSV già importati)
             console.log('📊 Checking exchangeData:', Object.keys(exchangeData));
