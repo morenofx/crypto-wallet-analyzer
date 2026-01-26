@@ -1943,23 +1943,6 @@
                 return [];
             }
         }
-            
-            try {
-                const action = type === 'native' ? 'txlist' : 'tokentx';
-                const url = `${apiUrl}?module=account&action=${action}&address=${addr}&startblock=0&endblock=99999999&sort=desc&apikey=${etherscanKey}`;
-                
-                const res = await fetch(url);
-                const data = await res.json();
-                
-                if (data.status === '1' && Array.isArray(data.result)) {
-                    return data.result;
-                }
-                return [];
-            } catch (e) {
-                console.error(`Etherscan error (${chainKey}):`, e);
-                return [];
-            }
-        }
         
         // Scarica transazioni native (ETH, BNB transfers) - Moralis con Etherscan/PulseScan fallback
         async function fetchNativeTxMoralis(addr, chainKey, cursor = null, retryCount = 0) {
