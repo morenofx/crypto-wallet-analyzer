@@ -259,80 +259,88 @@
             </div>
             
             <div id="detailChainsContent"></div>
-            
-            <!-- TRANSAZIONI WALLET -->
-            <div class="card" style="margin-top:20px;">
-                <div class="card-header">
-                    <div class="card-title">📜 Transazioni</div>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                        <select id="walletTxChainFilter" onchange="filterWalletTransactions()" style="background:var(--bg-primary);color:var(--text-primary);border:none;padding:8px 12px;border-radius:6px;">
-                            <option value="all">Tutte le chain</option>
-                        </select>
-                        <button class="btn btn-secondary" onclick="exportWalletTransactions()" id="exportTxBtn" style="display:none;">📤 Esporta CSV</button>
-                        <button class="btn btn-primary" onclick="loadWalletTransactions()" id="loadTxBtn">📥 Carica Transazioni</button>
-                    </div>
-                </div>
-                <div id="walletTxContainer" style="max-height:500px;overflow-y:auto;">
-                    <div style="color:var(--text-secondary);text-align:center;padding:40px;">
-                        Clicca "📥 Carica Transazioni" per vedere lo storico
-                    </div>
-                </div>
-                <div id="walletTxPagination" style="padding:12px 0;"></div>
-            </div>
         </div>
         
         <!-- TAX REPORT -->
         <div class="main-content" id="taxView" style="display:none;">
-            <div class="header"><h1>📋 Tax Report - Quadro RW</h1><div class="header-actions"><button class="btn" onclick="clearTaxReport()" style="margin-right:8px;background:var(--bg-secondary);">🗑️ Reset</button><button class="btn btn-secondary" onclick="printTaxReport()" style="margin-right:8px;">🖨️ Stampa PDF</button><button class="btn btn-primary" onclick="calculateTaxReportAll()">🧮 Calcola Tutti</button></div></div>
+            <div class="header"><h1>📋 Tax Report - Quadro RW</h1><div class="header-actions"><button class="btn" onclick="clearTaxReport()" style="margin-right:8px;background:var(--bg-secondary);">🗑️ Reset</button><button class="btn btn-secondary" onclick="exportQuadroRW()" style="margin-right:8px;">📄 Esporta CSV</button><button class="btn btn-primary" onclick="calculateQuadroRW()">🧮 Calcola Quadro RW</button></div></div>
             
-            <div class="card" style="margin-bottom:20px;">
-                <p style="color:var(--text-secondary);font-size:14px;line-height:1.6;">
-                    Il <strong>Quadro RW</strong> richiede il valore al <strong>31 dicembre</strong> di ogni anno fiscale. Soglia: <strong>€15.000</strong>.<br>
-                    Calcola il valore aggregato di <strong>wallet + exchange</strong>.
-                </p>
-                <div id="taxWalletsList" style="margin-top:12px;"></div>
+            <!-- INFO BOX -->
+            <div class="card" style="margin-bottom:20px;background:linear-gradient(135deg,rgba(99,102,241,0.1),rgba(168,85,247,0.1));">
+                <div style="display:flex;align-items:flex-start;gap:16px;">
+                    <span style="font-size:32px;">📋</span>
+                    <div>
+                        <h3 style="margin-bottom:8px;">Quadro RW - Monitoraggio Fiscale</h3>
+                        <p style="color:var(--text-secondary);font-size:14px;line-height:1.6;margin:0;">
+                            Il <strong>Quadro RW</strong> va compilato se il valore delle cripto-attività supera <strong>€15.000</strong> in qualsiasi momento dell'anno.<br>
+                            <strong>IVAFE</strong>: Imposta dello 0.2% sul valore al 31/12 (esente sotto €15.000).<br>
+                            <strong>Codice</strong>: 14 (fino 2022) → 21 (dal 2023 per cripto-attività).
+                        </p>
+                    </div>
+                </div>
             </div>
             
-            <!-- EXCHANGE VALUES -->
+            <!-- SELETTORE ANNO -->
             <div class="card" style="margin-bottom:20px;">
                 <div class="card-header">
-                    <div class="card-title">🏦 Valori Exchange (31/12)</div>
-                    <button class="btn btn-primary" onclick="saveExchangeValues()" style="padding:8px 16px;">💾 Salva</button>
+                    <div class="card-title">📅 Anno Fiscale</div>
                 </div>
-                <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px;">Inserisci il valore totale degli exchange al 31 dicembre di ogni anno (in EUR). Questi valori verranno sommati ai wallet.</p>
-                <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;">
-                    <div class="input-group">
-                        <label>2021</label>
-                        <input type="number" id="exchange2021" placeholder="€" step="0.01" style="text-align:right;">
-                    </div>
-                    <div class="input-group">
-                        <label>2022</label>
-                        <input type="number" id="exchange2022" placeholder="€" step="0.01" style="text-align:right;">
-                    </div>
-                    <div class="input-group">
-                        <label>2023</label>
-                        <input type="number" id="exchange2023" placeholder="€" step="0.01" style="text-align:right;">
-                    </div>
-                    <div class="input-group">
-                        <label>2024</label>
-                        <input type="number" id="exchange2024" placeholder="€" step="0.01" style="text-align:right;">
-                    </div>
-                    <div class="input-group">
-                        <label>2025</label>
-                        <input type="number" id="exchange2025" placeholder="€" step="0.01" style="text-align:right;">
-                    </div>
-                    <div class="input-group">
-                        <label>2026</label>
-                        <input type="number" id="exchange2026" placeholder="€" step="0.01" style="text-align:right;">
-                    </div>
-                </div>
-                <div style="margin-top:12px;font-size:12px;color:var(--text-secondary);">
-                    💡 Puoi recuperare questi valori da OKIPO, Binance Tax Report, o i tuoi record personali.
+                <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                    <button class="btn btn-secondary rwYearBtn" onclick="selectRWYear(2021)">2021</button>
+                    <button class="btn btn-secondary rwYearBtn" onclick="selectRWYear(2022)">2022</button>
+                    <button class="btn btn-secondary rwYearBtn" onclick="selectRWYear(2023)">2023</button>
+                    <button class="btn btn-primary rwYearBtn active" onclick="selectRWYear(2024)">2024</button>
+                    <button class="btn btn-secondary rwYearBtn" onclick="selectRWYear(2025)">2025</button>
                 </div>
             </div>
             
-            <div class="card"><div class="card-header"><div class="card-title">📊 Totale Portfolio per Anno (31/12)</div></div><div id="taxReportContent"><div class="empty-state"><div class="icon">👆</div><h3>Clicca "Calcola Tutti" per iniziare</h3></div></div></div>
-            <div class="card" id="taxDetailCard" style="display:none;margin-top:20px;"><div class="card-header"><div class="card-title">📝 Dettaglio Token per Wallet</div></div><div id="taxDetailContent"></div></div>
+            <!-- EXCHANGE/WALLET VALUES -->
+            <div class="card" style="margin-bottom:20px;">
+                <div class="card-header">
+                    <div class="card-title">🏦 Valori per Exchange/Wallet - Anno <span id="rwSelectedYear">2024</span></div>
+                    <button class="btn btn-primary" onclick="saveRWValues()" style="padding:8px 16px;">💾 Salva</button>
+                </div>
+                <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px;">
+                    Inserisci i valori al <strong>1° gennaio</strong> e <strong>31 dicembre</strong> per ogni exchange/wallet (in EUR).
+                </p>
+                
+                <div id="rwExchangeInputs">
+                    <!-- Generato dinamicamente -->
+                </div>
+                
+                <button class="btn btn-secondary" onclick="addCustomRWEntry()" style="margin-top:16px;">➕ Aggiungi Exchange/Wallet</button>
+            </div>
+            
+            <!-- WALLET ON-CHAIN -->
+            <div class="card" style="margin-bottom:20px;">
+                <div class="card-header">
+                    <div class="card-title">👛 Wallet On-Chain (da scansione)</div>
+                </div>
+                <div id="rwWalletValues">
+                    <p style="color:var(--text-secondary);text-align:center;padding:20px;">
+                        I valori dei wallet verranno calcolati automaticamente dalla scansione.<br>
+                        <small>Nota: Per anni passati serve lo storico prezzi (non ancora implementato)</small>
+                    </p>
+                </div>
+            </div>
+            
+            <!-- RISULTATO QUADRO RW -->
+            <div class="card" style="margin-bottom:20px;">
+                <div class="card-header">
+                    <div class="card-title">📊 Quadro RW - Riepilogo <span id="rwResultYear">2024</span></div>
+                </div>
+                <div id="rwResultContent">
+                    <div class="empty-state"><div class="icon">👆</div><h3>Clicca "Calcola Quadro RW" per generare il report</h3></div>
+                </div>
+            </div>
+            
+            <!-- DETTAGLIO IVAFE -->
+            <div class="card" id="ivafeSummaryCard" style="display:none;">
+                <div class="card-header">
+                    <div class="card-title">💰 Calcolo IVAFE</div>
+                </div>
+                <div id="ivafeContent"></div>
+            </div>
         </div>
         
         <!-- API CONNECT -->
@@ -881,6 +889,28 @@
         // Exchange values per Tax Report (31/12 di ogni anno)
         let exchangeValues = { 2021: 0, 2022: 0, 2023: 0, 2024: 0, 2025: 0, 2026: 0 };
         
+        // Quadro RW data
+        let rwSelectedYear = 2024;
+        let rwData = {}; // { 2024: { entries: [{name, country, countryCode, valueStart, valueEnd, days}] } }
+        
+        // Exchange con paesi (codici ISO per Quadro RW)
+        const EXCHANGE_COUNTRIES = {
+            'Binance': { country: 'Malta', code: 'MLT' },
+            'Bitget': { country: 'Seychelles', code: 'SYC' },
+            'Coinbase': { country: 'USA', code: 'USA' },
+            'Crypto.com': { country: 'Singapore', code: 'SGP' },
+            'Kraken': { country: 'USA', code: 'USA' },
+            'Bitpanda': { country: 'Austria', code: 'AUT' },
+            'MEXC': { country: 'Seychelles', code: 'SYC' },
+            'Bybit': { country: 'EAU', code: 'ARE' },
+            'KuCoin': { country: 'Seychelles', code: 'SYC' },
+            'OKX': { country: 'Seychelles', code: 'SYC' },
+            'Gate.io': { country: 'Cayman', code: 'CYM' },
+            'Nexo': { country: 'Svizzera', code: 'CHE' },
+            'YouHodler': { country: 'Svizzera', code: 'CHE' },
+            'Wallet On-Chain': { country: 'Non localizzabile', code: '---' }
+        };
+        
         // Multi-API Moralis (cascata)
         let moralisKeys = []; // Array di API keys
         let currentMoralisKeyIndex = 0;
@@ -894,11 +924,7 @@
         const NFT_PER_PAGE = 50; // NFT per pagina
         let nftRendered = false; // Flag per evitare rendering automatico
         
-        // Wallet transactions
-        let walletTransactions = []; // Transazioni del wallet corrente
-        let walletTxFiltered = []; // Transazioni filtrate
-        let walletTxPage = 1;
-        const WALLET_TX_PER_PAGE = 50;
+        // Wallet transactions - RIMOSSO (non necessario per Quadro RW)
         
         // Exchange data from CSV imports
         let exchangeData = {}; // { binance: { transactions: [], balances: {2021: {BTC: 0.5, ...}}, totals: {2021: 1234, ...} }, ... }
@@ -963,6 +989,7 @@
                         walletResults: walletResults,
                         taxReportData: taxReportData,
                         exchangeValues: exchangeValues,
+                        rwData: rwData,
                         lastUpdate: new Date().toISOString()
                     });
                     updateSyncStatus('Salvato ✓', 'var(--green)');
@@ -991,6 +1018,7 @@
                     walletResults = data.walletResults || {};
                     taxReportData = data.taxReportData || null;
                     exchangeValues = data.exchangeValues || { 2021: 0, 2022: 0, 2023: 0, 2024: 0, 2025: 0, 2026: 0 };
+                    rwData = data.rwData || {};
                     
                     // Sync to localStorage
                     localStorage.setItem('cryptofolio_wallets', JSON.stringify(savedWallets));
@@ -998,6 +1026,7 @@
                     localStorage.setItem('cryptofolio_blacklist_names', JSON.stringify(blacklistNames));
                     localStorage.setItem('cryptofolio_chains', JSON.stringify(selectedChains));
                     localStorage.setItem('cryptofolio_apikeys', JSON.stringify(apiKeys));
+                    localStorage.setItem('cryptofolio_rwdata', JSON.stringify(rwData));
                     
                     // Backward compatibility: load old apiKey into new structure
                     if (data.apiKey && !apiKeys.etherscan) {
@@ -1159,13 +1188,9 @@
                 }
             }
             
-            // Aggiorna dropdown tax e mostra dati salvati
+            // Aggiorna Quadro RW
             if (view === 'tax') {
-                updateTaxWalletsList();
-                loadExchangeValuesUI();
-                if (taxReportData) {
-                    renderTaxReport(taxReportData);
-                }
+                initQuadroRW();
             }
             
             // Carica dati riconciliazione da localStorage
@@ -1456,52 +1481,339 @@
         }
         
         function clearTaxReport() {
-            if (!confirm('Vuoi cancellare il Tax Report salvato?')) return;
+            if (!confirm('Vuoi cancellare i dati del Quadro RW?')) return;
             taxReportData = null;
-            document.getElementById('taxReportContent').innerHTML = '<div class="empty-state"><div class="icon">👆</div><h3>Clicca "Calcola Tutti" per iniziare</h3></div>';
-            document.getElementById('taxDetailCard').style.display = 'none';
+            rwData = {};
+            document.getElementById('rwResultContent').innerHTML = '<div class="empty-state"><div class="icon">👆</div><h3>Clicca "Calcola Quadro RW" per generare il report</h3></div>';
+            document.getElementById('ivafeSummaryCard').style.display = 'none';
             saveToFirebase();
-            alert('Tax Report resettato!');
+            alert('Quadro RW resettato!');
         }
         
-        function saveExchangeValues() {
-            const years = [2021, 2022, 2023, 2024, 2025, 2026];
-            for (const y of years) {
-                const val = parseFloat(document.getElementById('exchange' + y).value) || 0;
-                exchangeValues[y] = val;
-            }
-            saveToFirebase();
-            alert('✅ Valori Exchange salvati!');
+        // ==================== QUADRO RW FUNCTIONS ====================
+        
+        function selectRWYear(year) {
+            rwSelectedYear = year;
+            document.getElementById('rwSelectedYear').textContent = year;
+            document.getElementById('rwResultYear').textContent = year;
             
-            // Ricalcola se c'è già un report
-            if (taxReportData) {
-                renderTaxReport(taxReportData);
-            }
+            // Update button styles
+            document.querySelectorAll('.rwYearBtn').forEach(btn => {
+                btn.classList.remove('btn-primary', 'active');
+                btn.classList.add('btn-secondary');
+            });
+            event.target.classList.remove('btn-secondary');
+            event.target.classList.add('btn-primary', 'active');
+            
+            // Render inputs for selected year
+            renderRWExchangeInputs();
+            loadRWValues();
         }
         
-        function loadExchangeValuesUI() {
-            const years = [2021, 2022, 2023, 2024, 2025, 2026];
-            for (const y of years) {
-                const input = document.getElementById('exchange' + y);
-                if (input && exchangeValues[y]) {
-                    // Formatta con max 2 decimali
-                    input.value = parseFloat(exchangeValues[y]).toFixed(2);
+        function renderRWExchangeInputs() {
+            const container = document.getElementById('rwExchangeInputs');
+            const year = rwSelectedYear;
+            
+            // Default exchanges
+            const defaultExchanges = ['Binance', 'Bitget', 'Coinbase', 'Crypto.com', 'Kraken'];
+            
+            // Load existing entries or use defaults
+            const yearData = rwData[year] || { entries: [] };
+            let entries = yearData.entries.length > 0 ? yearData.entries : 
+                defaultExchanges.map(name => ({
+                    name,
+                    country: EXCHANGE_COUNTRIES[name]?.country || 'Sconosciuto',
+                    countryCode: EXCHANGE_COUNTRIES[name]?.code || '---',
+                    valueStart: 0,
+                    valueEnd: 0,
+                    days: 365
+                }));
+            
+            let html = `
+                <table class="holdings-table" style="width:100%;">
+                    <thead>
+                        <tr>
+                            <th>Exchange/Wallet</th>
+                            <th>Paese</th>
+                            <th>Codice</th>
+                            <th style="text-align:right;">Valore 01/01 (€)</th>
+                            <th style="text-align:right;">Valore 31/12 (€)</th>
+                            <th style="text-align:center;">Giorni</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            entries.forEach((entry, idx) => {
+                html += `
+                    <tr data-rw-idx="${idx}">
+                        <td>
+                            <select class="rw-name" style="background:var(--bg-primary);color:var(--text-primary);border:none;padding:6px;border-radius:4px;width:100%;" onchange="updateRWCountry(${idx}, this.value)">
+                                ${Object.keys(EXCHANGE_COUNTRIES).map(ex => 
+                                    `<option value="${ex}" ${entry.name === ex ? 'selected' : ''}>${ex}</option>`
+                                ).join('')}
+                                <option value="custom" ${!EXCHANGE_COUNTRIES[entry.name] ? 'selected' : ''}>Altro...</option>
+                            </select>
+                        </td>
+                        <td><span class="rw-country">${entry.country}</span></td>
+                        <td><span class="rw-code">${entry.countryCode}</span></td>
+                        <td><input type="number" class="rw-start" value="${entry.valueStart || ''}" placeholder="0.00" step="0.01" style="width:100%;background:var(--bg-primary);border:none;color:var(--text-primary);padding:6px;border-radius:4px;text-align:right;"></td>
+                        <td><input type="number" class="rw-end" value="${entry.valueEnd || ''}" placeholder="0.00" step="0.01" style="width:100%;background:var(--bg-primary);border:none;color:var(--text-primary);padding:6px;border-radius:4px;text-align:right;"></td>
+                        <td><input type="number" class="rw-days" value="${entry.days || 365}" min="1" max="366" style="width:60px;background:var(--bg-primary);border:none;color:var(--text-primary);padding:6px;border-radius:4px;text-align:center;"></td>
+                        <td><button onclick="removeRWEntry(${idx})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;">🗑️</button></td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+        
+        function updateRWCountry(idx, name) {
+            const row = document.querySelector(`tr[data-rw-idx="${idx}"]`);
+            if (!row) return;
+            
+            const countryInfo = EXCHANGE_COUNTRIES[name] || { country: 'Sconosciuto', code: '---' };
+            row.querySelector('.rw-country').textContent = countryInfo.country;
+            row.querySelector('.rw-code').textContent = countryInfo.code;
+        }
+        
+        function addCustomRWEntry() {
+            const year = rwSelectedYear;
+            if (!rwData[year]) rwData[year] = { entries: [] };
+            
+            // Collect current entries from UI
+            collectRWEntriesFromUI();
+            
+            // Add new empty entry
+            rwData[year].entries.push({
+                name: 'Binance',
+                country: 'Malta',
+                countryCode: 'MLT',
+                valueStart: 0,
+                valueEnd: 0,
+                days: 365
+            });
+            
+            renderRWExchangeInputs();
+        }
+        
+        function removeRWEntry(idx) {
+            collectRWEntriesFromUI();
+            if (rwData[rwSelectedYear]?.entries) {
+                rwData[rwSelectedYear].entries.splice(idx, 1);
+            }
+            renderRWExchangeInputs();
+        }
+        
+        function collectRWEntriesFromUI() {
+            const year = rwSelectedYear;
+            const rows = document.querySelectorAll('#rwExchangeInputs tbody tr');
+            const entries = [];
+            
+            rows.forEach(row => {
+                const name = row.querySelector('.rw-name')?.value || 'Unknown';
+                const countryInfo = EXCHANGE_COUNTRIES[name] || { country: 'Sconosciuto', code: '---' };
+                entries.push({
+                    name,
+                    country: countryInfo.country,
+                    countryCode: countryInfo.code,
+                    valueStart: parseFloat(row.querySelector('.rw-start')?.value) || 0,
+                    valueEnd: parseFloat(row.querySelector('.rw-end')?.value) || 0,
+                    days: parseInt(row.querySelector('.rw-days')?.value) || 365
+                });
+            });
+            
+            if (!rwData[year]) rwData[year] = {};
+            rwData[year].entries = entries;
+        }
+        
+        function saveRWValues() {
+            collectRWEntriesFromUI();
+            
+            // Save to localStorage
+            localStorage.setItem('cryptofolio_rwdata', JSON.stringify(rwData));
+            
+            // Save to Firebase
+            saveToFirebase();
+            
+            alert('✅ Valori Quadro RW salvati!');
+        }
+        
+        function loadRWValues() {
+            // Load from localStorage
+            try {
+                const saved = localStorage.getItem('cryptofolio_rwdata');
+                if (saved) {
+                    rwData = JSON.parse(saved);
                 }
-            }
+            } catch (e) {}
+            
+            renderRWExchangeInputs();
         }
         
-        function updateTaxWalletsList() {
-            const container = document.getElementById('taxWalletsList');
-            if (!container) return;
+        function calculateQuadroRW() {
+            collectRWEntriesFromUI();
             
-            if (savedWallets.length === 0) {
-                container.innerHTML = '<p style="color:var(--red);">⚠️ Nessun wallet salvato. Vai su <strong>Wallets</strong> per aggiungerne.</p>';
-                document.getElementById('taxReportContent').innerHTML = '<div class="empty-state"><div class="icon">👛</div><h3>Aggiungi wallet prima</h3></div>';
+            const year = rwSelectedYear;
+            const entries = rwData[year]?.entries || [];
+            
+            if (entries.length === 0) {
+                alert('⚠️ Inserisci almeno un exchange/wallet');
                 return;
             }
             
-            let html = '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
-            savedWallets.forEach(w => {
+            // Calculate totals
+            let totalStart = 0;
+            let totalEnd = 0;
+            let totalIVAFE = 0;
+            const codiceInvestimento = year >= 2023 ? '21' : '14';
+            
+            let html = `
+                <div style="margin-bottom:16px;padding:12px;background:var(--bg-primary);border-radius:8px;">
+                    <strong>Codice Investimento:</strong> ${codiceInvestimento} ${year >= 2023 ? '(Cripto-attività)' : '(Altre attività finanziarie)'}
+                </div>
+                
+                <table class="holdings-table">
+                    <thead>
+                        <tr>
+                            <th>Exchange/Wallet</th>
+                            <th>Paese</th>
+                            <th>Codice</th>
+                            <th style="text-align:right;">Valore 01/01</th>
+                            <th style="text-align:right;">Valore 31/12</th>
+                            <th style="text-align:center;">Giorni</th>
+                            <th style="text-align:right;">IVAFE (0.2%)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            for (const entry of entries) {
+                // Skip entries with no value
+                if (entry.valueEnd === 0 && entry.valueStart === 0) continue;
+                
+                totalStart += entry.valueStart || 0;
+                totalEnd += entry.valueEnd || 0;
+                
+                // IVAFE = 0.2% * valore 31/12 * (giorni / 365)
+                // Esente se totale < 15.000
+                const ivafe = (entry.valueEnd * 0.002 * (entry.days / 365));
+                totalIVAFE += ivafe;
+                
+                html += `
+                    <tr>
+                        <td style="font-weight:600;">${entry.name}</td>
+                        <td>${entry.country}</td>
+                        <td><code>${entry.countryCode}</code></td>
+                        <td style="text-align:right;">€${(entry.valueStart || 0).toLocaleString('it-IT', {minimumFractionDigits: 2})}</td>
+                        <td style="text-align:right;font-weight:600;">€${(entry.valueEnd || 0).toLocaleString('it-IT', {minimumFractionDigits: 2})}</td>
+                        <td style="text-align:center;">${entry.days}</td>
+                        <td style="text-align:right;">€${ivafe.toLocaleString('it-IT', {minimumFractionDigits: 2})}</td>
+                    </tr>
+                `;
+            }
+            
+            // Totals row
+            html += `
+                    </tbody>
+                    <tfoot>
+                        <tr style="font-weight:bold;background:var(--bg-primary);">
+                            <td colspan="3">TOTALE</td>
+                            <td style="text-align:right;">€${totalStart.toLocaleString('it-IT', {minimumFractionDigits: 2})}</td>
+                            <td style="text-align:right;color:var(--accent);">€${totalEnd.toLocaleString('it-IT', {minimumFractionDigits: 2})}</td>
+                            <td></td>
+                            <td style="text-align:right;">€${totalIVAFE.toLocaleString('it-IT', {minimumFractionDigits: 2})}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            `;
+            
+            // Soglia e avvisi
+            const sopraSoglia = totalEnd >= 15000;
+            html += `
+                <div style="margin-top:20px;padding:16px;border-radius:8px;background:${sopraSoglia ? 'rgba(255,99,99,0.15)' : 'rgba(0,230,118,0.15)'};">
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <span style="font-size:32px;">${sopraSoglia ? '⚠️' : '✅'}</span>
+                        <div>
+                            <strong style="font-size:16px;">${sopraSoglia ? 'OBBLIGO DICHIARAZIONE' : 'SOTTO SOGLIA'}</strong>
+                            <p style="margin:4px 0 0;color:var(--text-secondary);">
+                                ${sopraSoglia 
+                                    ? `Valore al 31/12 (€${totalEnd.toLocaleString('it-IT')}) supera la soglia di €15.000. Devi compilare il Quadro RW.`
+                                    : `Valore al 31/12 (€${totalEnd.toLocaleString('it-IT')}) sotto la soglia di €15.000. Il Quadro RW è facoltativo.`
+                                }
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('rwResultContent').innerHTML = html;
+            
+            // IVAFE summary
+            const ivafeCard = document.getElementById('ivafeSummaryCard');
+            if (sopraSoglia) {
+                const ivafeHtml = `
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+                        <div style="background:var(--bg-primary);padding:16px;border-radius:8px;text-align:center;">
+                            <div style="font-size:12px;color:var(--text-secondary);">Valore al 31/12</div>
+                            <div style="font-size:24px;font-weight:bold;color:var(--accent);">€${totalEnd.toLocaleString('it-IT')}</div>
+                        </div>
+                        <div style="background:var(--bg-primary);padding:16px;border-radius:8px;text-align:center;">
+                            <div style="font-size:12px;color:var(--text-secondary);">Aliquota IVAFE</div>
+                            <div style="font-size:24px;font-weight:bold;">0.2%</div>
+                        </div>
+                        <div style="background:rgba(255,193,7,0.15);padding:16px;border-radius:8px;text-align:center;">
+                            <div style="font-size:12px;color:var(--text-secondary);">IVAFE da pagare</div>
+                            <div style="font-size:24px;font-weight:bold;color:var(--yellow);">€${totalIVAFE.toLocaleString('it-IT', {minimumFractionDigits: 2})}</div>
+                        </div>
+                    </div>
+                    <div style="margin-top:16px;padding:12px;background:var(--bg-primary);border-radius:8px;font-size:13px;">
+                        <strong>📝 Note:</strong><br>
+                        • L'IVAFE è calcolata sul valore al 31/12 proporzionata ai giorni di detenzione<br>
+                        • Formula: Valore × 0.2% × (giorni / 365)<br>
+                        • Verifica con il tuo commercialista per casi particolari
+                    </div>
+                `;
+                ivafeCard.style.display = 'block';
+                document.getElementById('ivafeContent').innerHTML = ivafeHtml;
+            } else {
+                ivafeCard.style.display = 'none';
+            }
+            
+            // Save calculation
+            saveRWValues();
+        }
+        
+        function exportQuadroRW() {
+            collectRWEntriesFromUI();
+            
+            const year = rwSelectedYear;
+            const entries = rwData[year]?.entries || [];
+            const codiceInvestimento = year >= 2023 ? '21' : '14';
+            
+            let csv = 'Exchange/Wallet,Paese,Codice Paese,Codice Investimento,Valore Iniziale (01/01),Valore Finale (31/12),Giorni Detenzione,IVAFE\n';
+            
+            for (const entry of entries) {
+                if (entry.valueEnd === 0 && entry.valueStart === 0) continue;
+                const ivafe = (entry.valueEnd * 0.002 * (entry.days / 365)).toFixed(2);
+                csv += `"${entry.name}","${entry.country}","${entry.countryCode}","${codiceInvestimento}",${entry.valueStart || 0},${entry.valueEnd || 0},${entry.days},${ivafe}\n`;
+            }
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `QuadroRW_${year}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function initQuadroRW() {
+            loadRWValues();
+            renderRWExchangeInputs();
+        }
                 const shortAddr = w.address.slice(0, 6) + '...' + w.address.slice(-4);
                 html += `<span style="background:var(--bg-primary);padding:6px 12px;border-radius:8px;font-size:13px;">👛 ${w.name} <span style="color:var(--text-secondary);">(${shortAddr})</span></span>`;
             });
@@ -2076,17 +2388,6 @@
             document.getElementById('detailWalletName').textContent = wallet.name;
             document.getElementById('detailWalletAddress').textContent = wallet.address;
             
-            // Reset transazioni
-            walletTransactions = [];
-            walletTxFiltered = [];
-            walletTxPage = 1;
-            document.getElementById('walletTxContainer').innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:40px;">Clicca "📥 Carica Transazioni" per vedere lo storico</div>';
-            document.getElementById('walletTxPagination').innerHTML = '';
-            document.getElementById('loadTxBtn').textContent = '📥 Carica Transazioni';
-            document.getElementById('loadTxBtn').disabled = false;
-            document.getElementById('exportTxBtn').style.display = 'none';
-            document.getElementById('walletTxChainFilter').innerHTML = '<option value="all">Tutte le chain</option>';
-            
             displayWalletDetail();
             showView('walletDetail');
         }
@@ -2096,255 +2397,6 @@
                 navigator.clipboard.writeText(currentDetailWallet.address);
                 alert('Indirizzo copiato!');
             }
-        }
-        
-        // ==================== WALLET TRANSACTIONS ====================
-        
-        async function loadWalletTransactions() {
-            if (!currentDetailWallet) return;
-            
-            const etherscanKey = apiKeys.etherscan;
-            if (!etherscanKey) {
-                alert('⚠️ Configura Etherscan API in "API Connect" per vedere le transazioni!');
-                return;
-            }
-            
-            const btn = document.getElementById('loadTxBtn');
-            const container = document.getElementById('walletTxContainer');
-            btn.disabled = true;
-            btn.textContent = '⏳ Caricamento...';
-            container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary);">⏳ Caricamento transazioni...</div>';
-            
-            walletTransactions = [];
-            const address = currentDetailWallet.address;
-            
-            // Carica transazioni da più chain
-            const chainApis = [
-                { chain: 'Ethereum', api: 'https://api.etherscan.io/api', key: etherscanKey, symbol: 'ETH' },
-                { chain: 'Polygon', api: 'https://api.polygonscan.com/api', key: apiKeys.polygonscan || etherscanKey, symbol: 'MATIC' },
-                { chain: 'BSC', api: 'https://api.bscscan.com/api', key: apiKeys.bscscan || etherscanKey, symbol: 'BNB' },
-                { chain: 'Arbitrum', api: 'https://api.arbiscan.io/api', key: apiKeys.arbiscan || etherscanKey, symbol: 'ETH' },
-                { chain: 'Base', api: 'https://api.basescan.org/api', key: apiKeys.basescan || etherscanKey, symbol: 'ETH' }
-            ];
-            
-            for (const chainApi of chainApis) {
-                try {
-                    // Transazioni normali
-                    const normalTx = await fetchEtherscanTx(chainApi.api, address, chainApi.key, 'txlist');
-                    for (const tx of normalTx) {
-                        walletTransactions.push({
-                            ...tx,
-                            chain: chainApi.chain,
-                            type: detectTxType(tx, address),
-                            symbol: chainApi.symbol,
-                            txType: 'normal'
-                        });
-                    }
-                    
-                    // Transazioni token ERC20
-                    const tokenTx = await fetchEtherscanTx(chainApi.api, address, chainApi.key, 'tokentx');
-                    for (const tx of tokenTx) {
-                        walletTransactions.push({
-                            ...tx,
-                            chain: chainApi.chain,
-                            type: detectTxType(tx, address),
-                            symbol: tx.tokenSymbol || 'TOKEN',
-                            txType: 'token'
-                        });
-                    }
-                    
-                    console.log(`✅ ${chainApi.chain}: ${normalTx.length} tx + ${tokenTx.length} token tx`);
-                } catch (e) {
-                    console.warn(`⚠️ ${chainApi.chain}: ${e.message}`);
-                }
-                
-                await new Promise(r => setTimeout(r, 250)); // Rate limit
-            }
-            
-            // Ordina per data (più recenti prima)
-            walletTransactions.sort((a, b) => parseInt(b.timeStamp) - parseInt(a.timeStamp));
-            
-            // Aggiorna filtro chain
-            updateWalletTxChainFilter();
-            
-            // Mostra
-            walletTxFiltered = [...walletTransactions];
-            walletTxPage = 1;
-            renderWalletTransactions();
-            
-            // Mostra pulsante esporta
-            document.getElementById('exportTxBtn').style.display = walletTransactions.length > 0 ? 'inline-flex' : 'none';
-            
-            btn.disabled = false;
-            btn.textContent = `📥 Ricarica (${walletTransactions.length})`;
-        }
-        
-        async function fetchEtherscanTx(apiUrl, address, apiKey, action) {
-            try {
-                const url = `${apiUrl}?module=account&action=${action}&address=${address}&startblock=0&endblock=99999999&page=1&offset=1000&sort=desc&apikey=${apiKey}`;
-                const response = await fetch(url);
-                const data = await response.json();
-                if (data.status === '1' && Array.isArray(data.result)) {
-                    return data.result;
-                }
-                return [];
-            } catch (e) {
-                return [];
-            }
-        }
-        
-        function detectTxType(tx, walletAddress) {
-            const from = (tx.from || '').toLowerCase();
-            const to = (tx.to || '').toLowerCase();
-            const wallet = walletAddress.toLowerCase();
-            
-            if (from === wallet && to === wallet) return 'self';
-            if (from === wallet) return 'out';
-            if (to === wallet) return 'in';
-            return 'other';
-        }
-        
-        function updateWalletTxChainFilter() {
-            const chains = [...new Set(walletTransactions.map(tx => tx.chain))];
-            let options = '<option value="all">Tutte le chain</option>';
-            for (const chain of chains) {
-                const count = walletTransactions.filter(tx => tx.chain === chain).length;
-                options += `<option value="${chain}">${chain} (${count})</option>`;
-            }
-            document.getElementById('walletTxChainFilter').innerHTML = options;
-        }
-        
-        function filterWalletTransactions() {
-            const chainFilter = document.getElementById('walletTxChainFilter').value;
-            walletTxFiltered = walletTransactions.filter(tx => {
-                if (chainFilter !== 'all' && tx.chain !== chainFilter) return false;
-                return true;
-            });
-            walletTxPage = 1;
-            renderWalletTransactions();
-        }
-        
-        function renderWalletTransactions() {
-            const container = document.getElementById('walletTxContainer');
-            
-            if (walletTxFiltered.length === 0) {
-                container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary);">Nessuna transazione trovata</div>';
-                document.getElementById('walletTxPagination').innerHTML = '';
-                return;
-            }
-            
-            // Paginazione
-            const totalPages = Math.ceil(walletTxFiltered.length / WALLET_TX_PER_PAGE);
-            if (walletTxPage > totalPages) walletTxPage = totalPages;
-            if (walletTxPage < 1) walletTxPage = 1;
-            
-            const startIdx = (walletTxPage - 1) * WALLET_TX_PER_PAGE;
-            const endIdx = startIdx + WALLET_TX_PER_PAGE;
-            const pageTx = walletTxFiltered.slice(startIdx, endIdx);
-            
-            let html = '<table class="holdings-table"><thead><tr><th>DATA</th><th>TIPO</th><th>CHAIN</th><th>TOKEN</th><th>IMPORTO</th><th>HASH</th></tr></thead><tbody>';
-            
-            for (const tx of pageTx) {
-                const date = new Date(parseInt(tx.timeStamp) * 1000);
-                const dateStr = date.toLocaleDateString('it-IT');
-                const timeStr = date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
-                
-                // Tipo e colore
-                const typeStyles = {
-                    'in': { icon: '📥', label: 'Ricevuto', bg: 'rgba(0,230,118,0.15)', color: 'var(--green)' },
-                    'out': { icon: '📤', label: 'Inviato', bg: 'rgba(255,99,99,0.15)', color: 'var(--red)' },
-                    'self': { icon: '🔄', label: 'Self', bg: 'rgba(255,193,7,0.15)', color: 'var(--yellow)' },
-                    'other': { icon: '❓', label: 'Altro', bg: 'rgba(150,150,150,0.15)', color: 'var(--text-secondary)' }
-                };
-                const style = typeStyles[tx.type] || typeStyles.other;
-                
-                // Importo
-                let amount = 0;
-                if (tx.txType === 'token') {
-                    const decimals = parseInt(tx.tokenDecimal) || 18;
-                    amount = parseFloat(tx.value) / Math.pow(10, decimals);
-                } else {
-                    amount = parseFloat(tx.value) / 1e18;
-                }
-                const amtColor = tx.type === 'in' ? 'var(--green)' : tx.type === 'out' ? 'var(--red)' : 'var(--text-primary)';
-                const sign = tx.type === 'in' ? '+' : tx.type === 'out' ? '-' : '';
-                
-                // Hash troncato
-                const hashShort = tx.hash ? tx.hash.substring(0, 10) + '...' : '-';
-                const explorerUrl = getExplorerUrl(tx.chain, tx.hash);
-                
-                html += `<tr>
-                    <td><div style="font-size:13px;">${dateStr}</div><div style="font-size:11px;color:var(--text-secondary);">${timeStr}</div></td>
-                    <td><span style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;font-size:12px;background:${style.bg};color:${style.color};">${style.icon} ${style.label}</span></td>
-                    <td style="font-size:12px;">${tx.chain}</td>
-                    <td style="font-weight:600;">${tx.symbol}</td>
-                    <td style="text-align:right;color:${amtColor};font-weight:500;">${sign}${formatNumber(amount)}</td>
-                    <td><a href="${explorerUrl}" target="_blank" style="color:var(--accent);font-size:12px;font-family:monospace;">${hashShort}</a></td>
-                </tr>`;
-            }
-            
-            html += '</tbody></table>';
-            container.innerHTML = html;
-            
-            // Paginazione
-            let pagHtml = '';
-            if (totalPages > 1) {
-                pagHtml = `<div style="display:flex;justify-content:center;align-items:center;gap:12px;">
-                    <button class="btn btn-secondary" style="padding:6px 10px;" onclick="walletTxPage=1;renderWalletTransactions()" ${walletTxPage === 1 ? 'disabled' : ''}>⏮️</button>
-                    <button class="btn btn-secondary" style="padding:6px 10px;" onclick="walletTxPage--;renderWalletTransactions()" ${walletTxPage === 1 ? 'disabled' : ''}>◀️</button>
-                    <span style="color:var(--text-secondary);font-size:13px;">Pagina ${walletTxPage}/${totalPages} (${walletTxFiltered.length} tx)</span>
-                    <button class="btn btn-secondary" style="padding:6px 10px;" onclick="walletTxPage++;renderWalletTransactions()" ${walletTxPage === totalPages ? 'disabled' : ''}>▶️</button>
-                    <button class="btn btn-secondary" style="padding:6px 10px;" onclick="walletTxPage=${totalPages};renderWalletTransactions()" ${walletTxPage === totalPages ? 'disabled' : ''}>⏭️</button>
-                </div>`;
-            }
-            document.getElementById('walletTxPagination').innerHTML = pagHtml;
-        }
-        
-        function getExplorerUrl(chain, hash) {
-            const explorers = {
-                'Ethereum': 'https://etherscan.io/tx/',
-                'Polygon': 'https://polygonscan.com/tx/',
-                'BSC': 'https://bscscan.com/tx/',
-                'Arbitrum': 'https://arbiscan.io/tx/',
-                'Base': 'https://basescan.org/tx/'
-            };
-            return (explorers[chain] || 'https://etherscan.io/tx/') + hash;
-        }
-        
-        function exportWalletTransactions() {
-            if (walletTxFiltered.length === 0) {
-                alert('Nessuna transazione da esportare');
-                return;
-            }
-            
-            let csv = 'Data,Ora,Tipo,Chain,Token,Importo,Da,A,Hash\n';
-            
-            for (const tx of walletTxFiltered) {
-                const date = new Date(parseInt(tx.timeStamp) * 1000);
-                const dateStr = date.toLocaleDateString('it-IT');
-                const timeStr = date.toLocaleTimeString('it-IT');
-                
-                // Importo
-                let amount = 0;
-                if (tx.txType === 'token') {
-                    const decimals = parseInt(tx.tokenDecimal) || 18;
-                    amount = parseFloat(tx.value) / Math.pow(10, decimals);
-                } else {
-                    amount = parseFloat(tx.value) / 1e18;
-                }
-                
-                const typeLabel = tx.type === 'in' ? 'Ricevuto' : tx.type === 'out' ? 'Inviato' : tx.type === 'self' ? 'Self' : 'Altro';
-                
-                csv += `"${dateStr}","${timeStr}","${typeLabel}","${tx.chain}","${tx.symbol}",${amount},"${tx.from}","${tx.to}","${tx.hash}"\n`;
-            }
-            
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${currentDetailWallet?.name || 'wallet'}_transazioni.csv`;
-            a.click();
-            URL.revokeObjectURL(url);
         }
         
         function displayWalletDetail() {
