@@ -281,7 +281,7 @@
                     <button class="btn btn-primary" onclick="saveExchangeValues()" style="padding:8px 16px;">💾 Salva</button>
                 </div>
                 <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px;">Inserisci il valore totale degli exchange al 31 dicembre di ogni anno (in EUR). Questi valori verranno sommati ai wallet.</p>
-                <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;">
+                <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;">
                     <div class="input-group">
                         <label>2021</label>
                         <input type="number" id="exchange2021" placeholder="€" step="0.01" style="text-align:right;">
@@ -301,6 +301,10 @@
                     <div class="input-group">
                         <label>2025</label>
                         <input type="number" id="exchange2025" placeholder="€" step="0.01" style="text-align:right;">
+                    </div>
+                    <div class="input-group">
+                        <label>2026</label>
+                        <input type="number" id="exchange2026" placeholder="€" step="0.01" style="text-align:right;">
                     </div>
                 </div>
                 <div style="margin-top:12px;font-size:12px;color:var(--text-secondary);">
@@ -505,6 +509,43 @@
                 </div>
             </div>
             
+            <!-- Transazioni per Anno -->
+            <div class="card" style="margin-bottom:20px;">
+                <div class="card-header"><div class="card-title">📅 Transazioni per Anno</div></div>
+                <div id="txByYearGrid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-top:12px;">
+                    <div style="background:var(--bg-primary);border-radius:8px;padding:16px;text-align:center;">
+                        <div style="font-size:14px;font-weight:600;color:var(--text-primary);">2021</div>
+                        <div id="txYear2021" style="font-size:22px;font-weight:700;color:var(--accent);margin-top:4px;">0</div>
+                        <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">transazioni</div>
+                    </div>
+                    <div style="background:var(--bg-primary);border-radius:8px;padding:16px;text-align:center;">
+                        <div style="font-size:14px;font-weight:600;color:var(--text-primary);">2022</div>
+                        <div id="txYear2022" style="font-size:22px;font-weight:700;color:var(--accent);margin-top:4px;">0</div>
+                        <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">transazioni</div>
+                    </div>
+                    <div style="background:var(--bg-primary);border-radius:8px;padding:16px;text-align:center;">
+                        <div style="font-size:14px;font-weight:600;color:var(--text-primary);">2023</div>
+                        <div id="txYear2023" style="font-size:22px;font-weight:700;color:var(--accent);margin-top:4px;">0</div>
+                        <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">transazioni</div>
+                    </div>
+                    <div style="background:var(--bg-primary);border-radius:8px;padding:16px;text-align:center;">
+                        <div style="font-size:14px;font-weight:600;color:var(--text-primary);">2024</div>
+                        <div id="txYear2024" style="font-size:22px;font-weight:700;color:var(--accent);margin-top:4px;">0</div>
+                        <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">transazioni</div>
+                    </div>
+                    <div style="background:var(--bg-primary);border-radius:8px;padding:16px;text-align:center;">
+                        <div style="font-size:14px;font-weight:600;color:var(--text-primary);">2025</div>
+                        <div id="txYear2025" style="font-size:22px;font-weight:700;color:var(--accent);margin-top:4px;">0</div>
+                        <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">transazioni</div>
+                    </div>
+                    <div style="background:var(--bg-primary);border-radius:8px;padding:16px;text-align:center;">
+                        <div style="font-size:14px;font-weight:600;color:var(--text-primary);">2026</div>
+                        <div id="txYear2026" style="font-size:22px;font-weight:700;color:var(--accent);margin-top:4px;">0</div>
+                        <div style="font-size:10px;color:var(--text-secondary);margin-top:2px;">transazioni</div>
+                    </div>
+                </div>
+            </div>
+            
             <!-- Tabella Transazioni -->
             <div class="card">
                 <div class="card-header">
@@ -624,7 +665,7 @@
             <!-- TOTALE EXCHANGES -->
             <div class="card" style="margin-bottom:20px;background:linear-gradient(135deg,rgba(243,186,47,0.1),rgba(0,230,118,0.1));">
                 <div class="card-header"><div class="card-title">📊 Totale Exchange per Anno (31/12)</div></div>
-                <div id="exchangeTotalsGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:12px;">
+                <div id="exchangeTotalsGrid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-top:12px;">
                     <div style="background:var(--bg-primary);border-radius:8px;padding:16px;text-align:center;">
                         <div style="font-size:12px;color:var(--text-secondary);">2021</div>
                         <div id="exchTotal2021" style="font-size:18px;font-weight:700;color:var(--green);">€0</div>
@@ -644,6 +685,10 @@
                     <div style="background:var(--bg-primary);border-radius:8px;padding:16px;text-align:center;">
                         <div style="font-size:12px;color:var(--text-secondary);">2025</div>
                         <div id="exchTotal2025" style="font-size:18px;font-weight:700;color:var(--green);">€0</div>
+                    </div>
+                    <div style="background:var(--bg-primary);border-radius:8px;padding:16px;text-align:center;">
+                        <div style="font-size:12px;color:var(--text-secondary);">2026</div>
+                        <div id="exchTotal2026" style="font-size:18px;font-weight:700;color:var(--green);">€0</div>
                     </div>
                 </div>
             </div>
@@ -796,32 +841,32 @@
         };
         
         const HISTORICAL_PRICES = {
-            'ethereum': { 2020: 737, 2021: 3769, 2022: 1196, 2023: 2282, 2024: 3337, 2025: 2950 },
-            'shiba-inu': { 2020: 0, 2021: 0.0000338, 2022: 0.0000081, 2023: 0.0000091, 2024: 0.0000218, 2025: 0.000008 },
-            'bone-shibaswap': { 2020: 0, 2021: 1.71, 2022: 0.93, 2023: 0.47, 2024: 0.42, 2025: 0.08 },
-            'binancecoin': { 2020: 37, 2021: 526, 2022: 244, 2023: 311, 2024: 707, 2025: 680 },
-            'matic-network': { 2020: 0.02, 2021: 2.47, 2022: 0.75, 2023: 0.99, 2024: 0.46, 2025: 0.35 },
-            'pulsechain': { 2020: 0, 2021: 0, 2022: 0, 2023: 0.00005, 2024: 0.00003, 2025: 0.000014 },
-            'hex': { 2020: 0.001, 2021: 0.15, 2022: 0.04, 2023: 0.006, 2024: 0.004, 2025: 0.003 },
-            'pulsex': { 2020: 0, 2021: 0, 2022: 0, 2023: 0.0001, 2024: 0.00005, 2025: 0.00001 },
-            'tether': { 2020: 1, 2021: 1, 2022: 1, 2023: 1, 2024: 1, 2025: 1 },
-            'usd-coin': { 2020: 1, 2021: 1, 2022: 1, 2023: 1, 2024: 1, 2025: 1 },
-            'solana': { 2020: 1.5, 2021: 170, 2022: 9.5, 2023: 100, 2024: 190, 2025: 150 },
-            'bitcoin': { 2020: 29000, 2021: 47700, 2022: 16500, 2023: 42300, 2024: 93400, 2025: 100000 },
-            'ripple': { 2020: 0.22, 2021: 0.83, 2022: 0.35, 2023: 0.62, 2024: 2.08, 2025: 2.30 },
-            'cardano': { 2020: 0.18, 2021: 1.35, 2022: 0.25, 2023: 0.59, 2024: 0.88, 2025: 0.90 },
-            'dogecoin': { 2020: 0.005, 2021: 0.17, 2022: 0.07, 2023: 0.09, 2024: 0.32, 2025: 0.35 },
-            'polkadot': { 2020: 9.5, 2021: 27.8, 2022: 4.3, 2023: 7.9, 2024: 6.9, 2025: 7.0 },
-            'chainlink': { 2020: 11.5, 2021: 19.3, 2022: 5.7, 2023: 15.1, 2024: 14.8, 2025: 15.0 },
-            'avalanche-2': { 2020: 3.5, 2021: 109, 2022: 11.3, 2023: 40.5, 2024: 38.6, 2025: 40.0 },
+            'ethereum': { 2020: 737, 2021: 3769, 2022: 1196, 2023: 2282, 2024: 3337, 2025: 2950, 2026: 3200 },
+            'shiba-inu': { 2020: 0, 2021: 0.0000338, 2022: 0.0000081, 2023: 0.0000091, 2024: 0.0000218, 2025: 0.000008, 2026: 0.00001 },
+            'bone-shibaswap': { 2020: 0, 2021: 1.71, 2022: 0.93, 2023: 0.47, 2024: 0.42, 2025: 0.08, 2026: 0.10 },
+            'binancecoin': { 2020: 37, 2021: 526, 2022: 244, 2023: 311, 2024: 707, 2025: 680, 2026: 700 },
+            'matic-network': { 2020: 0.02, 2021: 2.47, 2022: 0.75, 2023: 0.99, 2024: 0.46, 2025: 0.35, 2026: 0.40 },
+            'pulsechain': { 2020: 0, 2021: 0, 2022: 0, 2023: 0.00005, 2024: 0.00003, 2025: 0.000014, 2026: 0.00002 },
+            'hex': { 2020: 0.001, 2021: 0.15, 2022: 0.04, 2023: 0.006, 2024: 0.004, 2025: 0.003, 2026: 0.004 },
+            'pulsex': { 2020: 0, 2021: 0, 2022: 0, 2023: 0.0001, 2024: 0.00005, 2025: 0.00001, 2026: 0.00002 },
+            'tether': { 2020: 1, 2021: 1, 2022: 1, 2023: 1, 2024: 1, 2025: 1, 2026: 1 },
+            'usd-coin': { 2020: 1, 2021: 1, 2022: 1, 2023: 1, 2024: 1, 2025: 1, 2026: 1 },
+            'solana': { 2020: 1.5, 2021: 170, 2022: 9.5, 2023: 100, 2024: 190, 2025: 150, 2026: 180 },
+            'bitcoin': { 2020: 29000, 2021: 47700, 2022: 16500, 2023: 42300, 2024: 93400, 2025: 100000, 2026: 105000 },
+            'ripple': { 2020: 0.22, 2021: 0.83, 2022: 0.35, 2023: 0.62, 2024: 2.08, 2025: 2.30, 2026: 2.50 },
+            'cardano': { 2020: 0.18, 2021: 1.35, 2022: 0.25, 2023: 0.59, 2024: 0.88, 2025: 0.90, 2026: 1.00 },
+            'dogecoin': { 2020: 0.005, 2021: 0.17, 2022: 0.07, 2023: 0.09, 2024: 0.32, 2025: 0.35, 2026: 0.40 },
+            'polkadot': { 2020: 9.5, 2021: 27.8, 2022: 4.3, 2023: 7.9, 2024: 6.9, 2025: 7.0, 2026: 8.0 },
+            'chainlink': { 2020: 11.5, 2021: 19.3, 2022: 5.7, 2023: 15.1, 2024: 14.8, 2025: 15.0, 2026: 16.0 },
+            'avalanche-2': { 2020: 3.5, 2021: 109, 2022: 11.3, 2023: 40.5, 2024: 38.6, 2025: 40.0, 2026: 45.0 },
             // Aggiunti per Crypto.com e Cosmos
-            'cosmos': { 2020: 5.0, 2021: 44, 2022: 9.3, 2023: 10.5, 2024: 6.7, 2025: 7.0 },
-            'crypto-com-chain': { 2020: 0.06, 2021: 0.60, 2022: 0.057, 2023: 0.073, 2024: 0.12, 2025: 0.10 },
-            'terra-luna': { 2020: 0.64, 2021: 93, 2022: 0.00017, 2023: 0.00015, 2024: 0.00010, 2025: 0.00008 },
-            'osmosis': { 2020: 0, 2021: 10.5, 2022: 0.8, 2023: 0.5, 2024: 0.4, 2025: 0.35 },
-            'litecoin': { 2020: 125, 2021: 148, 2022: 70, 2023: 73, 2024: 103, 2025: 100 },
-            'uniswap': { 2020: 3.5, 2021: 17.5, 2022: 5.2, 2023: 6.3, 2024: 13.5, 2025: 14.0 },
-            'aave': { 2020: 89, 2021: 264, 2022: 51, 2023: 99, 2024: 330, 2025: 350 },
+            'cosmos': { 2020: 5.0, 2021: 44, 2022: 9.3, 2023: 10.5, 2024: 6.7, 2025: 7.0, 2026: 8.0 },
+            'crypto-com-chain': { 2020: 0.06, 2021: 0.60, 2022: 0.057, 2023: 0.073, 2024: 0.12, 2025: 0.10, 2026: 0.12 },
+            'terra-luna': { 2020: 0.64, 2021: 93, 2022: 0.00017, 2023: 0.00015, 2024: 0.00010, 2025: 0.00008, 2026: 0.0001 },
+            'osmosis': { 2020: 0, 2021: 10.5, 2022: 0.8, 2023: 0.5, 2024: 0.4, 2025: 0.35, 2026: 0.40 },
+            'litecoin': { 2020: 125, 2021: 148, 2022: 70, 2023: 73, 2024: 103, 2025: 100, 2026: 110 },
+            'uniswap': { 2020: 3.5, 2021: 17.5, 2022: 5.2, 2023: 6.3, 2024: 13.5, 2025: 14.0, 2026: 15.0 },
+            'aave': { 2020: 89, 2021: 264, 2022: 51, 2023: 99, 2024: 330, 2025: 350, 2026: 370 },
         };
         const YEAR_END_PRICES = HISTORICAL_PRICES; // Alias
         
@@ -853,7 +898,7 @@
         let binanceData = { balances: { spot: [], earn: [], staking: [] }, totals: { spot: 0, earn: 0, staking: 0 }, lastUpdate: null };
         
         // Exchange values per Tax Report (31/12 di ogni anno)
-        let exchangeValues = { 2021: 0, 2022: 0, 2023: 0, 2024: 0, 2025: 0 };
+        let exchangeValues = { 2021: 0, 2022: 0, 2023: 0, 2024: 0, 2025: 0, 2026: 0 };
         
         // Multi-API Moralis (cascata)
         let moralisKeys = []; // Array di API keys
@@ -1150,7 +1195,7 @@
             const container = document.getElementById('taxReportContent');
             const detailCard = document.getElementById('taxDetailCard');
             const detailContent = document.getElementById('taxDetailContent');
-            const years = [2021, 2022, 2023, 2024, 2025];
+            const years = [2021, 2022, 2023, 2024, 2025, 2026];
             
             // Calcola totali includendo exchange
             const combinedTotals = {};
@@ -1207,7 +1252,22 @@
             html += '<span>⚠️ Soglia RW: <strong>€15.000</strong></span>';
             html += '<span style="color:var(--border);">|</span>';
             html += '<span style="color:var(--text-secondary);">📅 ' + new Date(data.calculatedAt || Date.now()).toLocaleString('it-IT') + '</span>';
-            html += '</div></div>';
+            html += '</div>';
+            
+            // Transazioni per anno (se disponibili)
+            const txByYear = countTransactionsByYear();
+            const hasTx = Object.values(txByYear).some(v => v > 0);
+            if (hasTx) {
+                html += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:12px;justify-content:center;align-items:center;font-size:12px;">';
+                html += '<span style="color:var(--text-secondary);">📜 Transazioni:</span>';
+                for (const y of years) {
+                    if (txByYear[y] > 0) {
+                        html += '<span style="background:var(--bg-secondary);padding:4px 8px;border-radius:4px;"><strong>' + y + '</strong>: ' + txByYear[y] + '</span>';
+                    }
+                }
+                html += '</div>';
+            }
+            html += '</div>';
             
             container.innerHTML = html;
             
@@ -1395,7 +1455,7 @@
         }
         
         function saveExchangeValues() {
-            const years = [2021, 2022, 2023, 2024, 2025];
+            const years = [2021, 2022, 2023, 2024, 2025, 2026];
             for (const y of years) {
                 const val = parseFloat(document.getElementById('exchange' + y).value) || 0;
                 exchangeValues[y] = val;
@@ -1410,7 +1470,7 @@
         }
         
         function loadExchangeValuesUI() {
-            const years = [2021, 2022, 2023, 2024, 2025];
+            const years = [2021, 2022, 2023, 2024, 2025, 2026];
             for (const y of years) {
                 const input = document.getElementById('exchange' + y);
                 if (input && exchangeValues[y]) {
@@ -2904,7 +2964,7 @@
             
             container.innerHTML = `<div class="empty-state"><div class="icon">⏳</div><h3>Caricamento ${savedWallets.length} wallet su ${selectedChains.length} chain...</h3></div>`;
             
-            const years = [2021, 2022, 2023, 2024, 2025];
+            const years = [2021, 2022, 2023, 2024, 2025, 2026];
             
             // Totali aggregati per anno
             const grandTotals = {};
@@ -3134,6 +3194,25 @@
         let filteredTransactions = [];
         let currentTxPage = 1;
         
+        // Conta transazioni per anno (da tutti gli exchange)
+        function countTransactionsByYear() {
+            const counts = { 2021: 0, 2022: 0, 2023: 0, 2024: 0, 2025: 0, 2026: 0 };
+            
+            for (const [exchId, data] of Object.entries(exchangeData)) {
+                if (data.transactions && data.transactions.length > 0) {
+                    for (const tx of data.transactions) {
+                        const date = tx.date instanceof Date ? tx.date : new Date(tx.date);
+                        const year = date.getFullYear();
+                        if (counts[year] !== undefined) {
+                            counts[year]++;
+                        }
+                    }
+                }
+            }
+            
+            return counts;
+        }
+        
         function loadAllTransactions() {
             allTransactions = [];
             
@@ -3162,10 +3241,25 @@
             const txCountEl = document.getElementById('txCount');
             if (txCountEl) txCountEl.textContent = allTransactions.length;
             
-            // Aggiorna statistiche
+            // Aggiorna statistiche generali
             document.getElementById('txTotalCount').textContent = allTransactions.length.toLocaleString();
             document.getElementById('txDepositCount').textContent = allTransactions.filter(t => t.type === 'deposit' || t.type === 'fiat_deposit').length.toLocaleString();
             document.getElementById('txWithdrawCount').textContent = allTransactions.filter(t => t.type === 'withdrawal' || t.type === 'fiat_withdrawal').length.toLocaleString();
+            
+            // Conta transazioni per anno
+            const txByYear = { 2021: 0, 2022: 0, 2023: 0, 2024: 0, 2025: 0, 2026: 0 };
+            for (const tx of allTransactions) {
+                const year = tx.date.getFullYear();
+                if (txByYear[year] !== undefined) {
+                    txByYear[year]++;
+                }
+            }
+            
+            // Aggiorna UI transazioni per anno
+            for (const year of [2021, 2022, 2023, 2024, 2025, 2026]) {
+                const el = document.getElementById('txYear' + year);
+                if (el) el.textContent = txByYear[year].toLocaleString();
+            }
             
             // Applica filtri
             filterTransactions();
@@ -3523,8 +3617,8 @@
                 
                 // Totali per anno (se presenti) - con possibilità di modifica manuale
                 if (hasData && data.totals) {
-                    html += '<div style="margin-top:12px;display:grid;grid-template-columns:repeat(5,1fr);gap:6px;font-size:11px;">';
-                    for (const y of [2021, 2022, 2023, 2024, 2025]) {
+                    html += '<div style="margin-top:12px;display:grid;grid-template-columns:repeat(6,1fr);gap:6px;font-size:11px;">';
+                    for (const y of [2021, 2022, 2023, 2024, 2025, 2026]) {
                         const val = data.totals[y] || 0;
                         html += '<div style="background:var(--bg-primary);padding:6px;border-radius:4px;text-align:center;">';
                         html += '<div style="color:var(--text-secondary);">' + y + '</div>';
@@ -3710,10 +3804,10 @@
                 progressBar.style.width = '85%';
                 progressText.textContent = 'Calcolo saldi 31/12...';
                 
-                // Calcola saldi al 31/12
+                // Calcola saldi al 31/12 dalle transazioni
                 const balances = {};
                 const yearEndSnapshots = {};
-                const years = [2021, 2022, 2023, 2024, 2025];
+                const years = [2021, 2022, 2023, 2024, 2025, 2026];
                 let yearIndex = 0;
                 
                 for (const tx of allTransactions) {
@@ -3729,6 +3823,15 @@
                 
                 for (let i = yearIndex; i < years.length; i++) {
                     yearEndSnapshots[years[i]] = { ...balances };
+                }
+                
+                // 🆕 USA SALDI REALI per il 2025 se disponibili!
+                const realBalances = data.realBalances || {};
+                const hasRealBalances = Object.keys(realBalances).length > 0;
+                
+                if (hasRealBalances) {
+                    console.log('✅ Usando SALDI REALI per 2025:', Object.keys(realBalances).length, 'asset');
+                    yearEndSnapshots[2025] = { ...realBalances };
                 }
                 
                 // Calcola totali EUR
@@ -3748,6 +3851,7 @@
                 exchangeData['binance'] = {
                     transactions: allTransactions,
                     balances: yearEndSnapshots,
+                    realBalances: hasRealBalances ? realBalances : null,
                     totals: yearTotals,
                     transactionCount: allTransactions.length,
                     isManual: false,
@@ -3756,16 +3860,31 @@
                 };
                 
                 progressBar.style.width = '100%';
-                progressText.textContent = `✅ ${txCount} transazioni importate!`;
+                const realMsg = hasRealBalances ? ` (con saldi reali!)` : '';
+                progressText.textContent = `✅ ${txCount} transazioni importate${realMsg}`;
                 
                 saveExchangeDataToFirebase();
                 initExchangeGrid();
                 updateExchangeTotals();
                 
+                // Mostra dettagli saldi reali
+                let alertMsg = `✅ Binance importato!\n\n📊 ${txCount} transazioni`;
+                if (hasRealBalances) {
+                    alertMsg += `\n\n💎 SALDI REALI 2025:`;
+                    const topBalances = Object.entries(realBalances)
+                        .filter(([_, amt]) => amt > 0)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 5);
+                    for (const [coin, amt] of topBalances) {
+                        alertMsg += `\n   ${coin}: ${amt.toFixed(amt < 1 ? 6 : 2)}`;
+                    }
+                    alertMsg += `\n\n💰 Totale 2025: €${yearTotals[2025]?.toLocaleString('it-IT') || '?'}`;
+                }
+                
                 // Chiudi modal dopo 1.5 secondi
                 setTimeout(() => {
                     closeBinanceApiModal();
-                    alert(`✅ Binance importato!\n\n📊 ${txCount} transazioni`);
+                    alert(alertMsg);
                 }, 1500);
                 
             } catch (e) {
@@ -3889,7 +4008,7 @@
                     
                     const balances = {};
                     const yearEndSnapshots = {};
-                    const years = [2021, 2022, 2023, 2024, 2025];
+                    const years = [2021, 2022, 2023, 2024, 2025, 2026];
                     let yearIndex = 0;
                     
                     for (const tx of allTransactions) {
@@ -4671,7 +4790,7 @@
             const yearEndBalances = {}; // { 2021: { BTC: 0.5, ... }, ... }
             const yearEndTotals = {}; // { 2021: 12345, ... }
             
-            const years = [2021, 2022, 2023, 2024, 2025];
+            const years = [2021, 2022, 2023, 2024, 2025, 2026];
             let currentYearIndex = 0;
             
             // Prima trova la data più vecchia
@@ -4774,7 +4893,7 @@
         }
         
         function updateExchangeTotals() {
-            const years = [2021, 2022, 2023, 2024, 2025];
+            const years = [2021, 2022, 2023, 2024, 2025, 2026];
             const totals = { 2021: 0, 2022: 0, 2023: 0, 2024: 0, 2025: 0 };
             
             for (const exchId of Object.keys(exchangeData)) {
@@ -4854,7 +4973,7 @@
         
         function saveManualExchangeValues(exchId) {
             // Leggi tutti i valori dagli input
-            const years = [2021, 2022, 2023, 2024, 2025];
+            const years = [2021, 2022, 2023, 2024, 2025, 2026];
             if (!exchangeData[exchId]) {
                 exchangeData[exchId] = { totals: {}, balances: {}, transactions: [], isManual: true };
             }
