@@ -493,14 +493,7 @@
         
         <!-- EXCHANGES -->
         <div class="main-content" id="exchangesView" style="display:none;">
-            <div class="header"><h1>🏦 Exchanges - Import CSV</h1><div class="header-actions"><button class="btn btn-secondary" onclick="clearAllExchangeData()" style="margin-right:8px;">🗑️ Reset All</button><button class="btn btn-primary" onclick="recalculateAllExchanges()">🧮 Ricalcola</button></div></div>
-            
-            <div class="card" style="margin-bottom:20px;">
-                <p style="color:var(--text-secondary);font-size:14px;line-height:1.6;">
-                    Importa i <strong>CSV delle transazioni</strong> per calcolare i saldi al 31/12 di ogni anno (per il Tax Report).<br>
-                    Trascina un <strong>file ZIP</strong> (con cartelle per anno) o <strong>singoli CSV</strong>.
-                </p>
-            </div>
+            <div class="header"><h1>🏦 Exchanges</h1><div class="header-actions"><button class="btn btn-secondary" onclick="clearAllExchangeData()" style="margin-right:8px;">🗑️ Reset All</button><button class="btn btn-primary" onclick="recalculateAllExchanges()">🧮 Ricalcola</button></div></div>
             
             <!-- TOTALE EXCHANGES -->
             <div class="card" style="margin-bottom:20px;background:linear-gradient(135deg,rgba(243,186,47,0.1),rgba(0,230,118,0.1));">
@@ -533,8 +526,135 @@
                 </div>
             </div>
             
-            <!-- EXCHANGE GRID -->
-            <div id="exchangeGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;"></div>
+            <!-- EXCHANGE GRID - Card compatte -->
+            <div id="exchangeGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;"></div>
+        </div>
+        
+        <!-- EXCHANGE DETAIL VIEW -->
+        <div class="main-content" id="exchangeDetailView" style="display:none;">
+            <div class="header">
+                <div style="display:flex;align-items:center;gap:16px;">
+                    <button class="btn btn-secondary" onclick="showView('exchanges')" style="padding:8px 12px;">← Indietro</button>
+                    <h1 id="exchDetailName">Exchange</h1>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="clearCurrentExchangeData()" style="margin-right:8px;">🗑️ Reset</button>
+                    <button class="btn btn-primary" id="exchDetailScanBtn" onclick="scanCurrentExchange()">🔄 Aggiorna</button>
+                </div>
+            </div>
+            
+            <!-- Info Exchange -->
+            <div class="card" style="margin-bottom:20px;">
+                <div style="display:flex;align-items:center;gap:16px;">
+                    <div id="exchDetailLogo" style="width:64px;height:64px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px;"></div>
+                    <div style="flex:1;">
+                        <div id="exchDetailStatus" style="font-size:13px;color:var(--text-secondary);"></div>
+                        <div id="exchDetailLastUpdate" style="font-size:12px;color:var(--text-secondary);margin-top:6px;"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Totali per Anno -->
+            <div class="card" style="margin-bottom:20px;">
+                <div class="card-header"><div class="card-title">💰 Valore al 31/12</div></div>
+                <div id="exchDetailYearGrid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-top:12px;"></div>
+            </div>
+            
+            <!-- Azioni -->
+            <div class="card" style="margin-bottom:20px;">
+                <div class="card-header"><div class="card-title">⚡ Azioni</div></div>
+                <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;">
+                    <!-- Binance API -->
+                    <div id="exchDetailApiSection" style="display:none;">
+                        <button class="btn" onclick="openBinanceApiModal()" style="background:#f3ba2f;color:#000;">
+                            🔗 Connetti API Binance
+                        </button>
+                        <span id="exchDetailServerStatus" style="margin-left:8px;font-size:12px;"></span>
+                    </div>
+                    
+                    <!-- CSV Import -->
+                    <div>
+                        <input type="file" id="exchDetailFileInput" accept=".csv,.zip" multiple style="display:none;" onchange="handleExchDetailFileSelect(event)">
+                        <button class="btn btn-secondary" onclick="document.getElementById('exchDetailFileInput').click()">
+                            📁 Importa CSV/ZIP
+                        </button>
+                    </div>
+                    
+                    <!-- Dropzone -->
+                    <div id="exchDetailDropzone" 
+                         style="flex:1;min-width:200px;border:2px dashed var(--border);border-radius:8px;padding:20px;text-align:center;color:var(--text-secondary);cursor:pointer;"
+                         ondrop="handleExchDetailDrop(event)" 
+                         ondragover="event.preventDefault();this.style.borderColor='var(--accent)';this.style.background='rgba(108,92,231,0.1)'"
+                         ondragleave="this.style.borderColor='var(--border)';this.style.background='transparent'"
+                         onclick="document.getElementById('exchDetailFileInput').click()">
+                        📥 Trascina CSV o ZIP qui
+                    </div>
+                </div>
+                
+                <!-- Progress -->
+                <div id="exchDetailProgress" style="display:none;margin-top:16px;">
+                    <div style="background:var(--bg-primary);border-radius:4px;height:8px;overflow:hidden;">
+                        <div id="exchDetailProgressBar" style="background:var(--accent);height:100%;width:0%;transition:width 0.3s;"></div>
+                    </div>
+                    <div id="exchDetailProgressText" style="font-size:12px;color:var(--text-secondary);margin-top:8px;text-align:center;"></div>
+                </div>
+            </div>
+            
+            <!-- Saldi Reali (per Binance) -->
+            <div id="exchDetailBalancesSection" class="card" style="margin-bottom:20px;display:none;">
+                <div class="card-header">
+                    <div class="card-title">💎 Saldi Reali</div>
+                    <button class="btn btn-secondary" onclick="showAllExchBalances()" style="padding:6px 12px;font-size:12px;">👁️ Vedi tutti</button>
+                </div>
+                <div id="exchDetailBalances" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:12px;"></div>
+            </div>
+            
+            <!-- Transazioni -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">📜 Transazioni (<span id="exchDetailTxCount">0</span>)</div>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <select id="exchDetailTxYear" onchange="filterExchDetailTx()" style="padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px;">
+                            <option value="">Tutti gli anni</option>
+                            <option value="2021">2021</option>
+                            <option value="2022">2022</option>
+                            <option value="2023">2023</option>
+                            <option value="2024">2024</option>
+                            <option value="2025">2025</option>
+                            <option value="2026">2026</option>
+                        </select>
+                        <select id="exchDetailTxType" onchange="filterExchDetailTx()" style="padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px;">
+                            <option value="">Tutti i tipi</option>
+                            <option value="deposit">📥 Deposit</option>
+                            <option value="withdrawal">📤 Withdrawal</option>
+                            <option value="trade">📊 Trade</option>
+                            <option value="convert">🔄 Convert</option>
+                            <option value="staking">🥩 Staking</option>
+                            <option value="interest">💰 Interest</option>
+                        </select>
+                        <button class="btn btn-secondary" onclick="exportExchDetailTx()" style="padding:6px 12px;font-size:12px;">📥 CSV</button>
+                    </div>
+                </div>
+                <div style="overflow-x:auto;margin-top:12px;">
+                    <table class="holdings-table" style="table-layout:auto;">
+                        <thead>
+                            <tr>
+                                <th style="width:130px;">Data</th>
+                                <th style="width:80px;">Tipo</th>
+                                <th style="width:80px;">Coin</th>
+                                <th style="width:100px;text-align:right;">Importo</th>
+                                <th>Operazione</th>
+                            </tr>
+                        </thead>
+                        <tbody id="exchDetailTxTable">
+                            <tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-secondary);">
+                                Nessuna transazione
+                            </td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="exchDetailTxPagination" style="display:flex;justify-content:center;gap:8px;margin-top:16px;"></div>
+            </div>
         </div>
         
         <!-- RICONCILIAZIONE VIEW -->
@@ -969,6 +1089,7 @@
             document.getElementById('walletDetailView').style.display = view === 'walletDetail' ? 'block' : 'none';
             document.getElementById('nftView').style.display = view === 'nft' ? 'block' : 'none';
             document.getElementById('exchangesView').style.display = view === 'exchanges' ? 'block' : 'none';
+            document.getElementById('exchangeDetailView').style.display = view === 'exchangeDetail' ? 'block' : 'none';
             document.getElementById('reconcileView').style.display = view === 'reconcile' ? 'block' : 'none';
             document.getElementById('taxView').style.display = view === 'tax' ? 'block' : 'none';
             document.getElementById('apiView').style.display = view === 'api' ? 'block' : 'none';
@@ -979,6 +1100,7 @@
                     (view === 'walletDetail' && i === 1) || 
                     (view === 'nft' && i === 2) ||
                     (view === 'exchanges' && i === 3) ||
+                    (view === 'exchangeDetail' && i === 3) ||
                     (view === 'reconcile' && i === 4) ||
                     (view === 'tax' && i === 5) ||
                     (view === 'api' && i === 6)
@@ -3180,6 +3302,11 @@
             alert(details);
         }
         
+        // ==================== EXCHANGE DETAIL VIEW ====================
+        let currentDetailExchange = null;
+        let exchDetailTxPage = 1;
+        let exchDetailFilteredTx = [];
+        
         function initExchangeGrid() {
             const grid = document.getElementById('exchangeGrid');
             if (!grid) return;
@@ -3187,120 +3314,333 @@
             let html = '';
             for (const exch of EXCHANGE_LIST) {
                 const data = exchangeData[exch.id] || {};
-                // Controlla se ci sono transazioni O dati salvati (transactionCount o totali)
                 const hasTx = (data.transactions && data.transactions.length > 0);
                 const hasData = hasTx || data.transactionCount > 0 || data.isZeroed || data.isManual || (data.totals && Object.values(data.totals).some(v => v > 0));
                 const txCount = data.transactions ? data.transactions.length : (data.transactionCount || 0);
-                const total2024 = data.totals ? (data.totals[2024] || 0) : 0;
+                const total2025 = data.totals ? (data.totals[2025] || 0) : 0;
+                const total2026 = data.totals ? (data.totals[2026] || 0) : 0;
+                const displayTotal = total2026 > 0 ? total2026 : total2025;
+                const displayYear = total2026 > 0 ? '2026' : '2025';
                 const isZeroed = data.isZeroed || false;
-                const isManual = data.isManual || false;
                 const source = data.source || '';
                 
-                html += '<div class="card exchange-card" id="exch-' + exch.id + '" style="position:relative;overflow:hidden;">';
-                html += '<div class="card-header" style="cursor:pointer;" onclick="toggleExchangeDropzone(\'' + exch.id + '\')">';
-                html += '<div class="card-title" style="display:flex;align-items:center;gap:12px;">';
+                // Card compatta cliccabile
+                html += `<div class="card" style="cursor:pointer;transition:all 0.2s;border:2px solid transparent;" 
+                         onclick="openExchangeDetail('${exch.id}')"
+                         onmouseover="this.style.borderColor='var(--accent)'"
+                         onmouseout="this.style.borderColor='transparent'">`;
+                html += '<div style="display:flex;align-items:center;gap:12px;">';
                 
-                // Logo o icona fallback
+                // Logo
                 if (exch.logo) {
-                    html += '<img src="' + exch.logo + '" style="width:40px;height:40px;border-radius:10px;object-fit:cover;" onerror="this.outerHTML=\'<span style=\\\'width:40px;height:40px;background:' + exch.color + ';border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:bold;color:#fff;\\\'>' + exch.icon + '</span>\'">';
+                    html += `<img src="${exch.logo}" style="width:48px;height:48px;border-radius:12px;object-fit:cover;" 
+                             onerror="this.outerHTML='<span style=\\'width:48px;height:48px;background:${exch.color};border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:bold;color:#fff;\\'>${exch.icon}</span>'">`;
                 } else {
-                    html += '<span style="width:40px;height:40px;background:' + exch.color + ';border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:bold;color:#fff;">' + exch.icon + '</span>';
+                    html += `<span style="width:48px;height:48px;background:${exch.color};border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:bold;color:#fff;">${exch.icon}</span>`;
                 }
                 
-                html += '<div><div style="font-size:14px;">' + exch.name + '</div>';
+                // Info
+                html += '<div style="flex:1;min-width:0;">';
+                html += `<div style="font-size:15px;font-weight:600;">${exch.name}</div>`;
+                
                 if (isZeroed) {
-                    html += '<div style="font-size:11px;color:var(--yellow);">⚠️ Azzerato (vuoto)</div>';
+                    html += '<div style="font-size:11px;color:var(--yellow);">⚠️ Azzerato</div>';
                 } else if (source === 'api') {
-                    html += '<div style="font-size:11px;color:var(--green);">✓ ' + txCount + ' tx (via API)</div>';
-                } else if (isManual && txCount === 0) {
-                    html += '<div style="font-size:11px;color:var(--accent);">✏️ Valori manuali</div>';
+                    html += `<div style="font-size:11px;color:var(--green);">✓ ${txCount} tx via API</div>`;
+                } else if (hasData && txCount > 0) {
+                    html += `<div style="font-size:11px;color:var(--green);">✓ ${txCount} transazioni</div>`;
                 } else if (hasData) {
-                    html += '<div style="font-size:11px;color:var(--green);">✓ ' + (txCount > 0 ? txCount + ' tx' : 'Dati salvati') + '</div>';
+                    html += '<div style="font-size:11px;color:var(--accent);">✓ Dati salvati</div>';
                 } else {
-                    html += '<div style="font-size:11px;color:var(--text-secondary);">📂 Importa CSV' + (exch.hasApi ? ' o 🔌 API' : '') + '</div>';
+                    html += `<div style="font-size:11px;color:var(--text-secondary);">Clicca per configurare</div>`;
                 }
-                html += '</div></div>';
-                if (hasData && total2024 > 0) {
-                    html += '<div style="text-align:right;"><div style="font-size:11px;color:var(--text-secondary);">2024</div><div style="font-size:16px;font-weight:700;color:var(--green);">€' + formatEUR(total2024) + '</div></div>';
+                html += '</div>';
+                
+                // Totale
+                if (hasData && displayTotal > 0) {
+                    html += `<div style="text-align:right;">
+                        <div style="font-size:10px;color:var(--text-secondary);">${displayYear}</div>
+                        <div style="font-size:18px;font-weight:700;color:var(--green);">€${Math.round(displayTotal)}</div>
+                    </div>`;
                 } else if (isZeroed) {
-                    html += '<div style="text-align:right;"><div style="font-size:11px;color:var(--text-secondary);">2024</div><div style="font-size:16px;font-weight:700;color:var(--yellow);">€0,00</div></div>';
-                }
-                html += '</div>';
-                
-                // Dropzone (nascosta inizialmente)
-                html += '<div id="dropzone-' + exch.id + '" class="exchange-dropzone" style="display:none;margin-top:16px;">';
-                
-                // Se ha API (Binance), mostra bottone per aprire modal
-                if (exch.hasApi) {
-                    const hasApiKeys = apiKeys.binanceTaxKey && apiKeys.binanceTaxSecret;
-                    html += '<div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;">';
-                    html += '<button class="btn" onclick="openBinanceApiModal()" style="background:linear-gradient(135deg, #f3ba2f, #f0b90b);color:#000;font-size:13px;flex:1;display:flex;align-items:center;justify-content:center;gap:8px;">';
-                    html += '<span>🔌</span> Importa via API';
-                    if (hasApiKeys) html += ' <span style="font-size:10px;opacity:0.7;">(configurato)</span>';
-                    html += '</button>';
-                    html += '<span id="serverStatus-' + exch.id + '" style="font-size:10px;padding:4px 10px;border-radius:12px;background:var(--red);color:#fff;white-space:nowrap;">⚫ OFF</span>';
-                    html += '</div>';
+                    html += `<div style="text-align:right;">
+                        <div style="font-size:10px;color:var(--text-secondary);">2025</div>
+                        <div style="font-size:18px;font-weight:700;color:var(--yellow);">€0</div>
+                    </div>`;
+                } else {
+                    html += '<div style="font-size:24px;color:var(--text-secondary);">→</div>';
                 }
                 
-                // Dropzone CSV/ZIP
-                html += '<div style="border:2px dashed var(--border);border-radius:8px;padding:24px;text-align:center;transition:all 0.3s;"';
-                html += ' ondragover="handleDragOver(event, \'' + exch.id + '\')" ondragleave="handleDragLeave(event, \'' + exch.id + '\')" ondrop="handleDrop(event, \'' + exch.id + '\')">';
-                html += '<div style="font-size:32px;margin-bottom:8px;">📂</div>';
-                html += '<div style="color:var(--text-secondary);font-size:13px;">Trascina ZIP o CSV qui</div>';
-                html += '<input type="file" id="file-' + exch.id + '" accept=".csv,.zip" multiple style="display:none;" onchange="handleFileSelect(event, \'' + exch.id + '\')">';
-                html += '<button class="btn btn-secondary" onclick="document.getElementById(\'file-' + exch.id + '\').click()" style="margin-top:12px;font-size:12px;">📁 Sfoglia</button>';
-                html += '<button class="btn" onclick="enableManualEntry(\'' + exch.id + '\')" style="margin-top:12px;margin-left:8px;font-size:12px;background:var(--accent);">✏️ Manuale</button>';
-                if (hasData) {
-                    html += '<button class="btn" onclick="zeroExchangeData(\'' + exch.id + '\')" style="margin-top:12px;margin-left:8px;font-size:12px;background:var(--yellow);color:#000;">🔄 Azzera</button>';
-                    html += '<button class="btn" onclick="clearExchangeData(\'' + exch.id + '\')" style="margin-top:12px;margin-left:8px;font-size:12px;background:var(--red);">🗑️ Reset</button>';
-                }
-                html += '</div>';
-                html += '</div>'; // Fine dropzone container
-                
-                // Totali per anno (se presenti) - NON modificabili + conteggio transazioni
-                if (hasData && data.totals) {
-                    // Conta transazioni per anno per questo exchange
-                    const txByYear = { 2021: 0, 2022: 0, 2023: 0, 2024: 0, 2025: 0, 2026: 0 };
-                    if (data.transactions && data.transactions.length > 0) {
-                        for (const tx of data.transactions) {
-                            const txDate = tx.date instanceof Date ? tx.date : new Date(tx.date);
-                            const year = txDate.getFullYear();
-                            if (txByYear[year] !== undefined) {
-                                txByYear[year]++;
-                            }
-                        }
-                    }
-                    
-                    html += '<div style="margin-top:12px;display:grid;grid-template-columns:repeat(6,1fr);gap:6px;font-size:11px;">';
-                    for (const y of [2021, 2022, 2023, 2024, 2025, 2026]) {
-                        const val = data.totals[y] || 0;
-                        const txCount = txByYear[y] || 0;
-                        html += '<div style="background:var(--bg-primary);padding:8px 4px;border-radius:6px;text-align:center;cursor:pointer;" onclick="showYearDetails(\'' + exch.id + '\',' + y + ')" title="Clicca per dettagli">';
-                        html += '<div style="font-size:12px;font-weight:600;color:var(--text-primary);">' + y + '</div>';
-                        html += '<div style="font-size:14px;font-weight:700;color:var(--green);margin:4px 0;">€' + val.toFixed(0) + '</div>';
-                        if (txCount > 0) {
-                            html += '<div style="font-size:9px;color:var(--accent);background:rgba(108,92,231,0.15);padding:2px 4px;border-radius:3px;">' + txCount + ' tx</div>';
-                        } else {
-                            html += '<div style="font-size:9px;color:var(--text-secondary);">-</div>';
-                        }
-                        html += '</div>';
-                    }
-                    html += '</div>';
-                    
-                    // Mostra totale transazioni
-                    const totalTx = data.transactionCount || (data.transactions ? data.transactions.length : 0);
-                    if (totalTx > 0) {
-                        html += '<div style="margin-top:8px;text-align:center;font-size:11px;color:var(--text-secondary);">📜 ' + totalTx + ' transazioni totali | <a href="#" onclick="showExchangeBalances(\'' + exch.id + '\');return false;" style="color:var(--accent);">👁️ Vedi saldi</a></div>';
-                    }
-                }
-                
-                html += '</div>';
+                html += '</div></div>';
             }
             
             grid.innerHTML = html;
+        }
+        
+        function openExchangeDetail(exchId) {
+            currentDetailExchange = exchId;
+            const exch = EXCHANGE_LIST.find(e => e.id === exchId);
+            const data = exchangeData[exchId] || {};
             
-            // Verifica automaticamente lo stato del server Binance
-            checkBinanceServerStatus();
+            if (!exch) return;
+            
+            // Header
+            document.getElementById('exchDetailName').textContent = exch.name;
+            
+            // Logo
+            const logoDiv = document.getElementById('exchDetailLogo');
+            if (exch.logo) {
+                logoDiv.innerHTML = `<img src="${exch.logo}" style="width:64px;height:64px;border-radius:16px;object-fit:cover;" 
+                    onerror="this.outerHTML='<span style=\\'width:64px;height:64px;background:${exch.color};border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:bold;color:#fff;\\'>${exch.icon}</span>'">`;
+            } else {
+                logoDiv.innerHTML = `<span style="width:64px;height:64px;background:${exch.color};border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:bold;color:#fff;">${exch.icon}</span>`;
+            }
+            
+            // Status
+            const txCount = data.transactions?.length || data.transactionCount || 0;
+            const source = data.source || 'csv';
+            let statusText = '';
+            if (data.isZeroed) {
+                statusText = '⚠️ Exchange azzerato (nessun saldo)';
+            } else if (source === 'api') {
+                statusText = `✅ ${txCount} transazioni importate via API`;
+            } else if (txCount > 0) {
+                statusText = `✅ ${txCount} transazioni importate da CSV`;
+            } else if (data.isManual) {
+                statusText = '✏️ Valori inseriti manualmente';
+            } else {
+                statusText = '📂 Nessun dato importato';
+            }
+            document.getElementById('exchDetailStatus').textContent = statusText;
+            
+            // Last update
+            if (data.lastImport) {
+                const date = new Date(data.lastImport);
+                document.getElementById('exchDetailLastUpdate').textContent = `Ultimo aggiornamento: ${date.toLocaleString('it-IT')}`;
+            } else {
+                document.getElementById('exchDetailLastUpdate').textContent = '';
+            }
+            
+            // Year grid
+            renderExchDetailYearGrid(data);
+            
+            // API section (solo Binance)
+            const apiSection = document.getElementById('exchDetailApiSection');
+            if (exch.hasApi) {
+                apiSection.style.display = 'block';
+                checkBinanceServerStatus();
+            } else {
+                apiSection.style.display = 'none';
+            }
+            
+            // Balances section
+            const balancesSection = document.getElementById('exchDetailBalancesSection');
+            if (data.realBalances && Object.keys(data.realBalances).length > 0) {
+                balancesSection.style.display = 'block';
+                renderExchDetailBalances(data.realBalances);
+            } else {
+                balancesSection.style.display = 'none';
+            }
+            
+            // Transactions
+            document.getElementById('exchDetailTxCount').textContent = txCount;
+            exchDetailTxPage = 1;
+            filterExchDetailTx();
+            
+            showView('exchangeDetail');
+        }
+        
+        function renderExchDetailYearGrid(data) {
+            const container = document.getElementById('exchDetailYearGrid');
+            const years = [2021, 2022, 2023, 2024, 2025, 2026];
+            
+            // Conta transazioni per anno
+            const txByYear = { 2021: 0, 2022: 0, 2023: 0, 2024: 0, 2025: 0, 2026: 0 };
+            if (data.transactions) {
+                for (const tx of data.transactions) {
+                    const d = tx.date instanceof Date ? tx.date : new Date(tx.date);
+                    const y = d.getFullYear();
+                    if (txByYear[y] !== undefined) txByYear[y]++;
+                }
+            }
+            
+            let html = '';
+            for (const y of years) {
+                const val = data.totals?.[y] || 0;
+                const txCount = txByYear[y];
+                html += `<div style="background:var(--bg-primary);padding:12px 8px;border-radius:8px;text-align:center;cursor:pointer;" 
+                         onclick="showYearDetails('${currentDetailExchange}',${y})" title="Clicca per dettagli">
+                    <div style="font-size:13px;font-weight:600;color:var(--text-primary);">${y}</div>
+                    <div style="font-size:20px;font-weight:700;color:var(--green);margin:6px 0;">€${Math.round(val)}</div>
+                    ${txCount > 0 ? `<div style="font-size:10px;color:var(--accent);background:rgba(108,92,231,0.15);padding:3px 6px;border-radius:4px;display:inline-block;">${txCount} tx</div>` : '<div style="font-size:10px;color:var(--text-secondary);">-</div>'}
+                </div>`;
+            }
+            container.innerHTML = html;
+        }
+        
+        function renderExchDetailBalances(balances) {
+            const container = document.getElementById('exchDetailBalances');
+            const items = Object.entries(balances)
+                .filter(([_, amt]) => amt > 0)
+                .sort((a, b) => {
+                    const priceA = getHistoricalPrice(a[0], 2026) * a[1];
+                    const priceB = getHistoricalPrice(b[0], 2026) * b[1];
+                    return priceB - priceA;
+                })
+                .slice(0, 8);
+            
+            let html = '';
+            for (const [coin, amount] of items) {
+                const price = getHistoricalPrice(coin, 2026);
+                const eurValue = amount * price * EUR_USD;
+                const amtStr = amount < 1 ? amount.toFixed(4) : amount.toLocaleString('it-IT', { maximumFractionDigits: 2 });
+                html += `<div style="background:var(--bg-primary);padding:10px;border-radius:6px;">
+                    <div style="font-weight:600;font-size:13px;">${coin}</div>
+                    <div style="font-size:12px;color:var(--text-secondary);">${amtStr}</div>
+                    <div style="font-size:14px;font-weight:600;color:var(--green);">€${eurValue.toFixed(2)}</div>
+                </div>`;
+            }
+            container.innerHTML = html || '<div style="color:var(--text-secondary);">Nessun saldo</div>';
+        }
+        
+        function showAllExchBalances() {
+            if (currentDetailExchange) {
+                showExchangeBalances(currentDetailExchange);
+            }
+        }
+        
+        function filterExchDetailTx() {
+            const data = exchangeData[currentDetailExchange] || {};
+            const transactions = data.transactions || [];
+            const yearFilter = document.getElementById('exchDetailTxYear')?.value || '';
+            const typeFilter = document.getElementById('exchDetailTxType')?.value || '';
+            
+            exchDetailFilteredTx = transactions.filter(tx => {
+                const d = tx.date instanceof Date ? tx.date : new Date(tx.date);
+                if (yearFilter && d.getFullYear().toString() !== yearFilter) return false;
+                if (typeFilter && tx.type !== typeFilter) return false;
+                return true;
+            });
+            
+            // Ordina per data desc
+            exchDetailFilteredTx.sort((a, b) => {
+                const da = a.date instanceof Date ? a.date : new Date(a.date);
+                const db = b.date instanceof Date ? b.date : new Date(b.date);
+                return db - da;
+            });
+            
+            exchDetailTxPage = 1;
+            renderExchDetailTxTable();
+        }
+        
+        function renderExchDetailTxTable() {
+            const tbody = document.getElementById('exchDetailTxTable');
+            const perPage = 50;
+            
+            if (exchDetailFilteredTx.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-secondary);">Nessuna transazione</td></tr>';
+                document.getElementById('exchDetailTxPagination').innerHTML = '';
+                return;
+            }
+            
+            const start = (exchDetailTxPage - 1) * perPage;
+            const pageTx = exchDetailFilteredTx.slice(start, start + perPage);
+            
+            const typeColors = {
+                deposit: { bg: 'rgba(0,206,201,0.15)', color: 'var(--green)', icon: '📥' },
+                fiat_deposit: { bg: 'rgba(0,206,201,0.15)', color: 'var(--green)', icon: '💶' },
+                withdrawal: { bg: 'rgba(255,107,107,0.15)', color: 'var(--red)', icon: '📤' },
+                fiat_withdrawal: { bg: 'rgba(255,107,107,0.15)', color: 'var(--red)', icon: '💶' },
+                trade: { bg: 'rgba(108,92,231,0.15)', color: 'var(--accent)', icon: '📊' },
+                convert: { bg: 'rgba(243,186,47,0.15)', color: '#f3ba2f', icon: '🔄' },
+                staking: { bg: 'rgba(0,206,201,0.15)', color: 'var(--green)', icon: '🥩' },
+                interest: { bg: 'rgba(0,206,201,0.15)', color: 'var(--green)', icon: '💰' },
+                dividend: { bg: 'rgba(0,206,201,0.15)', color: 'var(--green)', icon: '🎁' },
+                fee: { bg: 'rgba(255,107,107,0.15)', color: 'var(--red)', icon: '💸' }
+            };
+            
+            let html = '';
+            for (const tx of pageTx) {
+                const d = tx.date instanceof Date ? tx.date : new Date(tx.date);
+                const dateStr = d.toLocaleDateString('it-IT');
+                const timeStr = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+                const style = typeColors[tx.type] || { bg: 'rgba(160,160,160,0.15)', color: 'var(--text-secondary)', icon: '•' };
+                const amt = tx.amount || 0;
+                const change = tx.change || 0;
+                const amtColor = change >= 0 ? 'var(--green)' : 'var(--red)';
+                
+                html += `<tr>
+                    <td><div style="font-size:12px;">${dateStr}</div><div style="font-size:10px;color:var(--text-secondary);">${timeStr}</div></td>
+                    <td><span style="display:inline-flex;align-items:center;gap:3px;padding:3px 6px;border-radius:4px;font-size:10px;background:${style.bg};color:${style.color};">${style.icon} ${tx.type || '-'}</span></td>
+                    <td style="font-weight:600;">${tx.coin || '-'}</td>
+                    <td style="text-align:right;color:${amtColor};font-weight:600;">${formatNumber(amt)}</td>
+                    <td style="font-size:11px;color:var(--text-secondary);">${tx.operation || '-'}</td>
+                </tr>`;
+            }
+            tbody.innerHTML = html;
+            
+            // Pagination
+            const totalPages = Math.ceil(exchDetailFilteredTx.length / perPage);
+            if (totalPages > 1) {
+                let pagHtml = '';
+                pagHtml += `<button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;" onclick="exchDetailTxPage--;renderExchDetailTxTable()" ${exchDetailTxPage === 1 ? 'disabled' : ''}>←</button>`;
+                pagHtml += `<span style="font-size:12px;color:var(--text-secondary);margin:0 8px;">Pagina ${exchDetailTxPage}/${totalPages}</span>`;
+                pagHtml += `<button class="btn btn-secondary" style="padding:4px 8px;font-size:11px;" onclick="exchDetailTxPage++;renderExchDetailTxTable()" ${exchDetailTxPage === totalPages ? 'disabled' : ''}>→</button>`;
+                document.getElementById('exchDetailTxPagination').innerHTML = pagHtml;
+            } else {
+                document.getElementById('exchDetailTxPagination').innerHTML = '';
+            }
+        }
+        
+        function exportExchDetailTx() {
+            if (exchDetailFilteredTx.length === 0) {
+                alert('Nessuna transazione da esportare');
+                return;
+            }
+            let csv = 'Data,Tipo,Coin,Importo,Change,Operazione\n';
+            for (const tx of exchDetailFilteredTx) {
+                const d = tx.date instanceof Date ? tx.date : new Date(tx.date);
+                csv += `"${d.toISOString()}","${tx.type || ''}","${tx.coin || ''}",${tx.amount || 0},${tx.change || 0},"${tx.operation || ''}"\n`;
+            }
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentDetailExchange}_transazioni.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function clearCurrentExchangeData() {
+            if (currentDetailExchange && confirm(`Vuoi eliminare tutti i dati di ${currentDetailExchange}?`)) {
+                clearExchangeData(currentDetailExchange);
+                showView('exchanges');
+            }
+        }
+        
+        function scanCurrentExchange() {
+            if (currentDetailExchange === 'binance') {
+                openBinanceApiModal();
+            } else {
+                document.getElementById('exchDetailFileInput').click();
+            }
+        }
+        
+        function handleExchDetailFileSelect(event) {
+            const files = event.target.files;
+            if (files.length > 0 && currentDetailExchange) {
+                processExchangeFiles(files, currentDetailExchange);
+            }
+        }
+        
+        function handleExchDetailDrop(event) {
+            event.preventDefault();
+            event.target.style.borderColor = 'var(--border)';
+            event.target.style.background = 'transparent';
+            const files = event.dataTransfer.files;
+            if (files.length > 0 && currentDetailExchange) {
+                processExchangeFiles(files, currentDetailExchange);
+            }
         }
         
         // ==================== EXCHANGE API FUNCTIONS ====================
