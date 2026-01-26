@@ -259,6 +259,26 @@
             </div>
             
             <div id="detailChainsContent"></div>
+            
+            <!-- TRANSAZIONI WALLET -->
+            <div class="card" style="margin-top:20px;">
+                <div class="card-header">
+                    <div class="card-title">📜 Transazioni</div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <select id="walletTxChainFilter" onchange="filterWalletTransactions()" style="background:var(--bg-primary);color:var(--text-primary);border:none;padding:8px 12px;border-radius:6px;">
+                            <option value="all">Tutte le chain</option>
+                        </select>
+                        <button class="btn btn-secondary" onclick="exportWalletTransactions()" id="exportTxBtn" style="display:none;">📤 Esporta CSV</button>
+                        <button class="btn btn-primary" onclick="loadWalletTransactions()" id="loadTxBtn">📥 Carica Transazioni</button>
+                    </div>
+                </div>
+                <div id="walletTxContainer" style="max-height:500px;overflow-y:auto;">
+                    <div style="color:var(--text-secondary);text-align:center;padding:40px;">
+                        Clicca "📥 Carica Transazioni" per vedere lo storico
+                    </div>
+                </div>
+                <div id="walletTxPagination" style="padding:12px 0;"></div>
+            </div>
         </div>
         
         <!-- TAX REPORT -->
@@ -872,6 +892,12 @@
         let nftBlacklist = []; // Array di NFT ID da nascondere (scam): "contract_tokenId"
         let nftPage = 1; // Pagina corrente NFT
         const NFT_PER_PAGE = 50; // NFT per pagina
+        
+        // Wallet transactions
+        let walletTransactions = []; // Transazioni del wallet corrente
+        let walletTxFiltered = []; // Transazioni filtrate
+        let walletTxPage = 1;
+        const WALLET_TX_PER_PAGE = 50;
         
         // Exchange data from CSV imports
         let exchangeData = {}; // { binance: { transactions: [], balances: {2021: {BTC: 0.5, ...}}, totals: {2021: 1234, ...} }, ... }
@@ -2043,6 +2069,17 @@
             document.getElementById('detailWalletName').textContent = wallet.name;
             document.getElementById('detailWalletAddress').textContent = wallet.address;
             
+            // Reset transazioni
+            walletTransactions = [];
+            walletTxFiltered = [];
+            walletTxPage = 1;
+            document.getElementById('walletTxContainer').innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:40px;">Clicca "📥 Carica Transazioni" per vedere lo storico</div>';
+            document.getElementById('walletTxPagination').innerHTML = '';
+            document.getElementById('loadTxBtn').textContent = '📥 Carica Transazioni';
+            document.getElementById('loadTxBtn').disabled = false;
+            document.getElementById('exportTxBtn').style.display = 'none';
+            document.getElementById('walletTxChainFilter').innerHTML = '<option value="all">Tutte le chain</option>';
+            
             displayWalletDetail();
             showView('walletDetail');
         }
@@ -2052,6 +2089,255 @@
                 navigator.clipboard.writeText(currentDetailWallet.address);
                 alert('Indirizzo copiato!');
             }
+        }
+        
+        // ==================== WALLET TRANSACTIONS ====================
+        
+        async function loadWalletTransactions() {
+            if (!currentDetailWallet) return;
+            
+            const etherscanKey = apiKeys.etherscan;
+            if (!etherscanKey) {
+                alert('⚠️ Configura Etherscan API in "API Connect" per vedere le transazioni!');
+                return;
+            }
+            
+            const btn = document.getElementById('loadTxBtn');
+            const container = document.getElementById('walletTxContainer');
+            btn.disabled = true;
+            btn.textContent = '⏳ Caricamento...';
+            container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary);">⏳ Caricamento transazioni...</div>';
+            
+            walletTransactions = [];
+            const address = currentDetailWallet.address;
+            
+            // Carica transazioni da più chain
+            const chainApis = [
+                { chain: 'Ethereum', api: 'https://api.etherscan.io/api', key: etherscanKey, symbol: 'ETH' },
+                { chain: 'Polygon', api: 'https://api.polygonscan.com/api', key: apiKeys.polygonscan || etherscanKey, symbol: 'MATIC' },
+                { chain: 'BSC', api: 'https://api.bscscan.com/api', key: apiKeys.bscscan || etherscanKey, symbol: 'BNB' },
+                { chain: 'Arbitrum', api: 'https://api.arbiscan.io/api', key: apiKeys.arbiscan || etherscanKey, symbol: 'ETH' },
+                { chain: 'Base', api: 'https://api.basescan.org/api', key: apiKeys.basescan || etherscanKey, symbol: 'ETH' }
+            ];
+            
+            for (const chainApi of chainApis) {
+                try {
+                    // Transazioni normali
+                    const normalTx = await fetchEtherscanTx(chainApi.api, address, chainApi.key, 'txlist');
+                    for (const tx of normalTx) {
+                        walletTransactions.push({
+                            ...tx,
+                            chain: chainApi.chain,
+                            type: detectTxType(tx, address),
+                            symbol: chainApi.symbol,
+                            txType: 'normal'
+                        });
+                    }
+                    
+                    // Transazioni token ERC20
+                    const tokenTx = await fetchEtherscanTx(chainApi.api, address, chainApi.key, 'tokentx');
+                    for (const tx of tokenTx) {
+                        walletTransactions.push({
+                            ...tx,
+                            chain: chainApi.chain,
+                            type: detectTxType(tx, address),
+                            symbol: tx.tokenSymbol || 'TOKEN',
+                            txType: 'token'
+                        });
+                    }
+                    
+                    console.log(`✅ ${chainApi.chain}: ${normalTx.length} tx + ${tokenTx.length} token tx`);
+                } catch (e) {
+                    console.warn(`⚠️ ${chainApi.chain}: ${e.message}`);
+                }
+                
+                await new Promise(r => setTimeout(r, 250)); // Rate limit
+            }
+            
+            // Ordina per data (più recenti prima)
+            walletTransactions.sort((a, b) => parseInt(b.timeStamp) - parseInt(a.timeStamp));
+            
+            // Aggiorna filtro chain
+            updateWalletTxChainFilter();
+            
+            // Mostra
+            walletTxFiltered = [...walletTransactions];
+            walletTxPage = 1;
+            renderWalletTransactions();
+            
+            // Mostra pulsante esporta
+            document.getElementById('exportTxBtn').style.display = walletTransactions.length > 0 ? 'inline-flex' : 'none';
+            
+            btn.disabled = false;
+            btn.textContent = `📥 Ricarica (${walletTransactions.length})`;
+        }
+        
+        async function fetchEtherscanTx(apiUrl, address, apiKey, action) {
+            try {
+                const url = `${apiUrl}?module=account&action=${action}&address=${address}&startblock=0&endblock=99999999&page=1&offset=1000&sort=desc&apikey=${apiKey}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                if (data.status === '1' && Array.isArray(data.result)) {
+                    return data.result;
+                }
+                return [];
+            } catch (e) {
+                return [];
+            }
+        }
+        
+        function detectTxType(tx, walletAddress) {
+            const from = (tx.from || '').toLowerCase();
+            const to = (tx.to || '').toLowerCase();
+            const wallet = walletAddress.toLowerCase();
+            
+            if (from === wallet && to === wallet) return 'self';
+            if (from === wallet) return 'out';
+            if (to === wallet) return 'in';
+            return 'other';
+        }
+        
+        function updateWalletTxChainFilter() {
+            const chains = [...new Set(walletTransactions.map(tx => tx.chain))];
+            let options = '<option value="all">Tutte le chain</option>';
+            for (const chain of chains) {
+                const count = walletTransactions.filter(tx => tx.chain === chain).length;
+                options += `<option value="${chain}">${chain} (${count})</option>`;
+            }
+            document.getElementById('walletTxChainFilter').innerHTML = options;
+        }
+        
+        function filterWalletTransactions() {
+            const chainFilter = document.getElementById('walletTxChainFilter').value;
+            walletTxFiltered = walletTransactions.filter(tx => {
+                if (chainFilter !== 'all' && tx.chain !== chainFilter) return false;
+                return true;
+            });
+            walletTxPage = 1;
+            renderWalletTransactions();
+        }
+        
+        function renderWalletTransactions() {
+            const container = document.getElementById('walletTxContainer');
+            
+            if (walletTxFiltered.length === 0) {
+                container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary);">Nessuna transazione trovata</div>';
+                document.getElementById('walletTxPagination').innerHTML = '';
+                return;
+            }
+            
+            // Paginazione
+            const totalPages = Math.ceil(walletTxFiltered.length / WALLET_TX_PER_PAGE);
+            if (walletTxPage > totalPages) walletTxPage = totalPages;
+            if (walletTxPage < 1) walletTxPage = 1;
+            
+            const startIdx = (walletTxPage - 1) * WALLET_TX_PER_PAGE;
+            const endIdx = startIdx + WALLET_TX_PER_PAGE;
+            const pageTx = walletTxFiltered.slice(startIdx, endIdx);
+            
+            let html = '<table class="holdings-table"><thead><tr><th>DATA</th><th>TIPO</th><th>CHAIN</th><th>TOKEN</th><th>IMPORTO</th><th>HASH</th></tr></thead><tbody>';
+            
+            for (const tx of pageTx) {
+                const date = new Date(parseInt(tx.timeStamp) * 1000);
+                const dateStr = date.toLocaleDateString('it-IT');
+                const timeStr = date.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+                
+                // Tipo e colore
+                const typeStyles = {
+                    'in': { icon: '📥', label: 'Ricevuto', bg: 'rgba(0,230,118,0.15)', color: 'var(--green)' },
+                    'out': { icon: '📤', label: 'Inviato', bg: 'rgba(255,99,99,0.15)', color: 'var(--red)' },
+                    'self': { icon: '🔄', label: 'Self', bg: 'rgba(255,193,7,0.15)', color: 'var(--yellow)' },
+                    'other': { icon: '❓', label: 'Altro', bg: 'rgba(150,150,150,0.15)', color: 'var(--text-secondary)' }
+                };
+                const style = typeStyles[tx.type] || typeStyles.other;
+                
+                // Importo
+                let amount = 0;
+                if (tx.txType === 'token') {
+                    const decimals = parseInt(tx.tokenDecimal) || 18;
+                    amount = parseFloat(tx.value) / Math.pow(10, decimals);
+                } else {
+                    amount = parseFloat(tx.value) / 1e18;
+                }
+                const amtColor = tx.type === 'in' ? 'var(--green)' : tx.type === 'out' ? 'var(--red)' : 'var(--text-primary)';
+                const sign = tx.type === 'in' ? '+' : tx.type === 'out' ? '-' : '';
+                
+                // Hash troncato
+                const hashShort = tx.hash ? tx.hash.substring(0, 10) + '...' : '-';
+                const explorerUrl = getExplorerUrl(tx.chain, tx.hash);
+                
+                html += `<tr>
+                    <td><div style="font-size:13px;">${dateStr}</div><div style="font-size:11px;color:var(--text-secondary);">${timeStr}</div></td>
+                    <td><span style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;font-size:12px;background:${style.bg};color:${style.color};">${style.icon} ${style.label}</span></td>
+                    <td style="font-size:12px;">${tx.chain}</td>
+                    <td style="font-weight:600;">${tx.symbol}</td>
+                    <td style="text-align:right;color:${amtColor};font-weight:500;">${sign}${formatNumber(amount)}</td>
+                    <td><a href="${explorerUrl}" target="_blank" style="color:var(--accent);font-size:12px;font-family:monospace;">${hashShort}</a></td>
+                </tr>`;
+            }
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+            
+            // Paginazione
+            let pagHtml = '';
+            if (totalPages > 1) {
+                pagHtml = `<div style="display:flex;justify-content:center;align-items:center;gap:12px;">
+                    <button class="btn btn-secondary" style="padding:6px 10px;" onclick="walletTxPage=1;renderWalletTransactions()" ${walletTxPage === 1 ? 'disabled' : ''}>⏮️</button>
+                    <button class="btn btn-secondary" style="padding:6px 10px;" onclick="walletTxPage--;renderWalletTransactions()" ${walletTxPage === 1 ? 'disabled' : ''}>◀️</button>
+                    <span style="color:var(--text-secondary);font-size:13px;">Pagina ${walletTxPage}/${totalPages} (${walletTxFiltered.length} tx)</span>
+                    <button class="btn btn-secondary" style="padding:6px 10px;" onclick="walletTxPage++;renderWalletTransactions()" ${walletTxPage === totalPages ? 'disabled' : ''}>▶️</button>
+                    <button class="btn btn-secondary" style="padding:6px 10px;" onclick="walletTxPage=${totalPages};renderWalletTransactions()" ${walletTxPage === totalPages ? 'disabled' : ''}>⏭️</button>
+                </div>`;
+            }
+            document.getElementById('walletTxPagination').innerHTML = pagHtml;
+        }
+        
+        function getExplorerUrl(chain, hash) {
+            const explorers = {
+                'Ethereum': 'https://etherscan.io/tx/',
+                'Polygon': 'https://polygonscan.com/tx/',
+                'BSC': 'https://bscscan.com/tx/',
+                'Arbitrum': 'https://arbiscan.io/tx/',
+                'Base': 'https://basescan.org/tx/'
+            };
+            return (explorers[chain] || 'https://etherscan.io/tx/') + hash;
+        }
+        
+        function exportWalletTransactions() {
+            if (walletTxFiltered.length === 0) {
+                alert('Nessuna transazione da esportare');
+                return;
+            }
+            
+            let csv = 'Data,Ora,Tipo,Chain,Token,Importo,Da,A,Hash\n';
+            
+            for (const tx of walletTxFiltered) {
+                const date = new Date(parseInt(tx.timeStamp) * 1000);
+                const dateStr = date.toLocaleDateString('it-IT');
+                const timeStr = date.toLocaleTimeString('it-IT');
+                
+                // Importo
+                let amount = 0;
+                if (tx.txType === 'token') {
+                    const decimals = parseInt(tx.tokenDecimal) || 18;
+                    amount = parseFloat(tx.value) / Math.pow(10, decimals);
+                } else {
+                    amount = parseFloat(tx.value) / 1e18;
+                }
+                
+                const typeLabel = tx.type === 'in' ? 'Ricevuto' : tx.type === 'out' ? 'Inviato' : tx.type === 'self' ? 'Self' : 'Altro';
+                
+                csv += `"${dateStr}","${timeStr}","${typeLabel}","${tx.chain}","${tx.symbol}",${amount},"${tx.from}","${tx.to}","${tx.hash}"\n`;
+            }
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentDetailWallet?.name || 'wallet'}_transazioni.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
         }
         
         function displayWalletDetail() {
