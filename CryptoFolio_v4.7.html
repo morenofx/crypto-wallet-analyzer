@@ -1902,25 +1902,55 @@
             return results;
         }
         
-        // ==================== WALLET TRANSACTIONS (MORALIS) ====================
+        // ==================== WALLET TRANSACTIONS (MORALIS + ETHERSCAN FALLBACK) ====================
         
-        // Scarica transazioni native (ETH, BNB transfers)
-        async function fetchNativeTxMoralis(addr, chainKey, cursor = null, retryCount = 0) {
-            // Assicura che le keys siano caricate
-            if (moralisKeys.length === 0) {
-                loadMoralisKeys();
-                console.log(`🔑 Keys caricate: ${moralisKeys.length}`);
+        // Etherscan API endpoints
+        const ETHERSCAN_TX_APIS = {
+            eth: 'https://api.etherscan.io/api',
+            bsc: 'https://api.bscscan.com/api',
+            polygon: 'https://api.polygonscan.com/api',
+            arbitrum: 'https://api.arbiscan.io/api',
+            base: 'https://api.basescan.org/api'
+        };
+        
+        // Scarica transazioni via Etherscan (fallback)
+        async function fetchTxEtherscan(addr, chainKey, type = 'native') {
+            const apiUrl = ETHERSCAN_TX_APIS[chainKey];
+            const etherscanKey = apiKeys.etherscan;
+            if (!apiUrl || !etherscanKey) return [];
+            
+            try {
+                const action = type === 'native' ? 'txlist' : 'tokentx';
+                const url = `${apiUrl}?module=account&action=${action}&address=${addr}&startblock=0&endblock=99999999&sort=desc&apikey=${etherscanKey}`;
+                
+                const res = await fetch(url);
+                const data = await res.json();
+                
+                if (data.status === '1' && Array.isArray(data.result)) {
+                    return data.result;
+                }
+                return [];
+            } catch (e) {
+                console.error(`Etherscan error (${chainKey}):`, e);
+                return [];
             }
+        }
+        
+        // Scarica transazioni native (ETH, BNB transfers) - Moralis con Etherscan fallback
+        async function fetchNativeTxMoralis(addr, chainKey, cursor = null, retryCount = 0) {
+            if (moralisKeys.length === 0) loadMoralisKeys();
             
             const moralisKey = getMoralisKey();
             const chain = MORALIS_CHAINS[chainKey];
             
-            if (!moralisKey) {
-                console.log(`❌ Nessuna Moralis key disponibile!`);
-                return { result: [], cursor: null };
-            }
-            if (!chain) {
-                console.log(`❌ Chain ${chainKey} non supportata da Moralis`);
+            // Se non c'è Moralis o chain non supportata, prova Etherscan
+            if (!moralisKey || !chain) {
+                if (ETHERSCAN_TX_APIS[chainKey] && apiKeys.etherscan) {
+                    console.log(`📡 Etherscan fallback native tx: ${chainKey}`);
+                    const results = await fetchTxEtherscan(addr, chainKey, 'native');
+                    console.log(`✅ Etherscan: ${results.length} native tx from ${chainKey}`);
+                    return { result: results, cursor: null, source: 'etherscan' };
+                }
                 return { result: [], cursor: null };
             }
             
@@ -1931,45 +1961,60 @@
                 console.log(`📡 Moralis native tx: ${chainKey} (key #${currentMoralisKeyIndex + 1}/${moralisKeys.length})`);
                 const res = await fetch(url, { headers: { 'X-API-Key': moralisKey } });
                 
-                console.log(`📡 Response status: ${res.status}`);
-                
                 if (res.status === 429 || res.status === 401) {
-                    console.log(`⚠️ Key #${currentMoralisKeyIndex + 1} fallita (${res.status}), provo rotazione...`);
+                    // Prova rotazione
                     if (rotateMoralisKey(`status ${res.status}`) && retryCount < moralisKeys.length) {
                         await new Promise(r => setTimeout(r, 300));
                         return fetchNativeTxMoralis(addr, chainKey, cursor, retryCount + 1);
                     }
-                    console.log(`❌ Tutte le ${moralisKeys.length} keys esaurite!`);
+                    
+                    // Tutte le key Moralis fallite - usa Etherscan
+                    if (ETHERSCAN_TX_APIS[chainKey] && apiKeys.etherscan) {
+                        console.log(`⚠️ Moralis esaurito, uso Etherscan per ${chainKey}`);
+                        const results = await fetchTxEtherscan(addr, chainKey, 'native');
+                        console.log(`✅ Etherscan fallback: ${results.length} native tx`);
+                        return { result: results, cursor: null, source: 'etherscan' };
+                    }
                     return { result: [], cursor: null };
                 }
                 
-                if (!res.ok) {
-                    console.log(`❌ Errore Moralis: ${res.status}`);
-                    return { result: [], cursor: null };
-                }
+                if (!res.ok) return { result: [], cursor: null };
                 
                 const data = await res.json();
-                console.log(`✅ Got ${data.result?.length || 0} native tx from ${chainKey}`);
-                return { result: data.result || [], cursor: data.cursor || null };
+                console.log(`✅ Moralis: ${data.result?.length || 0} native tx from ${chainKey}`);
+                return { result: data.result || [], cursor: data.cursor || null, source: 'moralis' };
             } catch (e) {
-                console.error('Moralis native tx error:', e);
+                console.error('Moralis error:', e);
+                // Fallback Etherscan
+                if (ETHERSCAN_TX_APIS[chainKey] && apiKeys.etherscan) {
+                    const results = await fetchTxEtherscan(addr, chainKey, 'native');
+                    return { result: results, cursor: null, source: 'etherscan' };
+                }
                 return { result: [], cursor: null };
             }
         }
         
-        // Scarica trasferimenti token ERC20
+        // Scarica trasferimenti token ERC20 - Moralis con Etherscan fallback
         async function fetchTokenTxMoralis(addr, chainKey, cursor = null, retryCount = 0) {
             if (moralisKeys.length === 0) loadMoralisKeys();
             
             const moralisKey = getMoralisKey();
             const chain = MORALIS_CHAINS[chainKey];
-            if (!moralisKey || !chain) return { result: [], cursor: null };
+            
+            if (!moralisKey || !chain) {
+                if (ETHERSCAN_TX_APIS[chainKey] && apiKeys.etherscan) {
+                    console.log(`📡 Etherscan fallback token tx: ${chainKey}`);
+                    const results = await fetchTxEtherscan(addr, chainKey, 'token');
+                    console.log(`✅ Etherscan: ${results.length} token tx from ${chainKey}`);
+                    return { result: results, cursor: null, source: 'etherscan' };
+                }
+                return { result: [], cursor: null };
+            }
             
             try {
                 let url = `https://deep-index.moralis.io/api/v2.2/${addr}/erc20/transfers?chain=${chain}&limit=100`;
                 if (cursor) url += `&cursor=${cursor}`;
                 
-                console.log(`📡 Moralis token tx: ${chainKey} (key #${currentMoralisKeyIndex + 1})`);
                 const res = await fetch(url, { headers: { 'X-API-Key': moralisKey } });
                 
                 if (res.status === 429 || res.status === 401) {
@@ -1977,14 +2022,25 @@
                         await new Promise(r => setTimeout(r, 300));
                         return fetchTokenTxMoralis(addr, chainKey, cursor, retryCount + 1);
                     }
+                    
+                    // Fallback Etherscan
+                    if (ETHERSCAN_TX_APIS[chainKey] && apiKeys.etherscan) {
+                        console.log(`⚠️ Moralis esaurito, uso Etherscan per ${chainKey}`);
+                        const results = await fetchTxEtherscan(addr, chainKey, 'token');
+                        console.log(`✅ Etherscan fallback: ${results.length} token tx`);
+                        return { result: results, cursor: null, source: 'etherscan' };
+                    }
                     return { result: [], cursor: null };
                 }
                 
                 const data = await res.json();
-                console.log(`✅ Got ${data.result?.length || 0} token tx from ${chainKey}`);
-                return { result: data.result || [], cursor: data.cursor || null };
+                console.log(`✅ Moralis: ${data.result?.length || 0} token tx from ${chainKey}`);
+                return { result: data.result || [], cursor: data.cursor || null, source: 'moralis' };
             } catch (e) {
-                console.error('Moralis token tx error:', e);
+                if (ETHERSCAN_TX_APIS[chainKey] && apiKeys.etherscan) {
+                    const results = await fetchTxEtherscan(addr, chainKey, 'token');
+                    return { result: results, cursor: null, source: 'etherscan' };
+                }
                 return { result: [], cursor: null };
             }
         }
@@ -1992,11 +2048,9 @@
         // Scarica tutte le transazioni per un wallet (formato compatto)
         async function downloadWalletTransactions(addr, progressCallback) {
             const addrLower = addr.toLowerCase();
-            const chainsToScan = ['eth', 'polygon', 'bsc', 'arbitrum', 'base', 'cronos'].filter(c => MORALIS_CHAINS[c]);
+            const chainsToScan = ['eth', 'polygon', 'bsc', 'arbitrum', 'base'];
             
             console.log(`🚀 Download transazioni per ${addrLower.slice(0,10)}...`);
-            console.log(`⛓️ Chains: ${chainsToScan.join(', ')}`);
-            console.log(`🔑 API keys disponibili: ${moralisKeys.length}`);
             
             const nativeTx = [];
             const tokenTx = [];
@@ -2005,65 +2059,73 @@
                 const chainSymbol = CHAINS[chainKey]?.symbol || 'ETH';
                 
                 // Download native transactions
-                let cursor = null;
-                let pageCount = 0;
-                const maxPages = 10;
+                if (progressCallback) progressCallback(`${CHAINS[chainKey]?.name || chainKey} native...`);
+                const { result: nativeResult, source: nativeSource } = await fetchNativeTxMoralis(addr, chainKey, null);
                 
-                do {
-                    if (progressCallback) progressCallback(`${CHAINS[chainKey]?.name || chainKey} native...`);
-                    const { result, cursor: newCursor } = await fetchNativeTxMoralis(addr, chainKey, cursor);
+                for (const tx of nativeResult) {
+                    let value, date;
                     
-                    for (const tx of result) {
-                        const value = tx.value ? Number(tx.value) / 1e18 : 0;
-                        if (value < 0.0000001) continue;
-                        
-                        nativeTx.push({
-                            d: tx.block_timestamp?.slice(0, 10) || '',
-                            t: tx.to_address?.toLowerCase() === addrLower ? 'in' : 'out',
-                            s: chainSymbol,
-                            a: value,
-                            h: tx.hash?.slice(0, 10) || '',
-                            c: chainKey
-                        });
+                    if (nativeSource === 'etherscan') {
+                        value = tx.value ? Number(tx.value) / 1e18 : 0;
+                        date = tx.timeStamp ? new Date(tx.timeStamp * 1000).toISOString().slice(0, 10) : '';
+                    } else {
+                        value = tx.value ? Number(tx.value) / 1e18 : 0;
+                        date = tx.block_timestamp?.slice(0, 10) || '';
                     }
                     
-                    cursor = newCursor;
-                    pageCount++;
-                    await new Promise(r => setTimeout(r, 200));
-                } while (cursor && pageCount < maxPages);
+                    if (value < 0.0000001) continue;
+                    
+                    const toAddr = (nativeSource === 'etherscan' ? tx.to : tx.to_address)?.toLowerCase();
+                    
+                    nativeTx.push({
+                        d: date,
+                        t: toAddr === addrLower ? 'in' : 'out',
+                        s: chainSymbol,
+                        a: value,
+                        h: tx.hash?.slice(0, 10) || '',
+                        c: chainKey
+                    });
+                }
+                
+                await new Promise(r => setTimeout(r, 250));
                 
                 // Download token transfers
-                cursor = null;
-                pageCount = 0;
+                if (progressCallback) progressCallback(`${CHAINS[chainKey]?.name || chainKey} token...`);
+                const { result: tokenResult, source: tokenSource } = await fetchTokenTxMoralis(addr, chainKey, null);
                 
-                do {
-                    if (progressCallback) progressCallback(`${CHAINS[chainKey]?.name || chainKey} token...`);
-                    const { result, cursor: newCursor } = await fetchTokenTxMoralis(addr, chainKey, cursor);
+                for (const tx of tokenResult) {
+                    let symbol, name, value, date, toAddr;
                     
-                    for (const tx of result) {
-                        const symbol = tx.token_symbol || 'UNKNOWN';
-                        const name = tx.token_name || symbol;
-                        
-                        if (isSpam(name, symbol)) continue;
-                        
+                    if (tokenSource === 'etherscan') {
+                        symbol = tx.tokenSymbol || 'UNKNOWN';
+                        name = tx.tokenName || symbol;
+                        const decimals = parseInt(tx.tokenDecimal) || 18;
+                        value = tx.value ? Number(tx.value) / Math.pow(10, decimals) : 0;
+                        date = tx.timeStamp ? new Date(tx.timeStamp * 1000).toISOString().slice(0, 10) : '';
+                        toAddr = tx.to?.toLowerCase();
+                    } else {
+                        symbol = tx.token_symbol || 'UNKNOWN';
+                        name = tx.token_name || symbol;
                         const decimals = parseInt(tx.token_decimals) || 18;
-                        const value = tx.value ? Number(tx.value) / Math.pow(10, decimals) : 0;
-                        if (value < 0.0000001) continue;
-                        
-                        tokenTx.push({
-                            d: tx.block_timestamp?.slice(0, 10) || '',
-                            t: tx.to_address?.toLowerCase() === addrLower ? 'in' : 'out',
-                            s: symbol,
-                            a: value,
-                            h: tx.transaction_hash?.slice(0, 10) || '',
-                            c: chainKey
-                        });
+                        value = tx.value ? Number(tx.value) / Math.pow(10, decimals) : 0;
+                        date = tx.block_timestamp?.slice(0, 10) || '';
+                        toAddr = tx.to_address?.toLowerCase();
                     }
                     
-                    cursor = newCursor;
-                    pageCount++;
-                    await new Promise(r => setTimeout(r, 200));
-                } while (cursor && pageCount < maxPages);
+                    if (isSpam(name, symbol)) continue;
+                    if (value < 0.0000001) continue;
+                    
+                    tokenTx.push({
+                        d: date,
+                        t: toAddr === addrLower ? 'in' : 'out',
+                        s: symbol,
+                        a: value,
+                        h: (tx.hash || tx.transaction_hash)?.slice(0, 10) || '',
+                        c: chainKey
+                    });
+                }
+                
+                await new Promise(r => setTimeout(r, 250));
             }
             
             console.log(`📊 Download completato: ${nativeTx.length} native + ${tokenTx.length} token = ${nativeTx.length + tokenTx.length} totali`);
@@ -2618,7 +2680,8 @@
             };
             
             // Download transazioni se Moralis disponibile
-            if (apiKeys.moralis && addr.startsWith('0x')) {
+            // Download transazioni se API disponibile (Moralis o Etherscan)
+            if ((apiKeys.moralis || apiKeys.etherscan) && addr.startsWith('0x')) {
                 const scanDateEl = document.getElementById('detailScanDate');
                 
                 // Progress bar HTML
@@ -3196,8 +3259,8 @@
                 const walletTotal = results.reduce((s, t) => s + t.valueUSD, 0);
                 log(`   💰 Totale ${wallet.name}: $${formatNum(walletTotal)}`, 'success');
                 
-                // Download transazioni se wallet EVM e Moralis disponibile
-                if (!isSolanaWallet && apiKeys.moralis) {
+                // Download transazioni se wallet EVM e API disponibile (Moralis o Etherscan)
+                if (!isSolanaWallet && (apiKeys.moralis || apiKeys.etherscan)) {
                     const addrLower = wallet.address.toLowerCase();
                     const existingTx = walletTransactions[addrLower];
                     const txAge = existingTx ? (Date.now() - (existingTx.lastDownload || 0)) / 3600000 : 999;
@@ -6315,12 +6378,11 @@
                 console.log('Sample exchange TX:', reconcileData.exchangeTx.slice(0, 5));
             }
             
-            // 2. Carica transazioni Wallet da Moralis API
-            if (!apiKeys.moralis) {
-                alert(`📊 Dati caricati!\n\n• ${reconcileData.exchangeTx.length} transazioni exchange (dai CSV)\n\n⚠️ Configura la Moralis API key in "API Connect" per caricare anche le transazioni wallet!`);
-                updateReconcileSummary();
-                renderReconcileData();
-                return;
+            // 2. Carica transazioni Wallet (usa walletTransactions già scaricate!)
+            
+            // Prima carica da localStorage se non in memoria
+            if (Object.keys(walletTransactions).length === 0) {
+                loadWalletTransactions();
             }
             
             const walletAddresses = Object.keys(walletResults);
@@ -6333,132 +6395,71 @@
             
             console.log(`📊 Caricamento storia per ${walletAddresses.length} wallet...`);
             
-            // Chains da controllare
-            const chains = [
-                { id: '0x1', name: 'Ethereum' },
-                { id: '0x38', name: 'BSC' },
-                { id: '0x89', name: 'Polygon' },
-                { id: '0xa4b1', name: 'Arbitrum' },
-                { id: '0xa', name: 'Optimism' },
-                { id: '0x2105', name: 'Base' },
-                { id: '0x19', name: 'Cronos' }
-            ];
-            
+            // Usa walletTransactions già scaricate
+            let totalWalletTx = 0;
             for (const address of walletAddresses) {
+                const addrLower = address.toLowerCase();
                 const walletName = walletResults[address]?.name || address.slice(0, 8);
-                console.log(`  📜 Caricamento storia wallet: ${walletName}...`);
+                const txData = walletTransactions[addrLower];
                 
-                for (const chain of chains) {
-                    try {
-                        const moralisKey = getMoralisKey();
-                        if (!moralisKey) continue;
-                        
-                        // Carica trasferimenti ERC20
-                        const erc20Url = `https://deep-index.moralis.io/api/v2.2/${address}/erc20/transfers?chain=${chain.id}&limit=100`;
-                        let erc20Response = await fetch(erc20Url, {
-                            headers: { 'X-API-Key': moralisKey }
-                        });
-                        
-                        // Gestisci rate limit
-                        if (erc20Response.status === 429 || erc20Response.status === 400) {
-                            console.warn(`⚠️ Rate limit su chain ${chain.name}, provo altra key...`);
-                            if (rotateMoralisKey('rate limit')) {
-                                erc20Response = await fetch(erc20Url, {
-                                    headers: { 'X-API-Key': getMoralisKey() }
-                                });
-                            }
-                        }
-                        
-                        if (erc20Response.ok) {
-                            const erc20Data = await erc20Response.json();
-                            
-                            for (const tx of (erc20Data.result || [])) {
-                                const isReceive = tx.to_address?.toLowerCase() === address.toLowerCase();
-                                const amount = parseFloat(tx.value) / Math.pow(10, parseInt(tx.token_decimals) || 18);
-                                
-                                if (amount > 0) {
-                                    reconcileData.walletTx.push({
-                                        source: 'wallet',
-                                        wallet: walletName,
-                                        address: address,
-                                        chain: chain.name,
-                                        date: new Date(tx.block_timestamp),
-                                        type: isReceive ? 'receive' : 'send',
-                                        coin: tx.token_symbol || 'UNKNOWN',
-                                        amount: amount,
-                                        from: tx.from_address,
-                                        to: tx.to_address,
-                                        txHash: tx.transaction_hash
-                                    });
-                                }
-                            }
-                        }
-                        
-                        // Carica transazioni native (ETH, BNB, MATIC, etc.)
-                        const nativeUrl = `https://deep-index.moralis.io/api/v2.2/${address}?chain=${chain.id}&limit=100`;
-                        let nativeResponse = await fetch(nativeUrl, {
-                            headers: { 'X-API-Key': getMoralisKey() }
-                        });
-                        
-                        // Gestisci rate limit
-                        if (nativeResponse.status === 429 || nativeResponse.status === 400) {
-                            if (rotateMoralisKey('rate limit')) {
-                                nativeResponse = await fetch(nativeUrl, {
-                                    headers: { 'X-API-Key': getMoralisKey() }
-                                });
-                            }
-                        }
-                        
-                        if (nativeResponse.ok) {
-                            const nativeData = await nativeResponse.json();
-                            
-                            // Map chain to native symbol
-                            const nativeSymbols = {
-                                '0x1': 'ETH', '0x38': 'BNB', '0x89': 'MATIC',
-                                '0xa4b1': 'ETH', '0xa': 'ETH', '0x2105': 'ETH',
-                                '0x19': 'CRO'
-                            };
-                            
-                            for (const tx of (nativeData.result || [])) {
-                                const isReceive = tx.to_address?.toLowerCase() === address.toLowerCase();
-                                const amount = parseFloat(tx.value) / 1e18;
-                                
-                                if (amount > 0.0001) { // Ignora dust
-                                    reconcileData.walletTx.push({
-                                        source: 'wallet',
-                                        wallet: walletName,
-                                        address: address,
-                                        chain: chain.name,
-                                        date: new Date(tx.block_timestamp),
-                                        type: isReceive ? 'receive' : 'send',
-                                        coin: nativeSymbols[chain.id] || 'ETH',
-                                        amount: amount,
-                                        from: tx.from_address,
-                                        to: tx.to_address,
-                                        txHash: tx.hash
-                                    });
-                                }
-                            }
-                        }
-                        
-                        await new Promise(r => setTimeout(r, 100)); // Rate limit
-                        
-                    } catch (e) {
-                        console.warn(`Errore chain ${chain.name}:`, e.message);
-                    }
+                if (!txData) {
+                    console.log(`  ⚠️ ${walletName}: nessuna transazione salvata (scansiona il wallet)`);
+                    continue;
                 }
+                
+                // Converti nativeTx in formato riconciliazione
+                const chainSymbols = { eth: 'ETH', bsc: 'BNB', polygon: 'MATIC', arbitrum: 'ETH', base: 'ETH', cronos: 'CRO' };
+                const chainNames = { eth: 'Ethereum', bsc: 'BSC', polygon: 'Polygon', arbitrum: 'Arbitrum', base: 'Base', cronos: 'Cronos' };
+                
+                for (const tx of (txData.nativeTx || [])) {
+                    reconcileData.walletTx.push({
+                        source: 'wallet',
+                        wallet: walletName,
+                        address: address,
+                        chain: chainNames[tx.c] || tx.c,
+                        date: new Date(tx.d),
+                        type: tx.t === 'in' ? 'receive' : 'send',
+                        coin: tx.s || chainSymbols[tx.c] || 'ETH',
+                        amount: tx.a,
+                        txHash: tx.h
+                    });
+                }
+                
+                // Converti tokenTx in formato riconciliazione
+                for (const tx of (txData.tokenTx || [])) {
+                    reconcileData.walletTx.push({
+                        source: 'wallet',
+                        wallet: walletName,
+                        address: address,
+                        chain: chainNames[tx.c] || tx.c,
+                        date: new Date(tx.d),
+                        type: tx.t === 'in' ? 'receive' : 'send',
+                        coin: tx.s || 'UNKNOWN',
+                        amount: tx.a,
+                        txHash: tx.h
+                    });
+                }
+                
+                const txCount = (txData.nativeTx?.length || 0) + (txData.tokenTx?.length || 0);
+                totalWalletTx += txCount;
+                console.log(`  ✅ ${walletName}: ${txCount} transazioni caricate da cache`);
             }
             
-            // Ordina per data
-            reconcileData.walletTx.sort((a, b) => b.date - a.date);
+            // Se non ci sono transazioni salvate, avvisa l'utente
+            if (totalWalletTx === 0) {
+                alert(`📊 Dati caricati!\n\n• ${reconcileData.exchangeTx.length} transazioni exchange\n• 0 transazioni wallet\n\n⚠️ Scansiona i wallet dalla sezione "Wallets" per scaricare le transazioni!`);
+            } else {
+                alert(`✅ Caricamento completato!\n\n• ${reconcileData.exchangeTx.length} transazioni exchange\n• ${totalWalletTx} transazioni wallet\n\nOra clicca "Esegui Riconciliazione" per trovare i match.`);
+            }
             
-            console.log(`📊 Wallet TX: ${reconcileData.walletTx.length}`);
+            reconcileData.walletTx.sort((a, b) => b.date - a.date);
+            console.log(`📊 Wallet TX totali: ${reconcileData.walletTx.length}`);
             
             updateReconcileSummary();
             renderReconcileData();
-            saveReconcileToLocalStorage(); // Salva in localStorage
             
-            alert(`✅ Caricamento completato!\n\n• ${reconcileData.exchangeTx.length} transazioni exchange (deposit/withdraw)\n• ${reconcileData.walletTx.length} transazioni wallet\n\nOra clicca "Esegui Riconciliazione" per trovare i match.`);
+            // Salva in localStorage
+            saveReconcileToLocalStorage();
         }
         
         function runReconciliation() {
