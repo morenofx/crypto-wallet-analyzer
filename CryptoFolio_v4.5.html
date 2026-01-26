@@ -435,7 +435,7 @@
         
         <!-- NFT -->
         <div class="main-content" id="nftView" style="display:none;">
-            <div class="header"><h1>🖼️ NFT Portfolio</h1><div class="header-actions"><button class="btn btn-primary" onclick="scanAllNFTs()">🔍 Scansiona NFT</button></div></div>
+            <div class="header"><h1>🖼️ NFT Portfolio</h1><div class="header-actions"><button class="btn btn-secondary" onclick="autoHideScamNFTs()" title="Nascondi automaticamente NFT sospetti">🗑️ Auto-Nascondi Scam</button><button class="btn btn-secondary" onclick="showNFTBlacklist()" id="nftBlacklistBtn" style="display:none;">🚫 Nascosti (<span id="nftBlacklistCount">0</span>)</button><button class="btn btn-primary" onclick="scanAllNFTs()">🔍 Scansiona NFT</button></div></div>
             
             <div class="card" style="margin-bottom:20px;">
                 <p style="color:var(--text-secondary);font-size:14px;line-height:1.6;">
@@ -868,6 +868,7 @@
         // NFT data
         let nftData = []; // Array di NFT: { tokenId, name, collection, image, chain, contract, floorPrice, purchasePrice, wallet }
         let nftPurchasePrices = {}; // { contract_tokenId: purchasePrice } - prezzi di acquisto manuali
+        let nftBlacklist = []; // Array di NFT ID da nascondere (scam): "contract_tokenId"
         
         // Exchange data from CSV imports
         let exchangeData = {}; // { binance: { transactions: [], balances: {2021: {BTC: 0.5, ...}}, totals: {2021: 1234, ...} }, ... }
@@ -980,6 +981,19 @@
                     }
                     
                     console.log('✅ Firebase loaded:', savedWallets.length, 'wallets,', Object.keys(walletResults).length, 'scan results', taxReportData ? ', tax report cached' : '');
+                    
+                    // Carica NFT da Firebase
+                    if (doc.data().nftData) {
+                        const cloudNFTs = doc.data().nftData;
+                        if (cloudNFTs.length > 0) {
+                            nftData = cloudNFTs;
+                            console.log(`☁️ NFT caricati da Firebase: ${nftData.length}`);
+                            loadNFTPurchasePrices();
+                            loadNFTBlacklist();
+                            updateNFTSummary();
+                            renderNFTGrid();
+                        }
+                    }
                 }
                 
                 updateSyncStatus('Connesso ✓', 'var(--green)');
@@ -5563,6 +5577,7 @@
             updateApiCount();
             updateExchangeCount();
             updateExchangeTotals();
+            loadNFTBlacklist(); // Carica blacklist NFT
             loadNFTDataFromLocalStorage(); // Carica NFT salvati
             
             // Mostra API key se configurata
@@ -6412,9 +6427,13 @@
             // Aggiorna UI
             updateNFTSummary();
             renderNFTGrid();
-            saveNFTDataToLocalStorage();
+            const saveResult = saveNFTDataToLocalStorage();
             
-            alert(`✅ Scansione completata!\n\nTrovati ${nftData.length} NFT`);
+            let alertMsg = `✅ Scansione completata!\n\nTrovati ${nftData.length} NFT`;
+            if (nftData.length > 100) {
+                alertMsg += `\n\n⚠️ Molti NFT trovati - alcuni potrebbero essere scam.\nUsa il pulsante 🚫 per nasconderli.`;
+            }
+            alert(alertMsg);
         }
         
         async function fetchNFTsFromMoralis(address, chainId, chainName, walletName, retryCount = 0) {
@@ -6513,10 +6532,13 @@
         function renderNFTGrid(filterChain = 'all') {
             const grid = document.getElementById('nftGrid');
             
-            let filteredNFTs = nftData;
-            if (filterChain !== 'all') {
-                filteredNFTs = nftData.filter(nft => nft.chainKey === filterChain || nft.chain.toLowerCase() === filterChain);
-            }
+            // Filtra per chain e rimuovi blacklistati
+            let filteredNFTs = nftData.filter(nft => {
+                const nftKey = `${nft.contract}_${nft.tokenId}`;
+                if (nftBlacklist.includes(nftKey)) return false; // Nascondi blacklistati
+                if (filterChain !== 'all' && nft.chainKey !== filterChain && nft.chain.toLowerCase() !== filterChain) return false;
+                return true;
+            });
             
             if (filteredNFTs.length === 0) {
                 grid.innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:40px;grid-column:1/-1;">Nessun NFT trovato.</div>';
@@ -6532,7 +6554,10 @@
                 const plColor = pl >= 0 ? 'var(--green)' : 'var(--red)';
                 
                 html += `
-                <div class="card" style="padding:0;overflow:hidden;">
+                <div class="card" style="padding:0;overflow:hidden;position:relative;">
+                    <button onclick="blacklistNFT('${nftKey}')" 
+                        style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.7);border:none;color:#ff6b6b;cursor:pointer;padding:6px 10px;border-radius:6px;font-size:14px;z-index:10;"
+                        title="Nascondi NFT (scam)">🚫</button>
                     <div style="height:200px;background:var(--bg-primary);display:flex;align-items:center;justify-content:center;overflow:hidden;">
                         ${nft.image ? 
                             `<img src="${nft.image}" alt="${nft.name}" style="max-width:100%;max-height:100%;object-fit:contain;" onerror="this.parentElement.innerHTML='🖼️'">` : 
@@ -6572,6 +6597,175 @@
             renderNFTGrid(filter);
         }
         
+        function blacklistNFT(nftKey) {
+            if (!nftBlacklist.includes(nftKey)) {
+                nftBlacklist.push(nftKey);
+                localStorage.setItem('cryptofolio_nft_blacklist', JSON.stringify(nftBlacklist));
+                updateNFTBlacklistButton();
+                updateNFTSummary();
+                renderNFTGrid(document.getElementById('nftChainFilter')?.value || 'all');
+            }
+        }
+        
+        function removeFromNFTBlacklist(nftKey) {
+            nftBlacklist = nftBlacklist.filter(k => k !== nftKey);
+            localStorage.setItem('cryptofolio_nft_blacklist', JSON.stringify(nftBlacklist));
+            updateNFTBlacklistButton();
+            updateNFTSummary();
+            renderNFTGrid(document.getElementById('nftChainFilter')?.value || 'all');
+        }
+        
+        function loadNFTBlacklist() {
+            try {
+                nftBlacklist = JSON.parse(localStorage.getItem('cryptofolio_nft_blacklist') || '[]');
+                updateNFTBlacklistButton();
+            } catch (e) {
+                nftBlacklist = [];
+            }
+        }
+        
+        function updateNFTBlacklistButton() {
+            const btn = document.getElementById('nftBlacklistBtn');
+            const count = document.getElementById('nftBlacklistCount');
+            if (btn && count) {
+                count.textContent = nftBlacklist.length;
+                btn.style.display = nftBlacklist.length > 0 ? 'inline-flex' : 'none';
+            }
+        }
+        
+        function showNFTBlacklist() {
+            if (nftBlacklist.length === 0) {
+                alert('Nessun NFT nascosto');
+                return;
+            }
+            
+            // Trova info NFT blacklistati
+            const blacklistedNFTs = nftData.filter(nft => {
+                const nftKey = `${nft.contract}_${nft.tokenId}`;
+                return nftBlacklist.includes(nftKey);
+            });
+            
+            let html = '<div style="max-height:400px;overflow-y:auto;">';
+            html += '<p style="margin-bottom:16px;color:var(--text-secondary);">Clicca su un NFT per ripristinarlo:</p>';
+            
+            for (const nft of blacklistedNFTs) {
+                const nftKey = `${nft.contract}_${nft.tokenId}`;
+                html += `<div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg-primary);border-radius:8px;margin-bottom:8px;cursor:pointer;" onclick="removeFromNFTBlacklist('${nftKey}');this.remove();">
+                    <div style="width:50px;height:50px;background:var(--bg-secondary);border-radius:6px;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+                        ${nft.image ? `<img src="${nft.image}" style="max-width:100%;max-height:100%;">` : '🖼️'}
+                    </div>
+                    <div style="flex:1;">
+                        <div style="font-weight:600;">${nft.name}</div>
+                        <div style="font-size:12px;color:var(--text-secondary);">${nft.collection} • ${nft.chain}</div>
+                    </div>
+                    <span style="color:var(--green);">↩️ Ripristina</span>
+                </div>`;
+            }
+            
+            // Aggiungi anche quelli non più in nftData (già eliminati dalla scansione)
+            const orphanKeys = nftBlacklist.filter(key => !blacklistedNFTs.some(nft => `${nft.contract}_${nft.tokenId}` === key));
+            if (orphanKeys.length > 0) {
+                html += `<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--bg-primary);">
+                    <p style="color:var(--text-secondary);font-size:12px;margin-bottom:8px;">${orphanKeys.length} NFT non più presenti nei wallet</p>
+                    <button class="btn btn-secondary" onclick="clearOrphanNFTBlacklist()" style="font-size:12px;">🗑️ Pulisci lista</button>
+                </div>`;
+            }
+            
+            html += '</div>';
+            
+            // Mostra in un modal semplice
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay active';
+            modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width:500px;">
+                    <div class="modal-header">
+                        <h3>🚫 NFT Nascosti (${nftBlacklist.length})</h3>
+                        <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+                    </div>
+                    <div class="modal-body">${html}</div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        function clearOrphanNFTBlacklist() {
+            // Rimuovi dalla blacklist gli NFT che non esistono più in nftData
+            const validKeys = nftData.map(nft => `${nft.contract}_${nft.tokenId}`);
+            nftBlacklist = nftBlacklist.filter(key => validKeys.includes(key));
+            localStorage.setItem('cryptofolio_nft_blacklist', JSON.stringify(nftBlacklist));
+            updateNFTBlacklistButton();
+            document.querySelector('.modal-overlay')?.remove();
+            if (nftBlacklist.length > 0) {
+                showNFTBlacklist();
+            }
+        }
+        
+        function autoHideScamNFTs() {
+            // Pattern comuni di NFT scam
+            const scamPatterns = [
+                /https?:\/\//i,           // URL nel nome
+                /\.com/i, /\.io/i, /\.xyz/i, /\.net/i, /\.org/i,  // Domini
+                /claim/i, /airdrop/i, /free/i, /reward/i,         // Parole scam
+                /visit/i, /check/i, /bonus/i, /gift/i,
+                /\.eth$/i,                // Finisce con .eth (spesso scam)
+                /voucher/i, /winner/i, /congratulation/i,
+                /limited time/i, /hurry/i, /urgent/i
+            ];
+            
+            let scamCount = 0;
+            const newBlacklist = [...nftBlacklist];
+            
+            for (const nft of nftData) {
+                const nftKey = `${nft.contract}_${nft.tokenId}`;
+                
+                // Salta se già blacklistato
+                if (newBlacklist.includes(nftKey)) continue;
+                
+                // Salta se ha un costo inserito (l'utente lo considera reale)
+                if (nftPurchasePrices[nftKey] > 0) continue;
+                
+                let isScam = false;
+                const nameToCheck = (nft.name || '') + ' ' + (nft.collection || '');
+                
+                // Controlla pattern scam nel nome/collezione
+                for (const pattern of scamPatterns) {
+                    if (pattern.test(nameToCheck)) {
+                        isScam = true;
+                        break;
+                    }
+                }
+                
+                // NFT con floor price 0 e nome sospetto (troppo lungo o caratteri strani)
+                if (!isScam && (nft.floorPriceUSD || 0) === 0) {
+                    if (nft.name && nft.name.length > 50) isScam = true;
+                    if (/[<>{}|\\^`]/.test(nft.name || '')) isScam = true;
+                }
+                
+                if (isScam) {
+                    newBlacklist.push(nftKey);
+                    scamCount++;
+                }
+            }
+            
+            if (scamCount === 0) {
+                alert('✅ Nessun NFT scam rilevato automaticamente.\n\nPuoi nascondere manualmente gli NFT cliccando 🚫 sulla card.');
+                return;
+            }
+            
+            const confirm = window.confirm(`🗑️ Trovati ${scamCount} NFT sospetti!\n\nVuoi nasconderli tutti?\n\n(Potrai sempre ripristinarli dal pulsante "Nascosti")`);
+            
+            if (confirm) {
+                nftBlacklist = newBlacklist;
+                localStorage.setItem('cryptofolio_nft_blacklist', JSON.stringify(nftBlacklist));
+                updateNFTBlacklistButton();
+                updateNFTSummary();
+                renderNFTGrid(document.getElementById('nftChainFilter')?.value || 'all');
+                
+                alert(`✅ Nascosti ${scamCount} NFT scam!\n\nOra hai ${nftData.length - nftBlacklist.length} NFT visibili.`);
+            }
+        }
+        
         function setNFTPurchasePrice(nftKey, price) {
             nftPurchasePrices[nftKey] = parseFloat(price) || 0;
             localStorage.setItem('cryptofolio_nft_prices', JSON.stringify(nftPurchasePrices));
@@ -6589,11 +6783,17 @@
         }
         
         function updateNFTSummary() {
-            const totalCount = nftData.length;
+            // Filtra NFT non blacklistati
+            const visibleNFTs = nftData.filter(nft => {
+                const nftKey = `${nft.contract}_${nft.tokenId}`;
+                return !nftBlacklist.includes(nftKey);
+            });
+            
+            const totalCount = visibleNFTs.length;
             let totalValue = 0;
             let totalCost = 0;
             
-            for (const nft of nftData) {
+            for (const nft of visibleNFTs) {
                 const nftKey = `${nft.contract}_${nft.tokenId}`;
                 totalValue += nft.floorPriceUSD || 0;
                 totalCost += nftPurchasePrices[nftKey] || 0;
@@ -6608,23 +6808,94 @@
             document.getElementById('nftTotalPL').textContent = '€' + pl.toFixed(0);
             document.getElementById('nftTotalPL').style.color = plColor;
             document.getElementById('nftCount').textContent = totalCount;
+            
+            // Aggiorna pulsante blacklist
+            updateNFTBlacklistButton();
         }
         
         function saveNFTDataToLocalStorage() {
             try {
-                localStorage.setItem('cryptofolio_nfts', JSON.stringify(nftData));
-            } catch (e) {}
+                // Comprimi dati NFT per risparmiare spazio (rimuovi campi pesanti)
+                const compressedNFTs = nftData.map(nft => ({
+                    tokenId: nft.tokenId,
+                    name: nft.name,
+                    collection: nft.collection,
+                    image: nft.image, // URL immagine
+                    chain: nft.chain,
+                    chainKey: nft.chainKey,
+                    contract: nft.contract,
+                    floorPriceUSD: nft.floorPriceUSD || 0,
+                    wallet: nft.wallet
+                }));
+                
+                const jsonData = JSON.stringify(compressedNFTs);
+                const sizeKB = (jsonData.length / 1024).toFixed(1);
+                
+                // Prova localStorage
+                try {
+                    localStorage.setItem('cryptofolio_nfts', jsonData);
+                    console.log(`💾 NFT salvati in localStorage: ${compressedNFTs.length} NFT (${sizeKB} KB)`);
+                } catch (storageError) {
+                    console.warn(`⚠️ localStorage pieno (${sizeKB} KB), NFT non salvati localmente`);
+                }
+                
+                // Salva anche su Firebase se disponibile (con limite dimensione)
+                if (typeof db !== 'undefined' && currentUser && sizeKB < 500) {
+                    db.collection('users').doc(currentUser.uid).update({
+                        nftData: compressedNFTs,
+                        nftLastUpdate: new Date().toISOString()
+                    }).then(() => {
+                        console.log('☁️ NFT salvati su Firebase');
+                    }).catch(e => {
+                        console.warn('⚠️ Firebase NFT save error:', e.message);
+                    });
+                } else if (sizeKB >= 500) {
+                    console.warn(`⚠️ NFT troppo grandi per Firebase (${sizeKB} KB > 500 KB)`);
+                }
+            } catch (e) {
+                console.error('❌ Errore salvataggio NFT:', e);
+            }
         }
         
         function loadNFTDataFromLocalStorage() {
             try {
+                // Prima prova localStorage
                 const saved = localStorage.getItem('cryptofolio_nfts');
                 if (saved) {
                     nftData = JSON.parse(saved);
+                    console.log(`📂 NFT caricati da localStorage: ${nftData.length}`);
                     loadNFTPurchasePrices();
                     updateNFTSummary();
+                    renderNFTGrid();
                 }
-            } catch (e) {}
+            } catch (e) {
+                console.error('❌ Errore caricamento NFT:', e);
+            }
+        }
+        
+        // Carica NFT da Firebase (chiamato dopo login)
+        function loadNFTDataFromFirebase() {
+            if (typeof db !== 'undefined' && currentUser) {
+                db.collection('users').doc(currentUser.uid).get().then(doc => {
+                    if (doc.exists && doc.data().nftData) {
+                        const cloudNFTs = doc.data().nftData;
+                        // Usa cloud se più recente o localStorage vuoto
+                        if (cloudNFTs.length > 0 && (nftData.length === 0 || cloudNFTs.length > nftData.length)) {
+                            nftData = cloudNFTs;
+                            console.log(`☁️ NFT caricati da Firebase: ${nftData.length}`);
+                            loadNFTPurchasePrices();
+                            updateNFTSummary();
+                            renderNFTGrid();
+                            // Aggiorna localStorage
+                            try {
+                                localStorage.setItem('cryptofolio_nfts', JSON.stringify(nftData));
+                            } catch (e) {}
+                        }
+                    }
+                }).catch(e => {
+                    console.warn('⚠️ Firebase NFT load error:', e.message);
+                });
+            }
         }
         
         function exportReconciliationReport() {
