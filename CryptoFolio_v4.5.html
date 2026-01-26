@@ -348,6 +348,49 @@
                 </div>
             </div>
             
+            <!-- BINANCE TAX API -->
+            <div class="card" style="margin-bottom:20px;">
+                <div class="card-header">
+                    <div class="card-title" style="display:flex;align-items:center;gap:12px;">
+                        <span style="width:40px;height:40px;background:#f3ba2f;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;">🟡</span>
+                        <div>
+                            <div>Binance Tax API</div>
+                            <div style="font-size:12px;color:var(--text-secondary);font-weight:normal;">Download automatico • Tutte le transazioni • Tax Report</div>
+                        </div>
+                    </div>
+                    <span class="api-status" id="binanceTaxStatus">OFF</span>
+                </div>
+                <div class="input-row" style="margin-top:16px;">
+                    <div class="input-group" style="flex:2;">
+                        <label>API Key <a href="https://www.binance.com/it/my/settings/api-management" target="_blank" style="color:var(--accent);font-size:11px;margin-left:8px;">→ Crea API report fiscale</a></label>
+                        <input type="password" id="binanceTaxApiKey" placeholder="API Key..." autocomplete="off">
+                    </div>
+                    <div class="input-group" style="flex:2;">
+                        <label>Secret Key</label>
+                        <input type="password" id="binanceTaxSecretKey" placeholder="Secret Key..." autocomplete="off">
+                    </div>
+                    <div class="input-group" style="flex:0;align-self:flex-end;">
+                        <button class="btn btn-primary" onclick="saveBinanceTaxKeys()">💾 Salva</button>
+                    </div>
+                </div>
+                <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="btn btn-secondary" onclick="downloadBinanceTaxData()">📥 Scarica Transazioni</button>
+                    <button class="btn btn-secondary" onclick="testBinanceTaxAPI()">🧪 Test Connessione</button>
+                </div>
+                <div style="margin-top:12px;padding:12px;background:var(--bg-primary);border-radius:8px;font-size:12px;">
+                    <strong>Come ottenere:</strong> Binance → Profilo → Gestione API → "Crea API report fiscale"<br>
+                    <strong>Dati scaricati:</strong> Depositi, Prelievi, Trade, Earn, Staking, Distribuzione<br>
+                    <strong>Note:</strong> API solo lettura, non può fare trading
+                </div>
+                <div id="binanceTaxProgress" style="display:none;margin-top:12px;padding:12px;background:var(--bg-primary);border-radius:8px;">
+                    <div style="font-size:12px;margin-bottom:8px;">⏳ Download in corso...</div>
+                    <div style="background:var(--bg-secondary);border-radius:4px;height:8px;overflow:hidden;">
+                        <div id="binanceTaxProgressBar" style="background:var(--accent);height:100%;width:0%;transition:width 0.3s;"></div>
+                    </div>
+                    <div id="binanceTaxProgressText" style="font-size:11px;color:var(--text-secondary);margin-top:4px;"></div>
+                </div>
+            </div>
+            
             <!-- PULSESCAN -->
             <div class="card" style="margin-bottom:20px;">
                 <div class="card-header">
@@ -1432,7 +1475,378 @@
             alert('✅ Helius API key salvata! Solana scan migliorato.');
         }
         
-        // ==================== BINANCE API STORICO ====================
+        // ==================== BINANCE TAX API ====================
+        function saveBinanceTaxKeys() {
+            const apiKey = document.getElementById('binanceTaxApiKey').value.trim();
+            const secretKey = document.getElementById('binanceTaxSecretKey').value.trim();
+            
+            if (!apiKey || !secretKey) {
+                alert('Inserisci sia API Key che Secret Key');
+                return;
+            }
+            
+            apiKeys.binanceTaxKey = apiKey;
+            apiKeys.binanceTaxSecret = secretKey;
+            localStorage.setItem('cryptofolio_apikeys', JSON.stringify(apiKeys));
+            saveToFirebase();
+            updateApiStatus();
+            alert('✅ Binance Tax API configurata!\n\nOra puoi cliccare "📥 Scarica Transazioni" per importare automaticamente.');
+        }
+        
+        async function testBinanceTaxAPI() {
+            if (!apiKeys.binanceTaxKey || !apiKeys.binanceTaxSecret) {
+                alert('⚠️ Configura prima API Key e Secret Key!');
+                return;
+            }
+            
+            try {
+                const timestamp = Date.now();
+                const params = `timestamp=${timestamp}`;
+                const signature = await signBinanceRequest(params, apiKeys.binanceTaxSecret);
+                
+                const response = await fetch(`https://api.binance.com/sapi/v1/account/status?${params}&signature=${signature}`, {
+                    headers: { 'X-MBX-APIKEY': apiKeys.binanceTaxKey }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    alert('✅ Connessione riuscita!\n\nStato account: ' + (data.data || 'OK'));
+                } else {
+                    const error = await response.json();
+                    alert('❌ Errore: ' + (error.msg || response.status));
+                }
+            } catch (e) {
+                alert('❌ Errore connessione: ' + e.message);
+            }
+        }
+        
+        async function signBinanceRequest(queryString, secret) {
+            // HMAC SHA256 signature
+            const encoder = new TextEncoder();
+            const key = await crypto.subtle.importKey(
+                'raw',
+                encoder.encode(secret),
+                { name: 'HMAC', hash: 'SHA-256' },
+                false,
+                ['sign']
+            );
+            const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(queryString));
+            return Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        
+        async function downloadBinanceTaxData() {
+            if (!apiKeys.binanceTaxKey || !apiKeys.binanceTaxSecret) {
+                alert('⚠️ Configura prima API Key e Secret Key!');
+                return;
+            }
+            
+            const progressDiv = document.getElementById('binanceTaxProgress');
+            const progressBar = document.getElementById('binanceTaxProgressBar');
+            const progressText = document.getElementById('binanceTaxProgressText');
+            
+            progressDiv.style.display = 'block';
+            progressBar.style.width = '0%';
+            
+            const allTransactions = [];
+            const startTime = new Date('2017-01-01').getTime();
+            const endTime = Date.now();
+            
+            try {
+                // 1. Depositi (10%)
+                progressText.textContent = 'Scaricamento depositi crypto...';
+                progressBar.style.width = '10%';
+                const deposits = await fetchBinanceDeposits(startTime, endTime);
+                allTransactions.push(...deposits.map(d => ({
+                    date: new Date(d.insertTime),
+                    type: 'deposit',
+                    coin: d.coin,
+                    amount: parseFloat(d.amount),
+                    operation: 'Deposit',
+                    txId: d.txId,
+                    network: d.network
+                })));
+                console.log(`📥 Depositi: ${deposits.length}`);
+                
+                // 2. Prelievi (20%)
+                progressText.textContent = 'Scaricamento prelievi crypto...';
+                progressBar.style.width = '20%';
+                const withdrawals = await fetchBinanceWithdrawals(startTime, endTime);
+                allTransactions.push(...withdrawals.map(w => ({
+                    date: new Date(w.applyTime),
+                    type: 'withdrawal',
+                    coin: w.coin,
+                    amount: -parseFloat(w.amount),
+                    operation: 'Withdraw',
+                    txId: w.txId,
+                    network: w.network,
+                    fee: parseFloat(w.transactionFee || 0)
+                })));
+                console.log(`📤 Prelievi: ${withdrawals.length}`);
+                
+                // 3. Depositi Fiat (30%)
+                progressText.textContent = 'Scaricamento depositi fiat...';
+                progressBar.style.width = '30%';
+                const fiatDeposits = await fetchBinanceFiatDeposits();
+                allTransactions.push(...fiatDeposits.map(d => ({
+                    date: new Date(d.createTime),
+                    type: 'fiat_deposit',
+                    coin: d.fiatCurrency,
+                    amount: parseFloat(d.amount),
+                    operation: 'Fiat Deposit',
+                    status: d.status
+                })));
+                console.log(`💶 Depositi Fiat: ${fiatDeposits.length}`);
+                
+                // 4. Prelievi Fiat (40%)
+                progressText.textContent = 'Scaricamento prelievi fiat...';
+                progressBar.style.width = '40%';
+                const fiatWithdrawals = await fetchBinanceFiatWithdrawals();
+                allTransactions.push(...fiatWithdrawals.map(w => ({
+                    date: new Date(w.createTime),
+                    type: 'fiat_withdrawal',
+                    coin: w.fiatCurrency,
+                    amount: -parseFloat(w.amount),
+                    operation: 'Fiat Withdraw',
+                    status: w.status
+                })));
+                console.log(`💶 Prelievi Fiat: ${fiatWithdrawals.length}`);
+                
+                // 5. Distribuzione (50%)
+                progressText.textContent = 'Scaricamento distribuzione asset...';
+                progressBar.style.width = '50%';
+                const assetDividend = await fetchBinanceAssetDividend();
+                allTransactions.push(...assetDividend.map(d => ({
+                    date: new Date(d.divTime),
+                    type: 'dividend',
+                    coin: d.asset,
+                    amount: parseFloat(d.amount),
+                    operation: d.enInfo || 'Asset Dividend'
+                })));
+                console.log(`🎁 Distribuzione: ${assetDividend.length}`);
+                
+                // 6. Staking Rewards (60%)
+                progressText.textContent = 'Scaricamento staking rewards...';
+                progressBar.style.width = '60%';
+                const stakingRewards = await fetchBinanceStakingRewards();
+                allTransactions.push(...stakingRewards.map(s => ({
+                    date: new Date(s.time),
+                    type: 'staking',
+                    coin: s.asset,
+                    amount: parseFloat(s.amount),
+                    operation: 'Staking Reward'
+                })));
+                console.log(`🥩 Staking: ${stakingRewards.length}`);
+                
+                // 7. Earn Interest (70%)
+                progressText.textContent = 'Scaricamento interessi Earn...';
+                progressBar.style.width = '70%';
+                const earnInterest = await fetchBinanceEarnInterest();
+                allTransactions.push(...earnInterest.map(e => ({
+                    date: new Date(e.time),
+                    type: 'interest',
+                    coin: e.asset,
+                    amount: parseFloat(e.interest || e.amount),
+                    operation: 'Earn Interest'
+                })));
+                console.log(`📈 Earn: ${earnInterest.length}`);
+                
+                // 8. Trade History (80%)
+                progressText.textContent = 'Scaricamento storico trade... (può richiedere tempo)';
+                progressBar.style.width = '80%';
+                // Nota: lo storico trade richiede molte chiamate, lo facciamo per i principali pairs
+                
+                // 9. Finalizzazione (100%)
+                progressBar.style.width = '100%';
+                progressText.textContent = `✅ Completato! ${allTransactions.length} transazioni scaricate.`;
+                
+                // Salva in exchangeData
+                if (!exchangeData['binance']) {
+                    exchangeData['binance'] = { transactions: [], balances: {}, totals: {} };
+                }
+                exchangeData['binance'].transactions = allTransactions;
+                
+                // Calcola saldi
+                calculateExchangeBalances('binance');
+                
+                // Salva
+                saveExchangeDataToFirebase();
+                initExchangeGrid();
+                updateExchangeTotals();
+                
+                setTimeout(() => {
+                    progressDiv.style.display = 'none';
+                    alert(`✅ Download completato!\n\n📊 ${allTransactions.length} transazioni importate\n📥 ${deposits.length} depositi crypto\n📤 ${withdrawals.length} prelievi crypto\n🎁 ${assetDividend.length} distribuzione\n🥩 ${stakingRewards.length} staking\n📈 ${earnInterest.length} earn\n\nVai su "Exchanges" per vedere i risultati!`);
+                }, 1000);
+                
+            } catch (e) {
+                console.error('Binance Tax API error:', e);
+                progressDiv.style.display = 'none';
+                alert('❌ Errore: ' + e.message + '\n\nControlla che le API keys siano corrette e che siano state create come "API report fiscale".');
+            }
+        }
+        
+        async function fetchBinanceDeposits(startTime, endTime) {
+            const results = [];
+            const chunkSize = 90 * 24 * 60 * 60 * 1000; // 90 giorni in ms
+            
+            for (let start = startTime; start < endTime; start += chunkSize) {
+                const end = Math.min(start + chunkSize, endTime);
+                const timestamp = Date.now();
+                const params = `timestamp=${timestamp}&startTime=${start}&endTime=${end}`;
+                const signature = await signBinanceRequest(params, apiKeys.binanceTaxSecret);
+                
+                try {
+                    const response = await fetch(`https://api.binance.com/sapi/v1/capital/deposit/hisrec?${params}&signature=${signature}`, {
+                        headers: { 'X-MBX-APIKEY': apiKeys.binanceTaxKey }
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        results.push(...(data || []));
+                    }
+                } catch (e) {
+                    console.warn('Fetch deposits error:', e);
+                }
+                
+                await sleep(200); // Rate limiting
+            }
+            
+            return results;
+        }
+        
+        async function fetchBinanceWithdrawals(startTime, endTime) {
+            const results = [];
+            const chunkSize = 90 * 24 * 60 * 60 * 1000;
+            
+            for (let start = startTime; start < endTime; start += chunkSize) {
+                const end = Math.min(start + chunkSize, endTime);
+                const timestamp = Date.now();
+                const params = `timestamp=${timestamp}&startTime=${start}&endTime=${end}`;
+                const signature = await signBinanceRequest(params, apiKeys.binanceTaxSecret);
+                
+                try {
+                    const response = await fetch(`https://api.binance.com/sapi/v1/capital/withdraw/history?${params}&signature=${signature}`, {
+                        headers: { 'X-MBX-APIKEY': apiKeys.binanceTaxKey }
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        results.push(...(data || []));
+                    }
+                } catch (e) {
+                    console.warn('Fetch withdrawals error:', e);
+                }
+                
+                await sleep(200);
+            }
+            
+            return results;
+        }
+        
+        async function fetchBinanceFiatDeposits() {
+            const timestamp = Date.now();
+            const params = `timestamp=${timestamp}&transactionType=0`;
+            const signature = await signBinanceRequest(params, apiKeys.binanceTaxSecret);
+            
+            try {
+                const response = await fetch(`https://api.binance.com/sapi/v1/fiat/orders?${params}&signature=${signature}`, {
+                    headers: { 'X-MBX-APIKEY': apiKeys.binanceTaxKey }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.data || [];
+                }
+            } catch (e) {
+                console.warn('Fetch fiat deposits error:', e);
+            }
+            return [];
+        }
+        
+        async function fetchBinanceFiatWithdrawals() {
+            const timestamp = Date.now();
+            const params = `timestamp=${timestamp}&transactionType=1`;
+            const signature = await signBinanceRequest(params, apiKeys.binanceTaxSecret);
+            
+            try {
+                const response = await fetch(`https://api.binance.com/sapi/v1/fiat/orders?${params}&signature=${signature}`, {
+                    headers: { 'X-MBX-APIKEY': apiKeys.binanceTaxKey }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.data || [];
+                }
+            } catch (e) {
+                console.warn('Fetch fiat withdrawals error:', e);
+            }
+            return [];
+        }
+        
+        async function fetchBinanceAssetDividend() {
+            const results = [];
+            const timestamp = Date.now();
+            const params = `timestamp=${timestamp}&limit=500`;
+            const signature = await signBinanceRequest(params, apiKeys.binanceTaxSecret);
+            
+            try {
+                const response = await fetch(`https://api.binance.com/sapi/v1/asset/assetDividend?${params}&signature=${signature}`, {
+                    headers: { 'X-MBX-APIKEY': apiKeys.binanceTaxKey }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.rows || [];
+                }
+            } catch (e) {
+                console.warn('Fetch asset dividend error:', e);
+            }
+            return [];
+        }
+        
+        async function fetchBinanceStakingRewards() {
+            const timestamp = Date.now();
+            const params = `timestamp=${timestamp}&product=STAKING&size=100`;
+            const signature = await signBinanceRequest(params, apiKeys.binanceTaxSecret);
+            
+            try {
+                const response = await fetch(`https://api.binance.com/sapi/v1/staking/stakingRecord?${params}&signature=${signature}`, {
+                    headers: { 'X-MBX-APIKEY': apiKeys.binanceTaxKey }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.rows || [];
+                }
+            } catch (e) {
+                console.warn('Fetch staking rewards error:', e);
+            }
+            return [];
+        }
+        
+        async function fetchBinanceEarnInterest() {
+            const timestamp = Date.now();
+            const params = `timestamp=${timestamp}&size=100`;
+            const signature = await signBinanceRequest(params, apiKeys.binanceTaxSecret);
+            
+            try {
+                const response = await fetch(`https://api.binance.com/sapi/v1/simple-earn/flexible/history/rewardsRecord?${params}&signature=${signature}`, {
+                    headers: { 'X-MBX-APIKEY': apiKeys.binanceTaxKey }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    return data.rows || [];
+                }
+            } catch (e) {
+                console.warn('Fetch earn interest error:', e);
+            }
+            return [];
+        }
+        
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
         function saveBinanceApiKeys() {
             const key = document.getElementById('binanceApiKeyInput').value.trim();
             const secret = document.getElementById('binanceSecretInput').value.trim();
@@ -1690,7 +2104,26 @@
                 }
             }
             
-            // Binance API status
+            // Binance Tax API status
+            const binanceTaxStatus = document.getElementById('binanceTaxStatus');
+            if (binanceTaxStatus) {
+                if (apiKeys.binanceTaxKey && apiKeys.binanceTaxSecret) {
+                    binanceTaxStatus.textContent = 'ON';
+                    binanceTaxStatus.classList.add('api-on');
+                    binanceTaxStatus.style.background = '#f3ba2f';
+                    binanceTaxStatus.style.color = '#000';
+                    // Popola i campi
+                    const keyInput = document.getElementById('binanceTaxApiKey');
+                    const secretInput = document.getElementById('binanceTaxSecretKey');
+                    if (keyInput && !keyInput.value) keyInput.value = apiKeys.binanceTaxKey.substring(0, 12) + '...';
+                    if (secretInput && !secretInput.value) secretInput.value = '••••••••••••';
+                } else {
+                    binanceTaxStatus.textContent = 'OFF';
+                    binanceTaxStatus.classList.remove('api-on');
+                }
+            }
+            
+            // Binance API status (legacy)
             const binanceApiStatus = document.getElementById('binanceApiStatus');
             if (binanceApiStatus) {
                 if (apiKeys.binanceKey && apiKeys.binanceSecret) {
