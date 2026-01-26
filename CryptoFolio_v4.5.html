@@ -4538,23 +4538,53 @@
             console.log('Exchange TX totali:', reconcileData.exchangeTx.length);
             console.log('Wallet TX totali:', reconcileData.walletTx.length);
             
-            // Debug: mostra sample dei tipi
+            // Controllo dati mancanti
+            if (reconcileData.exchangeTx.length === 0 && reconcileData.walletTx.length === 0) {
+                alert('⚠️ Nessun dato da riconciliare!\n\n1. Clicca "Importa CSV Exchange" per caricare le transazioni exchange\n2. Clicca "Carica Dati Wallet" per scaricare la storia wallet\n3. Poi clicca "Esegui Riconciliazione"');
+                return;
+            }
+            
+            if (reconcileData.exchangeTx.length === 0) {
+                alert('⚠️ Mancano le transazioni Exchange!\n\nClicca "📁 Importa CSV Exchange" per caricare il CSV di Binance (o altro exchange).\n\nSolo dopo potrai trovare i match con le transazioni wallet.');
+                return;
+            }
+            
+            if (reconcileData.walletTx.length === 0) {
+                alert('⚠️ Mancano le transazioni Wallet!\n\nClicca "📊 Carica Dati Wallet" per scaricare la storia dei tuoi wallet.\n\nSolo dopo potrai trovare i match con le transazioni exchange.');
+                return;
+            }
+            
+            // Debug: mostra sample dei tipi e coin
             const exchTypes = [...new Set(reconcileData.exchangeTx.map(t => t.type))];
             const walletTypes = [...new Set(reconcileData.walletTx.map(t => t.type))];
+            const exchCoins = [...new Set(reconcileData.exchangeTx.map(t => t.coin))].slice(0, 20);
+            const walletCoins = [...new Set(reconcileData.walletTx.map(t => t.coin))].slice(0, 20);
             console.log('Tipi exchange:', exchTypes);
             console.log('Tipi wallet:', walletTypes);
+            console.log('Coin exchange:', exchCoins);
+            console.log('Coin wallet:', walletCoins);
+            
+            // Debug: mostra sample transazioni
+            if (reconcileData.exchangeTx.length > 0) {
+                console.log('Sample exchange TX:', reconcileData.exchangeTx.slice(0, 3));
+            }
+            if (reconcileData.walletTx.length > 0) {
+                console.log('Sample wallet TX:', reconcileData.walletTx.slice(0, 3));
+            }
             
             reconcileData.matches = [];
             reconcileData.unmatchedExch = [...reconcileData.exchangeTx];
             reconcileData.unmatchedWallet = [...reconcileData.walletTx];
             
             // Algoritmo di matching
-            const AMOUNT_TOLERANCE = 0.10; // 10% tolerance (per fee)
-            const TIME_TOLERANCE = 48 * 60 * 60 * 1000; // 48 ore in ms
+            const AMOUNT_TOLERANCE = 0.15; // 15% tolerance (per fee)
+            const TIME_TOLERANCE = 72 * 60 * 60 * 1000; // 72 ore in ms
             
             // Normalizza tipo
             const isWithdraw = (type) => ['withdraw', 'withdrawal', 'send'].includes((type || '').toLowerCase());
             const isDeposit = (type) => ['deposit', 'receive', 'credit'].includes((type || '').toLowerCase());
+            
+            let debugMatchAttempts = 0;
             
             // Per ogni withdraw exchange, cerca deposit wallet
             for (let i = reconcileData.unmatchedExch.length - 1; i >= 0; i--) {
@@ -4567,6 +4597,8 @@
                     const walletTx = reconcileData.unmatchedWallet[j];
                     
                     if (!isDeposit(walletTx.type)) continue;
+                    
+                    debugMatchAttempts++;
                     
                     // Stesso coin?
                     const exchCoin = (exchTx.coin || '').toUpperCase();
@@ -4645,9 +4677,13 @@
             console.log(`✅ Match trovati: ${reconcileData.matches.length}`);
             console.log(`⚠️ Exchange non riconciliati: ${reconcileData.unmatchedExch.length}`);
             console.log(`⚠️ Wallet non riconciliati: ${reconcileData.unmatchedWallet.length}`);
+            console.log(`🔍 Tentativi di match: ${debugMatchAttempts}`);
             
             updateReconcileSummary();
             renderReconcileData();
+            
+            // Alert con risultati
+            alert(`✅ Riconciliazione completata!\n\n• Match trovati: ${reconcileData.matches.length}\n• Exchange non riconciliati: ${reconcileData.unmatchedExch.length}\n• Wallet non riconciliati: ${reconcileData.unmatchedWallet.length}\n\nControlla i risultati sotto.`);
         }
         
         function updateReconcileSummary() {
