@@ -488,6 +488,7 @@
                         Nessun NFT trovato. Clicca "🔍 Scansiona NFT" per cercare i tuoi NFT.
                     </div>
                 </div>
+                <div id="nftPagination"></div>
             </div>
         </div>
         
@@ -869,6 +870,8 @@
         let nftData = []; // Array di NFT: { tokenId, name, collection, image, chain, contract, floorPrice, purchasePrice, wallet }
         let nftPurchasePrices = {}; // { contract_tokenId: purchasePrice } - prezzi di acquisto manuali
         let nftBlacklist = []; // Array di NFT ID da nascondere (scam): "contract_tokenId"
+        let nftPage = 1; // Pagina corrente NFT
+        const NFT_PER_PAGE = 50; // NFT per pagina
         
         // Exchange data from CSV imports
         let exchangeData = {}; // { binance: { transactions: [], balances: {2021: {BTC: 0.5, ...}}, totals: {2021: 1234, ...} }, ... }
@@ -6542,11 +6545,21 @@
             
             if (filteredNFTs.length === 0) {
                 grid.innerHTML = '<div style="color:var(--text-secondary);text-align:center;padding:40px;grid-column:1/-1;">Nessun NFT trovato.</div>';
+                document.getElementById('nftPagination').innerHTML = '';
                 return;
             }
             
+            // Paginazione
+            const totalPages = Math.ceil(filteredNFTs.length / NFT_PER_PAGE);
+            if (nftPage > totalPages) nftPage = totalPages;
+            if (nftPage < 1) nftPage = 1;
+            
+            const startIdx = (nftPage - 1) * NFT_PER_PAGE;
+            const endIdx = startIdx + NFT_PER_PAGE;
+            const pageNFTs = filteredNFTs.slice(startIdx, endIdx);
+            
             let html = '';
-            for (const nft of filteredNFTs) {
+            for (const nft of pageNFTs) {
                 const nftKey = `${nft.contract}_${nft.tokenId}`;
                 const purchasePrice = nftPurchasePrices[nftKey] || 0;
                 const currentValue = nft.floorPriceUSD || 0;
@@ -6560,7 +6573,7 @@
                         title="Nascondi NFT (scam)">🚫</button>
                     <div style="height:200px;background:var(--bg-primary);display:flex;align-items:center;justify-content:center;overflow:hidden;">
                         ${nft.image ? 
-                            `<img src="${nft.image}" alt="${nft.name}" style="max-width:100%;max-height:100%;object-fit:contain;" onerror="this.parentElement.innerHTML='🖼️'">` : 
+                            `<img src="${nft.image}" alt="${nft.name}" loading="lazy" style="max-width:100%;max-height:100%;object-fit:contain;" onerror="this.parentElement.innerHTML='🖼️'">` : 
                             '<span style="font-size:48px;">🖼️</span>'
                         }
                     </div>
@@ -6590,9 +6603,63 @@
             }
             
             grid.innerHTML = html;
+            
+            // Render paginazione
+            let pagHtml = '';
+            if (totalPages > 1) {
+                pagHtml = `<div style="grid-column:1/-1;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:12px;padding:20px 0;">
+                    <button class="btn btn-secondary" onclick="nftPage=1;renderNFTGrid('${filterChain}')" ${nftPage === 1 ? 'disabled' : ''}>⏮️</button>
+                    <button class="btn btn-secondary" onclick="nftPage--;renderNFTGrid('${filterChain}')" ${nftPage === 1 ? 'disabled' : ''}>◀️</button>
+                    <span style="color:var(--text-secondary);">Pagina ${nftPage} di ${totalPages} (${filteredNFTs.length} NFT)</span>
+                    <button class="btn btn-secondary" onclick="nftPage++;renderNFTGrid('${filterChain}')" ${nftPage === totalPages ? 'disabled' : ''}>▶️</button>
+                    <button class="btn btn-secondary" onclick="nftPage=${totalPages};renderNFTGrid('${filterChain}')" ${nftPage === totalPages ? 'disabled' : ''}>⏭️</button>
+                    <button class="btn btn-secondary" onclick="hideCurrentPageNFTs('${filterChain}')" style="margin-left:20px;background:rgba(255,100,100,0.2);color:#ff6b6b;">🚫 Nascondi Pagina</button>
+                </div>`;
+            }
+            document.getElementById('nftPagination').innerHTML = pagHtml;
+        }
+        
+        function hideCurrentPageNFTs(filterChain) {
+            // Nascondi tutti gli NFT della pagina corrente
+            const filteredNFTs = nftData.filter(nft => {
+                const nftKey = `${nft.contract}_${nft.tokenId}`;
+                if (nftBlacklist.includes(nftKey)) return false;
+                if (filterChain !== 'all' && nft.chainKey !== filterChain && nft.chain.toLowerCase() !== filterChain) return false;
+                return true;
+            });
+            
+            const startIdx = (nftPage - 1) * NFT_PER_PAGE;
+            const endIdx = startIdx + NFT_PER_PAGE;
+            const pageNFTs = filteredNFTs.slice(startIdx, endIdx);
+            
+            // Escludi quelli con prezzo di acquisto impostato
+            const toHide = pageNFTs.filter(nft => {
+                const nftKey = `${nft.contract}_${nft.tokenId}`;
+                return !nftPurchasePrices[nftKey] || nftPurchasePrices[nftKey] === 0;
+            });
+            
+            if (toHide.length === 0) {
+                alert('Nessun NFT da nascondere in questa pagina.\n(Gli NFT con prezzo di acquisto sono protetti)');
+                return;
+            }
+            
+            const confirm = window.confirm(`🚫 Nascondere ${toHide.length} NFT di questa pagina?`);
+            if (confirm) {
+                for (const nft of toHide) {
+                    const nftKey = `${nft.contract}_${nft.tokenId}`;
+                    if (!nftBlacklist.includes(nftKey)) {
+                        nftBlacklist.push(nftKey);
+                    }
+                }
+                localStorage.setItem('cryptofolio_nft_blacklist', JSON.stringify(nftBlacklist));
+                updateNFTBlacklistButton();
+                updateNFTSummary();
+                renderNFTGrid(filterChain);
+            }
         }
         
         function filterNFTsByChain() {
+            nftPage = 1; // Reset pagina quando cambia filtro
             const filter = document.getElementById('nftChainFilter').value;
             renderNFTGrid(filter);
         }
@@ -6603,7 +6670,8 @@
                 localStorage.setItem('cryptofolio_nft_blacklist', JSON.stringify(nftBlacklist));
                 updateNFTBlacklistButton();
                 updateNFTSummary();
-                renderNFTGrid(document.getElementById('nftChainFilter')?.value || 'all');
+                const filter = document.getElementById('nftChainFilter')?.value || 'all';
+                renderNFTGrid(filter);
             }
         }
         
@@ -6612,7 +6680,8 @@
             localStorage.setItem('cryptofolio_nft_blacklist', JSON.stringify(nftBlacklist));
             updateNFTBlacklistButton();
             updateNFTSummary();
-            renderNFTGrid(document.getElementById('nftChainFilter')?.value || 'all');
+            const filter = document.getElementById('nftChainFilter')?.value || 'all';
+            renderNFTGrid(filter);
         }
         
         function loadNFTBlacklist() {
@@ -6760,7 +6829,9 @@
                 localStorage.setItem('cryptofolio_nft_blacklist', JSON.stringify(nftBlacklist));
                 updateNFTBlacklistButton();
                 updateNFTSummary();
-                renderNFTGrid(document.getElementById('nftChainFilter')?.value || 'all');
+                nftPage = 1; // Reset alla prima pagina
+                const filter = document.getElementById('nftChainFilter')?.value || 'all';
+                renderNFTGrid(filter);
                 
                 alert(`✅ Nascosti ${scamCount} NFT scam!\n\nOra hai ${nftData.length - nftBlacklist.length} NFT visibili.`);
             }
