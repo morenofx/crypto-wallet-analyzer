@@ -77,6 +77,14 @@
         .holdings-table td { padding: 16px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
         .holdings-table td:nth-child(2), .holdings-table td:nth-child(3), .holdings-table td:nth-child(4) { text-align: right; }
         .holdings-table tr:hover { background: rgba(255,255,255,0.02); }
+        
+        /* Tabella transazioni exchange */
+        .tx-table { width: 100%; border-collapse: collapse; table-layout: auto; }
+        .tx-table th { padding: 10px 12px; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; border-bottom: 1px solid var(--border); font-weight: 600; letter-spacing: 0.5px; }
+        .tx-table td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: middle; }
+        .tx-table tr:hover { background: rgba(255,255,255,0.02); }
+        .tx-badge { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+        
         .token-cell { display: flex; align-items: center; gap: 12px; }
         .token-icon { width: 40px; height: 40px; border-radius: 50%; background: var(--bg-secondary); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px; overflow: hidden; flex-shrink: 0; }
         .token-icon img { width: 100%; height: 100%; object-fit: cover; }
@@ -634,6 +642,8 @@
                         </select>
                         <select id="exchDetailTxType" onchange="filterExchDetailTx()" style="padding:6px 10px;background:var(--bg-primary);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px;">
                             <option value="">Tutti i tipi</option>
+                            <option value="buy">🛒 Buy</option>
+                            <option value="sell">💰 Sell</option>
                             <option value="deposit">📥 Deposit</option>
                             <option value="withdrawal">📤 Withdrawal</option>
                             <option value="trade">📊 Trade</option>
@@ -645,19 +655,19 @@
                     </div>
                 </div>
                 <div style="overflow-x:auto;margin-top:12px;">
-                    <table class="holdings-table" style="table-layout:auto;font-size:14px;">
+                    <table class="tx-table">
                         <thead>
                             <tr>
-                                <th style="width:140px;font-size:13px;">Data</th>
-                                <th style="width:100px;font-size:13px;">Tipo</th>
-                                <th style="width:90px;font-size:13px;">Coin</th>
-                                <th style="width:120px;text-align:right;font-size:13px;">Importo</th>
-                                <th style="font-size:13px;">Operazione</th>
+                                <th style="text-align:left;">Data</th>
+                                <th style="text-align:left;">Tipo</th>
+                                <th style="text-align:center;">Coin</th>
+                                <th style="text-align:right;">Importo</th>
+                                <th style="text-align:right;">Valore €</th>
                             </tr>
                         </thead>
                         <tbody id="exchDetailTxTable">
                             <tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-secondary);">
-                                Nessuna transazione
+                                Importa transazioni con CSV o API
                             </td></tr>
                         </tbody>
                     </table>
@@ -4141,7 +4151,7 @@
             const perPage = 50;
             
             if (exchDetailFilteredTx.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-secondary);">Nessuna transazione</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-secondary);">Nessuna transazione trovata</td></tr>';
                 document.getElementById('exchDetailTxPagination').innerHTML = '';
                 return;
             }
@@ -4155,11 +4165,15 @@
                 withdrawal: { bg: 'rgba(255,107,107,0.15)', color: 'var(--red)', icon: '📤' },
                 fiat_withdrawal: { bg: 'rgba(255,107,107,0.15)', color: 'var(--red)', icon: '💶' },
                 trade: { bg: 'rgba(108,92,231,0.15)', color: 'var(--accent)', icon: '📊' },
+                buy: { bg: 'rgba(0,206,201,0.15)', color: 'var(--green)', icon: '🛒' },
+                sell: { bg: 'rgba(255,107,107,0.15)', color: 'var(--red)', icon: '💰' },
                 convert: { bg: 'rgba(243,186,47,0.15)', color: '#f3ba2f', icon: '🔄' },
                 staking: { bg: 'rgba(0,206,201,0.15)', color: 'var(--green)', icon: '🥩' },
                 interest: { bg: 'rgba(0,206,201,0.15)', color: 'var(--green)', icon: '💰' },
                 dividend: { bg: 'rgba(0,206,201,0.15)', color: 'var(--green)', icon: '🎁' },
-                fee: { bg: 'rgba(255,107,107,0.15)', color: 'var(--red)', icon: '💸' }
+                fee: { bg: 'rgba(255,107,107,0.15)', color: 'var(--red)', icon: '💸' },
+                transfer: { bg: 'rgba(108,92,231,0.15)', color: 'var(--accent)', icon: '↔️' },
+                refund: { bg: 'rgba(0,206,201,0.15)', color: 'var(--green)', icon: '↩️' }
             };
             
             let html = '';
@@ -4180,21 +4194,33 @@
                     fiat_deposit: 'Fiat In',
                     fiat_withdrawal: 'Fiat Out',
                     trade: 'Trade',
+                    buy: 'Buy',
+                    sell: 'Sell',
                     convert: 'Convert',
                     staking: 'Staking',
                     interest: 'Interest',
                     dividend: 'Dividend',
                     fee: 'Fee',
-                    dust: 'Dust'
+                    dust: 'Dust',
+                    transfer: 'Transfer',
+                    refund: 'Refund'
                 };
                 const typeLabel = typeLabels[tx.type] || tx.type || '-';
                 
+                // Valore EUR se disponibile
+                const eurValue = tx.amountEur ? `€${formatNumber(tx.amountEur)}` : '';
+                
                 html += `<tr>
-                    <td><div style="font-size:14px;font-weight:500;">${dateStr}</div><div style="font-size:12px;color:var(--text-secondary);">${timeStr}</div></td>
-                    <td><span style="display:inline-flex;flex-direction:row;align-items:center;gap:6px;padding:6px 10px;border-radius:6px;font-size:13px;font-weight:600;background:${style.bg};color:${style.color};white-space:nowrap;">${style.icon} ${typeLabel}</span></td>
-                    <td style="font-weight:600;font-size:14px;">${tx.coin || '-'}</td>
-                    <td style="text-align:right;color:${amtColor};font-weight:600;font-size:14px;">${sign}${formatNumber(Math.abs(change) || amt)}</td>
-                    <td style="font-size:13px;color:var(--text-secondary);">${tx.operation || '-'}</td>
+                    <td style="white-space:nowrap;">
+                        <div style="font-size:14px;font-weight:500;">${dateStr}</div>
+                        <div style="font-size:11px;color:var(--text-secondary);">${timeStr}</div>
+                    </td>
+                    <td>
+                        <span class="tx-badge" style="background:${style.bg};color:${style.color};">${style.icon} ${typeLabel}</span>
+                    </td>
+                    <td style="text-align:center;font-weight:600;font-size:14px;">${tx.coin || '-'}</td>
+                    <td style="text-align:right;color:${amtColor};font-weight:600;font-size:14px;font-family:'SF Mono',Monaco,monospace;">${sign}${formatNumber(Math.abs(change) || amt)}</td>
+                    <td style="text-align:right;font-size:13px;color:var(--text-secondary);font-family:'SF Mono',Monaco,monospace;">${eurValue}</td>
                 </tr>`;
             }
             tbody.innerHTML = html;
@@ -4853,12 +4879,18 @@
                 const walletsData = await walletsRes.json();
                 console.log('Bitpanda wallets:', walletsData);
                 
-                // Estrai saldi reali
+                // Estrai saldi reali (inclusi staked)
                 for (const wallet of (walletsData.data || [])) {
                     const symbol = wallet.attributes?.cryptocoin_symbol;
                     const balance = parseFloat(wallet.attributes?.balance) || 0;
-                    if (symbol && balance > 0) {
-                        realBalances[symbol] = (realBalances[symbol] || 0) + balance;
+                    const stakedBalance = parseFloat(wallet.attributes?.staked_balance) || 0;
+                    const totalBalance = balance + stakedBalance;
+                    
+                    if (symbol && totalBalance > 0) {
+                        realBalances[symbol] = (realBalances[symbol] || 0) + totalBalance;
+                        if (stakedBalance > 0) {
+                            console.log(`  💎 ${symbol}: ${balance} + ${stakedBalance} staked = ${totalBalance}`);
+                        }
                     }
                 }
                 
@@ -4892,10 +4924,16 @@
                         let type = attrs?.type || 'unknown';
                         const inOrOut = attrs?.in_or_out || '';
                         
+                        // Normalizza tipi
                         if (type === 'transfer' && inOrOut === 'incoming') type = 'deposit';
                         if (type === 'transfer' && inOrOut === 'outgoing') type = 'withdrawal';
-                        if (type === 'buy') type = 'buy';
-                        if (type === 'sell') type = 'sell';
+                        if (type === 'reward' || type === 'staking_reward' || type === 'distribution') type = 'staking';
+                        if (type === 'best_reward') type = 'staking'; // BEST/VSN rewards
+                        
+                        // Debug per vedere tutti i tipi
+                        if (!['buy', 'sell', 'deposit', 'withdrawal', 'staking', 'transfer'].includes(type)) {
+                            console.log(`  📋 Bitpanda tx type: ${attrs?.type} → ${type}`);
+                        }
                         
                         // Trova simbolo crypto (da cryptocoin_id)
                         const cryptoId = attrs?.cryptocoin_id;
@@ -5011,7 +5049,8 @@
                     for (const year of years) {
                         if (txYear <= year) {
                             if (!yearEndSnapshots[year][tx.coin]) yearEndSnapshots[year][tx.coin] = 0;
-                            if (tx.type === 'buy' || tx.type === 'deposit') {
+                            // Entrate: buy, deposit, staking rewards
+                            if (tx.type === 'buy' || tx.type === 'deposit' || tx.type === 'staking' || tx.type === 'interest' || tx.type === 'reward') {
                                 yearEndSnapshots[year][tx.coin] += tx.amount;
                             } else if (tx.type === 'sell' || tx.type === 'withdrawal') {
                                 yearEndSnapshots[year][tx.coin] -= tx.amount;
@@ -5021,9 +5060,13 @@
                 }
                 
                 // Calcola valore EUR per anno
+                const currentYear = new Date().getFullYear();
                 for (const year of years) {
                     let totalEur = 0;
-                    for (const [coin, amount] of Object.entries(yearEndSnapshots[year])) {
+                    // Per anno corrente, usa saldi reali se disponibili
+                    const balancesToUse = (year === currentYear && hasRealBalances) ? realBalances : yearEndSnapshots[year];
+                    
+                    for (const [coin, amount] of Object.entries(balancesToUse || {})) {
                         if (amount > 0) {
                             const price = getHistoricalPrice(coin, year);
                             if (price && !isNaN(price)) {
@@ -5032,6 +5075,11 @@
                         }
                     }
                     yearTotals[year] = Math.round(totalEur * 100) / 100;
+                }
+                
+                // Se anno corrente ha saldi reali, copia per snapshot
+                if (hasRealBalances) {
+                    yearEndSnapshots[currentYear] = { ...realBalances };
                 }
                 
                 // Salva
@@ -5098,8 +5146,14 @@
                     return wallet.attributes?.cryptocoin_symbol;
                 }
             }
-            // Mapping comune
-            const idMap = { '1': 'BTC', '3': 'ETH', '5': 'LTC', '8': 'XRP', '27': 'ADA', '28': 'DOT' };
+            // Mapping comune Bitpanda (cryptocoin_id → symbol)
+            const idMap = { 
+                '1': 'BTC', '3': 'ETH', '5': 'LTC', '8': 'XRP', 
+                '27': 'ADA', '28': 'DOT', '30': 'LINK', '34': 'UNI',
+                '39': 'BEST', '130': 'VSN', // Bitpanda tokens
+                '11': 'USDT', '42': 'USDC', '17': 'DOGE', '18': 'TRX',
+                '22': 'XLM', '29': 'SOL', '31': 'AVAX', '32': 'MATIC'
+            };
             return idMap[cryptoId] || null;
         }
         
