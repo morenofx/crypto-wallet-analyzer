@@ -715,6 +715,21 @@
                 <div id="exchDetailBalances" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:12px;"></div>
             </div>
             
+            <!-- ⚠️ Sezione Discrepanze -->
+            <div id="exchDetailDiscrepancies" class="card" style="margin-bottom:20px;display:none;border:2px solid var(--yellow);">
+                <div class="card-header" style="background:rgba(243,186,47,0.1);">
+                    <div class="card-title" style="color:var(--yellow);">⚠️ Discrepanze Rilevate (<span id="discrepancyCount">0</span>)</div>
+                    <div style="display:flex;gap:8px;">
+                        <button class="btn btn-secondary" onclick="refreshDiscrepancies()" style="padding:6px 12px;font-size:12px;">🔄 Aggiorna</button>
+                        <button class="btn" onclick="resolveAllDiscrepancies()" style="padding:6px 12px;font-size:12px;background:var(--green);color:#000;">✅ Risolvi Tutte</button>
+                    </div>
+                </div>
+                <div id="discrepancyList" style="margin-top:12px;"></div>
+                <div style="margin-top:12px;padding:12px;background:var(--bg-primary);border-radius:8px;font-size:12px;color:var(--text-secondary);">
+                    💡 <strong>Cause comuni:</strong> Staking rewards, Airdrop, Referral bonus, Dust → BNB conversion, Fork tokens
+                </div>
+            </div>
+            
             <!-- Transazioni -->
             <div class="card">
                 <div class="card-header">
@@ -741,6 +756,8 @@
                             <option value="interest">💰 Interest</option>
                         </select>
                         <button class="btn" onclick="fetchTransactionPrices()" style="padding:6px 12px;font-size:12px;background:var(--green);color:#000;">💰 Fetch Prezzi</button>
+                        <button class="btn btn-secondary" onclick="showDiscrepancyReport(currentDetailExchange)" style="padding:6px 12px;font-size:12px;" title="Verifica discrepanze saldi">🔍 Verifica</button>
+                        <button class="btn btn-secondary" onclick="showAddManualTxModal(currentDetailExchange)" style="padding:6px 12px;font-size:12px;" title="Aggiungi transazione manuale">➕ TX</button>
                         <button class="btn btn-secondary" onclick="exportExchDetailTx()" style="padding:6px 12px;font-size:12px;">📥 CSV</button>
                     </div>
                 </div>
@@ -1564,6 +1581,438 @@
         }
         
         // ==================== END SISTEMA TRANSAZIONI ARRICCHITE ====================
+        
+        // ==================== GESTIONE DISCREPANZE ====================
+        
+        // Salva ultima verifica discrepanze
+        let lastDiscrepancyCheck = null;
+        
+        // Mostra report discrepanze
+        function showDiscrepancyReport(exchangeId) {
+            const exchData = exchangeData[exchangeId];
+            if (!exchData) {
+                alert('Nessun dato per questo exchange');
+                return;
+            }
+            
+            const transactions = exchData.transactions || [];
+            const realBalances = exchData.realBalances || {};
+            
+            if (Object.keys(realBalances).length === 0) {
+                alert('⚠️ Nessun saldo reale disponibile.\n\nI saldi reali sono necessari per verificare le discrepanze.\n\nProva a re-importare via API.');
+                return;
+            }
+            
+            const check = zeroSumCheck(transactions, realBalances);
+            lastDiscrepancyCheck = { exchangeId, check, timestamp: new Date() };
+            
+            if (check.isValid) {
+                alert('✅ Nessuna discrepanza!\n\nTutti i saldi calcolati corrispondono ai saldi reali.');
+                return;
+            }
+            
+            let report = `🔍 REPORT DISCREPANZE - ${exchangeId.toUpperCase()}\n`;
+            report += `${'═'.repeat(40)}\n\n`;
+            
+            for (const issue of check.issues) {
+                const diff = issue.difference;
+                const diffSign = diff > 0 ? '+' : '';
+                const priceEur = getPriceEur(issue.coin, new Date().getFullYear());
+                const diffValueEur = Math.abs(diff) * priceEur;
+                
+                report += `❌ ${issue.coin}\n`;
+                report += `   Calcolato: ${issue.calculated.toFixed(6)}\n`;
+                report += `   Reale:     ${issue.real.toFixed(6)}\n`;
+                report += `   Differenza: ${diffSign}${diff.toFixed(6)}`;
+                if (diffValueEur > 0.01) {
+                    report += ` (~€${diffValueEur.toFixed(2)})`;
+                }
+                report += `\n`;
+                
+                if (issue.note) {
+                    report += `   📝 ${issue.note}\n`;
+                }
+                
+                // Suggerimento
+                if (diff > 0) {
+                    report += `   💡 Manca: deposito/acquisto/reward\n`;
+                } else {
+                    report += `   💡 Manca: prelievo/vendita/fee\n`;
+                }
+                report += `\n`;
+            }
+            
+            report += `${'─'.repeat(40)}\n`;
+            report += `Totale discrepanze: ${check.issues.length}\n\n`;
+            report += `💡 Per risolvere:\n`;
+            report += `1. Verifica su ${exchangeId} se mancano operazioni\n`;
+            report += `2. Controlla Earn/Staking rewards\n`;
+            report += `3. Usa "Aggiungi TX Manuale" per compensare`;
+            
+            alert(report);
+        }
+        
+        // Aggiungi transazione manuale per risolvere discrepanza
+        function addManualTransaction(exchangeId, data) {
+            const exchData = exchangeData[exchangeId];
+            if (!exchData) {
+                console.error('Exchange non trovato:', exchangeId);
+                return null;
+            }
+            
+            if (!exchData.transactions) {
+                exchData.transactions = [];
+            }
+            
+            // Crea transazione arricchita
+            const tx = createEnrichedTransaction({
+                timestamp: data.date || new Date(),
+                type: data.type || 'deposit',
+                asset_in: data.coin,
+                amount_in: Math.abs(data.amount),
+                price_eur: data.priceEur || getPriceEur(data.coin, data.date || new Date()),
+                fee_eur: data.feeEur || 0,
+                source: exchangeId,
+                exchange: exchangeId,
+                notes: data.notes || 'Transazione manuale - aggiustamento',
+                change: data.amount // Positivo per deposito, negativo per prelievo
+            });
+            
+            // Aggiungi alla lista
+            exchData.transactions.push(tx);
+            
+            // Riordina per data
+            exchData.transactions.sort((a, b) => {
+                const dateA = a.timestamp || a.date;
+                const dateB = b.timestamp || b.date;
+                return new Date(dateA) - new Date(dateB);
+            });
+            
+            // Ricalcola saldi
+            recalculateExchangeBalances(exchangeId);
+            
+            // Salva
+            saveExchangeDataToFirebase();
+            
+            console.log(`✅ Transazione manuale aggiunta: ${tx.type} ${tx.amount_in} ${tx.asset_in}`);
+            return tx;
+        }
+        
+        // Ricalcola saldi da transazioni
+        function recalculateExchangeBalances(exchangeId) {
+            const exchData = exchangeData[exchangeId];
+            if (!exchData || !exchData.transactions) return;
+            
+            const balances = {};
+            const yearEndSnapshots = {};
+            const years = [2021, 2022, 2023, 2024, 2025, 2026];
+            let yearIndex = 0;
+            
+            // Ordina transazioni
+            const sortedTx = [...exchData.transactions].sort((a, b) => {
+                const dateA = a.timestamp || a.date;
+                const dateB = b.timestamp || b.date;
+                return new Date(dateA) - new Date(dateB);
+            });
+            
+            for (const tx of sortedTx) {
+                const coin = tx.asset_in || tx.coin;
+                if (!coin) continue;
+                
+                if (!balances[coin]) balances[coin] = 0;
+                balances[coin] += tx.change || 0;
+                if (Math.abs(balances[coin]) < 0.00000001) balances[coin] = 0;
+                
+                const txDate = tx.timestamp || tx.date;
+                const txDateTime = txDate instanceof Date ? txDate : new Date(txDate);
+                
+                while (yearIndex < years.length && txDateTime > new Date(years[yearIndex], 11, 31, 23, 59, 59)) {
+                    yearEndSnapshots[years[yearIndex]] = { ...balances };
+                    yearIndex++;
+                }
+            }
+            
+            // Completa anni rimanenti
+            for (let i = yearIndex; i < years.length; i++) {
+                yearEndSnapshots[years[i]] = { ...balances };
+            }
+            
+            // Usa saldi reali per 2025/2026 se disponibili
+            if (exchData.realBalances && Object.keys(exchData.realBalances).length > 0) {
+                yearEndSnapshots[2025] = { ...exchData.realBalances };
+                yearEndSnapshots[2026] = { ...exchData.realBalances };
+            }
+            
+            // Ricalcola totali EUR
+            const yearTotals = {};
+            for (const year of years) {
+                let totalEur = 0;
+                const snapshot = yearEndSnapshots[year] || {};
+                for (const [coin, amount] of Object.entries(snapshot)) {
+                    if (!amount || amount <= 0 || coin.startsWith('LD')) continue;
+                    const priceEur = getPriceEur(coin, year);
+                    if (priceEur && !isNaN(priceEur)) {
+                        totalEur += amount * priceEur;
+                    }
+                }
+                yearTotals[year] = Math.round(totalEur * 100) / 100;
+            }
+            
+            // Aggiorna
+            exchData.balances = yearEndSnapshots;
+            exchData.totals = yearTotals;
+            exchData.transactionCount = sortedTx.length;
+            
+            // Refresh UI
+            initExchangeGrid();
+            updateExchangeTotals();
+        }
+        
+        // Risolvi discrepanza automaticamente
+        function resolveDiscrepancy(exchangeId, coin, difference) {
+            const type = difference > 0 ? 'deposit' : 'withdrawal';
+            const amount = difference; // Positivo per deposit, negativo per withdrawal
+            
+            const confirmed = confirm(
+                `🔧 Risolvere discrepanza ${coin}?\n\n` +
+                `Verrà aggiunta una transazione:\n` +
+                `• Tipo: ${type === 'deposit' ? '📥 Deposito' : '📤 Prelievo'}\n` +
+                `• Coin: ${coin}\n` +
+                `• Quantità: ${Math.abs(difference).toFixed(6)}\n` +
+                `• Data: oggi\n` +
+                `• Note: "Aggiustamento automatico"\n\n` +
+                `Continuare?`
+            );
+            
+            if (!confirmed) return;
+            
+            addManualTransaction(exchangeId, {
+                date: new Date(),
+                type: type,
+                coin: coin,
+                amount: amount,
+                notes: `Aggiustamento automatico - discrepanza ${Math.abs(difference).toFixed(6)} ${coin}`
+            });
+            
+            alert(`✅ Discrepanza ${coin} risolta!\n\nTransazione aggiunta.`);
+            
+            // Ri-verifica
+            showDiscrepancyReport(exchangeId);
+        }
+        
+        // UI per aggiungere transazione manuale
+        function showAddManualTxModal(exchangeId) {
+            const coin = prompt('Coin (es. BTC, ETH, NOT):');
+            if (!coin) return;
+            
+            const amountStr = prompt(`Quantità ${coin.toUpperCase()}:\n(positivo = deposito, negativo = prelievo)`);
+            if (!amountStr) return;
+            const amount = parseFloat(amountStr);
+            if (isNaN(amount) || amount === 0) {
+                alert('Quantità non valida');
+                return;
+            }
+            
+            const type = amount > 0 ? 'deposit' : 'withdrawal';
+            const dateStr = prompt('Data (YYYY-MM-DD) o lascia vuoto per oggi:');
+            const date = dateStr ? new Date(dateStr) : new Date();
+            
+            const notes = prompt('Note (opzionale):') || '';
+            
+            // Conferma
+            const priceEur = getPriceEur(coin.toUpperCase(), date);
+            const valueEur = Math.abs(amount) * priceEur;
+            
+            const confirmed = confirm(
+                `📝 Conferma transazione manuale:\n\n` +
+                `• Tipo: ${type === 'deposit' ? '📥 Deposito' : '📤 Prelievo'}\n` +
+                `• Coin: ${coin.toUpperCase()}\n` +
+                `• Quantità: ${Math.abs(amount)}\n` +
+                `• Data: ${date.toLocaleDateString('it-IT')}\n` +
+                `• Valore: ~€${valueEur.toFixed(2)}\n` +
+                `• Note: ${notes || '(nessuna)'}\n\n` +
+                `Aggiungere?`
+            );
+            
+            if (!confirmed) return;
+            
+            addManualTransaction(exchangeId, {
+                date,
+                type,
+                coin: coin.toUpperCase(),
+                amount,
+                notes
+            });
+            
+            alert('✅ Transazione aggiunta!');
+            
+            // Refresh dettaglio
+            if (currentDetailExchange === exchangeId) {
+                openExchangeDetail(exchangeId);
+            }
+        }
+        
+        // ==================== END GESTIONE DISCREPANZE ====================
+        
+        // ==================== UI DISCREPANZE ====================
+        
+        // Renderizza sezione discrepanze
+        function renderDiscrepanciesSection(exchangeId) {
+            const section = document.getElementById('exchDetailDiscrepancies');
+            const countEl = document.getElementById('discrepancyCount');
+            const listEl = document.getElementById('discrepancyList');
+            
+            if (!section || !listEl) return;
+            
+            const exchData = exchangeData[exchangeId];
+            if (!exchData) {
+                section.style.display = 'none';
+                return;
+            }
+            
+            // Usa discrepanze salvate o calcola nuove
+            let issues = exchData.discrepancies || [];
+            
+            // Se non ci sono discrepanze salvate ma ci sono saldi reali, calcola
+            if (issues.length === 0 && exchData.realBalances && Object.keys(exchData.realBalances).length > 0) {
+                const check = zeroSumCheck(exchData.transactions || [], exchData.realBalances);
+                issues = check.issues || [];
+                // Salva per persistenza
+                exchData.discrepancies = issues;
+            }
+            
+            if (issues.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+            
+            // Mostra sezione
+            section.style.display = 'block';
+            countEl.textContent = issues.length;
+            
+            // Renderizza lista
+            let html = '<div style="display:grid;gap:12px;">';
+            
+            for (const issue of issues) {
+                const diff = issue.difference;
+                const diffSign = diff > 0 ? '+' : '';
+                const priceEur = getPriceEur(issue.coin, new Date().getFullYear());
+                const diffValueEur = Math.abs(diff) * priceEur;
+                const isSignificant = diffValueEur > 1;
+                
+                const bgColor = isSignificant ? 'rgba(255,107,107,0.1)' : 'rgba(243,186,47,0.1)';
+                const borderColor = isSignificant ? 'var(--red)' : 'var(--yellow)';
+                
+                html += `
+                <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:${bgColor};border-left:3px solid ${borderColor};border-radius:0 8px 8px 0;">
+                    <div style="flex:1;">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <span style="font-weight:700;font-size:16px;">${issue.coin}</span>
+                            ${isSignificant ? '<span style="background:var(--red);color:#fff;padding:2px 6px;border-radius:4px;font-size:10px;">IMPORTANTE</span>' : ''}
+                        </div>
+                        <div style="display:flex;gap:16px;margin-top:6px;font-size:12px;color:var(--text-secondary);">
+                            <span>Calcolato: <strong>${issue.calculated.toFixed(6)}</strong></span>
+                            <span>Reale: <strong>${issue.real.toFixed(6)}</strong></span>
+                        </div>
+                        <div style="margin-top:4px;font-size:13px;">
+                            Diff: <span style="color:${diff > 0 ? 'var(--green)' : 'var(--red)'};">${diffSign}${diff.toFixed(6)}</span>
+                            ${diffValueEur > 0.01 ? `<span style="color:var(--text-secondary);"> (~€${diffValueEur.toFixed(2)})</span>` : ''}
+                        </div>
+                        <div style="margin-top:4px;font-size:11px;color:var(--text-secondary);">
+                            💡 ${diff > 0 ? 'Manca: deposito, reward, airdrop' : 'Manca: prelievo, fee, vendita'}
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                        <button class="btn btn-secondary" onclick="resolveDiscrepancy('${exchangeId}', '${issue.coin}', ${diff})" 
+                                style="padding:6px 12px;font-size:11px;" title="Aggiungi transazione per risolvere">
+                            🔧 Risolvi
+                        </button>
+                    </div>
+                </div>`;
+            }
+            
+            html += '</div>';
+            listEl.innerHTML = html;
+        }
+        
+        // Aggiorna discrepanze
+        function refreshDiscrepancies() {
+            if (!currentDetailExchange) return;
+            
+            const exchData = exchangeData[currentDetailExchange];
+            if (!exchData || !exchData.realBalances) {
+                alert('⚠️ Nessun saldo reale disponibile.\n\nRe-importa via API per ottenere i saldi reali.');
+                return;
+            }
+            
+            // Ricalcola
+            const check = zeroSumCheck(exchData.transactions || [], exchData.realBalances);
+            exchData.discrepancies = check.issues || [];
+            
+            // Salva
+            saveExchangeDataToFirebase();
+            
+            // Refresh UI
+            renderDiscrepanciesSection(currentDetailExchange);
+            
+            if (check.isValid) {
+                alert('✅ Nessuna discrepanza!\n\nTutti i saldi corrispondono.');
+            }
+        }
+        
+        // Risolvi tutte le discrepanze
+        function resolveAllDiscrepancies() {
+            if (!currentDetailExchange) return;
+            
+            const exchData = exchangeData[currentDetailExchange];
+            const issues = exchData?.discrepancies || [];
+            
+            if (issues.length === 0) {
+                alert('✅ Nessuna discrepanza da risolvere!');
+                return;
+            }
+            
+            // Calcola valore totale
+            let totalValueEur = 0;
+            for (const issue of issues) {
+                const priceEur = getPriceEur(issue.coin, new Date().getFullYear());
+                totalValueEur += Math.abs(issue.difference) * priceEur;
+            }
+            
+            const confirmed = confirm(
+                `🔧 Risolvere TUTTE le ${issues.length} discrepanze?\n\n` +
+                `Verranno aggiunte ${issues.length} transazioni di aggiustamento.\n` +
+                `Valore totale: ~€${totalValueEur.toFixed(2)}\n\n` +
+                `⚠️ Queste transazioni saranno marcate come "Aggiustamento automatico".\n\n` +
+                `Continuare?`
+            );
+            
+            if (!confirmed) return;
+            
+            let resolved = 0;
+            for (const issue of issues) {
+                addManualTransaction(currentDetailExchange, {
+                    date: new Date(),
+                    type: issue.difference > 0 ? 'deposit' : 'withdrawal',
+                    coin: issue.coin,
+                    amount: issue.difference,
+                    notes: `Aggiustamento automatico - discrepanza ${Math.abs(issue.difference).toFixed(6)} ${issue.coin}`
+                });
+                resolved++;
+            }
+            
+            // Pulisci discrepanze
+            exchData.discrepancies = [];
+            saveExchangeDataToFirebase();
+            
+            // Refresh UI
+            renderDiscrepanciesSection(currentDetailExchange);
+            filterExchDetailTx();
+            
+            alert(`✅ Risolte ${resolved} discrepanze!\n\nLe transazioni sono state aggiunte.`);
+        }
+        
+        // ==================== END UI DISCREPANZE ====================
         
         // Fetch prezzi mancanti da CryptoCompare
         async function fetchMissingPrices() {
@@ -6251,6 +6700,9 @@
             exchDetailTxPage = 1;
             filterExchDetailTx();
             
+            // 🆕 Mostra sezione discrepanze
+            renderDiscrepanciesSection(exchId);
+            
             showView('exchangeDetail');
         }
         
@@ -6825,20 +7277,21 @@
                     yearTotals[year] = isNaN(totalEur) ? 0 : Math.round(totalEur * 100) / 100;
                 }
                 
-                // Salva
+                // 🔍 Zero-Sum Check
+                const zeroCheck = zeroSumCheck(allTransactions, realBalances);
+                
+                // Salva (includi discrepanze!)
                 exchangeData['binance'] = {
                     transactions: allTransactions,
                     balances: yearEndSnapshots,
                     realBalances: hasRealBalances ? realBalances : null,
                     totals: yearTotals,
                     transactionCount: allTransactions.length,
+                    discrepancies: zeroCheck.issues || [], // 🆕 Salva discrepanze!
                     isManual: false,
                     lastImport: new Date().toISOString(),
                     source: 'api'
                 };
-                
-                // 🔍 Zero-Sum Check
-                const zeroCheck = zeroSumCheck(allTransactions, realBalances);
                 
                 progressBar.style.width = '100%';
                 const realMsg = hasRealBalances ? ` (con saldi reali!)` : '';
@@ -6853,11 +7306,8 @@
                 
                 // Mostra warning se discrepanze
                 if (!zeroCheck.isValid && zeroCheck.issues.length > 0) {
-                    alertMsg += `\n\n⚠️ ATTENZIONE: ${zeroCheck.issues.length} discrepanze trovate!`;
-                    for (const issue of zeroCheck.issues.slice(0, 3)) {
-                        alertMsg += `\n   ${issue.coin}: diff ${issue.difference > 0 ? '+' : ''}${issue.difference.toFixed(4)}`;
-                    }
-                    alertMsg += `\n\n(Potrebbero mancare transazioni)`;
+                    alertMsg += `\n\n⚠️ ${zeroCheck.issues.length} discrepanze rilevate!`;
+                    alertMsg += `\n(Visibili nella sezione dedicata)`;
                 }
                 
                 if (hasRealBalances) {
