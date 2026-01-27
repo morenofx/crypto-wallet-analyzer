@@ -4212,10 +4212,14 @@
                 if (tx.amountEur && tx.amountEur > 0) {
                     eurValue = `€${formatNumber(tx.amountEur)}`;
                 } else {
-                    // Prova a calcolare dal prezzo attuale
-                    const price = getHistoricalPrice(tx.coin, new Date(tx.date).getFullYear());
+                    // Prova a calcolare dal prezzo
+                    const exchData = exchangeData[currentDetailExchange] || {};
+                    const savedPrices = exchData.tokenPrices || {};
+                    
+                    // Prima prova prezzo salvato, poi CoinGecko
+                    let price = savedPrices[tx.coin] || getHistoricalPrice(tx.coin, new Date(tx.date).getFullYear());
                     if (price && price > 0) {
-                        const calcEur = amt * price * EUR_USD;
+                        const calcEur = amt * price * (savedPrices[tx.coin] ? 1 : EUR_USD);
                         if (calcEur > 0.01) {
                             eurValue = `~€${formatNumber(calcEur)}`;
                         }
@@ -5045,15 +5049,21 @@
                     
                     if (fiatWalletsRes.ok) {
                         const fiatData = await fiatWalletsRes.json();
+                        console.log('💶 Bitpanda fiat wallets:', fiatData);
                         for (const wallet of (fiatData.data || [])) {
                             const symbol = wallet.attributes?.fiat_symbol;
                             const balance = parseFloat(wallet.attributes?.balance) || 0;
+                            console.log(`  💵 ${symbol}: ${balance}`);
                             if (symbol && balance > 0) {
                                 realBalances[symbol] = (realBalances[symbol] || 0) + balance;
                             }
                         }
+                    } else {
+                        console.log('⚠️ Fiat wallets API failed:', fiatWalletsRes.status);
                     }
                 } catch (e) {
+                    console.log('⚠️ Fiat wallets error:', e.message);
+                }
                     console.log('Fiat wallets non disponibili');
                 }
                 
@@ -5149,6 +5159,7 @@
                     balances: yearEndSnapshots,
                     realBalances: hasRealBalances ? realBalances : null,
                     totals: yearTotals,
+                    tokenPrices: tokenPricesFromTx, // Salva prezzi token per reload
                     transactionCount: allTransactions.length,
                     isManual: false,
                     lastImport: new Date().toISOString(),
