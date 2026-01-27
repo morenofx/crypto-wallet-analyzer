@@ -5114,33 +5114,50 @@
                 
                 // Calcola valore EUR per anno
                 const currentYear = new Date().getFullYear();
+                console.log('📅 Anno corrente:', currentYear);
+                console.log('📊 hasRealBalances:', hasRealBalances);
+                console.log('📊 realBalances PRIMA del calcolo:', JSON.stringify(realBalances));
+                
                 for (const year of years) {
                     let totalEur = 0;
                     // Per anno corrente, usa saldi reali se disponibili
                     const balancesToUse = (year === currentYear && hasRealBalances) ? realBalances : yearEndSnapshots[year];
                     
+                    if (year === currentYear) {
+                        console.log(`📊 ${year} usando realBalances:`, JSON.stringify(balancesToUse));
+                    }
+                    
                     for (const [coin, amount] of Object.entries(balancesToUse || {})) {
                         if (amount > 0) {
                             // 1. Check se è fiat
                             if (fiatRates[coin]) {
-                                totalEur += amount * fiatRates[coin];
+                                const eurVal = amount * fiatRates[coin];
+                                totalEur += eurVal;
+                                if (year === currentYear) console.log(`  💵 ${coin}: ${amount} → €${eurVal.toFixed(2)}`);
                                 continue;
                             }
                             
                             // 2. Prova prezzo CoinGecko
                             const price = getHistoricalPrice(coin, year);
                             if (price && !isNaN(price) && price > 0) {
-                                totalEur += amount * price * EUR_USD;
+                                const eurVal = amount * price * EUR_USD;
+                                totalEur += eurVal;
+                                if (year === currentYear) console.log(`  🪙 ${coin}: ${amount} × $${price} → €${eurVal.toFixed(2)}`);
                                 continue;
                             }
                             
                             // 3. Usa prezzo da transazioni se disponibile
                             if (tokenPricesFromTx[coin]) {
-                                totalEur += amount * tokenPricesFromTx[coin];
+                                const eurVal = amount * tokenPricesFromTx[coin];
+                                totalEur += eurVal;
+                                if (year === currentYear) console.log(`  🏷️ ${coin}: ${amount} × €${tokenPricesFromTx[coin].toFixed(4)} → €${eurVal.toFixed(2)}`);
+                            } else {
+                                if (year === currentYear) console.log(`  ❌ ${coin}: ${amount} (nessun prezzo)`);
                             }
                         }
                     }
                     yearTotals[year] = Math.round(totalEur * 100) / 100;
+                    console.log(`📊 ${year} totale: €${yearTotals[year]}`);
                 }
                 
                 console.log('📊 Bitpanda yearTotals:', yearTotals);
@@ -5908,17 +5925,59 @@
                 let qty = parseFloat(amountAsset) || 0;
                 if (qty === 0 || !asset || asset === '-') continue;
                 
-                // In/Out determina segno
-                if (inOut.toLowerCase() === 'outgoing') {
-                    qty = -Math.abs(qty);
+                // Parse amount fiat
+                const eurValue = parseFloat(amountFiat) || 0;
+                
+                // Normalizza tipo transazione
+                let type = txType.toLowerCase().replace(/[()]/g, '');
+                const inOutLower = inOut.toLowerCase();
+                
+                // IMPORTANTE: In/Out si riferisce al FIAT, non all'asset!
+                // - buy + outgoing (fiat) = asset ENTRA (+)
+                // - sell + incoming (fiat) = asset ESCE (-)
+                // - deposit/transfer = segue In/Out direttamente
+                // - reward/staking = sempre positivo
+                
+                let isAssetIncoming = false;
+                
+                if (type === 'buy') {
+                    isAssetIncoming = true; // Compri = ricevi asset
+                    type = 'buy';
+                } else if (type === 'sell') {
+                    isAssetIncoming = false; // Vendi = perdi asset
+                    type = 'sell';
+                } else if (type === 'reward' || type.includes('stake') || type === 'distribution') {
+                    isAssetIncoming = true; // Rewards = ricevi asset
+                    type = 'staking';
+                } else if (type === 'deposit') {
+                    isAssetIncoming = (inOutLower === 'incoming');
+                    type = 'deposit';
+                } else if (type === 'transfer') {
+                    isAssetIncoming = (inOutLower === 'incoming');
+                    type = isAssetIncoming ? 'deposit' : 'withdrawal';
+                } else if (type === 'transferstake') {
+                    // Trasferimento in/da staking - NON cambia il saldo totale!
+                    // È solo uno spostamento interno
+                    console.log('  Skip transferstake (internal move):', asset, qty);
+                    continue;
+                } else {
+                    // Default: segui In/Out
+                    isAssetIncoming = (inOutLower === 'incoming');
                 }
+                
+                const change = isAssetIncoming ? Math.abs(qty) : -Math.abs(qty);
+                
+                console.log(`  ${date.toISOString().slice(0,10)} ${type} ${asset}: ${change > 0 ? '+' : ''}${change.toFixed(2)} (€${eurValue})`);
                 
                 transactions.push({
                     date: date,
                     account: 'bitpanda',
+                    type: type,
                     operation: txType,
                     coin: asset,
-                    change: qty,
+                    amount: Math.abs(qty),
+                    change: change,
+                    amountEur: eurValue,
                     remark: ''
                 });
             }
@@ -6120,6 +6179,21 @@
             // Ordina transazioni per data
             data.transactions.sort((a, b) => a.date - b.date);
             
+            // Calcola prezzi token dalle transazioni (per token senza prezzo CoinGecko)
+            const tokenPricesFromTx = {};
+            for (const tx of data.transactions) {
+                if (tx.amountEur && tx.amount && tx.amount > 0) {
+                    const pricePerUnit = tx.amountEur / tx.amount;
+                    if (pricePerUnit > 0) {
+                        tokenPricesFromTx[tx.coin] = pricePerUnit;
+                    }
+                }
+            }
+            console.log('Token prices from transactions:', tokenPricesFromTx);
+            
+            // Salva i prezzi nell'exchangeData
+            data.tokenPrices = tokenPricesFromTx;
+            
             // Calcola saldi cumulativi
             const balances = {}; // { coin: amount }
             const yearEndBalances = {}; // { 2021: { BTC: 0.5, ... }, ... }
@@ -6164,13 +6238,23 @@
                 
                 for (const [coin, amount] of Object.entries(yb)) {
                     if (amount <= 0) continue;
-                    const price = getHistoricalPrice(coin, year);
+                    
+                    // 1. Prova prezzo CoinGecko
+                    let price = getHistoricalPrice(coin, year);
+                    let priceSource = 'CoinGecko';
+                    
+                    // 2. Se non trovato, usa prezzo da transazioni
+                    if (!price || price <= 0) {
+                        price = tokenPricesFromTx[coin];
+                        priceSource = 'TX';
+                    }
+                    
                     if (price > 0) {
-                        const valueUsd = amount * price;
-                        const valueEur = valueUsd * EUR_USD;
+                        // Se prezzo da CoinGecko è in USD, converti. Se da TX è già in EUR
+                        const valueEur = (priceSource === 'CoinGecko') ? (amount * price * EUR_USD) : (amount * price);
                         totalEur += valueEur;
-                        if (valueEur > 10) { // Solo coin > €10
-                            coinsWithValue.push(coin + ': €' + valueEur.toFixed(0));
+                        if (valueEur > 1) { // Solo coin > €1
+                            coinsWithValue.push(coin + ': €' + valueEur.toFixed(0) + ' (' + priceSource + ')');
                         }
                     }
                 }
