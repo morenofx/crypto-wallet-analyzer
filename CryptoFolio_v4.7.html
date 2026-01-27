@@ -284,7 +284,7 @@
         
         <!-- TAX REPORT -->
         <div class="main-content" id="taxView" style="display:none;">
-            <div class="header"><h1>📋 Tax Report - Quadro RW</h1><div class="header-actions"><button class="btn" onclick="clearTaxReport()" style="margin-right:8px;background:var(--bg-secondary);">🗑️ Reset</button><button class="btn btn-secondary" onclick="printTaxReport()" style="margin-right:8px;">🖨️ Stampa PDF</button><button class="btn btn-primary" onclick="calculateTaxReportAll()">🧮 Calcola Tutti</button></div></div>
+            <div class="header"><h1>📋 Tax Report - Quadro RW</h1><div class="header-actions"><button class="btn" onclick="clearTaxReport()" style="margin-right:8px;background:var(--bg-secondary);">🗑️ Reset</button><button class="btn btn-secondary" onclick="printTaxReport()" style="margin-right:8px;">🖨️ Stampa PDF</button><button class="btn" onclick="openGlobalAIAnalysis()" style="margin-right:8px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;">🤖 Analisi AI Completa</button><button class="btn btn-primary" onclick="calculateTaxReportAll()">🧮 Calcola Tutti</button></div></div>
             
             <div class="card" style="margin-bottom:20px;">
                 <p style="color:var(--text-secondary);font-size:14px;line-height:1.6;">
@@ -292,6 +292,46 @@
                     Calcola il valore aggregato di <strong>wallet + exchange</strong>.
                 </p>
                 <div id="taxWalletsList" style="margin-top:12px;"></div>
+            </div>
+            
+            <!-- GENERATORE QUADRO RW -->
+            <div class="card" style="margin-bottom:20px;border:2px solid var(--accent);">
+                <div class="card-header">
+                    <div class="card-title">📄 Genera Quadro RW</div>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;">
+                    <div class="input-group" style="flex:1;min-width:150px;">
+                        <label>Anno Fiscale</label>
+                        <select id="rwYearSelect" class="form-input" style="padding:10px;">
+                            <option value="2021">2021</option>
+                            <option value="2022">2022</option>
+                            <option value="2023">2023</option>
+                            <option value="2024">2024</option>
+                            <option value="2025" selected>2025</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="generateQuadroRW()" style="height:42px;">
+                        📋 Genera Report
+                    </button>
+                    <button class="btn" onclick="generateQuadroRWWithAI()" style="height:42px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;">
+                        🤖 Genera con AI
+                    </button>
+                    <button class="btn btn-secondary" onclick="printQuadroRW()" style="height:42px;">
+                        🖨️ Stampa Anno
+                    </button>
+                </div>
+            </div>
+            
+            <!-- QUADRO RW GENERATO -->
+            <div id="quadroRWContainer" class="card" style="display:none;margin-bottom:20px;">
+                <div class="card-header">
+                    <div class="card-title" id="quadroRWTitle">📄 Quadro RW - Anno 2025</div>
+                    <div style="display:flex;gap:8px;">
+                        <button class="btn btn-secondary" onclick="exportQuadroRWCSV()" style="padding:6px 12px;font-size:12px;">📥 CSV</button>
+                        <button class="btn btn-secondary" onclick="copyQuadroRW()" style="padding:6px 12px;font-size:12px;">📋 Copia</button>
+                    </div>
+                </div>
+                <div id="quadroRWContent"></div>
             </div>
             
             <!-- EXCHANGE VALUES -->
@@ -334,6 +374,18 @@
             
             <div class="card"><div class="card-header"><div class="card-title">📊 Totale Portfolio per Anno (31/12)</div></div><div id="taxReportContent"><div class="empty-state"><div class="icon">👆</div><h3>Clicca "Calcola Tutti" per iniziare</h3></div></div></div>
             <div class="card" id="taxDetailCard" style="display:none;margin-top:20px;"><div class="card-header"><div class="card-title">📝 Dettaglio Token per Wallet</div></div><div id="taxDetailContent"></div></div>
+            
+            <!-- STORICO QUADRI RW -->
+            <div class="card" style="margin-top:20px;">
+                <div class="card-header">
+                    <div class="card-title">📚 Storico Quadri RW Generati</div>
+                </div>
+                <div id="rwHistoryList">
+                    <div class="empty-state" style="padding:20px;">
+                        <div style="color:var(--text-secondary);">Nessun Quadro RW generato ancora.<br>Seleziona un anno e clicca "Genera Report".</div>
+                    </div>
+                </div>
+            </div>
         </div>
         
         <!-- API CONNECT -->
@@ -832,47 +884,95 @@
         };
         
         const HISTORICAL_PRICES = {
+            // Top coins
             'ethereum': { 2020: 737, 2021: 3769, 2022: 1196, 2023: 2282, 2024: 3337, 2025: 2950, 2026: 3200 },
-            'shiba-inu': { 2020: 0, 2021: 0.0000338, 2022: 0.0000081, 2023: 0.0000091, 2024: 0.0000218, 2025: 0.000008, 2026: 0.00001 },
-            'bone-shibaswap': { 2020: 0, 2021: 1.71, 2022: 0.93, 2023: 0.47, 2024: 0.42, 2025: 0.08, 2026: 0.10 },
-            'binancecoin': { 2020: 37, 2021: 526, 2022: 244, 2023: 311, 2024: 707, 2025: 680, 2026: 700 },
-            'matic-network': { 2020: 0.02, 2021: 2.47, 2022: 0.75, 2023: 0.99, 2024: 0.46, 2025: 0.35, 2026: 0.40 },
-            'pulsechain': { 2020: 0, 2021: 0, 2022: 0, 2023: 0.00005, 2024: 0.00003, 2025: 0.000014, 2026: 0.00002 },
-            'hex': { 2020: 0.001, 2021: 0.15, 2022: 0.04, 2023: 0.006, 2024: 0.004, 2025: 0.003, 2026: 0.004 },
-            'pulsex': { 2020: 0, 2021: 0, 2022: 0, 2023: 0.0001, 2024: 0.00005, 2025: 0.00001, 2026: 0.00002 },
-            'tether': { 2020: 1, 2021: 1, 2022: 1, 2023: 1, 2024: 1, 2025: 1, 2026: 1 },
-            'usd-coin': { 2020: 1, 2021: 1, 2022: 1, 2023: 1, 2024: 1, 2025: 1, 2026: 1 },
-            'solana': { 2020: 1.5, 2021: 170, 2022: 9.5, 2023: 100, 2024: 190, 2025: 150, 2026: 180 },
             'bitcoin': { 2020: 29000, 2021: 47700, 2022: 16500, 2023: 42300, 2024: 93400, 2025: 100000, 2026: 105000 },
+            'binancecoin': { 2020: 37, 2021: 526, 2022: 244, 2023: 311, 2024: 707, 2025: 680, 2026: 700 },
+            'solana': { 2020: 1.5, 2021: 170, 2022: 9.5, 2023: 100, 2024: 190, 2025: 150, 2026: 180 },
             'ripple': { 2020: 0.22, 2021: 0.83, 2022: 0.35, 2023: 0.62, 2024: 2.08, 2025: 2.30, 2026: 2.50 },
             'cardano': { 2020: 0.18, 2021: 1.35, 2022: 0.25, 2023: 0.59, 2024: 0.88, 2025: 0.90, 2026: 1.00 },
             'dogecoin': { 2020: 0.005, 2021: 0.17, 2022: 0.07, 2023: 0.09, 2024: 0.32, 2025: 0.35, 2026: 0.40 },
             'polkadot': { 2020: 9.5, 2021: 27.8, 2022: 4.3, 2023: 7.9, 2024: 6.9, 2025: 7.0, 2026: 8.0 },
             'chainlink': { 2020: 11.5, 2021: 19.3, 2022: 5.7, 2023: 15.1, 2024: 14.8, 2025: 15.0, 2026: 16.0 },
             'avalanche-2': { 2020: 3.5, 2021: 109, 2022: 11.3, 2023: 40.5, 2024: 38.6, 2025: 40.0, 2026: 45.0 },
-            // Aggiunti per Crypto.com e Cosmos
+            'matic-network': { 2020: 0.02, 2021: 2.47, 2022: 0.75, 2023: 0.99, 2024: 0.46, 2025: 0.35, 2026: 0.40 },
+            // Meme coins
+            'shiba-inu': { 2020: 0, 2021: 0.0000338, 2022: 0.0000081, 2023: 0.0000091, 2024: 0.0000218, 2025: 0.000018, 2026: 0.00002 },
+            'pepe': { 2020: 0, 2021: 0, 2022: 0, 2023: 0.0000014, 2024: 0.000018, 2025: 0.000015, 2026: 0.000018 },
+            'bone-shibaswap': { 2020: 0, 2021: 1.71, 2022: 0.93, 2023: 0.47, 2024: 0.42, 2025: 0.08, 2026: 0.10 },
+            // Layer 1
+            'tron': { 2020: 0.027, 2021: 0.077, 2022: 0.054, 2023: 0.106, 2024: 0.26, 2025: 0.25, 2026: 0.28 },
+            'the-open-network': { 2020: 0, 2021: 4.5, 2022: 1.8, 2023: 2.3, 2024: 5.8, 2025: 5.5, 2026: 6.0 },
+            'algorand': { 2020: 0.35, 2021: 1.38, 2022: 0.17, 2023: 0.22, 2024: 0.34, 2025: 0.30, 2026: 0.35 },
+            'eos': { 2020: 2.6, 2021: 2.8, 2022: 0.83, 2023: 0.84, 2024: 0.78, 2025: 0.70, 2026: 0.80 },
+            'stellar': { 2020: 0.13, 2021: 0.27, 2022: 0.074, 2023: 0.13, 2024: 0.41, 2025: 0.40, 2026: 0.45 },
+            'vechain': { 2020: 0.02, 2021: 0.085, 2022: 0.016, 2023: 0.027, 2024: 0.046, 2025: 0.04, 2026: 0.05 },
+            'neo': { 2020: 14.5, 2021: 30.2, 2022: 6.5, 2023: 12.8, 2024: 14.2, 2025: 13.0, 2026: 15.0 },
             'cosmos': { 2020: 5.0, 2021: 44, 2022: 9.3, 2023: 10.5, 2024: 6.7, 2025: 7.0, 2026: 8.0 },
-            'crypto-com-chain': { 2020: 0.06, 2021: 0.60, 2022: 0.057, 2023: 0.073, 2024: 0.12, 2025: 0.10, 2026: 0.12 },
-            'terra-luna': { 2020: 0.64, 2021: 93, 2022: 0.00017, 2023: 0.00015, 2024: 0.00008, 2025: 0.00004, 2026: 0.00004 },
-            'osmosis': { 2020: 0, 2021: 10.5, 2022: 0.8, 2023: 0.5, 2024: 0.4, 2025: 0.35, 2026: 0.40 },
-            'litecoin': { 2020: 125, 2021: 148, 2022: 70, 2023: 73, 2024: 103, 2025: 100, 2026: 110 },
+            // DeFi
             'uniswap': { 2020: 3.5, 2021: 17.5, 2022: 5.2, 2023: 6.3, 2024: 13.5, 2025: 14.0, 2026: 15.0 },
             'aave': { 2020: 89, 2021: 264, 2022: 51, 2023: 99, 2024: 330, 2025: 350, 2026: 370 },
+            'pancakeswap-token': { 2020: 0, 2021: 12.7, 2022: 3.7, 2023: 2.4, 2024: 2.1, 2025: 2.0, 2026: 2.5 },
+            '1inch': { 2020: 0, 2021: 2.9, 2022: 0.47, 2023: 0.42, 2024: 0.52, 2025: 0.50, 2026: 0.55 },
+            // Terra/Luna
+            'terra-luna': { 2020: 0.64, 2021: 93, 2022: 0.00017, 2023: 0.00015, 2024: 0.00008, 2025: 0.00004, 2026: 0.00004 },
+            'terra-luna-2': { 2020: 0, 2021: 0, 2022: 2.5, 2023: 0.8, 2024: 0.45, 2025: 0.40, 2026: 0.45 },
+            // Exchange tokens
+            'crypto-com-chain': { 2020: 0.06, 2021: 0.60, 2022: 0.057, 2023: 0.073, 2024: 0.12, 2025: 0.10, 2026: 0.12 },
+            // Other
+            'litecoin': { 2020: 125, 2021: 148, 2022: 70, 2023: 73, 2024: 103, 2025: 100, 2026: 110 },
+            'osmosis': { 2020: 0, 2021: 10.5, 2022: 0.8, 2023: 0.5, 2024: 0.4, 2025: 0.35, 2026: 0.40 },
+            'kusama': { 2020: 60, 2021: 368, 2022: 23, 2023: 33, 2024: 25, 2025: 22, 2026: 25 },
+            'qtum': { 2020: 2.7, 2021: 13.1, 2022: 2.1, 2023: 3.2, 2024: 3.0, 2025: 2.8, 2026: 3.0 },
+            'apecoin': { 2020: 0, 2021: 0, 2022: 3.5, 2023: 1.4, 2024: 1.2, 2025: 1.0, 2026: 1.2 },
+            // PulseChain
+            'pulsechain': { 2020: 0, 2021: 0, 2022: 0, 2023: 0.00005, 2024: 0.00003, 2025: 0.000014, 2026: 0.00002 },
+            'hex': { 2020: 0.001, 2021: 0.15, 2022: 0.04, 2023: 0.006, 2024: 0.004, 2025: 0.003, 2026: 0.004 },
+            'pulsex': { 2020: 0, 2021: 0, 2022: 0, 2023: 0.0001, 2024: 0.00005, 2025: 0.00001, 2026: 0.00002 },
+            // Stablecoins
+            'tether': { 2020: 1, 2021: 1, 2022: 1, 2023: 1, 2024: 1, 2025: 1, 2026: 1 },
+            'usd-coin': { 2020: 1, 2021: 1, 2022: 1, 2023: 1, 2024: 1, 2025: 1, 2026: 1 },
+            'dai': { 2020: 1, 2021: 1, 2022: 1, 2023: 1, 2024: 1, 2025: 1, 2026: 1 },
         };
         const YEAR_END_PRICES = HISTORICAL_PRICES; // Alias
         
         const SYMBOL_TO_CG = { 
-            'ETH': 'ethereum', 'BNB': 'binancecoin', 'MATIC': 'matic-network', 
-            'SHIB': 'shiba-inu', 'BONE': 'bone-shibaswap', 
-            'USDT': 'tether', 'USDC': 'usd-coin',
+            // Top coins
+            'BTC': 'bitcoin', 'ETH': 'ethereum', 'BNB': 'binancecoin',
+            'SOL': 'solana', 'XRP': 'ripple', 'ADA': 'cardano',
+            'DOGE': 'dogecoin', 'DOT': 'polkadot', 'MATIC': 'matic-network',
+            'LINK': 'chainlink', 'AVAX': 'avalanche-2', 'SHIB': 'shiba-inu',
+            // Stablecoins
+            'USDT': 'tether', 'USDC': 'usd-coin', 'BUSD': 'tether', 
+            'FDUSD': 'tether', 'DAI': 'dai', 'TUSD': 'tether',
+            // Layer 1
+            'ATOM': 'cosmos', 'NEAR': 'near', 'TRX': 'tron', 
+            'TON': 'the-open-network', 'ALGO': 'algorand', 'EOS': 'eos',
+            'XLM': 'stellar', 'VET': 'vechain', 'NEO': 'neo',
+            // DeFi
+            'UNI': 'uniswap', 'AAVE': 'aave', 'CAKE': 'pancakeswap-token',
+            '1INCH': '1inch', 'SUSHI': 'sushi', 'COMP': 'compound-governance-token',
+            'CRV': 'curve-dao-token', 'SNX': 'synthetix-network-token',
+            // Meme
+            'PEPE': 'pepe', 'FLOKI': 'floki', 'BONE': 'bone-shibaswap',
+            // Gaming/Metaverse  
+            'SAND': 'the-sandbox', 'MANA': 'decentraland', 'AXS': 'axie-infinity',
+            'ENJ': 'enjincoin', 'GALA': 'gala', 'IMX': 'immutable-x',
+            // Layer 2
+            'ARB': 'arbitrum', 'OP': 'optimism',
+            // Exchange tokens
+            'CRO': 'crypto-com-chain', 'FTT': 'ftx-token', 'OKB': 'okb',
+            // PulseChain
             'PLS': 'pulsechain', 'HEX': 'hex', 'PLSX': 'pulsex',
-            'SOL': 'solana', 'BTC': 'bitcoin', 'XRP': 'ripple',
-            'ADA': 'cardano', 'DOGE': 'dogecoin', 'DOT': 'polkadot',
-            'LINK': 'chainlink', 'AVAX': 'avalanche-2',
-            'BUSD': 'tether', 'FDUSD': 'tether', 'DAI': 'tether',
-            // Aggiunti
-            'ATOM': 'cosmos', 'CRO': 'crypto-com-chain', 'LUNC': 'terra-luna', 'LUNA': 'terra-luna',
-            'OSMO': 'osmosis', 'LTC': 'litecoin', 'UNI': 'uniswap', 'AAVE': 'aave',
+            // Luna
+            'LUNC': 'terra-luna', 'LUNA': 'terra-luna-2',
+            // Other popular
+            'LTC': 'litecoin', 'BCH': 'bitcoin-cash', 'ETC': 'ethereum-classic',
+            'FIL': 'filecoin', 'APE': 'apecoin', 'LDO': 'lido-dao',
+            'OSMO': 'osmosis', 'INJ': 'injective-protocol',
+            'KSM': 'kusama', 'QTUM': 'qtum', 'PENDLE': 'pendle',
+            'SEI': 'sei-network', 'APT': 'aptos',
+            // Fiat
             'EUR': 'eur', 'USD': 'usd',
         };
         
@@ -5309,6 +5409,11 @@
             document.getElementById('aiResultsSection').style.display = 'none';
             document.getElementById('aiLoadingSection').style.display = 'none';
             document.getElementById('aiAnalyzeBtn').style.display = 'block';
+            document.getElementById('aiAnalyzeBtn').onclick = runAIAnalysis; // Single exchange
+            
+            // Update modal title
+            const modalTitle = document.querySelector('#aiAnalysisModal .modal-header h3');
+            if (modalTitle) modalTitle.innerHTML = `🤖 Analisi AI - ${exchId.toUpperCase()}`;
             
             // Load saved API key
             const savedKey = localStorage.getItem('claudeApiKey') || '';
@@ -5587,6 +5692,802 @@ Rispondi in italiano, in modo chiaro e dettagliato. Usa i dati forniti per rispo
         }
         
         // ==================== END AI ANALYSIS ====================
+        
+        // ==================== GLOBAL AI ANALYSIS ====================
+        
+        function openGlobalAIAnalysis() {
+            // Raccogli tutti i dati
+            let totalTransactions = 0;
+            let hasData = false;
+            
+            // Check exchanges
+            for (const exchId of Object.keys(exchangeData)) {
+                if (exchangeData[exchId].transactions?.length > 0) {
+                    totalTransactions += exchangeData[exchId].transactions.length;
+                    hasData = true;
+                }
+            }
+            
+            // Check wallets
+            const hasWallets = walletData && walletData.results && walletData.results.length > 0;
+            
+            if (!hasData && !hasWallets) {
+                alert('⚠️ Nessun dato da analizzare!\n\nImporta prima i dati da Exchange o scansiona i Wallet.');
+                return;
+            }
+            
+            // Reset UI
+            document.getElementById('aiApiKeySection').style.display = 'block';
+            document.getElementById('aiResultsSection').style.display = 'none';
+            document.getElementById('aiLoadingSection').style.display = 'none';
+            document.getElementById('aiAnalyzeBtn').style.display = 'block';
+            document.getElementById('aiAnalyzeBtn').onclick = runGlobalAIAnalysis;
+            
+            // Load saved API key
+            const savedKey = localStorage.getItem('claudeApiKey') || '';
+            document.getElementById('claudeApiKeyInput').value = savedKey;
+            
+            // Update modal title
+            const modalTitle = document.querySelector('#aiAnalysisModal .modal-header h3');
+            if (modalTitle) modalTitle.innerHTML = '🤖 Analisi AI Portfolio COMPLETO';
+            
+            // Setup radio button listener
+            document.querySelectorAll('input[name="aiAnalysisType"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    document.getElementById('aiCustomQuestionSection').style.display = 
+                        this.value === 'question' ? 'block' : 'none';
+                });
+            });
+            
+            document.getElementById('aiAnalysisModal').classList.add('active');
+        }
+        
+        async function runGlobalAIAnalysis() {
+            const apiKey = document.getElementById('claudeApiKeyInput').value.trim();
+            if (!apiKey) {
+                alert('⚠️ Inserisci la tua Claude API Key!');
+                return;
+            }
+            
+            localStorage.setItem('claudeApiKey', apiKey);
+            
+            const analysisType = document.querySelector('input[name="aiAnalysisType"]:checked').value;
+            const customQuestion = document.getElementById('aiCustomQuestion')?.value || '';
+            
+            // Show loading
+            document.getElementById('aiApiKeySection').style.display = 'none';
+            document.getElementById('aiLoadingSection').style.display = 'block';
+            document.getElementById('aiAnalyzeBtn').style.display = 'none';
+            
+            try {
+                // Prepare ALL data
+                const globalData = prepareGlobalDataForAI();
+                
+                document.getElementById('aiLoadingDetail').textContent = 
+                    `${globalData.totalTransactions} transazioni da ${globalData.exchangeCount} exchange + ${globalData.walletCount} wallet...`;
+                
+                // Build prompt
+                const prompt = buildGlobalAIPrompt(analysisType, globalData, customQuestion);
+                
+                // Call Claude API
+                const response = await callClaudeAPI(apiKey, prompt);
+                
+                // Show results
+                document.getElementById('aiLoadingSection').style.display = 'none';
+                document.getElementById('aiResultsSection').style.display = 'block';
+                document.getElementById('aiResultsContent').innerHTML = formatAIResponse(response);
+                
+            } catch (error) {
+                document.getElementById('aiLoadingSection').style.display = 'none';
+                document.getElementById('aiApiKeySection').style.display = 'block';
+                document.getElementById('aiAnalyzeBtn').style.display = 'block';
+                
+                if (error.message.includes('401')) {
+                    alert('❌ API Key non valida!');
+                } else if (error.message.includes('429')) {
+                    alert('⚠️ Rate limit! Riprova tra qualche secondo.');
+                } else {
+                    alert('❌ Errore: ' + error.message);
+                }
+                console.error('Global AI Analysis error:', error);
+            }
+        }
+        
+        function prepareGlobalDataForAI() {
+            const result = {
+                totalTransactions: 0,
+                exchangeCount: 0,
+                walletCount: 0,
+                exchanges: {},
+                wallets: {},
+                portfolioTotals: {
+                    '2024': { exchanges: 0, wallets: 0, total: 0 },
+                    '2025': { exchanges: 0, wallets: 0, total: 0 }
+                },
+                allTokens: {},
+                anomalies: []
+            };
+            
+            // Process exchanges
+            for (const exchId of Object.keys(exchangeData)) {
+                const data = exchangeData[exchId];
+                if (!data.transactions || data.transactions.length === 0) continue;
+                
+                result.exchangeCount++;
+                result.totalTransactions += data.transactions.length;
+                
+                // Get exchange summary
+                const summary = prepareTransactionsForAI(data.transactions, exchId);
+                result.exchanges[exchId] = {
+                    transactions: summary.totalTransactions,
+                    summary: summary.summary,
+                    tokens: summary.tokens,
+                    totals: data.totals || {}
+                };
+                
+                // Add to portfolio totals
+                if (data.totals) {
+                    result.portfolioTotals['2024'].exchanges += data.totals[2024] || 0;
+                    result.portfolioTotals['2025'].exchanges += data.totals[2025] || 0;
+                }
+                
+                // Merge tokens
+                for (const [token, info] of Object.entries(summary.tokens)) {
+                    if (!result.allTokens[token]) {
+                        result.allTokens[token] = { exchanges: {}, totalBalance: 0, totalValue: 0 };
+                    }
+                    result.allTokens[token].exchanges[exchId] = info;
+                    result.allTokens[token].totalBalance += parseFloat(info.balance) || 0;
+                }
+                
+                // Add anomalies
+                result.anomalies.push(...summary.anomalies.map(a => ({ ...a, source: exchId })));
+            }
+            
+            // Process wallets
+            if (walletData && walletData.results) {
+                for (const wallet of walletData.results) {
+                    result.walletCount++;
+                    
+                    const addr = wallet.address?.substring(0, 10) + '...';
+                    result.wallets[addr] = {
+                        chain: wallet.chain,
+                        valueUSD: wallet.valueUSD || 0,
+                        tokens: wallet.tokens?.length || 0
+                    };
+                    
+                    // Add to portfolio totals (current value)
+                    result.portfolioTotals['2025'].wallets += (wallet.valueUSD || 0) * EUR_USD;
+                }
+            }
+            
+            // Calculate totals
+            result.portfolioTotals['2024'].total = 
+                result.portfolioTotals['2024'].exchanges + result.portfolioTotals['2024'].wallets;
+            result.portfolioTotals['2025'].total = 
+                result.portfolioTotals['2025'].exchanges + result.portfolioTotals['2025'].wallets;
+            
+            return result;
+        }
+        
+        function buildGlobalAIPrompt(type, data, customQuestion) {
+            const baseContext = `
+Sei un consulente fiscale crypto esperto in normativa italiana. Analizza il PORTFOLIO COMPLETO di questo utente.
+
+📊 PANORAMICA PORTFOLIO:
+- Exchange attivi: ${data.exchangeCount} (${Object.keys(data.exchanges).join(', ')})
+- Wallet: ${data.walletCount}
+- Transazioni totali: ${data.totalTransactions}
+
+💰 VALORI PORTFOLIO:
+- 31/12/2024: €${data.portfolioTotals['2024'].total.toFixed(2)} (Exchange: €${data.portfolioTotals['2024'].exchanges.toFixed(2)}, Wallet: €${data.portfolioTotals['2024'].wallets.toFixed(2)})
+- 31/12/2025: €${data.portfolioTotals['2025'].total.toFixed(2)} (Exchange: €${data.portfolioTotals['2025'].exchanges.toFixed(2)}, Wallet: €${data.portfolioTotals['2025'].wallets.toFixed(2)})
+
+📈 DATI PER EXCHANGE:
+${JSON.stringify(data.exchanges, null, 2)}
+
+🔗 WALLET:
+${JSON.stringify(data.wallets, null, 2)}
+
+🚨 ANOMALIE RILEVATE:
+${JSON.stringify(data.anomalies.slice(0, 15), null, 2)}
+
+NOTA: Prezzi in EUR. Per tasse italiane conta valore al 31/12. Soglia Quadro RW = €15.000.
+`;
+            
+            if (type === 'quick') {
+                return baseContext + `
+ANALISI RICHIESTA (rapida):
+1. 🚨 ANOMALIE: Problemi critici da risolvere
+2. 📊 RIEPILOGO: Totali per exchange, valore portfolio
+3. 📋 QUADRO RW: Devo compilarlo? (soglia €15.000)
+4. 💡 AZIONI URGENTI: Cosa fare subito
+
+Rispondi in italiano, usa emoji, sii conciso ma completo.`;
+            }
+            
+            if (type === 'full') {
+                return baseContext + `
+ANALISI RICHIESTA (completa):
+
+1. 🚨 ANOMALIE CRITICHE
+   - Tutti i problemi nei dati
+   - Priorità di risoluzione
+
+2. 📊 RIEPILOGO PER EXCHANGE
+   - Valore al 31/12/2024 e 31/12/2025
+   - Transazioni e operatività
+   - Token principali
+
+3. 📋 REPORT FISCALE COMPLETO
+   a) QUADRO RW (Monitoraggio):
+      - Obbligo compilazione? (soglia €15.000)
+      - Valore da dichiarare per ogni exchange/wallet
+      - IVAFE dovuta (0,2%)
+   
+   b) PLUSVALENZE/MINUSVALENZE:
+      - Gains realizzati
+      - Perdite compensabili
+      - Tassazione 26%
+   
+   c) ALTRI REDDITI:
+      - Rewards staking (tassabili)
+      - Airdrop (valore al momento ricezione)
+
+4. 💰 CALCOLO TASSE STIMATO
+   - IVAFE
+   - Imposta plusvalenze
+   - Tasse su rewards
+   - TOTALE DOVUTO
+
+5. 💡 OTTIMIZZAZIONE FISCALE
+   - Strategie per ridurre il carico fiscale
+   - Scadenze importanti
+   - Documenti da conservare
+
+Rispondi in italiano con tabelle dove utile. Sii dettagliato e preciso.`;
+            }
+            
+            if (type === 'question') {
+                return baseContext + `
+DOMANDA UTENTE:
+${customQuestion}
+
+Rispondi in italiano in modo chiaro e dettagliato usando tutti i dati del portfolio.`;
+            }
+            
+            return baseContext;
+        }
+        
+        // ==================== END GLOBAL AI ANALYSIS ====================
+        
+        // ==================== QUADRO RW GENERATOR ====================
+        
+        let generatedQuadriRW = {}; // { 2024: { data, html }, 2025: { data, html }, ... }
+        
+        function generateQuadroRW() {
+            const year = parseInt(document.getElementById('rwYearSelect').value);
+            
+            // Raccogli tutti i dati per l'anno
+            const rwData = collectDataForYear(year);
+            
+            if (rwData.totalValue === 0) {
+                alert(`⚠️ Nessun dato trovato per l'anno ${year}.\n\nAssicurati di aver importato le transazioni e calcolato i totali.`);
+                return;
+            }
+            
+            // Genera HTML del report
+            const html = renderQuadroRW(year, rwData);
+            
+            // Salva nello storico
+            generatedQuadriRW[year] = {
+                data: rwData,
+                html: html,
+                generatedAt: new Date().toISOString()
+            };
+            saveQuadriRWHistory();
+            
+            // Mostra
+            document.getElementById('quadroRWContainer').style.display = 'block';
+            document.getElementById('quadroRWTitle').textContent = `📄 Quadro RW - Anno ${year}`;
+            document.getElementById('quadroRWContent').innerHTML = html;
+            
+            // Aggiorna storico
+            updateRWHistoryList();
+        }
+        
+        function collectDataForYear(year) {
+            const data = {
+                year: year,
+                exchanges: [],
+                wallets: [],
+                totalExchanges: 0,
+                totalWallets: 0,
+                totalValue: 0,
+                ivafe: 0,
+                needsRW: false,
+                details: []
+            };
+            
+            // Raccogli dati exchange
+            for (const [exchId, exchData] of Object.entries(exchangeData)) {
+                const value = exchData.totals?.[year] || 0;
+                if (value > 0) {
+                    data.exchanges.push({
+                        name: exchId.charAt(0).toUpperCase() + exchId.slice(1),
+                        id: exchId,
+                        value: value,
+                        country: getExchangeCountry(exchId),
+                        transactions: exchData.transactions?.filter(tx => {
+                            const txYear = tx.date instanceof Date ? tx.date.getFullYear() : new Date(tx.date).getFullYear();
+                            return txYear === year;
+                        }).length || 0
+                    });
+                    data.totalExchanges += value;
+                }
+            }
+            
+            // Valore manuale exchange se presente
+            const manualExchange = parseFloat(document.getElementById(`exchange${year}`)?.value) || 0;
+            if (manualExchange > 0 && data.totalExchanges === 0) {
+                data.exchanges.push({
+                    name: 'Altri Exchange (manuale)',
+                    id: 'manual',
+                    value: manualExchange,
+                    country: '-'
+                });
+                data.totalExchanges = manualExchange;
+            }
+            
+            // Raccogli dati wallet (usa taxReportData se disponibile)
+            if (taxReportData && taxReportData.grandTotals && taxReportData.grandTotals[year]) {
+                data.totalWallets = taxReportData.grandTotals[year].eur || 0;
+                
+                // Dettaglio per wallet se disponibile
+                if (taxReportData.walletDetails) {
+                    const chainTotals = {};
+                    for (const wd of taxReportData.walletDetails) {
+                        if (wd.totals && wd.totals[year]) {
+                            const chain = wd.wallet?.chain || 'Unknown';
+                            if (!chainTotals[chain]) {
+                                chainTotals[chain] = { value: 0, addresses: 0 };
+                            }
+                            chainTotals[chain].value += wd.totals[year].eur || 0;
+                            chainTotals[chain].addresses++;
+                        }
+                    }
+                    for (const [chain, info] of Object.entries(chainTotals)) {
+                        if (info.value > 0) {
+                            data.wallets.push({
+                                chain: chain,
+                                value: info.value,
+                                addresses: info.addresses
+                            });
+                        }
+                    }
+                }
+            }
+            
+            // Totale
+            data.totalValue = data.totalExchanges + data.totalWallets;
+            
+            // IVAFE (0.2% = 2 per mille)
+            data.ivafe = data.totalValue * 0.002;
+            
+            // Soglia RW
+            data.needsRW = data.totalValue >= 15000;
+            
+            return data;
+        }
+        
+        function getExchangeCountry(exchId) {
+            const countries = {
+                'binance': 'Malta/Seychelles',
+                'bitpanda': 'Austria',
+                'bitget': 'Seychelles',
+                'coinbase': 'USA',
+                'kraken': 'USA',
+                'crypto.com': 'Singapore',
+                'bybit': 'Dubai'
+            };
+            return countries[exchId.toLowerCase()] || 'Estero';
+        }
+        
+        function renderQuadroRW(year, data) {
+            const needsRWClass = data.needsRW ? 'color:var(--red);' : 'color:var(--green);';
+            const needsRWText = data.needsRW ? '⚠️ SÌ - Obbligo dichiarazione' : '✅ NO - Sotto soglia €15.000';
+            
+            let html = `
+            <div style="font-family:Arial,sans-serif;">
+                <!-- INTESTAZIONE -->
+                <div style="background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);color:#fff;padding:20px;border-radius:12px;margin-bottom:20px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <h2 style="margin:0;font-size:24px;">QUADRO RW - Anno ${year}</h2>
+                            <p style="margin:8px 0 0;opacity:0.8;">Monitoraggio Attività Finanziarie Estere</p>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:32px;font-weight:bold;">€${data.totalValue.toLocaleString('it-IT', {minimumFractionDigits: 2})}</div>
+                            <div style="font-size:12px;opacity:0.8;">Valore al 31/12/${year}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- OBBLIGO RW -->
+                <div style="background:var(--bg-secondary);padding:16px;border-radius:8px;margin-bottom:20px;border-left:4px solid ${data.needsRW ? 'var(--red)' : 'var(--green)'};">
+                    <strong>Obbligo Quadro RW:</strong> <span style="${needsRWClass}font-weight:bold;">${needsRWText}</span>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">
+                        Soglia: €15.000 | Il tuo valore: €${data.totalValue.toLocaleString('it-IT', {minimumFractionDigits: 2})}
+                    </div>
+                </div>
+                
+                <!-- RIEPILOGO -->
+                <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+                    <tr style="background:var(--bg-primary);">
+                        <th style="padding:12px;text-align:left;border-bottom:2px solid var(--border);">Categoria</th>
+                        <th style="padding:12px;text-align:right;border-bottom:2px solid var(--border);">Valore €</th>
+                        <th style="padding:12px;text-align:right;border-bottom:2px solid var(--border);">%</th>
+                    </tr>
+                    <tr>
+                        <td style="padding:10px;border-bottom:1px solid var(--border);">🏦 Exchange</td>
+                        <td style="padding:10px;text-align:right;border-bottom:1px solid var(--border);font-weight:bold;">€${data.totalExchanges.toLocaleString('it-IT', {minimumFractionDigits: 2})}</td>
+                        <td style="padding:10px;text-align:right;border-bottom:1px solid var(--border);">${data.totalValue > 0 ? ((data.totalExchanges / data.totalValue) * 100).toFixed(1) : 0}%</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:10px;border-bottom:1px solid var(--border);">🔗 Wallet DeFi</td>
+                        <td style="padding:10px;text-align:right;border-bottom:1px solid var(--border);font-weight:bold;">€${data.totalWallets.toLocaleString('it-IT', {minimumFractionDigits: 2})}</td>
+                        <td style="padding:10px;text-align:right;border-bottom:1px solid var(--border);">${data.totalValue > 0 ? ((data.totalWallets / data.totalValue) * 100).toFixed(1) : 0}%</td>
+                    </tr>
+                    <tr style="background:var(--bg-primary);font-weight:bold;">
+                        <td style="padding:12px;">📊 TOTALE</td>
+                        <td style="padding:12px;text-align:right;color:var(--green);font-size:18px;">€${data.totalValue.toLocaleString('it-IT', {minimumFractionDigits: 2})}</td>
+                        <td style="padding:12px;text-align:right;">100%</td>
+                    </tr>
+                </table>
+                
+                <!-- DETTAGLIO EXCHANGE -->
+                ${data.exchanges.length > 0 ? `
+                <h3 style="margin:20px 0 12px;">🏦 Dettaglio Exchange</h3>
+                <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+                    <tr style="background:var(--bg-primary);">
+                        <th style="padding:10px;text-align:left;border-bottom:1px solid var(--border);">Exchange</th>
+                        <th style="padding:10px;text-align:left;border-bottom:1px solid var(--border);">Paese</th>
+                        <th style="padding:10px;text-align:right;border-bottom:1px solid var(--border);">Transazioni</th>
+                        <th style="padding:10px;text-align:right;border-bottom:1px solid var(--border);">Valore 31/12</th>
+                    </tr>
+                    ${data.exchanges.map(e => `
+                    <tr>
+                        <td style="padding:10px;border-bottom:1px solid var(--border);">${e.name}</td>
+                        <td style="padding:10px;border-bottom:1px solid var(--border);color:var(--text-secondary);">${e.country}</td>
+                        <td style="padding:10px;text-align:right;border-bottom:1px solid var(--border);">${e.transactions || '-'}</td>
+                        <td style="padding:10px;text-align:right;border-bottom:1px solid var(--border);font-weight:bold;">€${e.value.toLocaleString('it-IT', {minimumFractionDigits: 2})}</td>
+                    </tr>
+                    `).join('')}
+                </table>
+                ` : ''}
+                
+                <!-- DETTAGLIO WALLET -->
+                ${data.wallets.length > 0 ? `
+                <h3 style="margin:20px 0 12px;">🔗 Dettaglio Wallet</h3>
+                <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+                    <tr style="background:var(--bg-primary);">
+                        <th style="padding:10px;text-align:left;border-bottom:1px solid var(--border);">Blockchain</th>
+                        <th style="padding:10px;text-align:right;border-bottom:1px solid var(--border);">Indirizzi</th>
+                        <th style="padding:10px;text-align:right;border-bottom:1px solid var(--border);">Valore 31/12</th>
+                    </tr>
+                    ${data.wallets.map(w => `
+                    <tr>
+                        <td style="padding:10px;border-bottom:1px solid var(--border);">${w.chain}</td>
+                        <td style="padding:10px;text-align:right;border-bottom:1px solid var(--border);">${w.addresses}</td>
+                        <td style="padding:10px;text-align:right;border-bottom:1px solid var(--border);font-weight:bold;">€${w.value.toLocaleString('it-IT', {minimumFractionDigits: 2})}</td>
+                    </tr>
+                    `).join('')}
+                </table>
+                ` : ''}
+                
+                <!-- IVAFE -->
+                <div style="background:var(--bg-secondary);padding:16px;border-radius:8px;margin-bottom:20px;">
+                    <h3 style="margin:0 0 12px;">💰 IVAFE Dovuta</h3>
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <div style="color:var(--text-secondary);font-size:13px;">Imposta 0,2% sul valore al 31/12</div>
+                            <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">
+                                €${data.totalValue.toLocaleString('it-IT')} × 0,2% = €${data.ivafe.toFixed(2)}
+                            </div>
+                        </div>
+                        <div style="font-size:28px;font-weight:bold;color:var(--yellow);">
+                            €${data.ivafe.toFixed(2)}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- NOTE -->
+                <div style="background:var(--bg-primary);padding:16px;border-radius:8px;font-size:12px;color:var(--text-secondary);">
+                    <strong>📌 Note importanti:</strong>
+                    <ul style="margin:8px 0 0;padding-left:20px;">
+                        <li>Questi dati sono indicativi e vanno verificati con la documentazione ufficiale</li>
+                        <li>Il Quadro RW va compilato se il valore supera €15.000 anche per un solo giorno</li>
+                        <li>L'IVAFE si calcola sul valore medio annuo (qui mostrato valore al 31/12)</li>
+                        <li>Conserva tutti gli estratti conto degli exchange e le ricevute delle transazioni</li>
+                    </ul>
+                </div>
+                
+                <!-- FOOTER -->
+                <div style="text-align:center;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);font-size:11px;color:var(--text-secondary);">
+                    Report generato da CryptoFolio il ${new Date().toLocaleDateString('it-IT')} alle ${new Date().toLocaleTimeString('it-IT')}
+                </div>
+            </div>
+            `;
+            
+            return html;
+        }
+        
+        async function generateQuadroRWWithAI() {
+            const apiKey = localStorage.getItem('claudeApiKey');
+            if (!apiKey) {
+                alert('⚠️ Inserisci prima la Claude API Key!\n\nClicca su "🤖 Analisi AI Completa" per configurarla.');
+                return;
+            }
+            
+            const year = parseInt(document.getElementById('rwYearSelect').value);
+            const rwData = collectDataForYear(year);
+            
+            if (rwData.totalValue === 0) {
+                alert(`⚠️ Nessun dato trovato per l'anno ${year}.`);
+                return;
+            }
+            
+            // Show loading
+            document.getElementById('quadroRWContainer').style.display = 'block';
+            document.getElementById('quadroRWTitle').textContent = `📄 Quadro RW - Anno ${year} (Generazione AI...)`;
+            document.getElementById('quadroRWContent').innerHTML = `
+                <div style="text-align:center;padding:40px;">
+                    <div style="font-size:48px;animation:pulse 1.5s infinite;">🤖</div>
+                    <div style="margin-top:16px;color:var(--text-secondary);">Claude sta preparando il Quadro RW ${year}...</div>
+                </div>
+            `;
+            
+            try {
+                const prompt = `
+Sei un commercialista esperto in criptovalute e normativa fiscale italiana.
+Genera un QUADRO RW completo e dettagliato per l'anno ${year} basandoti su questi dati:
+
+DATI PORTFOLIO AL 31/12/${year}:
+${JSON.stringify(rwData, null, 2)}
+
+GENERA UN REPORT CHE INCLUDA:
+
+1. 📋 INTESTAZIONE
+   - Anno fiscale
+   - Totale patrimonio estero
+   - Obbligo dichiarazione (soglia €15.000)
+
+2. 🏦 SEZIONE RW - EXCHANGE
+   Per ogni exchange:
+   - Codice paese (secondo codice ISO)
+   - Codice investimento (14 per cripto)
+   - Valore iniziale (01/01)
+   - Valore finale (31/12)
+   - Giorni di detenzione (365 o meno se aperto in corso d'anno)
+
+3. 🔗 SEZIONE RW - WALLET DEFI
+   - Tipo: Wallet non custodial
+   - Valore aggregato per blockchain
+
+4. 💰 CALCOLO IVAFE
+   - Base imponibile
+   - Aliquota 0,2%
+   - Imposta dovuta
+   - Codice tributo per F24
+
+5. ⚠️ ADEMPIMENTI RICHIESTI
+   - Scadenze
+   - Documenti da conservare
+   - Sanzioni per omissione
+
+6. 💡 SUGGERIMENTI
+   - Ottimizzazione fiscale
+   - Errori comuni da evitare
+
+Formatta il report in modo chiaro e professionale, usa tabelle dove utile.
+Rispondi in italiano.`;
+
+                const response = await callClaudeAPI(apiKey, prompt);
+                
+                // Mostra risultato AI + report standard
+                const standardHtml = renderQuadroRW(year, rwData);
+                const aiHtml = `
+                    <div style="background:linear-gradient(135deg,#667eea22 0%,#764ba222 100%);padding:20px;border-radius:12px;margin-bottom:20px;border:1px solid #667eea;">
+                        <h3 style="margin:0 0 16px;display:flex;align-items:center;gap:8px;">
+                            <span style="font-size:24px;">🤖</span> Report Generato da Claude AI
+                        </h3>
+                        <div style="white-space:pre-wrap;line-height:1.6;">
+                            ${formatAIResponse(response)}
+                        </div>
+                    </div>
+                    <hr style="border:none;border-top:2px dashed var(--border);margin:30px 0;">
+                    <h3 style="margin-bottom:16px;">📊 Dati Calcolati da CryptoFolio</h3>
+                    ${standardHtml}
+                `;
+                
+                document.getElementById('quadroRWTitle').textContent = `📄 Quadro RW - Anno ${year}`;
+                document.getElementById('quadroRWContent').innerHTML = aiHtml;
+                
+                // Salva
+                generatedQuadriRW[year] = {
+                    data: rwData,
+                    html: aiHtml,
+                    aiGenerated: true,
+                    generatedAt: new Date().toISOString()
+                };
+                saveQuadriRWHistory();
+                updateRWHistoryList();
+                
+            } catch (error) {
+                console.error('AI generation error:', error);
+                alert('❌ Errore generazione AI: ' + error.message);
+                // Fallback a report standard
+                generateQuadroRW();
+            }
+        }
+        
+        function printQuadroRW() {
+            const year = document.getElementById('rwYearSelect').value;
+            const content = document.getElementById('quadroRWContent').innerHTML;
+            
+            if (!content || content.includes('empty-state')) {
+                alert('⚠️ Genera prima il Quadro RW!');
+                return;
+            }
+            
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Quadro RW ${year} - CryptoFolio</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+                        table { width: 100%; border-collapse: collapse; }
+                        th, td { padding: 8px; border: 1px solid #ddd; }
+                        th { background: #f5f5f5; }
+                        @media print { body { padding: 0; } }
+                    </style>
+                </head>
+                <body>
+                    <h1 style="text-align:center;">📋 QUADRO RW - Anno ${year}</h1>
+                    <p style="text-align:center;color:#666;">Generato da CryptoFolio - ${new Date().toLocaleDateString('it-IT')}</p>
+                    <hr>
+                    ${content}
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.print();
+        }
+        
+        function exportQuadroRWCSV() {
+            const year = document.getElementById('rwYearSelect').value;
+            const data = generatedQuadriRW[year]?.data;
+            
+            if (!data) {
+                alert('⚠️ Genera prima il Quadro RW!');
+                return;
+            }
+            
+            let csv = 'Tipo,Nome,Paese,Valore EUR,Note\n';
+            
+            for (const e of data.exchanges) {
+                csv += `Exchange,${e.name},${e.country},${e.value.toFixed(2)},${e.transactions || 0} transazioni\n`;
+            }
+            for (const w of data.wallets) {
+                csv += `Wallet,${w.chain},-,${w.value.toFixed(2)},${w.addresses} indirizzi\n`;
+            }
+            csv += `TOTALE,-,-,${data.totalValue.toFixed(2)},-\n`;
+            csv += `IVAFE,-,-,${data.ivafe.toFixed(2)},0.2%\n`;
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `QuadroRW_${year}.csv`;
+            a.click();
+        }
+        
+        function copyQuadroRW() {
+            const content = document.getElementById('quadroRWContent');
+            if (!content) return;
+            
+            // Copia testo
+            const text = content.innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('✅ Quadro RW copiato negli appunti!');
+            }).catch(err => {
+                console.error('Copy failed:', err);
+            });
+        }
+        
+        function updateRWHistoryList() {
+            const container = document.getElementById('rwHistoryList');
+            const years = Object.keys(generatedQuadriRW).sort((a, b) => b - a);
+            
+            if (years.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state" style="padding:20px;">
+                        <div style="color:var(--text-secondary);">Nessun Quadro RW generato ancora.</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = years.map(year => {
+                const rw = generatedQuadriRW[year];
+                const date = new Date(rw.generatedAt).toLocaleDateString('it-IT');
+                const value = rw.data?.totalValue || 0;
+                const aiLabel = rw.aiGenerated ? '🤖' : '📊';
+                
+                return `
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg-primary);border-radius:8px;margin-bottom:8px;">
+                    <div>
+                        <strong>${aiLabel} Anno ${year}</strong>
+                        <div style="font-size:12px;color:var(--text-secondary);">Generato il ${date}</div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <span style="font-weight:bold;color:var(--green);">€${value.toLocaleString('it-IT', {minimumFractionDigits: 2})}</span>
+                        <button class="btn btn-secondary" onclick="loadQuadroRW(${year})" style="padding:4px 12px;font-size:12px;">👁️ Visualizza</button>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+        
+        function loadQuadroRW(year) {
+            const rw = generatedQuadriRW[year];
+            if (!rw) return;
+            
+            document.getElementById('rwYearSelect').value = year;
+            document.getElementById('quadroRWContainer').style.display = 'block';
+            document.getElementById('quadroRWTitle').textContent = `📄 Quadro RW - Anno ${year}`;
+            document.getElementById('quadroRWContent').innerHTML = rw.html;
+        }
+        
+        function saveQuadriRWHistory() {
+            try {
+                // Salva solo i dati essenziali (non l'HTML per risparmiare spazio)
+                const toSave = {};
+                for (const [year, rw] of Object.entries(generatedQuadriRW)) {
+                    toSave[year] = {
+                        data: rw.data,
+                        aiGenerated: rw.aiGenerated || false,
+                        generatedAt: rw.generatedAt
+                    };
+                }
+                localStorage.setItem('cryptofolio_quadriRW', JSON.stringify(toSave));
+            } catch (e) {
+                console.error('Error saving Quadri RW:', e);
+            }
+        }
+        
+        function loadQuadriRWHistory() {
+            try {
+                const saved = localStorage.getItem('cryptofolio_quadriRW');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    for (const [year, rw] of Object.entries(parsed)) {
+                        // Rigenera HTML dai dati
+                        generatedQuadriRW[year] = {
+                            ...rw,
+                            html: renderQuadroRW(parseInt(year), rw.data)
+                        };
+                    }
+                    updateRWHistoryList();
+                }
+            } catch (e) {
+                console.error('Error loading Quadri RW:', e);
+            }
+        }
+        
+        // ==================== END QUADRO RW GENERATOR ====================
         
         async function testExchangeApi(exchId) {
             if (exchId === 'binance') {
@@ -6550,9 +7451,17 @@ Rispondi in italiano, in modo chiaro e dettagliato. Usa i dati forniti per rispo
         function parseBinanceCSV(lines) {
             // Formato: "User_ID","UTC_Time","Account","Operation","Coin","Change","Remark"
             const transactions = [];
-            console.log('Parsing Binance CSV, lines:', lines.length);
+            console.log('🔶 Parsing Binance CSV, lines:', lines.length);
             console.log('Header:', lines[0]);
-            console.log('First data line:', lines[1]);
+            
+            // Statistiche per debug
+            const stats = {
+                rewards: 0, buys: 0, sells: 0, deposits: 0, withdrawals: 0, 
+                fees: 0, transfers: 0, other: 0, skipped: 0
+            };
+            
+            // Track internal transfers to avoid double counting
+            const processedTransfers = new Set();
             
             for (let i = 1; i < lines.length; i++) {
                 const line = lines[i];
@@ -6561,7 +7470,6 @@ Rispondi in italiano, in modo chiaro e dettagliato. Usa i dati forniti per rispo
                 // Parse CSV con virgolette
                 const cols = parseCSVLine(line);
                 if (cols.length < 6) {
-                    console.log('Skipping line (not enough cols):', cols.length, line.substring(0, 50));
                     continue;
                 }
                 
@@ -6570,27 +7478,132 @@ Rispondi in italiano, in modo chiaro e dettagliato. Usa i dati forniti per rispo
                 // Parse date
                 const date = new Date(utcTime);
                 if (isNaN(date.getTime())) {
-                    console.log('Invalid date:', utcTime);
                     continue;
                 }
                 
                 const changeNum = parseFloat(change) || 0;
+                if (changeNum === 0) continue;
+                
+                const opLower = operation.toLowerCase();
+                
+                // Skip internal transfers from Funding wallet (already counted in Spot)
+                if (opLower.includes('transfer between') && account === 'Funding') {
+                    stats.skipped++;
+                    continue;
+                }
+                
+                // Normalizza tipo operazione
+                let type = 'other';
+                let isTaxable = false; // Per rewards
+                
+                // REWARDS (tassabili)
+                if (opLower.includes('staking rewards') || 
+                    opLower.includes('earn') && opLower.includes('interest') ||
+                    opLower.includes('earn') && opLower.includes('rewards') ||
+                    opLower.includes('bnb vault rewards') ||
+                    opLower.includes('swap farming rewards') ||
+                    opLower.includes('liquidity farming')) {
+                    type = 'reward';
+                    isTaxable = true;
+                    stats.rewards++;
+                }
+                // AIRDROP / LAUNCHPOOL (tassabili)
+                else if (opLower.includes('launchpool') || 
+                         opLower.includes('airdrop') ||
+                         opLower.includes('distribution') ||
+                         opLower.includes('cashback') ||
+                         opLower.includes('crypto box') ||
+                         opLower.includes('voucher')) {
+                    type = 'airdrop';
+                    isTaxable = true;
+                    stats.rewards++;
+                }
+                // BUY
+                else if (opLower.includes('transaction buy') || 
+                         opLower === 'buy' ||
+                         opLower.includes('buy crypto')) {
+                    type = 'buy';
+                    stats.buys++;
+                }
+                // SELL
+                else if (opLower.includes('transaction sold') || 
+                         opLower.includes('transaction spend') ||
+                         opLower === 'sell') {
+                    type = 'sell';
+                    stats.sells++;
+                }
+                // CONVERT (può essere buy o sell a seconda del segno)
+                else if (opLower.includes('convert') || 
+                         opLower.includes('small assets exchange')) {
+                    type = changeNum > 0 ? 'buy' : 'sell';
+                    if (changeNum > 0) stats.buys++; else stats.sells++;
+                }
+                // DEPOSIT
+                else if (opLower.includes('deposit') || 
+                         opLower.includes('fiat') && changeNum > 0) {
+                    type = 'deposit';
+                    stats.deposits++;
+                }
+                // WITHDRAWAL
+                else if (opLower.includes('withdraw')) {
+                    type = 'withdrawal';
+                    stats.withdrawals++;
+                }
+                // FEE
+                else if (opLower.includes('fee')) {
+                    type = 'fee';
+                    stats.fees++;
+                }
+                // TRANSFER (interno - traccia ma non è taxable)
+                else if (opLower.includes('transfer')) {
+                    type = 'transfer';
+                    stats.transfers++;
+                }
+                // SUBSCRIPTION/REDEMPTION (Earn - movimento interno)
+                else if (opLower.includes('subscription') || opLower.includes('redemption')) {
+                    type = 'earn_move';
+                    stats.transfers++;
+                }
+                // TRANSACTION RELATED / REVENUE (spesso accoppiato con altre TX)
+                else if (opLower.includes('transaction related') || opLower.includes('transaction revenue')) {
+                    // Determina dal segno
+                    type = changeNum > 0 ? 'buy' : 'sell';
+                    if (changeNum > 0) stats.buys++; else stats.sells++;
+                }
+                // CARD SPENDING
+                else if (opLower.includes('card spending') || opLower.includes('merchant')) {
+                    type = 'spend';
+                    stats.sells++;
+                }
+                else {
+                    stats.other++;
+                }
                 
                 transactions.push({
                     date: date,
-                    account: account,
-                    operation: operation,
+                    type: type,
                     coin: coin,
+                    amount: Math.abs(changeNum),
                     change: changeNum,
-                    remark: remark || ''
+                    operation: operation,
+                    account: account,
+                    remark: remark || '',
+                    isTaxable: isTaxable
                 });
             }
             
-            console.log('Parsed', transactions.length, 'transactions');
-            if (transactions.length > 0) {
-                console.log('First tx:', transactions[0]);
-                console.log('Last tx:', transactions[transactions.length - 1]);
-            }
+            // Log statistiche
+            console.log('📊 Binance parsing stats:');
+            console.log(`  ✅ Rewards/Airdrop: ${stats.rewards}`);
+            console.log(`  💰 Buys: ${stats.buys}`);
+            console.log(`  📤 Sells: ${stats.sells}`);
+            console.log(`  📥 Deposits: ${stats.deposits}`);
+            console.log(`  📤 Withdrawals: ${stats.withdrawals}`);
+            console.log(`  💸 Fees: ${stats.fees}`);
+            console.log(`  🔄 Transfers: ${stats.transfers}`);
+            console.log(`  ❓ Other: ${stats.other}`);
+            console.log(`  ⏭️ Skipped: ${stats.skipped}`);
+            console.log(`  📋 Total parsed: ${transactions.length}`);
             
             return transactions;
         }
@@ -7241,6 +8254,7 @@ Rispondi in italiano, in modo chiaro e dettagliato. Usa i dati forniti per rispo
             await cleanupLegacyBinanceData(); // Pulisce vecchi dati API
             await loadExchangeDataFromFirebase();
             loadWalletTransactions(); // Carica transazioni wallet
+            loadQuadriRWHistory(); // Carica storico Quadri RW
             initChainSelector();
             initExchangeGrid();
             updateBlacklist();
