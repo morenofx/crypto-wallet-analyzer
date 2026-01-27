@@ -5089,6 +5089,21 @@
                 // Calcola se ci sono saldi reali
                 const hasRealBalances = Object.keys(realBalances).length > 0;
                 
+                // Mappa prezzi token da transazioni (per token senza prezzo CoinGecko)
+                const tokenPricesFromTx = {};
+                for (const tx of allTransactions) {
+                    if (tx.amountEur && tx.amount && tx.amount > 0) {
+                        const pricePerUnit = tx.amountEur / tx.amount;
+                        if (pricePerUnit > 0) {
+                            tokenPricesFromTx[tx.coin] = pricePerUnit; // Ultimo prezzo conosciuto
+                        }
+                    }
+                }
+                console.log('💰 Prezzi token da transazioni:', tokenPricesFromTx);
+                
+                // Tassi di cambio fiat
+                const fiatRates = { 'EUR': 1, 'USD': EUR_USD, 'CHF': 0.95, 'GBP': 1.17 };
+                
                 // Calcola valore EUR per anno
                 const currentYear = new Date().getFullYear();
                 for (const year of years) {
@@ -5098,14 +5113,30 @@
                     
                     for (const [coin, amount] of Object.entries(balancesToUse || {})) {
                         if (amount > 0) {
+                            // 1. Check se è fiat
+                            if (fiatRates[coin]) {
+                                totalEur += amount * fiatRates[coin];
+                                continue;
+                            }
+                            
+                            // 2. Prova prezzo CoinGecko
                             const price = getHistoricalPrice(coin, year);
-                            if (price && !isNaN(price)) {
+                            if (price && !isNaN(price) && price > 0) {
                                 totalEur += amount * price * EUR_USD;
+                                continue;
+                            }
+                            
+                            // 3. Usa prezzo da transazioni se disponibile
+                            if (tokenPricesFromTx[coin]) {
+                                totalEur += amount * tokenPricesFromTx[coin];
                             }
                         }
                     }
                     yearTotals[year] = Math.round(totalEur * 100) / 100;
                 }
+                
+                console.log('📊 Bitpanda yearTotals:', yearTotals);
+                console.log('📊 Bitpanda realBalances:', realBalances);
                 
                 // Se anno corrente ha saldi reali, copia per snapshot
                 if (hasRealBalances) {
