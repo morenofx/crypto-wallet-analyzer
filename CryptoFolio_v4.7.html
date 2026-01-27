@@ -5552,6 +5552,11 @@
                     updateExchangeTotals();
                     saveExchangeDataToFirebase();
                     
+                    // Aggiorna il dettaglio exchange se siamo nella pagina dettaglio
+                    if (currentDetailExchange === exchId) {
+                        showExchangeDetail(exchId);
+                    }
+                    
                     alert('✅ ' + exchId.toUpperCase() + ': Importate ' + allTransactions.length + ' transazioni!');
                 } else {
                     alert('❌ Nessuna transazione trovata nei file. Controlla la console (F12) per i dettagli.');
@@ -6001,38 +6006,35 @@
                 }
                 
                 // Determina tipo e direzione
-                let type = txType.toLowerCase().replace(/[()]/g, '');
+                let type = txType.toLowerCase();
+                const typeClean = type.replace(/[()]/g, ''); // Per confronti
                 const inOutLower = inOut.toLowerCase();
                 let isAssetIncoming = false;
                 
                 // Logica precisa per ogni tipo
-                if (type === 'buy') {
+                if (typeClean === 'buy') {
                     isAssetIncoming = true;
                     type = 'buy';
-                } else if (type === 'sell') {
+                } else if (typeClean === 'sell') {
                     isAssetIncoming = false;
                     type = 'sell';
-                } else if (type === 'reward' || type === 'distribution') {
+                } else if (typeClean === 'reward' || typeClean === 'distribution') {
                     isAssetIncoming = true;
                     type = 'reward';
-                } else if (type === 'deposit') {
+                } else if (typeClean === 'deposit') {
                     isAssetIncoming = true;
                     type = 'deposit';
-                } else if (type === 'withdrawal') {
+                } else if (typeClean === 'withdrawal') {
                     isAssetIncoming = false;
                     type = 'withdrawal';
-                } else if (type === 'transfer') {
+                } else if (type === 'transfer(stake)' || typeClean === 'transferstake') {
+                    // Movimento IN staking - i token sono ancora tuoi!
+                    // Questo bilancia il "transfer, outgoing" corrispondente
+                    isAssetIncoming = true;
+                    type = 'staking';
+                } else if (typeClean === 'transfer') {
                     isAssetIncoming = (inOutLower === 'incoming');
                     type = isAssetIncoming ? 'deposit' : 'withdrawal';
-                } else if (type === 'transferstake' || type.includes('stake')) {
-                    // Movimento interno staking - tracciamo ma non cambia saldo totale
-                    isAssetIncoming = (inOutLower === 'incoming');
-                    type = 'staking_move';
-                    // Skip se è un movimento interno
-                    if (type === 'staking_move') {
-                        console.log(`  ⏭️ Skip staking move: ${asset} ${amountAsset}`);
-                        continue;
-                    }
                 } else {
                     isAssetIncoming = (inOutLower === 'incoming');
                 }
