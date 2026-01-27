@@ -6393,10 +6393,13 @@
                     dataToSave[exchId] = {
                         totals: data.totals || {},
                         balances: data.balances || {},
+                        realBalances: data.realBalances || null,
+                        tokenPrices: data.tokenPrices || null,
                         transactionCount: data.transactions ? data.transactions.length : 0,
                         isZeroed: data.isZeroed || false,
                         isManual: data.isManual || false,
-                        lastImport: new Date().toISOString()
+                        lastImport: data.lastImport || new Date().toISOString(),
+                        source: data.source || 'manual'
                     };
                 }
                 
@@ -6426,7 +6429,8 @@
                             type: tx.type || '',
                             coin: tx.coin || '',
                             amount: parseFloat(tx.amount) || Math.abs(parseFloat(tx.change)) || 0,
-                            change: parseFloat(tx.change) || 0
+                            change: parseFloat(tx.change) || 0,
+                            amountEur: parseFloat(tx.amountEur) || 0
                         }));
                         
                         txToSave[exchId] = toSave;
@@ -6466,7 +6470,8 @@
                         ...tx,
                         date: new Date(tx.date),
                         amount: parseFloat(tx.amount) || Math.abs(parseFloat(tx.change)) || 0,
-                        change: parseFloat(tx.change) || 0
+                        change: parseFloat(tx.change) || 0,
+                        amountEur: parseFloat(tx.amountEur) || 0
                     }));
                     totalLoaded += txData[exchId].length;
                 }
@@ -6490,9 +6495,13 @@
                             transactions: [], // Vuoto - verrà caricato da localStorage
                             totals: savedData[exchId].totals || {},
                             balances: savedData[exchId].balances || {},
+                            realBalances: savedData[exchId].realBalances || null,
+                            tokenPrices: savedData[exchId].tokenPrices || null,
                             transactionCount: savedData[exchId].transactionCount || 0,
                             isZeroed: savedData[exchId].isZeroed || false,
-                            isManual: savedData[exchId].isManual || false
+                            isManual: savedData[exchId].isManual || false,
+                            lastImport: savedData[exchId].lastImport || null,
+                            source: savedData[exchId].source || 'manual'
                         };
                     }
                     
