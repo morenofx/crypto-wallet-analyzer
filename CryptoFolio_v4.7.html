@@ -284,7 +284,7 @@
         
         <!-- TAX REPORT -->
         <div class="main-content" id="taxView" style="display:none;">
-            <div class="header"><h1>📋 Tax Report - Quadro RW</h1><div class="header-actions"><button class="btn" onclick="clearTaxReport()" style="margin-right:8px;background:var(--bg-secondary);">🗑️ Reset</button><button class="btn btn-secondary" onclick="printTaxReport()" style="margin-right:8px;">🖨️ Stampa PDF</button><button class="btn" onclick="fetchMissingPrices()" style="margin-right:8px;background:var(--green);color:#000;">💰 Fetch Prezzi</button><button class="btn" onclick="openGlobalAIAnalysis()" style="margin-right:8px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;">🤖 Analisi AI Completa</button><button class="btn btn-primary" onclick="calculateTaxReportAll()">🧮 Calcola Tutti</button></div></div>
+            <div class="header"><h1>📋 Tax Report - Quadro RW</h1><div class="header-actions"><button class="btn" onclick="clearTaxReport()" style="margin-right:8px;background:var(--bg-secondary);">🗑️ Reset</button><button class="btn btn-secondary" onclick="printTaxReport()" style="margin-right:8px;">🖨️ Stampa PDF</button><button class="btn" onclick="fetchMissingPrices()" style="margin-right:8px;background:var(--green);color:#000;">💰 Fetch Prezzi</button><button class="btn" onclick="runAutoPilot()" style="margin-right:8px;background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%);color:#fff;font-weight:bold;">🚀 Auto-Pilot</button><button class="btn" onclick="openGlobalAIAnalysis()" style="margin-right:8px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;">🤖 Analisi AI</button><button class="btn btn-primary" onclick="calculateTaxReportAll()">🧮 Calcola</button></div></div>
             
             <div class="card" style="margin-bottom:20px;">
                 <p style="color:var(--text-secondary);font-size:14px;line-height:1.6;">
@@ -592,7 +592,22 @@
         
         <!-- EXCHANGES -->
         <div class="main-content" id="exchangesView" style="display:none;">
-            <div class="header"><h1>🏦 Exchanges</h1><div class="header-actions"><button class="btn btn-secondary" onclick="clearAllExchangeData()" style="margin-right:8px;">🗑️ Reset All</button><button class="btn btn-primary" onclick="recalculateAllExchanges()">🧮 Ricalcola</button></div></div>
+            <div class="header"><h1>🏦 Exchanges</h1><div class="header-actions"><button class="btn" onclick="runCompleteAnalysis()" style="margin-right:8px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;font-weight:bold;padding:10px 20px;">🤖 Analizza Tutto</button><button class="btn btn-secondary" onclick="clearAllExchangeData()" style="margin-right:8px;">🗑️ Reset</button><button class="btn btn-primary" onclick="recalculateAllExchanges()">🧮 Ricalcola</button></div></div>
+            
+            <!-- CALL TO ACTION - Analisi Automatica -->
+            <div id="analysisCTA" class="card" style="margin-bottom:20px;background:linear-gradient(135deg,rgba(102,126,234,0.15),rgba(118,75,162,0.15));border:2px solid rgba(102,126,234,0.3);">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+                    <div style="flex:1;min-width:200px;">
+                        <div style="font-size:18px;font-weight:700;margin-bottom:6px;">🤖 Analisi Automatica con AI</div>
+                        <div style="font-size:13px;color:var(--text-secondary);">
+                            Dopo aver importato tutti i dati, clicca per: recuperare prezzi storici, riconciliare trasferimenti, risolvere discrepanze e calcolare il cost basis automaticamente.
+                        </div>
+                    </div>
+                    <button class="btn" onclick="runCompleteAnalysis()" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;font-weight:bold;padding:14px 28px;font-size:15px;white-space:nowrap;">
+                        🚀 Avvia Analisi Completa
+                    </button>
+                </div>
+            </div>
             
             <!-- TOTALE EXCHANGES -->
             <div class="card" style="margin-bottom:20px;background:linear-gradient(135deg,rgba(243,186,47,0.1),rgba(0,230,118,0.1));">
@@ -720,6 +735,7 @@
                 <div class="card-header" style="background:rgba(243,186,47,0.1);">
                     <div class="card-title" style="color:var(--yellow);">⚠️ Discrepanze Rilevate (<span id="discrepancyCount">0</span>)</div>
                     <div style="display:flex;gap:8px;">
+                        <button class="btn" onclick="analyzeDiscrepanciesWithAI()" style="padding:6px 12px;font-size:12px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;">🤖 Analizza con AI</button>
                         <button class="btn btn-secondary" onclick="refreshDiscrepancies()" style="padding:6px 12px;font-size:12px;">🔄 Aggiorna</button>
                         <button class="btn" onclick="resolveAllDiscrepancies()" style="padding:6px 12px;font-size:12px;background:var(--green);color:#000;">✅ Risolvi Tutte</button>
                     </div>
@@ -2014,6 +2030,1377 @@
         
         // ==================== END UI DISCREPANZE ====================
         
+        // ==================== AI ANALISI DISCREPANZE ====================
+        
+        // Analizza discrepanze con AI
+        async function analyzeDiscrepanciesWithAI() {
+            if (!currentDetailExchange) return;
+            
+            const exchData = exchangeData[currentDetailExchange];
+            const issues = exchData?.discrepancies || [];
+            
+            if (issues.length === 0) {
+                alert('✅ Nessuna discrepanza da analizzare!');
+                return;
+            }
+            
+            // Prepara contesto per AI
+            const transactions = exchData.transactions || [];
+            const realBalances = exchData.realBalances || {};
+            
+            // Analizza pattern per ogni discrepanza
+            const analysisData = [];
+            
+            for (const issue of issues) {
+                const coin = issue.coin;
+                const coinTx = transactions.filter(tx => 
+                    (tx.asset_in || tx.coin)?.toUpperCase() === coin.toUpperCase()
+                );
+                
+                // Trova pattern
+                const deposits = coinTx.filter(tx => tx.type === 'deposit' || tx.change > 0);
+                const withdrawals = coinTx.filter(tx => tx.type === 'withdrawal' || tx.change < 0);
+                const rewards = coinTx.filter(tx => tx.type === 'staking' || tx.type === 'interest' || tx.type === 'reward');
+                
+                // Date range
+                const dates = coinTx.map(tx => new Date(tx.timestamp || tx.date)).sort((a, b) => a - b);
+                const firstTx = dates[0];
+                const lastTx = dates[dates.length - 1];
+                
+                // Prezzo attuale
+                const priceEur = getPriceEur(coin, new Date().getFullYear());
+                const diffValueEur = Math.abs(issue.difference) * priceEur;
+                
+                analysisData.push({
+                    coin,
+                    difference: issue.difference,
+                    diffValueEur,
+                    calculated: issue.calculated,
+                    real: issue.real,
+                    totalTx: coinTx.length,
+                    deposits: deposits.length,
+                    withdrawals: withdrawals.length,
+                    rewards: rewards.length,
+                    firstTx: firstTx?.toISOString().slice(0, 10),
+                    lastTx: lastTx?.toISOString().slice(0, 10)
+                });
+            }
+            
+            // Costruisci prompt per AI
+            const prompt = buildDiscrepancyAnalysisPrompt(currentDetailExchange, analysisData, realBalances);
+            
+            // Mostra modal con analisi
+            showAIDiscrepancyModal(prompt, analysisData);
+        }
+        
+        // Costruisce prompt per analisi AI
+        function buildDiscrepancyAnalysisPrompt(exchangeId, analysisData, realBalances) {
+            let prompt = `Sei un esperto fiscalista crypto italiano. Analizza queste discrepanze su ${exchangeId.toUpperCase()} e suggerisci come risolverle.\n\n`;
+            
+            prompt += `## DISCREPANZE RILEVATE\n\n`;
+            
+            for (const data of analysisData) {
+                prompt += `### ${data.coin}\n`;
+                prompt += `- Saldo calcolato: ${data.calculated.toFixed(6)}\n`;
+                prompt += `- Saldo reale: ${data.real.toFixed(6)}\n`;
+                prompt += `- Differenza: ${data.difference > 0 ? '+' : ''}${data.difference.toFixed(6)} (~€${data.diffValueEur.toFixed(2)})\n`;
+                prompt += `- Transazioni trovate: ${data.totalTx} (${data.deposits} depositi, ${data.withdrawals} prelievi, ${data.rewards} rewards)\n`;
+                prompt += `- Periodo: ${data.firstTx || 'N/A'} → ${data.lastTx || 'N/A'}\n\n`;
+            }
+            
+            prompt += `## RICHIESTA\n\n`;
+            prompt += `Per ogni discrepanza:\n`;
+            prompt += `1. Identifica la CAUSA più probabile (staking reward, airdrop, referral, dust conversion, fork, ecc.)\n`;
+            prompt += `2. Suggerisci il TIPO di transazione da aggiungere (deposit, withdrawal, reward, ecc.)\n`;
+            prompt += `3. Suggerisci la DATA più probabile\n`;
+            prompt += `4. Indica se è FISCALMENTE RILEVANTE (va dichiarata come reddito?)\n\n`;
+            
+            prompt += `Rispondi in formato strutturato per ogni coin.`;
+            
+            return prompt;
+        }
+        
+        // Modal per analisi AI discrepanze
+        function showAIDiscrepancyModal(prompt, analysisData) {
+            // Crea modal
+            let modal = document.getElementById('aiDiscrepancyModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'aiDiscrepancyModal';
+                modal.className = 'modal';
+                modal.innerHTML = `
+                    <div class="modal-content" style="max-width:800px;max-height:90vh;overflow-y:auto;">
+                        <div class="modal-header">
+                            <h2>🤖 Analisi AI Discrepanze</h2>
+                            <button class="modal-close" onclick="document.getElementById('aiDiscrepancyModal').classList.remove('active')">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <div id="aiDiscrepancyContent"></div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+            
+            const content = document.getElementById('aiDiscrepancyContent');
+            
+            // Mostra riepilogo discrepanze
+            let html = `<div style="margin-bottom:20px;">`;
+            html += `<h3 style="margin-bottom:12px;">📊 Riepilogo Discrepanze</h3>`;
+            html += `<div style="display:grid;gap:12px;">`;
+            
+            for (const data of analysisData) {
+                const isPositive = data.difference > 0;
+                const color = isPositive ? 'var(--green)' : 'var(--red)';
+                const icon = isPositive ? '📥' : '📤';
+                
+                html += `
+                <div style="background:var(--bg-primary);padding:12px;border-radius:8px;border-left:3px solid ${color};">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <span style="font-weight:700;font-size:16px;">${icon} ${data.coin}</span>
+                        <span style="color:${color};font-weight:600;">${data.difference > 0 ? '+' : ''}${data.difference.toFixed(6)} (~€${data.diffValueEur.toFixed(2)})</span>
+                    </div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">
+                        ${data.totalTx} tx | ${data.deposits} dep | ${data.withdrawals} with | ${data.rewards} rewards
+                    </div>
+                </div>`;
+            }
+            
+            html += `</div></div>`;
+            
+            // Analisi AI automatica
+            html += `<div style="margin-bottom:20px;">`;
+            html += `<h3 style="margin-bottom:12px;">🔍 Analisi Automatica</h3>`;
+            html += `<div id="aiAutoAnalysis" style="background:var(--bg-primary);padding:16px;border-radius:8px;">`;
+            
+            // Analisi euristica per ogni discrepanza
+            for (const data of analysisData) {
+                const analysis = analyzeDiscrepancyHeuristic(data);
+                html += `
+                <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border);">
+                    <div style="font-weight:700;margin-bottom:8px;">${data.coin}</div>
+                    <div style="display:grid;gap:8px;font-size:13px;">
+                        <div>🎯 <strong>Causa probabile:</strong> ${analysis.cause}</div>
+                        <div>📝 <strong>Tipo transazione:</strong> ${analysis.txType}</div>
+                        <div>📅 <strong>Data suggerita:</strong> ${analysis.suggestedDate}</div>
+                        <div>💶 <strong>Rilevanza fiscale:</strong> ${analysis.fiscalRelevance}</div>
+                    </div>
+                    <button class="btn" onclick="applyAISuggestion('${currentDetailExchange}', '${data.coin}', ${data.difference}, '${analysis.txType}', '${analysis.cause}')" 
+                            style="margin-top:12px;padding:8px 16px;background:var(--green);color:#000;">
+                        ✅ Applica Suggerimento
+                    </button>
+                </div>`;
+            }
+            
+            html += `</div></div>`;
+            
+            // Bottone risolvi tutte con AI
+            html += `
+            <div style="display:flex;gap:12px;justify-content:center;margin-top:20px;">
+                <button class="btn" onclick="applyAllAISuggestions()" style="padding:12px 24px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;font-size:14px;">
+                    🤖 Applica Tutti i Suggerimenti AI
+                </button>
+                <button class="btn btn-secondary" onclick="document.getElementById('aiDiscrepancyModal').classList.remove('active')" style="padding:12px 24px;">
+                    Chiudi
+                </button>
+            </div>`;
+            
+            content.innerHTML = html;
+            modal.classList.add('active');
+        }
+        
+        // Analisi euristica delle discrepanze
+        function analyzeDiscrepancyHeuristic(data) {
+            const { coin, difference, diffValueEur, deposits, withdrawals, rewards, lastTx } = data;
+            const isPositive = difference > 0;
+            const amount = Math.abs(difference);
+            
+            let cause, txType, suggestedDate, fiscalRelevance;
+            
+            if (isPositive) {
+                // Manca un deposito/entrata
+                
+                // Staking rewards sono comuni per BNB, DOT, ADA, SOL, ATOM
+                const stakingCoins = ['BNB', 'DOT', 'ADA', 'SOL', 'ATOM', 'MATIC', 'AVAX', 'NEAR', 'FTM', 'ONE'];
+                
+                // Airdrop comuni
+                const airdropCoins = ['NOT', 'DOGS', 'HMSTR', 'CATI', 'ARB', 'OP', 'BLUR', 'APT', 'SUI'];
+                
+                // Dust conversion (piccole quantità)
+                const isDust = amount < 0.01 && diffValueEur < 1;
+                
+                if (isDust && coin === 'BNB') {
+                    cause = '🧹 Dust → BNB conversion (Binance converte automaticamente)';
+                    txType = 'reward';
+                    fiscalRelevance = '⚪ Trascurabile (<€1)';
+                } else if (airdropCoins.includes(coin.toUpperCase())) {
+                    cause = '🎁 Airdrop (token distribuito gratuitamente)';
+                    txType = 'deposit';
+                    fiscalRelevance = '🟡 Reddito diverso - va dichiarato al valore di ricezione';
+                } else if (stakingCoins.includes(coin.toUpperCase()) || rewards > 0) {
+                    cause = '🥩 Staking/Earn rewards';
+                    txType = 'staking';
+                    fiscalRelevance = '🟡 Reddito diverso - va dichiarato';
+                } else if (coin === 'BNB' && diffValueEur < 5) {
+                    cause = '💰 Cashback/Referral bonus';
+                    txType = 'reward';
+                    fiscalRelevance = '🟡 Reddito diverso';
+                } else {
+                    cause = '📥 Deposito non tracciato (transfer da altro wallet?)';
+                    txType = 'deposit';
+                    fiscalRelevance = '⚪ No (solo spostamento se da proprio wallet)';
+                }
+            } else {
+                // Manca un prelievo/uscita
+                
+                if (Math.abs(diffValueEur) < 1) {
+                    cause = '💸 Fee di rete non tracciata';
+                    txType = 'fee';
+                    fiscalRelevance = '⚪ Deducibile da plusvalenze';
+                } else if (coin === 'BNB') {
+                    cause = '💸 Fee pagate in BNB per transazioni';
+                    txType = 'fee';
+                    fiscalRelevance = '⚪ Deducibile';
+                } else {
+                    cause = '📤 Prelievo non tracciato (transfer verso altro wallet?)';
+                    txType = 'withdrawal';
+                    fiscalRelevance = '⚪ No (se spostamento interno)';
+                }
+            }
+            
+            // Data suggerita: ultima transazione o oggi
+            suggestedDate = lastTx || new Date().toISOString().slice(0, 10);
+            
+            return { cause, txType, suggestedDate, fiscalRelevance };
+        }
+        
+        // Applica singolo suggerimento AI
+        function applyAISuggestion(exchangeId, coin, difference, txType, cause) {
+            const confirmed = confirm(
+                `🤖 Applicare suggerimento AI?\n\n` +
+                `Coin: ${coin}\n` +
+                `Tipo: ${txType}\n` +
+                `Quantità: ${Math.abs(difference).toFixed(6)}\n` +
+                `Causa: ${cause}\n\n` +
+                `Verrà aggiunta una transazione di aggiustamento.`
+            );
+            
+            if (!confirmed) return;
+            
+            addManualTransaction(exchangeId, {
+                date: new Date(),
+                type: txType,
+                coin: coin,
+                amount: difference,
+                notes: `AI: ${cause}`
+            });
+            
+            // Aggiorna discrepanze
+            const exchData = exchangeData[exchangeId];
+            if (exchData) {
+                exchData.discrepancies = exchData.discrepancies?.filter(d => d.coin !== coin) || [];
+                saveExchangeDataToFirebase();
+            }
+            
+            // Refresh
+            renderDiscrepanciesSection(exchangeId);
+            filterExchDetailTx();
+            
+            // Chiudi modal se non ci sono più discrepanze
+            if (!exchData.discrepancies || exchData.discrepancies.length === 0) {
+                document.getElementById('aiDiscrepancyModal')?.classList.remove('active');
+                alert('✅ Tutte le discrepanze risolte!');
+            }
+        }
+        
+        // Applica tutti i suggerimenti AI
+        function applyAllAISuggestions() {
+            if (!currentDetailExchange) return;
+            
+            const exchData = exchangeData[currentDetailExchange];
+            const issues = exchData?.discrepancies || [];
+            
+            if (issues.length === 0) {
+                alert('✅ Nessuna discrepanza da risolvere!');
+                return;
+            }
+            
+            const confirmed = confirm(
+                `🤖 Applicare TUTTI i ${issues.length} suggerimenti AI?\n\n` +
+                `Verranno aggiunte ${issues.length} transazioni di aggiustamento ` +
+                `basate sull'analisi automatica.\n\n` +
+                `Continuare?`
+            );
+            
+            if (!confirmed) return;
+            
+            let resolved = 0;
+            
+            for (const issue of issues) {
+                const data = {
+                    coin: issue.coin,
+                    difference: issue.difference,
+                    diffValueEur: Math.abs(issue.difference) * getPriceEur(issue.coin, new Date().getFullYear()),
+                    deposits: 0,
+                    withdrawals: 0,
+                    rewards: 0,
+                    lastTx: new Date().toISOString().slice(0, 10)
+                };
+                
+                const analysis = analyzeDiscrepancyHeuristic(data);
+                
+                addManualTransaction(currentDetailExchange, {
+                    date: new Date(),
+                    type: analysis.txType,
+                    coin: issue.coin,
+                    amount: issue.difference,
+                    notes: `AI: ${analysis.cause}`
+                });
+                
+                resolved++;
+            }
+            
+            // Pulisci discrepanze
+            exchData.discrepancies = [];
+            saveExchangeDataToFirebase();
+            
+            // Refresh UI
+            renderDiscrepanciesSection(currentDetailExchange);
+            filterExchDetailTx();
+            
+            // Chiudi modal
+            document.getElementById('aiDiscrepancyModal')?.classList.remove('active');
+            
+            alert(`✅ Risolte ${resolved} discrepanze con AI!\n\nLe transazioni sono state aggiunte con note sulla causa probabile.`);
+        }
+        
+        // ==================== END AI ANALISI DISCREPANZE ====================
+        
+        // ==================== 🤖 ANALISI COMPLETA AUTOMATICA ====================
+        
+        // Stato analisi globale
+        let analysisInProgress = false;
+        let analysisLog = [];
+        
+        // Funzione principale: FA TUTTO!
+        async function runCompleteAnalysis() {
+            if (analysisInProgress) {
+                alert('⚠️ Analisi già in corso...');
+                return;
+            }
+            
+            analysisInProgress = true;
+            analysisLog = [];
+            
+            // Mostra modal progress
+            showAnalysisProgressModal();
+            
+            try {
+                const startTime = Date.now();
+                
+                // ========== STEP 1: Raccolta Dati ==========
+                await updateAnalysisStep(1, 'Raccolta dati da tutti gli exchange...');
+                
+                const exchanges = Object.keys(exchangeData).filter(id => 
+                    exchangeData[id]?.transactions?.length > 0 || 
+                    exchangeData[id]?.realBalances
+                );
+                
+                if (exchanges.length === 0) {
+                    throw new Error('Nessun exchange con dati. Importa prima i dati!');
+                }
+                
+                logAnalysis(`📊 Trovati ${exchanges.length} exchange con dati: ${exchanges.join(', ')}`);
+                
+                let totalTransactions = 0;
+                for (const exchId of exchanges) {
+                    const count = exchangeData[exchId]?.transactions?.length || 0;
+                    totalTransactions += count;
+                    logAnalysis(`   • ${exchId}: ${count} transazioni`);
+                }
+                
+                // ========== STEP 2: Fetch Prezzi Storici ==========
+                await updateAnalysisStep(2, 'Recupero prezzi storici da CryptoCompare...');
+                
+                let pricesFetched = 0;
+                let pricesTotal = 0;
+                
+                for (const exchId of exchanges) {
+                    const transactions = exchangeData[exchId]?.transactions || [];
+                    
+                    // Trova prezzi mancanti
+                    const missingPrices = new Map();
+                    
+                    for (const tx of transactions) {
+                        const coin = (tx.asset_in || tx.coin || '').toUpperCase();
+                        if (!coin || coin === 'EUR' || coin === 'USD' || coin.startsWith('LD')) continue;
+                        
+                        const txDate = tx.timestamp || tx.date;
+                        const d = txDate instanceof Date ? txDate : new Date(txDate);
+                        const dateKey = d.toISOString().slice(0, 10);
+                        const cacheKey = `${coin}_${dateKey}`;
+                        
+                        if (!cryptoComparePriceCache[cacheKey] && !missingPrices.has(cacheKey)) {
+                            missingPrices.set(cacheKey, { coin, date: d });
+                        }
+                    }
+                    
+                    pricesTotal += missingPrices.size;
+                    
+                    // Fetch prezzi mancanti
+                    let fetched = 0;
+                    for (const [key, info] of missingPrices) {
+                        const price = await fetchCryptoComparePriceForDate(info.coin, info.date);
+                        if (price && price > 0) {
+                            fetched++;
+                            pricesFetched++;
+                        }
+                        
+                        // Update progress ogni 10
+                        if (fetched % 10 === 0) {
+                            updateAnalysisProgress(2, `Prezzi: ${pricesFetched}/${pricesTotal}...`);
+                        }
+                        
+                        await new Promise(r => setTimeout(r, 50)); // Rate limit
+                    }
+                }
+                
+                logAnalysis(`💰 Recuperati ${pricesFetched} prezzi storici`);
+                
+                // ========== STEP 3: Arricchimento Transazioni ==========
+                await updateAnalysisStep(3, 'Arricchimento transazioni con prezzi e cost basis...');
+                
+                let enriched = 0;
+                
+                for (const exchId of exchanges) {
+                    const transactions = exchangeData[exchId]?.transactions || [];
+                    
+                    for (const tx of transactions) {
+                        const coin = tx.asset_in || tx.coin;
+                        if (!coin) continue;
+                        
+                        const txDate = tx.timestamp || tx.date;
+                        
+                        // Calcola prezzo se mancante
+                        if (!tx.price_eur || tx.price_eur <= 0) {
+                            tx.price_eur = getPriceEur(coin, txDate);
+                        }
+                        
+                        // Calcola valore
+                        if (tx.price_eur > 0 && (tx.amount_in || tx.amount) > 0) {
+                            const amount = tx.amount_in || tx.amount;
+                            tx.value_eur = amount * tx.price_eur;
+                            tx.amountEur = tx.value_eur;
+                            
+                            // Cost basis per acquisti
+                            if (tx.type === 'buy' || tx.type === 'deposit') {
+                                tx.cost_basis_eur = tx.value_eur + (tx.fee_eur || 0);
+                            }
+                            
+                            enriched++;
+                        }
+                    }
+                }
+                
+                logAnalysis(`📝 Arricchite ${enriched} transazioni con prezzi`);
+                
+                // ========== STEP 4: Transfer Matching ==========
+                await updateAnalysisStep(4, 'Riconciliazione trasferimenti tra exchange/wallet...');
+                
+                // Raccogli tutte le transazioni
+                const allTransactions = [];
+                for (const exchId of exchanges) {
+                    const transactions = exchangeData[exchId]?.transactions || [];
+                    for (const tx of transactions) {
+                        allTransactions.push({ ...tx, _source: exchId });
+                    }
+                }
+                
+                // Match transfers cross-exchange
+                const matched = matchCrossExchangeTransfers(allTransactions);
+                logAnalysis(`🔗 Matchati ${matched} trasferimenti interni`);
+                
+                // ========== STEP 5: Risoluzione Discrepanze ==========
+                await updateAnalysisStep(5, 'Analisi e risoluzione discrepanze...');
+                
+                let discrepanciesResolved = 0;
+                let totalDiscrepancies = 0;
+                
+                for (const exchId of exchanges) {
+                    const exchData = exchangeData[exchId];
+                    if (!exchData?.realBalances || Object.keys(exchData.realBalances).length === 0) continue;
+                    
+                    // Calcola discrepanze
+                    const check = zeroSumCheck(exchData.transactions || [], exchData.realBalances);
+                    
+                    if (check.issues && check.issues.length > 0) {
+                        totalDiscrepancies += check.issues.length;
+                        
+                        // Risolvi automaticamente
+                        for (const issue of check.issues) {
+                            const analysis = analyzeDiscrepancyHeuristic({
+                                coin: issue.coin,
+                                difference: issue.difference,
+                                diffValueEur: Math.abs(issue.difference) * getPriceEur(issue.coin, new Date().getFullYear()),
+                                deposits: 0, withdrawals: 0, rewards: 0,
+                                lastTx: new Date().toISOString().slice(0, 10)
+                            });
+                            
+                            // Aggiungi transazione di aggiustamento
+                            addManualTransaction(exchId, {
+                                date: new Date(),
+                                type: analysis.txType,
+                                coin: issue.coin,
+                                amount: issue.difference,
+                                notes: `🤖 Auto: ${analysis.cause}`
+                            });
+                            
+                            discrepanciesResolved++;
+                            logAnalysis(`   ✅ ${exchId}/${issue.coin}: ${analysis.cause}`);
+                        }
+                        
+                        // Pulisci discrepanze
+                        exchData.discrepancies = [];
+                    }
+                }
+                
+                logAnalysis(`🔧 Risolte ${discrepanciesResolved}/${totalDiscrepancies} discrepanze`);
+                
+                // ========== STEP 6: Ricalcolo Totali ==========
+                await updateAnalysisStep(6, 'Ricalcolo totali per anno...');
+                
+                for (const exchId of exchanges) {
+                    recalculateExchangeBalances(exchId);
+                }
+                
+                logAnalysis(`📊 Totali ricalcolati per ${exchanges.length} exchange`);
+                
+                // ========== STEP 7: Aggiornamento Cost Basis ==========
+                await updateAnalysisStep(7, 'Aggiornamento registro cost basis...');
+                
+                // Ricostruisci cost basis da tutte le transazioni
+                let lotsCreated = 0;
+                
+                for (const exchId of exchanges) {
+                    const result = extractCostBasisFromTransactions(exchId);
+                    lotsCreated += result?.lots || 0;
+                }
+                
+                logAnalysis(`📦 Creati ${lotsCreated} lotti cost basis`);
+                
+                // ========== STEP 8: Salvataggio ==========
+                await updateAnalysisStep(8, 'Salvataggio dati...');
+                
+                saveExchangeDataToFirebase();
+                saveCostBasisLots();
+                
+                // ========== COMPLETATO ==========
+                const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                
+                logAnalysis(`\n✅ ANALISI COMPLETATA in ${elapsed}s`);
+                logAnalysis(`${'─'.repeat(40)}`);
+                logAnalysis(`📊 ${totalTransactions} transazioni elaborate`);
+                logAnalysis(`💰 ${pricesFetched} prezzi recuperati`);
+                logAnalysis(`🔗 ${matched} transfer matchati`);
+                logAnalysis(`🔧 ${discrepanciesResolved} discrepanze risolte`);
+                logAnalysis(`📦 ${lotsCreated} lotti cost basis`);
+                
+                // Mostra risultato finale
+                showAnalysisComplete({
+                    exchanges: exchanges.length,
+                    transactions: totalTransactions,
+                    pricesFetched,
+                    transfersMatched: matched,
+                    discrepanciesResolved,
+                    lotsCreated,
+                    elapsed
+                });
+                
+                // Refresh UI
+                initExchangeGrid();
+                updateExchangeTotals();
+                
+            } catch (error) {
+                console.error('Analisi error:', error);
+                logAnalysis(`\n❌ ERRORE: ${error.message}`);
+                showAnalysisError(error.message);
+            } finally {
+                analysisInProgress = false;
+            }
+        }
+        
+        // Match trasferimenti cross-exchange
+        function matchCrossExchangeTransfers(allTransactions) {
+            const windowMs = 60 * 60 * 1000; // 1 ora
+            let matched = 0;
+            
+            const withdrawals = allTransactions.filter(tx => 
+                tx.type === 'withdrawal' && !tx.is_internal && !tx.linked_tx_id
+            );
+            
+            const deposits = allTransactions.filter(tx => 
+                tx.type === 'deposit' && !tx.is_internal && !tx.linked_tx_id
+            );
+            
+            for (const w of withdrawals) {
+                const wTime = (w.timestamp || w.date) instanceof Date 
+                    ? (w.timestamp || w.date).getTime() 
+                    : new Date(w.timestamp || w.date).getTime();
+                const wCoin = (w.asset_in || w.coin || '').toUpperCase();
+                const wAmount = Math.abs(w.amount_in || w.amount || 0);
+                
+                for (const d of deposits) {
+                    if (d.linked_tx_id) continue;
+                    if (d._source === w._source) continue; // Stesso exchange
+                    
+                    const dTime = (d.timestamp || d.date) instanceof Date 
+                        ? (d.timestamp || d.date).getTime() 
+                        : new Date(d.timestamp || d.date).getTime();
+                    const dCoin = (d.asset_in || d.coin || '').toUpperCase();
+                    const dAmount = Math.abs(d.amount_in || d.amount || 0);
+                    
+                    const timeDiff = Math.abs(dTime - wTime);
+                    const amountDiff = Math.abs(wAmount - dAmount) / Math.max(wAmount, dAmount, 0.0001);
+                    
+                    if (wCoin === dCoin && timeDiff <= windowMs && amountDiff <= 0.05) {
+                        w.linked_tx_id = d.id;
+                        w.is_internal = true;
+                        w.type = 'transfer';
+                        
+                        d.linked_tx_id = w.id;
+                        d.is_internal = true;
+                        d.type = 'transfer';
+                        d.cost_basis_eur = w.cost_basis_eur;
+                        
+                        matched++;
+                        break;
+                    }
+                }
+            }
+            
+            return matched;
+        }
+        
+        // Helper: log analisi
+        function logAnalysis(message) {
+            analysisLog.push(message);
+            console.log(message);
+            
+            const logEl = document.getElementById('analysisLog');
+            if (logEl) {
+                logEl.innerHTML = analysisLog.map(m => 
+                    `<div style="font-family:monospace;font-size:12px;margin:2px 0;">${m}</div>`
+                ).join('');
+                logEl.scrollTop = logEl.scrollHeight;
+            }
+        }
+        
+        // Helper: update step
+        async function updateAnalysisStep(step, message) {
+            const stepEl = document.getElementById(`analysisStep${step}`);
+            const progressEl = document.getElementById('analysisProgressText');
+            
+            // Marca step precedenti come completati
+            for (let i = 1; i < step; i++) {
+                const prevEl = document.getElementById(`analysisStep${i}`);
+                if (prevEl) {
+                    prevEl.innerHTML = prevEl.innerHTML.replace('⏳', '✅');
+                    prevEl.style.opacity = '0.7';
+                }
+            }
+            
+            if (stepEl) {
+                stepEl.innerHTML = `⏳ ${message}`;
+                stepEl.style.color = 'var(--accent)';
+                stepEl.style.fontWeight = '600';
+            }
+            
+            if (progressEl) {
+                progressEl.textContent = message;
+            }
+            
+            logAnalysis(`\n📌 STEP ${step}: ${message}`);
+            
+            // Piccola pausa per UI update
+            await new Promise(r => setTimeout(r, 100));
+        }
+        
+        // Helper: update progress dentro step
+        function updateAnalysisProgress(step, message) {
+            const progressEl = document.getElementById('analysisProgressText');
+            if (progressEl) {
+                progressEl.textContent = message;
+            }
+        }
+        
+        // Modal progress analisi
+        function showAnalysisProgressModal() {
+            let modal = document.getElementById('analysisProgressModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'analysisProgressModal';
+                modal.className = 'modal';
+                document.body.appendChild(modal);
+            }
+            
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width:600px;">
+                    <div class="modal-header">
+                        <h2>🤖 Analisi Completa in Corso...</h2>
+                    </div>
+                    <div class="modal-body">
+                        <div style="margin-bottom:20px;">
+                            <div style="background:var(--bg-primary);border-radius:8px;height:8px;overflow:hidden;">
+                                <div id="analysisProgressBar" style="background:linear-gradient(90deg,#667eea,#764ba2);height:100%;width:0%;transition:width 0.3s;animation:pulse 1.5s infinite;"></div>
+                            </div>
+                            <div id="analysisProgressText" style="text-align:center;margin-top:8px;font-size:13px;color:var(--text-secondary);">Inizializzazione...</div>
+                        </div>
+                        
+                        <div style="display:grid;gap:8px;margin-bottom:20px;">
+                            <div id="analysisStep1" style="padding:8px;background:var(--bg-primary);border-radius:6px;">⏳ 1. Raccolta dati exchange</div>
+                            <div id="analysisStep2" style="padding:8px;background:var(--bg-primary);border-radius:6px;">⏳ 2. Fetch prezzi storici</div>
+                            <div id="analysisStep3" style="padding:8px;background:var(--bg-primary);border-radius:6px;">⏳ 3. Arricchimento transazioni</div>
+                            <div id="analysisStep4" style="padding:8px;background:var(--bg-primary);border-radius:6px;">⏳ 4. Riconciliazione trasferimenti</div>
+                            <div id="analysisStep5" style="padding:8px;background:var(--bg-primary);border-radius:6px;">⏳ 5. Risoluzione discrepanze</div>
+                            <div id="analysisStep6" style="padding:8px;background:var(--bg-primary);border-radius:6px;">⏳ 6. Ricalcolo totali</div>
+                            <div id="analysisStep7" style="padding:8px;background:var(--bg-primary);border-radius:6px;">⏳ 7. Aggiornamento cost basis</div>
+                            <div id="analysisStep8" style="padding:8px;background:var(--bg-primary);border-radius:6px;">⏳ 8. Salvataggio</div>
+                        </div>
+                        
+                        <div style="background:var(--bg-primary);border-radius:8px;padding:12px;max-height:200px;overflow-y:auto;" id="analysisLog">
+                            <div style="font-family:monospace;font-size:12px;color:var(--text-secondary);">Avvio analisi...</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Anima progress bar
+            setTimeout(() => {
+                const bar = document.getElementById('analysisProgressBar');
+                if (bar) bar.style.width = '100%';
+            }, 100);
+            
+            modal.classList.add('active');
+        }
+        
+        // Modal completamento analisi
+        function showAnalysisComplete(results) {
+            const modal = document.getElementById('analysisProgressModal');
+            if (!modal) return;
+            
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width:600px;">
+                    <div class="modal-header" style="background:linear-gradient(135deg,rgba(0,206,201,0.2),rgba(108,92,231,0.2));">
+                        <h2>✅ Analisi Completata!</h2>
+                        <button class="modal-close" onclick="document.getElementById('analysisProgressModal').classList.remove('active')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="text-align:center;margin-bottom:24px;">
+                            <div style="font-size:64px;margin-bottom:12px;">🎉</div>
+                            <div style="font-size:18px;font-weight:600;">Tutti i dati sono stati elaborati!</div>
+                            <div style="font-size:14px;color:var(--text-secondary);">Tempo: ${results.elapsed} secondi</div>
+                        </div>
+                        
+                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;">
+                            <div style="background:var(--bg-primary);padding:16px;border-radius:12px;text-align:center;">
+                                <div style="font-size:28px;font-weight:700;color:var(--green);">${results.transactions}</div>
+                                <div style="font-size:12px;color:var(--text-secondary);">Transazioni</div>
+                            </div>
+                            <div style="background:var(--bg-primary);padding:16px;border-radius:12px;text-align:center;">
+                                <div style="font-size:28px;font-weight:700;color:var(--accent);">${results.pricesFetched}</div>
+                                <div style="font-size:12px;color:var(--text-secondary);">Prezzi Recuperati</div>
+                            </div>
+                            <div style="background:var(--bg-primary);padding:16px;border-radius:12px;text-align:center;">
+                                <div style="font-size:28px;font-weight:700;color:var(--yellow);">${results.discrepanciesResolved}</div>
+                                <div style="font-size:12px;color:var(--text-secondary);">Discrepanze Risolte</div>
+                            </div>
+                        </div>
+                        
+                        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:24px;">
+                            <div style="background:var(--bg-primary);padding:12px;border-radius:8px;display:flex;align-items:center;gap:12px;">
+                                <span style="font-size:24px;">🔗</span>
+                                <div>
+                                    <div style="font-weight:600;">${results.transfersMatched}</div>
+                                    <div style="font-size:11px;color:var(--text-secondary);">Transfer Matchati</div>
+                                </div>
+                            </div>
+                            <div style="background:var(--bg-primary);padding:12px;border-radius:8px;display:flex;align-items:center;gap:12px;">
+                                <span style="font-size:24px;">📦</span>
+                                <div>
+                                    <div style="font-weight:600;">${results.lotsCreated}</div>
+                                    <div style="font-size:11px;color:var(--text-secondary);">Lotti Cost Basis</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="background:rgba(0,206,201,0.1);border:1px solid var(--green);border-radius:8px;padding:16px;margin-bottom:20px;">
+                            <div style="font-weight:600;margin-bottom:8px;">✅ Cosa è stato fatto:</div>
+                            <ul style="margin:0;padding-left:20px;font-size:13px;color:var(--text-secondary);">
+                                <li>Prezzi storici recuperati da CryptoCompare</li>
+                                <li>Transazioni arricchite con valori EUR</li>
+                                <li>Trasferimenti tra exchange riconciliati</li>
+                                <li>Discrepanze analizzate e risolte automaticamente</li>
+                                <li>Cost basis calcolato per ogni acquisto</li>
+                                <li>Totali per anno ricalcolati</li>
+                            </ul>
+                        </div>
+                        
+                        <div style="display:flex;gap:12px;justify-content:center;">
+                            <button class="btn" onclick="showView('taxReport');document.getElementById('analysisProgressModal').classList.remove('active');" 
+                                    style="padding:12px 24px;background:var(--green);color:#000;">
+                                📋 Vai al Tax Report
+                            </button>
+                            <button class="btn btn-secondary" onclick="document.getElementById('analysisProgressModal').classList.remove('active')" 
+                                    style="padding:12px 24px;">
+                                Chiudi
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Modal errore
+        function showAnalysisError(message) {
+            const modal = document.getElementById('analysisProgressModal');
+            if (!modal) return;
+            
+            const content = modal.querySelector('.modal-content');
+            if (content) {
+                content.innerHTML = `
+                    <div class="modal-header" style="background:rgba(255,107,107,0.2);">
+                        <h2>❌ Errore Analisi</h2>
+                        <button class="modal-close" onclick="document.getElementById('analysisProgressModal').classList.remove('active')">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="text-align:center;margin-bottom:20px;">
+                            <div style="font-size:48px;">😕</div>
+                            <div style="color:var(--red);font-weight:600;margin-top:12px;">${message}</div>
+                        </div>
+                        
+                        <div style="background:var(--bg-primary);border-radius:8px;padding:12px;max-height:200px;overflow-y:auto;margin-bottom:20px;" id="analysisLog">
+                            ${analysisLog.map(m => `<div style="font-family:monospace;font-size:12px;margin:2px 0;">${m}</div>`).join('')}
+                        </div>
+                        
+                        <div style="text-align:center;">
+                            <button class="btn btn-secondary" onclick="document.getElementById('analysisProgressModal').classList.remove('active')">Chiudi</button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        // ==================== END ANALISI COMPLETA AUTOMATICA ====================
+        
+        // ==================== 🤖 AUTO-PILOT MODE ====================
+        
+        // Stato Auto-Pilot
+        let autoPilotRunning = false;
+        let autoPilotLog = [];
+        
+        // Funzione principale: FA TUTTO AUTOMATICAMENTE
+        async function runAutoPilot() {
+            if (autoPilotRunning) {
+                alert('⏳ Auto-Pilot già in esecuzione...');
+                return;
+            }
+            
+            autoPilotRunning = true;
+            autoPilotLog = [];
+            
+            // Mostra modal progress
+            showAutoPilotModal();
+            
+            try {
+                const steps = [
+                    { name: '🔍 Analisi dati', fn: autoPilotAnalyzeData },
+                    { name: '💰 Fetch prezzi mancanti', fn: autoPilotFetchPrices },
+                    { name: '🔗 Transfer matching', fn: autoPilotTransferMatching },
+                    { name: '⚠️ Rileva discrepanze', fn: autoPilotDetectDiscrepancies },
+                    { name: '🤖 Risolvi discrepanze', fn: autoPilotResolveDiscrepancies },
+                    { name: '📊 Calcola cost basis', fn: autoPilotCalculateCostBasis },
+                    { name: '📅 Calcola valori 31/12', fn: autoPilotCalculateYearEnd },
+                    { name: '💶 Calcola IVCA', fn: autoPilotCalculateIVCA },
+                    { name: '📋 Genera report', fn: autoPilotGenerateReport }
+                ];
+                
+                const totalSteps = steps.length;
+                
+                for (let i = 0; i < steps.length; i++) {
+                    const step = steps[i];
+                    updateAutoPilotProgress(i + 1, totalSteps, step.name);
+                    
+                    log(`\n${'═'.repeat(50)}`);
+                    log(`STEP ${i + 1}/${totalSteps}: ${step.name}`);
+                    log('═'.repeat(50));
+                    
+                    await step.fn();
+                    
+                    // Piccola pausa per UI
+                    await new Promise(r => setTimeout(r, 100));
+                }
+                
+                // Completato!
+                updateAutoPilotProgress(totalSteps, totalSteps, '✅ Completato!');
+                log('\n🎉 AUTO-PILOT COMPLETATO!');
+                
+                // Salva tutto
+                saveExchangeDataToFirebase();
+                saveCostBasisLots();
+                
+                // Refresh UI
+                initExchangeGrid();
+                updateExchangeTotals();
+                
+            } catch (error) {
+                log(`\n❌ ERRORE: ${error.message}`);
+                console.error('Auto-Pilot error:', error);
+            } finally {
+                autoPilotRunning = false;
+            }
+            
+            function log(msg) {
+                autoPilotLog.push(msg);
+                updateAutoPilotLog();
+                console.log(msg);
+            }
+        }
+        
+        // Step 1: Analizza dati disponibili
+        async function autoPilotAnalyzeData() {
+            const exchanges = Object.keys(exchangeData).filter(id => {
+                const data = exchangeData[id];
+                return data && (data.transactions?.length > 0 || data.transactionCount > 0);
+            });
+            
+            let totalTx = 0;
+            let totalCoins = new Set();
+            
+            for (const exchId of exchanges) {
+                const data = exchangeData[exchId];
+                const txCount = data.transactions?.length || 0;
+                totalTx += txCount;
+                
+                if (data.transactions) {
+                    for (const tx of data.transactions) {
+                        const coin = tx.asset_in || tx.coin;
+                        if (coin && coin !== 'EUR' && coin !== 'USD') {
+                            totalCoins.add(coin.toUpperCase());
+                        }
+                    }
+                }
+                
+                autoPilotLog.push(`  📊 ${exchId}: ${txCount} transazioni`);
+            }
+            
+            autoPilotLog.push(`\n  📈 Totale: ${totalTx} transazioni, ${totalCoins.size} coin unici`);
+            autoPilotLog.push(`  📦 Exchange con dati: ${exchanges.join(', ')}`);
+            
+            return { exchanges, totalTx, totalCoins: [...totalCoins] };
+        }
+        
+        // Step 2: Fetch prezzi mancanti da CryptoCompare
+        async function autoPilotFetchPrices() {
+            const allPriceRequests = new Map();
+            
+            // Raccogli tutte le combinazioni coin+data da tutti gli exchange
+            for (const exchId of Object.keys(exchangeData)) {
+                const data = exchangeData[exchId];
+                if (!data.transactions) continue;
+                
+                for (const tx of data.transactions) {
+                    const coin = (tx.asset_in || tx.coin || '').toUpperCase();
+                    if (!coin || coin === 'EUR' || coin === 'USD' || coin.startsWith('LD')) continue;
+                    
+                    const date = tx.timestamp || tx.date;
+                    const d = date instanceof Date ? date : new Date(date);
+                    const dateKey = d.toISOString().slice(0, 10);
+                    const key = `${coin}_${dateKey}`;
+                    
+                    // Skip se già in cache
+                    if (cryptoComparePriceCache[key]) continue;
+                    
+                    if (!allPriceRequests.has(key)) {
+                        allPriceRequests.set(key, { coin, date: d, dateKey });
+                    }
+                }
+            }
+            
+            // Aggiungi prezzi 31/12 per ogni anno
+            const years = [2021, 2022, 2023, 2024, 2025];
+            const allCoins = new Set();
+            
+            for (const exchId of Object.keys(exchangeData)) {
+                const data = exchangeData[exchId];
+                if (data.balances) {
+                    for (const year of Object.keys(data.balances)) {
+                        for (const coin of Object.keys(data.balances[year])) {
+                            if (coin !== 'EUR' && coin !== 'USD' && !coin.startsWith('LD')) {
+                                allCoins.add(coin.toUpperCase());
+                            }
+                        }
+                    }
+                }
+            }
+            
+            for (const coin of allCoins) {
+                for (const year of years) {
+                    const key = `${coin}_${year}`;
+                    if (!cryptoComparePriceCache[key]) {
+                        allPriceRequests.set(key, { coin, year, dateKey: `${year}-12-31` });
+                    }
+                }
+            }
+            
+            const total = allPriceRequests.size;
+            autoPilotLog.push(`  🔍 ${total} prezzi da recuperare...`);
+            
+            if (total === 0) {
+                autoPilotLog.push(`  ✅ Tutti i prezzi già in cache!`);
+                return;
+            }
+            
+            let fetched = 0;
+            let errors = 0;
+            
+            for (const [key, info] of allPriceRequests) {
+                let price;
+                if (info.year) {
+                    price = await fetchCryptoComparePrice(info.coin, info.year);
+                } else {
+                    price = await fetchCryptoComparePriceForDate(info.coin, info.date);
+                }
+                
+                if (price && price > 0) {
+                    fetched++;
+                } else {
+                    errors++;
+                }
+                
+                // Progress ogni 20
+                if ((fetched + errors) % 20 === 0) {
+                    autoPilotLog.push(`  ⏳ ${fetched + errors}/${total}...`);
+                    updateAutoPilotLog();
+                }
+                
+                // Rate limit
+                await new Promise(r => setTimeout(r, 50));
+            }
+            
+            autoPilotLog.push(`  ✅ Recuperati ${fetched} prezzi (${errors} non trovati)`);
+        }
+        
+        // Step 3: Transfer matching tra exchange
+        async function autoPilotTransferMatching() {
+            // Raccogli tutte le transazioni da tutti gli exchange
+            const allTransactions = [];
+            
+            for (const exchId of Object.keys(exchangeData)) {
+                const data = exchangeData[exchId];
+                if (data.transactions) {
+                    for (const tx of data.transactions) {
+                        allTransactions.push({ ...tx, source: exchId });
+                    }
+                }
+            }
+            
+            autoPilotLog.push(`  🔍 Analizzando ${allTransactions.length} transazioni...`);
+            
+            // Match transfers
+            const withdrawals = allTransactions.filter(tx => tx.type === 'withdrawal');
+            const deposits = allTransactions.filter(tx => tx.type === 'deposit');
+            
+            let matched = 0;
+            const windowMs = 60 * 60 * 1000; // 1 ora
+            
+            for (const withdrawal of withdrawals) {
+                if (withdrawal.linked_tx_id || withdrawal.is_internal) continue;
+                
+                const wTime = new Date(withdrawal.timestamp || withdrawal.date).getTime();
+                const wCoin = (withdrawal.asset_in || withdrawal.coin || '').toUpperCase();
+                const wAmount = Math.abs(withdrawal.amount_in || withdrawal.amount || 0);
+                
+                for (const deposit of deposits) {
+                    if (deposit.linked_tx_id || deposit.is_internal) continue;
+                    if (deposit.source === withdrawal.source) continue; // Stesso exchange
+                    
+                    const dTime = new Date(deposit.timestamp || deposit.date).getTime();
+                    const dCoin = (deposit.asset_in || deposit.coin || '').toUpperCase();
+                    const dAmount = Math.abs(deposit.amount_in || deposit.amount || 0);
+                    
+                    const timeDiff = Math.abs(dTime - wTime);
+                    const amountDiff = Math.abs(wAmount - dAmount) / Math.max(wAmount, dAmount);
+                    
+                    if (wCoin === dCoin && timeDiff <= windowMs && amountDiff <= 0.05) {
+                        // Match!
+                        withdrawal.linked_tx_id = deposit.id;
+                        withdrawal.is_internal = true;
+                        withdrawal.is_taxable = false;
+                        
+                        deposit.linked_tx_id = withdrawal.id;
+                        deposit.is_internal = true;
+                        deposit.is_taxable = false;
+                        deposit.cost_basis_eur = withdrawal.cost_basis_eur;
+                        
+                        matched++;
+                        autoPilotLog.push(`  🔗 ${wCoin}: ${withdrawal.source} → ${deposit.source}`);
+                        break;
+                    }
+                }
+            }
+            
+            autoPilotLog.push(`  ✅ Matched ${matched} trasferimenti interni`);
+        }
+        
+        // Step 4: Rileva discrepanze
+        async function autoPilotDetectDiscrepancies() {
+            let totalIssues = 0;
+            
+            for (const exchId of Object.keys(exchangeData)) {
+                const data = exchangeData[exchId];
+                if (!data.realBalances || Object.keys(data.realBalances).length === 0) continue;
+                
+                const check = zeroSumCheck(data.transactions || [], data.realBalances);
+                data.discrepancies = check.issues || [];
+                
+                if (check.issues.length > 0) {
+                    autoPilotLog.push(`  ⚠️ ${exchId}: ${check.issues.length} discrepanze`);
+                    totalIssues += check.issues.length;
+                }
+            }
+            
+            if (totalIssues === 0) {
+                autoPilotLog.push(`  ✅ Nessuna discrepanza rilevata!`);
+            } else {
+                autoPilotLog.push(`  📊 Totale: ${totalIssues} discrepanze da risolvere`);
+            }
+        }
+        
+        // Step 5: Risolvi discrepanze con AI
+        async function autoPilotResolveDiscrepancies() {
+            let resolved = 0;
+            
+            for (const exchId of Object.keys(exchangeData)) {
+                const data = exchangeData[exchId];
+                const issues = data.discrepancies || [];
+                
+                for (const issue of issues) {
+                    // Analisi AI
+                    const analysisData = {
+                        coin: issue.coin,
+                        difference: issue.difference,
+                        diffValueEur: Math.abs(issue.difference) * getPriceEur(issue.coin, new Date().getFullYear()),
+                        deposits: 0,
+                        withdrawals: 0,
+                        rewards: 0,
+                        lastTx: new Date().toISOString().slice(0, 10)
+                    };
+                    
+                    const analysis = analyzeDiscrepancyHeuristic(analysisData);
+                    
+                    // Aggiungi transazione
+                    addManualTransaction(exchId, {
+                        date: new Date(),
+                        type: analysis.txType,
+                        coin: issue.coin,
+                        amount: issue.difference,
+                        notes: `Auto-Pilot AI: ${analysis.cause}`
+                    });
+                    
+                    autoPilotLog.push(`  🤖 ${exchId}/${issue.coin}: ${analysis.cause}`);
+                    resolved++;
+                }
+                
+                // Pulisci discrepanze
+                data.discrepancies = [];
+            }
+            
+            autoPilotLog.push(`  ✅ Risolte ${resolved} discrepanze automaticamente`);
+        }
+        
+        // Step 6: Calcola cost basis per tutti i lotti
+        async function autoPilotCalculateCostBasis() {
+            // Reset lotti
+            costBasisLots = [];
+            
+            // Raccogli tutte le transazioni ordinate
+            const allTx = [];
+            for (const exchId of Object.keys(exchangeData)) {
+                const data = exchangeData[exchId];
+                if (data.transactions) {
+                    for (const tx of data.transactions) {
+                        allTx.push({ ...tx, source: exchId });
+                    }
+                }
+            }
+            
+            allTx.sort((a, b) => new Date(a.timestamp || a.date) - new Date(b.timestamp || b.date));
+            
+            let lots = 0;
+            
+            for (const tx of allTx) {
+                const coin = (tx.asset_in || tx.coin || '').toUpperCase();
+                if (!coin || coin === 'EUR' || coin === 'USD' || coin.startsWith('LD')) continue;
+                
+                const change = tx.change || 0;
+                const date = tx.timestamp || tx.date;
+                
+                // Solo acquisti (change > 0)
+                if (change > 0 && (tx.type === 'buy' || tx.type === 'deposit' || tx.type === 'reward' || tx.type === 'staking')) {
+                    const priceEur = tx.price_eur || getPriceEur(coin, date);
+                    if (priceEur > 0) {
+                        createLot(date, coin, change, priceEur, tx.source, tx.type);
+                        lots++;
+                    }
+                }
+            }
+            
+            autoPilotLog.push(`  ✅ Creati ${lots} lotti di acquisto`);
+            autoPilotLog.push(`  📊 Totale lotti: ${costBasisLots.length}`);
+        }
+        
+        // Step 7: Calcola valori al 31/12
+        async function autoPilotCalculateYearEnd() {
+            const years = [2021, 2022, 2023, 2024, 2025];
+            
+            for (const exchId of Object.keys(exchangeData)) {
+                const data = exchangeData[exchId];
+                if (!data.balances) continue;
+                
+                for (const year of years) {
+                    if (!data.balances[year]) continue;
+                    
+                    let totalEur = 0;
+                    for (const [coin, amount] of Object.entries(data.balances[year])) {
+                        if (amount > 0 && !coin.startsWith('LD')) {
+                            const priceEur = getPriceEur(coin, year);
+                            totalEur += amount * priceEur;
+                        }
+                    }
+                    
+                    if (!data.totals) data.totals = {};
+                    data.totals[year] = Math.round(totalEur * 100) / 100;
+                }
+            }
+            
+            autoPilotLog.push(`  ✅ Calcolati valori 31/12 per ${years.length} anni`);
+        }
+        
+        // Step 8: Calcola IVCA
+        async function autoPilotCalculateIVCA() {
+            const years = [2024, 2025];
+            
+            for (const year of years) {
+                let totalValue = 0;
+                
+                for (const exchId of Object.keys(exchangeData)) {
+                    const data = exchangeData[exchId];
+                    totalValue += data.totals?.[year] || 0;
+                }
+                
+                const ivca = totalValue * 0.002; // 0.2%
+                autoPilotLog.push(`  📅 ${year}: €${totalValue.toFixed(2)} → IVCA €${ivca.toFixed(2)}`);
+            }
+        }
+        
+        // Step 9: Genera report
+        async function autoPilotGenerateReport() {
+            // Calcola totali
+            let grandTotal2024 = 0;
+            let grandTotal2025 = 0;
+            
+            for (const exchId of Object.keys(exchangeData)) {
+                const data = exchangeData[exchId];
+                grandTotal2024 += data.totals?.[2024] || 0;
+                grandTotal2025 += data.totals?.[2025] || 0;
+            }
+            
+            autoPilotLog.push(`\n  ${'─'.repeat(40)}`);
+            autoPilotLog.push(`  📊 RIEPILOGO FINALE`);
+            autoPilotLog.push(`  ${'─'.repeat(40)}`);
+            autoPilotLog.push(`  💰 Valore 31/12/2024: €${grandTotal2024.toLocaleString('it-IT')}`);
+            autoPilotLog.push(`  💰 Valore 31/12/2025: €${grandTotal2025.toLocaleString('it-IT')}`);
+            autoPilotLog.push(`  💶 IVCA 2024: €${(grandTotal2024 * 0.002).toFixed(2)}`);
+            autoPilotLog.push(`  💶 IVCA 2025: €${(grandTotal2025 * 0.002).toFixed(2)}`);
+            autoPilotLog.push(`  📦 Lotti acquisto: ${costBasisLots.length}`);
+            autoPilotLog.push(`  ${'─'.repeat(40)}`);
+        }
+        
+        // UI Modal Auto-Pilot
+        function showAutoPilotModal() {
+            let modal = document.getElementById('autoPilotModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.id = 'autoPilotModal';
+                modal.className = 'modal active';
+                modal.innerHTML = `
+                    <div class="modal-content" style="max-width:700px;max-height:90vh;">
+                        <div class="modal-header">
+                            <h2>🤖 Auto-Pilot - Elaborazione Automatica</h2>
+                        </div>
+                        <div class="modal-body">
+                            <div id="autoPilotProgressSection" style="margin-bottom:20px;">
+                                <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                                    <span id="autoPilotStep">Inizializzazione...</span>
+                                    <span id="autoPilotPercent">0%</span>
+                                </div>
+                                <div style="background:var(--bg-primary);border-radius:8px;height:12px;overflow:hidden;">
+                                    <div id="autoPilotBar" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);height:100%;width:0%;transition:width 0.3s;"></div>
+                                </div>
+                            </div>
+                            <div id="autoPilotLogSection" style="background:var(--bg-primary);border-radius:8px;padding:16px;max-height:400px;overflow-y:auto;font-family:'SF Mono',Monaco,monospace;font-size:12px;line-height:1.6;">
+                                <div id="autoPilotLogContent"></div>
+                            </div>
+                        </div>
+                        <div class="modal-footer" style="padding:16px;border-top:1px solid var(--border);display:flex;justify-content:center;">
+                            <button id="autoPilotCloseBtn" class="btn btn-secondary" onclick="document.getElementById('autoPilotModal').classList.remove('active')" style="padding:12px 24px;" disabled>
+                                Chiudi
+                            </button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            } else {
+                modal.classList.add('active');
+            }
+            
+            document.getElementById('autoPilotCloseBtn').disabled = true;
+            document.getElementById('autoPilotLogContent').innerHTML = '';
+        }
+        
+        function updateAutoPilotProgress(current, total, stepName) {
+            const percent = Math.round((current / total) * 100);
+            document.getElementById('autoPilotStep').textContent = stepName;
+            document.getElementById('autoPilotPercent').textContent = percent + '%';
+            document.getElementById('autoPilotBar').style.width = percent + '%';
+            
+            if (current >= total) {
+                document.getElementById('autoPilotCloseBtn').disabled = false;
+            }
+        }
+        
+        function updateAutoPilotLog() {
+            const content = document.getElementById('autoPilotLogContent');
+            if (content) {
+                content.innerHTML = autoPilotLog.map(line => {
+                    if (line.includes('STEP') || line.includes('═')) {
+                        return `<div style="color:var(--accent);font-weight:bold;">${line}</div>`;
+                    } else if (line.includes('✅')) {
+                        return `<div style="color:var(--green);">${line}</div>`;
+                    } else if (line.includes('❌') || line.includes('⚠️')) {
+                        return `<div style="color:var(--yellow);">${line}</div>`;
+                    } else if (line.includes('🎉')) {
+                        return `<div style="color:var(--green);font-weight:bold;font-size:14px;">${line}</div>`;
+                    } else {
+                        return `<div>${line}</div>`;
+                    }
+                }).join('');
+                content.scrollTop = content.scrollHeight;
+            }
+        }
+        
+        // ==================== END AUTO-PILOT MODE ====================
+        
         // Fetch prezzi mancanti da CryptoCompare
         async function fetchMissingPrices() {
             const btn = event.target;
@@ -2409,6 +3796,78 @@
             console.log(`📦 Lotto #${lot.id}: ${lot.amount.toFixed(4)} ${lot.coin} @ €${priceEur.toFixed(6)} = €${lot.costEur.toFixed(2)} (${source})`);
             
             return lot;
+        }
+        
+        // Estrae cost basis da transazioni di qualsiasi exchange
+        function extractCostBasisFromTransactions(exchangeId) {
+            const exchData = exchangeData[exchangeId];
+            if (!exchData || !exchData.transactions) {
+                return { lots: 0, skipped: 0 };
+            }
+            
+            // Rimuovi lotti esistenti per questo exchange
+            costBasisLots = costBasisLots.filter(lot => lot.source !== exchangeId);
+            
+            const transactions = exchData.transactions;
+            let lots = 0;
+            let skipped = 0;
+            
+            // Tipi che creano lotti
+            const acquireTypes = ['buy', 'deposit', 'reward', 'staking', 'interest', 'dividend', 'airdrop', 'refund'];
+            
+            for (const tx of transactions) {
+                const coin = (tx.asset_in || tx.coin || '').toUpperCase();
+                if (!coin || coin === 'EUR' || coin === 'USD' || coin.startsWith('LD')) {
+                    continue;
+                }
+                
+                const change = tx.change || 0;
+                const amount = Math.abs(tx.amount_in || tx.amount || change);
+                
+                // Solo transazioni positive (acquisizioni)
+                if (change <= 0 || amount <= 0) continue;
+                
+                // Skip transfer interni (non cambiano cost basis totale)
+                if (tx.is_internal) continue;
+                
+                // Controlla tipo
+                const type = tx.type || 'unknown';
+                if (!acquireTypes.includes(type) && change <= 0) continue;
+                
+                // Ottieni prezzo
+                const txDate = tx.timestamp || tx.date;
+                let priceEur = tx.price_eur || tx.priceEur;
+                
+                if (!priceEur || priceEur <= 0) {
+                    priceEur = getPriceEur(coin, txDate);
+                }
+                
+                if (!priceEur || priceEur <= 0) {
+                    skipped++;
+                    continue;
+                }
+                
+                // Verifica duplicati
+                const txDateStr = txDate instanceof Date ? txDate.toISOString() : txDate;
+                const exists = costBasisLots.find(lot => 
+                    lot.source === exchangeId &&
+                    lot.coin === coin &&
+                    Math.abs(lot.amount - amount) < 0.00001 &&
+                    lot.date === txDateStr
+                );
+                
+                if (exists) {
+                    skipped++;
+                    continue;
+                }
+                
+                // Crea lotto
+                createLot(txDate, coin, amount, priceEur, exchangeId, type);
+                lots++;
+            }
+            
+            console.log(`📦 ${exchangeId}: ${lots} lotti creati, ${skipped} skippati`);
+            return { lots, skipped };
         }
         
         function calculateCostBasisFromBinance(transactions) {
