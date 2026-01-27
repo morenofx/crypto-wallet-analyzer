@@ -5020,13 +5020,15 @@
                     }
                 }
                 
-                // Calcola valore EUR per anno (approssimato)
+                // Calcola valore EUR per anno
                 for (const year of years) {
                     let totalEur = 0;
                     for (const [coin, amount] of Object.entries(yearEndSnapshots[year])) {
                         if (amount > 0) {
-                            const price = cachedPrices[coin.toLowerCase()]?.eur || cachedPrices[coin]?.eur || 0;
-                            totalEur += amount * price;
+                            const price = getHistoricalPrice(coin, year);
+                            if (price && !isNaN(price)) {
+                                totalEur += amount * price * EUR_USD;
+                            }
                         }
                     }
                     yearTotals[year] = Math.round(totalEur * 100) / 100;
