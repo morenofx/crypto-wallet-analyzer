@@ -740,6 +740,7 @@
                             <option value="staking">🥩 Staking</option>
                             <option value="interest">💰 Interest</option>
                         </select>
+                        <button class="btn" onclick="fetchTransactionPrices()" style="padding:6px 12px;font-size:12px;background:var(--green);color:#000;">💰 Fetch Prezzi</button>
                         <button class="btn btn-secondary" onclick="exportExchDetailTx()" style="padding:6px 12px;font-size:12px;">📥 CSV</button>
                     </div>
                 </div>
@@ -1220,6 +1221,122 @@
                 btn.innerHTML = originalText;
                 btn.disabled = false;
             }
+        }
+        
+        // Fetch prezzo per data specifica (per transazioni)
+        async function fetchCryptoComparePriceForDate(symbol, date) {
+            const symUpper = symbol.toUpperCase();
+            const d = date instanceof Date ? date : new Date(date);
+            const timestamp = Math.floor(d.getTime() / 1000);
+            const dateKey = d.toISOString().slice(0, 10); // YYYY-MM-DD
+            const cacheKey = `${symUpper}_${dateKey}`;
+            
+            // Check cache
+            if (cryptoComparePriceCache[cacheKey]) {
+                return cryptoComparePriceCache[cacheKey];
+            }
+            
+            // Skip stablecoins
+            const STABLECOINS = ['USDT', 'USDC', 'BUSD', 'DAI', 'TUSD', 'EUR', 'USD', 'FDUSD'];
+            if (STABLECOINS.includes(symUpper)) {
+                return symUpper === 'EUR' ? 1 : EUR_USD;
+            }
+            
+            try {
+                const url = `https://min-api.cryptocompare.com/data/pricehistorical?fsym=${symUpper}&tsyms=EUR&ts=${timestamp}`;
+                
+                const response = await fetch(url);
+                if (!response.ok) return null;
+                
+                const data = await response.json();
+                
+                if (data[symUpper] && data[symUpper].EUR) {
+                    const price = data[symUpper].EUR;
+                    cryptoComparePriceCache[cacheKey] = price;
+                    saveCryptoCompareCache();
+                    return price;
+                }
+            } catch (err) {
+                console.warn(`CryptoCompare date price error for ${symUpper}:`, err.message);
+            }
+            
+            return null;
+        }
+        
+        // Fetch prezzi per tutte le transazioni dell'exchange corrente
+        async function fetchTransactionPrices() {
+            const btn = event?.target;
+            if (btn) {
+                btn.innerHTML = '⏳ Fetching...';
+                btn.disabled = true;
+            }
+            
+            const exchData = exchangeData[currentDetailExchange];
+            if (!exchData || !exchData.transactions || exchData.transactions.length === 0) {
+                alert('Nessuna transazione da elaborare');
+                if (btn) { btn.innerHTML = '💰 Fetch Prezzi'; btn.disabled = false; }
+                return;
+            }
+            
+            // Raccogli tutte le combinazioni token+data uniche
+            const toFetch = new Map();
+            
+            for (const tx of exchData.transactions) {
+                if (!tx.coin || tx.coin === 'EUR' || tx.coin === 'USD') continue;
+                if (tx.coin.startsWith('LD')) continue; // Skip LD* tokens
+                
+                const d = tx.date instanceof Date ? tx.date : new Date(tx.date);
+                const dateKey = d.toISOString().slice(0, 10);
+                const mapKey = `${tx.coin.toUpperCase()}_${dateKey}`;
+                
+                // Skip se già in cache
+                if (cryptoComparePriceCache[mapKey]) continue;
+                
+                if (!toFetch.has(mapKey)) {
+                    toFetch.set(mapKey, { coin: tx.coin.toUpperCase(), date: d, dateKey });
+                }
+            }
+            
+            if (toFetch.size === 0) {
+                alert('✅ Tutti i prezzi sono già in cache!');
+                if (btn) { btn.innerHTML = '💰 Fetch Prezzi'; btn.disabled = false; }
+                renderExchDetailTxTable();
+                return;
+            }
+            
+            console.log(`🔍 Fetching prezzi per ${toFetch.size} combinazioni coin/data...`);
+            
+            let fetched = 0;
+            let errors = 0;
+            const total = toFetch.size;
+            
+            for (const [key, info] of toFetch) {
+                if (btn) {
+                    btn.innerHTML = `⏳ ${fetched}/${total}`;
+                }
+                
+                const price = await fetchCryptoComparePriceForDate(info.coin, info.date);
+                if (price && price > 0) {
+                    fetched++;
+                    console.log(`✅ ${info.coin} @ ${info.dateKey}: €${price.toFixed(6)}`);
+                } else {
+                    errors++;
+                    console.log(`❌ ${info.coin} @ ${info.dateKey}: non trovato`);
+                }
+                
+                // Rate limit: 80ms tra richieste
+                await new Promise(r => setTimeout(r, 80));
+            }
+            
+            // Refresh tabella transazioni
+            renderExchDetailTxTable();
+            
+            if (btn) {
+                btn.innerHTML = '💰 Fetch Prezzi';
+                btn.disabled = false;
+            }
+            
+            alert(`✅ Completato!\n\n✓ ${fetched} prezzi recuperati\n✗ ${errors} non trovati\n\nI valori nelle transazioni sono stati aggiornati.`);
         }
         
         // ==================== COINGECKO PRICE FETCHER ====================
@@ -5653,11 +5770,29 @@
                     const exchData = exchangeData[currentDetailExchange] || {};
                     const savedPrices = exchData.tokenPrices || {};
                     
-                    // Prima prova prezzo salvato, poi CoinGecko
-                    let price = savedPrices[tx.coin] || getHistoricalPrice(tx.coin, new Date(tx.date).getFullYear());
+                    // 1. Prima CryptoCompare con data specifica
+                    const txDate = tx.date instanceof Date ? tx.date : new Date(tx.date);
+                    const dateKey = txDate.toISOString().slice(0, 10);
+                    const ccKey = `${(tx.coin || '').toUpperCase()}_${dateKey}`;
+                    let price = cryptoComparePriceCache[ccKey];
+                    let priceSource = 'CC';
+                    
+                    // 2. Poi prezzo salvato dall'exchange
+                    if (!price || price <= 0) {
+                        price = savedPrices[tx.coin];
+                        priceSource = 'saved';
+                    }
+                    
+                    // 3. Poi CoinGecko hardcoded
+                    if (!price || price <= 0) {
+                        price = getHistoricalPrice(tx.coin, txDate.getFullYear());
+                        if (price > 0) price = price * EUR_USD;
+                        priceSource = 'CG';
+                    }
+                    
                     if (price && price > 0) {
-                        const calcEur = amt * price * (savedPrices[tx.coin] ? 1 : EUR_USD);
-                        if (calcEur > 0.01) {
+                        const calcEur = amt * price;
+                        if (calcEur > 0.001) {
                             eurValue = `~€${formatNumber(calcEur)}`;
                         }
                     }
