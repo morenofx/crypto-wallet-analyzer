@@ -284,7 +284,7 @@
         
         <!-- TAX REPORT -->
         <div class="main-content" id="taxView" style="display:none;">
-            <div class="header"><h1>📋 Tax Report - Quadro RW</h1><div class="header-actions"><button class="btn" onclick="clearTaxReport()" style="margin-right:8px;background:var(--bg-secondary);">🗑️ Reset</button><button class="btn btn-secondary" onclick="printTaxReport()" style="margin-right:8px;">🖨️ Stampa PDF</button><button class="btn" onclick="openGlobalAIAnalysis()" style="margin-right:8px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;">🤖 Analisi AI Completa</button><button class="btn btn-primary" onclick="calculateTaxReportAll()">🧮 Calcola Tutti</button></div></div>
+            <div class="header"><h1>📋 Tax Report - Quadro RW</h1><div class="header-actions"><button class="btn" onclick="clearTaxReport()" style="margin-right:8px;background:var(--bg-secondary);">🗑️ Reset</button><button class="btn btn-secondary" onclick="printTaxReport()" style="margin-right:8px;">🖨️ Stampa PDF</button><button class="btn" onclick="refreshAllPricesUI()" style="margin-right:8px;background:var(--green);color:#000;">💰 Aggiorna Prezzi</button><button class="btn" onclick="openGlobalAIAnalysis()" style="margin-right:8px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;">🤖 Analisi AI Completa</button><button class="btn btn-primary" onclick="calculateTaxReportAll()">🧮 Calcola Tutti</button></div></div>
             
             <div class="card" style="margin-bottom:20px;">
                 <p style="color:var(--text-secondary);font-size:14px;line-height:1.6;">
@@ -383,6 +383,25 @@
                 <div id="rwHistoryList">
                     <div class="empty-state" style="padding:20px;">
                         <div style="color:var(--text-secondary);">Nessun Quadro RW generato ancora.<br>Seleziona un anno e clicca "Genera Report".</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- COST BASIS SUMMARY -->
+            <div class="card" style="margin-top:20px;">
+                <div class="card-header">
+                    <div class="card-title">💰 Cost Basis - Storico Acquisti</div>
+                    <div style="display:flex;gap:8px;">
+                        <button class="btn btn-secondary" onclick="refreshCostBasisUI()" style="padding:6px 12px;font-size:12px;">🔄 Aggiorna</button>
+                        <button class="btn" onclick="clearCostBasis()" style="padding:6px 12px;font-size:12px;background:var(--red);">🗑️ Reset</button>
+                    </div>
+                </div>
+                <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px;">
+                    Prezzo medio di acquisto per ogni token. Serve per calcolare le plusvalenze quando vendi. Metodo <strong>FIFO</strong> (First In First Out).
+                </p>
+                <div id="costBasisContent">
+                    <div class="empty-state" style="padding:20px;">
+                        <div style="color:var(--text-secondary);">Importa CSV da Binance o Bitpanda per calcolare il cost basis automaticamente.</div>
                     </div>
                 </div>
             </div>
@@ -940,6 +959,614 @@
             'dai': { 2020: 1, 2021: 1, 2022: 1, 2023: 1, 2024: 1, 2025: 1, 2026: 1 },
         };
         const YEAR_END_PRICES = HISTORICAL_PRICES; // Alias
+        
+        // ==================== COINGECKO PRICE FETCHER ====================
+        
+        // Cache prezzi CoinGecko
+        let coinGeckoPriceCache = JSON.parse(localStorage.getItem('cryptofolio_cg_prices') || '{}');
+        let coinGeckoIdMap = JSON.parse(localStorage.getItem('cryptofolio_cg_ids') || '{}');
+        
+        // Mapping esteso symbol → CoinGecko ID
+        const EXTENDED_CG_MAP = {
+            // Top coins
+            'BTC': 'bitcoin', 'ETH': 'ethereum', 'BNB': 'binancecoin', 'SOL': 'solana',
+            'XRP': 'ripple', 'ADA': 'cardano', 'DOGE': 'dogecoin', 'DOT': 'polkadot',
+            'MATIC': 'matic-network', 'LINK': 'chainlink', 'AVAX': 'avalanche-2',
+            'SHIB': 'shiba-inu', 'LTC': 'litecoin', 'BCH': 'bitcoin-cash',
+            // Stablecoins
+            'USDT': 'tether', 'USDC': 'usd-coin', 'BUSD': 'binance-usd', 'DAI': 'dai',
+            'FDUSD': 'first-digital-usd', 'TUSD': 'true-usd',
+            // Layer 1
+            'TRX': 'tron', 'TON': 'the-open-network', 'ATOM': 'cosmos', 'ALGO': 'algorand',
+            'EOS': 'eos', 'XLM': 'stellar', 'VET': 'vechain', 'NEO': 'neo', 'ETC': 'ethereum-classic',
+            'FIL': 'filecoin', 'HBAR': 'hedera-hashgraph', 'ICP': 'internet-computer',
+            // Layer 2
+            'ARB': 'arbitrum', 'OP': 'optimism', 'IMX': 'immutable-x',
+            // DeFi
+            'UNI': 'uniswap', 'AAVE': 'aave', 'CAKE': 'pancakeswap-token', '1INCH': '1inch',
+            'SUSHI': 'sushi', 'CRV': 'curve-dao-token', 'COMP': 'compound-governance-token',
+            'MKR': 'maker', 'SNX': 'synthetix-network-token', 'LDO': 'lido-dao',
+            'PENDLE': 'pendle', 'RDNT': 'radiant-capital',
+            // Meme
+            'PEPE': 'pepe', 'FLOKI': 'floki', 'BONK': 'bonk', 'WIF': 'dogwifcoin',
+            'BONE': 'bone-shibaswap', '1MBABYDOGE': 'baby-doge-coin',
+            // Telegram/TON
+            'NOT': 'notcoin', 'DOGS': 'dogs-2', 'HMSTR': 'hamster-kombat', 'CATI': 'catizen',
+            // Gaming
+            'SAND': 'the-sandbox', 'MANA': 'decentraland', 'AXS': 'axie-infinity',
+            'GALA': 'gala', 'ENJ': 'enjincoin', 'HIGH': 'highstreet',
+            // Exchange
+            'CRO': 'crypto-com-chain', 'KCS': 'kucoin-shares', 'GT': 'gate-token',
+            // Terra
+            'LUNC': 'terra-luna', 'LUNA': 'terra-luna-2', 'USTC': 'terrausd',
+            // Others
+            'KSM': 'kusama', 'QTUM': 'qtum', 'APE': 'apecoin', 'CHZ': 'chiliz',
+            'BAT': 'basic-attention-token', 'ZEN': 'horizen', 'WRX': 'wazirx',
+            'BAKE': 'bakerytoken', 'GAL': 'galxe', 'CYBER': 'cyberconnect',
+            'SEI': 'sei-network', 'INJ': 'injective-protocol', 'SUI': 'sui',
+            'APT': 'aptos', 'NEAR': 'near', 'FTM': 'fantom', 'KAVA': 'kava',
+            // Fan tokens
+            'SANTOS': 'santos-fc-fan-token', 'CITY': 'manchester-city-fan-token',
+            'PSG': 'paris-saint-germain-fan-token', 'BAR': 'fc-barcelona-fan-token',
+            // AI
+            'AI': 'sleepless-ai', 'FET': 'fetch-ai', 'AGIX': 'singularitynet',
+            // More Binance coins
+            'MC': 'merit-circle', 'DAR': 'mines-of-dalarnia', 'COCOS': 'cocos-bcx',
+            'NFP': 'nfprompt', 'MEME': 'memecoin', 'HFT': 'hashflow',
+            'QI': 'benqi', 'IO': 'io-net', 'ZRO': 'layerzero',
+        };
+        
+        async function fetchCoinGeckoPrices(symbols) {
+            // Converti symbols in CoinGecko IDs
+            const ids = [];
+            const symbolToId = {};
+            
+            for (const sym of symbols) {
+                const symUpper = sym.toUpperCase();
+                const cgId = EXTENDED_CG_MAP[symUpper] || coinGeckoIdMap[symUpper];
+                if (cgId) {
+                    ids.push(cgId);
+                    symbolToId[cgId] = symUpper;
+                }
+            }
+            
+            if (ids.length === 0) return {};
+            
+            // Batch in gruppi di 100 (limite CoinGecko)
+            const results = {};
+            const batchSize = 100;
+            
+            for (let i = 0; i < ids.length; i += batchSize) {
+                const batch = ids.slice(i, i + batchSize);
+                try {
+                    const url = `https://api.coingecko.com/api/v3/simple/price?ids=${batch.join(',')}&vs_currencies=eur,usd`;
+                    console.log('Fetching CoinGecko prices for', batch.length, 'coins...');
+                    
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        console.warn('CoinGecko API error:', response.status);
+                        continue;
+                    }
+                    
+                    const data = await response.json();
+                    
+                    for (const [cgId, prices] of Object.entries(data)) {
+                        const symbol = symbolToId[cgId];
+                        if (symbol && prices.eur) {
+                            results[symbol] = {
+                                eur: prices.eur,
+                                usd: prices.usd || prices.eur / EUR_USD,
+                                fetchedAt: Date.now()
+                            };
+                        }
+                    }
+                    
+                    // Rate limit: aspetta 1.5s tra le batch (CoinGecko free = 30 calls/min)
+                    if (i + batchSize < ids.length) {
+                        await new Promise(r => setTimeout(r, 1500));
+                    }
+                } catch (err) {
+                    console.error('CoinGecko fetch error:', err);
+                }
+            }
+            
+            // Salva in cache
+            Object.assign(coinGeckoPriceCache, results);
+            localStorage.setItem('cryptofolio_cg_prices', JSON.stringify(coinGeckoPriceCache));
+            
+            console.log('✅ Fetched', Object.keys(results).length, 'prices from CoinGecko');
+            return results;
+        }
+        
+        function getCachedPrice(symbol) {
+            const symUpper = symbol.toUpperCase();
+            const cached = coinGeckoPriceCache[symUpper];
+            
+            // Cache valida per 1 ora
+            if (cached && (Date.now() - cached.fetchedAt) < 3600000) {
+                return cached.eur;
+            }
+            return null;
+        }
+        
+        async function updateAllPrices() {
+            // Raccogli tutti i token da tutti gli exchange
+            const allTokens = new Set();
+            
+            for (const exchId of Object.keys(exchangeData)) {
+                const data = exchangeData[exchId];
+                if (data.balances) {
+                    for (const year of Object.keys(data.balances)) {
+                        for (const coin of Object.keys(data.balances[year])) {
+                            if (Math.abs(data.balances[year][coin]) > 0.0001) {
+                                allTokens.add(coin);
+                            }
+                        }
+                    }
+                }
+                if (data.transactions) {
+                    for (const tx of data.transactions) {
+                        allTokens.add(tx.coin);
+                    }
+                }
+            }
+            
+            console.log('🔄 Updating prices for', allTokens.size, 'tokens...');
+            
+            const prices = await fetchCoinGeckoPrices([...allTokens]);
+            
+            return prices;
+        }
+        
+        // ==================== END COINGECKO PRICE FETCHER ====================
+        
+        // ==================== COST BASIS TRACKING SYSTEM ====================
+        
+        // Database dei lotti di acquisto
+        // Ogni lotto: { id, date, coin, amount, priceEur, costEur, source, status, linkedTo }
+        let costBasisLots = JSON.parse(localStorage.getItem('cryptofolio_costbasis') || '[]');
+        let lotIdCounter = parseInt(localStorage.getItem('cryptofolio_lotcounter') || '1');
+        
+        function saveCostBasis() {
+            localStorage.setItem('cryptofolio_costbasis', JSON.stringify(costBasisLots));
+            localStorage.setItem('cryptofolio_lotcounter', lotIdCounter.toString());
+        }
+        
+        function createLot(date, coin, amount, priceEur, source, txType = 'buy') {
+            const lot = {
+                id: lotIdCounter++,
+                date: date instanceof Date ? date.toISOString() : date,
+                coin: coin.toUpperCase(),
+                amount: Math.abs(amount),
+                priceEur: priceEur,
+                costEur: Math.abs(amount) * priceEur,
+                source: source, // 'binance', 'bitpanda', etc.
+                status: 'held', // 'held', 'withdrawn', 'sold', 'transferred'
+                txType: txType, // 'buy', 'reward', 'airdrop'
+                linkedTo: null, // Per collegare withdraw → deposit
+                createdAt: new Date().toISOString()
+            };
+            
+            costBasisLots.push(lot);
+            console.log(`📦 Lotto #${lot.id}: ${lot.amount.toFixed(4)} ${lot.coin} @ €${priceEur.toFixed(6)} = €${lot.costEur.toFixed(2)} (${source})`);
+            
+            return lot;
+        }
+        
+        function calculateCostBasisFromBinance(transactions) {
+            console.log('\n💰 CALCOLO COST BASIS DA BINANCE...');
+            
+            // Ordina per data
+            const sorted = [...transactions].sort((a, b) => a.date - b.date);
+            
+            // Raggruppa per timestamp (stesso secondo = stessa operazione)
+            const grouped = {};
+            for (const tx of sorted) {
+                const key = tx.date.toISOString().slice(0, 19); // Fino ai secondi
+                if (!grouped[key]) grouped[key] = [];
+                grouped[key].push(tx);
+            }
+            
+            let lotsCreated = 0;
+            let totalCostBasis = 0;
+            
+            for (const [timestamp, txGroup] of Object.entries(grouped)) {
+                // Trova transazioni di acquisto (change > 0, non stablecoin)
+                const buys = txGroup.filter(tx => 
+                    tx.change > 0 && 
+                    tx.type === 'buy' &&
+                    !['EUR', 'USD', 'USDT', 'USDC', 'BUSD', 'FDUSD'].includes(tx.coin.toUpperCase())
+                );
+                
+                // Trova pagamento (EUR, USDT, BUSD, USDC in uscita)
+                const payments = txGroup.filter(tx => 
+                    tx.change < 0 && 
+                    ['EUR', 'USD', 'USDT', 'USDC', 'BUSD', 'FDUSD'].includes(tx.coin.toUpperCase())
+                );
+                
+                if (buys.length > 0 && payments.length > 0) {
+                    // Calcola totale pagato in EUR
+                    let totalPaidEur = 0;
+                    for (const p of payments) {
+                        let paidEur = Math.abs(p.change);
+                        if (p.coin.toUpperCase() !== 'EUR') {
+                            // Converti stablecoin in EUR
+                            paidEur *= EUR_USD;
+                        }
+                        totalPaidEur += paidEur;
+                    }
+                    
+                    // Calcola totale quantità acquistata
+                    let totalBought = 0;
+                    for (const b of buys) {
+                        totalBought += b.change;
+                    }
+                    
+                    // Prezzo unitario
+                    const priceEur = totalPaidEur / totalBought;
+                    
+                    // Crea lotto per ogni buy
+                    for (const b of buys) {
+                        // Verifica se esiste già un lotto simile
+                        const exists = costBasisLots.find(lot => 
+                            lot.coin === b.coin.toUpperCase() &&
+                            lot.date === b.date.toISOString() &&
+                            Math.abs(lot.amount - b.change) < 0.0001
+                        );
+                        
+                        if (!exists) {
+                            createLot(b.date, b.coin, b.change, priceEur, 'binance', 'buy');
+                            lotsCreated++;
+                            totalCostBasis += b.change * priceEur;
+                        }
+                    }
+                }
+                
+                // Gestisci rewards/airdrop (costo = 0, ma valore al momento della ricezione)
+                const rewards = txGroup.filter(tx => 
+                    tx.change > 0 && 
+                    (tx.type === 'reward' || tx.type === 'airdrop') &&
+                    !['EUR', 'USD', 'USDT', 'USDC', 'BUSD', 'FDUSD'].includes(tx.coin.toUpperCase())
+                );
+                
+                for (const r of rewards) {
+                    const exists = costBasisLots.find(lot => 
+                        lot.coin === r.coin.toUpperCase() &&
+                        lot.date === r.date.toISOString() &&
+                        lot.txType === r.type
+                    );
+                    
+                    if (!exists) {
+                        // Per rewards, il cost basis è 0 (o il valore al momento della ricezione per le tasse)
+                        // Qui usiamo 0 come cost basis
+                        createLot(r.date, r.coin, r.change, 0, 'binance', r.type);
+                        lotsCreated++;
+                    }
+                }
+            }
+            
+            saveCostBasis();
+            console.log(`✅ Cost Basis: ${lotsCreated} lotti creati, totale investito: €${totalCostBasis.toFixed(2)}`);
+            
+            return { lotsCreated, totalCostBasis };
+        }
+        
+        function calculateCostBasisFromBitpanda(transactions) {
+            console.log('\n💰 CALCOLO COST BASIS DA BITPANDA...');
+            
+            let lotsCreated = 0;
+            let totalCostBasis = 0;
+            
+            for (const tx of transactions) {
+                if (tx.type === 'buy' && tx.priceEur && tx.priceEur > 0) {
+                    // Bitpanda ha già il prezzo nel CSV!
+                    const exists = costBasisLots.find(lot => 
+                        lot.coin === tx.coin.toUpperCase() &&
+                        lot.date === tx.date.toISOString() &&
+                        Math.abs(lot.amount - tx.amount) < 0.0001
+                    );
+                    
+                    if (!exists) {
+                        createLot(tx.date, tx.coin, tx.amount, tx.priceEur, 'bitpanda', 'buy');
+                        lotsCreated++;
+                        totalCostBasis += tx.amount * tx.priceEur;
+                    }
+                }
+                
+                // Rewards
+                if (tx.type === 'reward' && tx.amount > 0) {
+                    const exists = costBasisLots.find(lot => 
+                        lot.coin === tx.coin.toUpperCase() &&
+                        lot.date === tx.date.toISOString() &&
+                        lot.txType === 'reward'
+                    );
+                    
+                    if (!exists) {
+                        const rewardPrice = tx.priceEur || 0;
+                        createLot(tx.date, tx.coin, tx.amount, rewardPrice, 'bitpanda', 'reward');
+                        lotsCreated++;
+                    }
+                }
+            }
+            
+            saveCostBasis();
+            console.log(`✅ Cost Basis Bitpanda: ${lotsCreated} lotti, totale: €${totalCostBasis.toFixed(2)}`);
+            
+            return { lotsCreated, totalCostBasis };
+        }
+        
+        function linkWithdrawToDeposit(withdrawTx, depositTx) {
+            // Cerca lotti del coin che sono stati "withdrawn"
+            const lots = costBasisLots.filter(lot => 
+                lot.coin === withdrawTx.coin.toUpperCase() &&
+                lot.status === 'held' &&
+                lot.source === 'binance'
+            );
+            
+            // FIFO: prendi i lotti più vecchi prima
+            lots.sort((a, b) => new Date(a.date) - new Date(b.date));
+            
+            let amountToLink = Math.abs(withdrawTx.change);
+            
+            for (const lot of lots) {
+                if (amountToLink <= 0) break;
+                
+                if (lot.amount <= amountToLink) {
+                    // Tutto il lotto è stato trasferito
+                    lot.status = 'transferred';
+                    lot.linkedTo = depositTx?.source || 'wallet';
+                    amountToLink -= lot.amount;
+                } else {
+                    // Solo parte del lotto - split
+                    const transferredAmount = amountToLink;
+                    const remainingAmount = lot.amount - transferredAmount;
+                    
+                    // Aggiorna lotto originale
+                    lot.amount = remainingAmount;
+                    lot.costEur = remainingAmount * lot.priceEur;
+                    
+                    // Crea nuovo lotto per la parte trasferita
+                    const newLot = {
+                        ...lot,
+                        id: lotIdCounter++,
+                        amount: transferredAmount,
+                        costEur: transferredAmount * lot.priceEur,
+                        status: 'transferred',
+                        linkedTo: depositTx?.source || 'wallet'
+                    };
+                    costBasisLots.push(newLot);
+                    
+                    amountToLink = 0;
+                }
+            }
+            
+            saveCostBasis();
+        }
+        
+        function getCostBasisForCoin(coin, source = null) {
+            const coinUpper = coin.toUpperCase();
+            
+            let lots = costBasisLots.filter(lot => 
+                lot.coin === coinUpper && 
+                (lot.status === 'held' || lot.status === 'transferred')
+            );
+            
+            if (source) {
+                lots = lots.filter(lot => lot.source === source || lot.linkedTo === source);
+            }
+            
+            const totalAmount = lots.reduce((sum, lot) => sum + lot.amount, 0);
+            const totalCost = lots.reduce((sum, lot) => sum + lot.costEur, 0);
+            const avgPrice = totalAmount > 0 ? totalCost / totalAmount : 0;
+            
+            return {
+                coin: coinUpper,
+                totalAmount,
+                totalCost,
+                avgPrice,
+                lots: lots.length
+            };
+        }
+        
+        function getCostBasisSummary() {
+            const summary = {};
+            
+            for (const lot of costBasisLots) {
+                if (!summary[lot.coin]) {
+                    summary[lot.coin] = {
+                        totalAmount: 0,
+                        totalCost: 0,
+                        lots: 0,
+                        bySource: {}
+                    };
+                }
+                
+                summary[lot.coin].totalAmount += lot.amount;
+                summary[lot.coin].totalCost += lot.costEur;
+                summary[lot.coin].lots++;
+                
+                if (!summary[lot.coin].bySource[lot.source]) {
+                    summary[lot.coin].bySource[lot.source] = { amount: 0, cost: 0 };
+                }
+                summary[lot.coin].bySource[lot.source].amount += lot.amount;
+                summary[lot.coin].bySource[lot.source].cost += lot.costEur;
+            }
+            
+            // Calcola prezzo medio
+            for (const coin of Object.keys(summary)) {
+                summary[coin].avgPrice = summary[coin].totalAmount > 0 
+                    ? summary[coin].totalCost / summary[coin].totalAmount 
+                    : 0;
+            }
+            
+            return summary;
+        }
+        
+        function calculateProfitLoss(coin, sellAmount, sellPriceEur, method = 'FIFO') {
+            const coinUpper = coin.toUpperCase();
+            
+            // Trova lotti disponibili
+            let lots = costBasisLots.filter(lot => 
+                lot.coin === coinUpper && 
+                lot.status === 'held' &&
+                lot.amount > 0
+            );
+            
+            // Ordina per FIFO o LIFO
+            if (method === 'FIFO') {
+                lots.sort((a, b) => new Date(a.date) - new Date(b.date));
+            } else {
+                lots.sort((a, b) => new Date(b.date) - new Date(a.date));
+            }
+            
+            let remainingToSell = sellAmount;
+            let totalCostBasis = 0;
+            const lotsUsed = [];
+            
+            for (const lot of lots) {
+                if (remainingToSell <= 0) break;
+                
+                const amountFromLot = Math.min(lot.amount, remainingToSell);
+                const costFromLot = amountFromLot * lot.priceEur;
+                
+                totalCostBasis += costFromLot;
+                remainingToSell -= amountFromLot;
+                
+                lotsUsed.push({
+                    lotId: lot.id,
+                    amount: amountFromLot,
+                    costBasis: costFromLot,
+                    priceEur: lot.priceEur,
+                    date: lot.date
+                });
+            }
+            
+            const sellValue = sellAmount * sellPriceEur;
+            const profitLoss = sellValue - totalCostBasis;
+            
+            return {
+                coin: coinUpper,
+                sellAmount,
+                sellPriceEur,
+                sellValue,
+                costBasis: totalCostBasis,
+                profitLoss,
+                isGain: profitLoss > 0,
+                taxableAmount: profitLoss > 0 ? profitLoss * 0.26 : 0, // 26% tasse
+                method,
+                lotsUsed
+            };
+        }
+        
+        function clearCostBasis() {
+            if (confirm('⚠️ Vuoi cancellare tutto lo storico Cost Basis?\n\nQuesta azione è irreversibile!')) {
+                costBasisLots = [];
+                lotIdCounter = 1;
+                saveCostBasis();
+                alert('✅ Cost Basis cancellato!');
+            }
+        }
+        
+        // ==================== END COST BASIS TRACKING ====================
+        
+        function refreshCostBasisUI() {
+            const container = document.getElementById('costBasisContent');
+            if (!container) return;
+            
+            const summary = getCostBasisSummary();
+            const coins = Object.entries(summary)
+                .filter(([coin, data]) => data.totalCost > 0.01 || data.totalAmount > 0.0001)
+                .sort((a, b) => b[1].totalCost - a[1].totalCost);
+            
+            if (coins.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state" style="padding:20px;">
+                        <div style="color:var(--text-secondary);">Nessun cost basis calcolato.<br>Importa CSV da Binance o Bitpanda.</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            let totalInvestment = 0;
+            
+            let html = `
+                <table style="width:100%;border-collapse:collapse;">
+                    <tr style="background:var(--bg-primary);">
+                        <th style="padding:10px;text-align:left;border-bottom:2px solid var(--border);">Token</th>
+                        <th style="padding:10px;text-align:right;border-bottom:2px solid var(--border);">Quantità</th>
+                        <th style="padding:10px;text-align:right;border-bottom:2px solid var(--border);">Costo Totale</th>
+                        <th style="padding:10px;text-align:right;border-bottom:2px solid var(--border);">Prezzo Medio</th>
+                        <th style="padding:10px;text-align:right;border-bottom:2px solid var(--border);">Fonte</th>
+                    </tr>
+            `;
+            
+            for (const [coin, data] of coins) {
+                totalInvestment += data.totalCost;
+                
+                // Fonti
+                const sources = Object.keys(data.bySource).join(', ');
+                
+                // Formatta quantità
+                let amountStr = data.totalAmount.toFixed(2);
+                if (data.totalAmount >= 1000000) {
+                    amountStr = (data.totalAmount / 1000000).toFixed(2) + 'M';
+                } else if (data.totalAmount >= 1000) {
+                    amountStr = (data.totalAmount / 1000).toFixed(2) + 'K';
+                } else if (data.totalAmount < 0.01) {
+                    amountStr = data.totalAmount.toFixed(6);
+                }
+                
+                html += `
+                    <tr>
+                        <td style="padding:10px;border-bottom:1px solid var(--border);font-weight:bold;">${coin}</td>
+                        <td style="padding:10px;text-align:right;border-bottom:1px solid var(--border);">${amountStr}</td>
+                        <td style="padding:10px;text-align:right;border-bottom:1px solid var(--border);color:var(--green);">€${data.totalCost.toFixed(2)}</td>
+                        <td style="padding:10px;text-align:right;border-bottom:1px solid var(--border);">€${data.avgPrice.toFixed(6)}</td>
+                        <td style="padding:10px;text-align:right;border-bottom:1px solid var(--border);color:var(--text-secondary);font-size:12px;">${sources}</td>
+                    </tr>
+                `;
+            }
+            
+            html += `
+                <tr style="background:var(--bg-primary);font-weight:bold;">
+                    <td style="padding:12px;" colspan="2">📊 TOTALE INVESTITO</td>
+                    <td style="padding:12px;text-align:right;color:var(--green);font-size:18px;">€${totalInvestment.toFixed(2)}</td>
+                    <td style="padding:12px;text-align:right;" colspan="2">${costBasisLots.length} lotti</td>
+                </tr>
+            </table>
+            `;
+            
+            container.innerHTML = html;
+        }
+        
+        async function refreshAllPricesUI() {
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '⏳ Aggiornando...';
+            btn.disabled = true;
+            
+            try {
+                const prices = await updateAllPrices();
+                const count = Object.keys(prices).length;
+                
+                // Ricalcola i totali per tutti gli exchange
+                for (const exchId of Object.keys(exchangeData)) {
+                    if (exchangeData[exchId].transactions?.length > 0) {
+                        calculateExchangeBalances(exchId);
+                    }
+                }
+                
+                updateExchangeTotals();
+                
+                alert(`✅ Aggiornati ${count} prezzi da CoinGecko!\n\nI valori sono stati ricalcolati.`);
+            } catch (err) {
+                console.error('Price refresh error:', err);
+                alert('❌ Errore aggiornamento prezzi: ' + err.message);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
         
         const SYMBOL_TO_CG = { 
             // Top coins
@@ -6761,6 +7388,13 @@ Rispondi in italiano.`;
                     // Calcola saldi al 31/12
                     calculateExchangeBalances(exchId);
                     
+                    // Calcola Cost Basis (prezzo di acquisto)
+                    if (exchId === 'binance') {
+                        calculateCostBasisFromBinance(allTransactions);
+                    } else if (exchId === 'bitpanda') {
+                        calculateCostBasisFromBitpanda(allTransactions);
+                    }
+                    
                     // Aggiorna UI
                     initExchangeGrid();
                     updateExchangeTotals();
@@ -7837,12 +8471,21 @@ Rispondi in italiano.`;
                         }
                     }
                     
-                    // 2. Se non trovato, prova CoinGecko
+                    // 2. Se non trovato, prova CoinGecko storico
                     if (priceEur <= 0) {
                         const cgPrice = getHistoricalPrice(coin, year);
                         if (cgPrice > 0) {
                             priceEur = cgPrice * EUR_USD;
                             priceSource = 'CoinGecko';
+                        }
+                    }
+                    
+                    // 3. Se ancora non trovato, prova cache CoinGecko real-time
+                    if (priceEur <= 0) {
+                        const cachedPrice = getCachedPrice(coin);
+                        if (cachedPrice && cachedPrice > 0) {
+                            priceEur = cachedPrice;
+                            priceSource = 'CoinGecko (live)';
                         }
                     }
                     
@@ -7874,16 +8517,11 @@ Rispondi in italiano.`;
         
         function getHistoricalPrice(coin, year, chain = '') {
             const coinUpper = coin.toUpperCase();
+            const currentYear = new Date().getFullYear();
             
             // PulseChain cloni = prezzo 0 (solo PLS, PLSX, HEX, INC hanno valore)
             if (chain === 'PulseChain' && !['PLS', 'PLSX', 'HEX', 'INC', 'WPLS'].includes(coinUpper)) {
                 return 0;
-            }
-            
-            // Usa i prezzi storici dalla YEAR_END_PRICES se disponibili
-            const cgId = SYMBOL_TO_CG[coinUpper];
-            if (cgId && YEAR_END_PRICES[cgId] && YEAR_END_PRICES[cgId][year]) {
-                return YEAR_END_PRICES[cgId][year];
             }
             
             // Stablecoins - sempre $1
@@ -7894,6 +8532,20 @@ Rispondi in italiano.`;
             // EUR token
             if (coinUpper === 'EUR' || coinUpper === 'EUROC' || coinUpper === 'EURT') {
                 return 1 / EUR_USD;
+            }
+            
+            // Per anni recenti (corrente e precedente), usa CoinGecko cache se disponibile
+            if (year >= currentYear - 1) {
+                const cachedPrice = getCachedPrice(coinUpper);
+                if (cachedPrice && cachedPrice > 0) {
+                    return cachedPrice / EUR_USD; // Converti da EUR a USD
+                }
+            }
+            
+            // Usa i prezzi storici dalla YEAR_END_PRICES se disponibili
+            const cgId = SYMBOL_TO_CG[coinUpper] || EXTENDED_CG_MAP[coinUpper];
+            if (cgId && YEAR_END_PRICES[cgId] && YEAR_END_PRICES[cgId][year]) {
+                return YEAR_END_PRICES[cgId][year];
             }
             
             // BTC variations
@@ -7909,6 +8561,12 @@ Rispondi in italiano.`;
             // BNB variations  
             if (['BNB', 'WBNB'].includes(coinUpper)) {
                 return YEAR_END_PRICES['binancecoin']?.[year] || 300;
+            }
+            
+            // Ultimo fallback: prova CoinGecko cache
+            const cachedPrice = getCachedPrice(coinUpper);
+            if (cachedPrice && cachedPrice > 0) {
+                return cachedPrice / EUR_USD; // Converti da EUR a USD
             }
             
             // Monete molto piccole o sconosciute - log per debug
