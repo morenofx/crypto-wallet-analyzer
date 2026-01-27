@@ -392,18 +392,25 @@
                 <div class="card-header">
                     <div class="card-title">💰 Cost Basis - Storico Acquisti</div>
                     <div style="display:flex;gap:8px;">
+                        <select id="costBasisMethod" class="form-input" style="padding:6px 10px;font-size:12px;width:auto;">
+                            <option value="CMP">Costo Medio (CMP)</option>
+                            <option value="FIFO">FIFO</option>
+                            <option value="LIFO">LIFO</option>
+                        </select>
                         <button class="btn btn-secondary" onclick="refreshCostBasisUI()" style="padding:6px 12px;font-size:12px;">🔄 Aggiorna</button>
+                        <button class="btn" onclick="runReconciliator()" style="padding:6px 12px;font-size:12px;background:var(--yellow);color:#000;">🔍 Verifica</button>
                         <button class="btn" onclick="clearCostBasis()" style="padding:6px 12px;font-size:12px;background:var(--red);">🗑️ Reset</button>
                     </div>
                 </div>
                 <p style="color:var(--text-secondary);font-size:13px;margin-bottom:16px;">
-                    Prezzo medio di acquisto per ogni token. Serve per calcolare le plusvalenze quando vendi. Metodo <strong>FIFO</strong> (First In First Out).
+                    Prezzo medio di acquisto per ogni token. <strong>Dal 2026:</strong> 33% su tutto, 26% solo su EUR stablecoin (MiCAR).
                 </p>
                 <div id="costBasisContent">
                     <div class="empty-state" style="padding:20px;">
                         <div style="color:var(--text-secondary);">Importa CSV da Binance o Bitpanda per calcolare il cost basis automaticamente.</div>
                     </div>
                 </div>
+                <div id="reconciliatorResults" style="display:none;margin-top:16px;"></div>
             </div>
         </div>
         
@@ -1154,7 +1161,10 @@
         }
         
         function calculateCostBasisFromBinance(transactions) {
-            console.log('\n💰 CALCOLO COST BASIS DA BINANCE...');
+            console.log('\n💰 CALCOLO COST BASIS DA BINANCE (solo EUR reali)...');
+            
+            // Reset lotti Binance esistenti
+            costBasisLots = costBasisLots.filter(lot => lot.source !== 'binance');
             
             // Ordina per data
             const sorted = [...transactions].sort((a, b) => a.date - b.date);
@@ -1171,88 +1181,99 @@
             let totalCostBasis = 0;
             
             for (const [timestamp, txGroup] of Object.entries(grouped)) {
-                // Trova transazioni di acquisto (change > 0, non stablecoin)
-                const buys = txGroup.filter(tx => 
+                // Trova SOLO transazioni EUR in uscita (non stablecoin!)
+                const eurPayments = txGroup.filter(tx => 
+                    tx.coin === 'EUR' && tx.change < 0
+                );
+                
+                if (eurPayments.length === 0) continue; // Skip se non c'è EUR
+                
+                // Trova crypto in entrata
+                const cryptoIn = txGroup.filter(tx => 
                     tx.change > 0 && 
-                    tx.type === 'buy' &&
-                    !['EUR', 'USD', 'USDT', 'USDC', 'BUSD', 'FDUSD'].includes(tx.coin.toUpperCase())
+                    !['EUR', 'USD'].includes(tx.coin) &&
+                    tx.type !== 'reward' && tx.type !== 'airdrop' && tx.type !== 'deposit'
                 );
                 
-                // Trova pagamento (EUR, USDT, BUSD, USDC in uscita)
-                const payments = txGroup.filter(tx => 
-                    tx.change < 0 && 
-                    ['EUR', 'USD', 'USDT', 'USDC', 'BUSD', 'FDUSD'].includes(tx.coin.toUpperCase())
-                );
+                if (cryptoIn.length === 0) continue;
                 
-                if (buys.length > 0 && payments.length > 0) {
-                    // Calcola totale pagato in EUR
-                    let totalPaidEur = 0;
-                    for (const p of payments) {
-                        let paidEur = Math.abs(p.change);
-                        if (p.coin.toUpperCase() !== 'EUR') {
-                            // Converti stablecoin in EUR
-                            paidEur *= EUR_USD;
-                        }
-                        totalPaidEur += paidEur;
-                    }
-                    
-                    // Calcola totale quantità acquistata
-                    let totalBought = 0;
-                    for (const b of buys) {
-                        totalBought += b.change;
-                    }
-                    
-                    // Prezzo unitario
-                    const priceEur = totalPaidEur / totalBought;
-                    
-                    // Crea lotto per ogni buy
-                    for (const b of buys) {
-                        // Verifica se esiste già un lotto simile
-                        const exists = costBasisLots.find(lot => 
-                            lot.coin === b.coin.toUpperCase() &&
-                            lot.date === b.date.toISOString() &&
-                            Math.abs(lot.amount - b.change) < 0.0001
-                        );
-                        
-                        if (!exists) {
-                            createLot(b.date, b.coin, b.change, priceEur, 'binance', 'buy');
-                            lotsCreated++;
-                            totalCostBasis += b.change * priceEur;
-                        }
-                    }
+                // Calcola totale EUR speso
+                let totalEurSpent = 0;
+                for (const p of eurPayments) {
+                    totalEurSpent += Math.abs(p.change);
                 }
                 
-                // Gestisci rewards/airdrop (costo = 0, ma valore al momento della ricezione)
-                const rewards = txGroup.filter(tx => 
-                    tx.change > 0 && 
-                    (tx.type === 'reward' || tx.type === 'airdrop') &&
-                    !['EUR', 'USD', 'USDT', 'USDC', 'BUSD', 'FDUSD'].includes(tx.coin.toUpperCase())
-                );
+                // Calcola totale quantità crypto
+                let totalCryptoAmount = 0;
+                for (const c of cryptoIn) {
+                    totalCryptoAmount += c.change;
+                }
                 
-                for (const r of rewards) {
+                // Crea lotto per ogni crypto acquistata
+                for (const crypto of cryptoIn) {
+                    // Proporzione del costo
+                    const proportion = crypto.change / totalCryptoAmount;
+                    const costEur = totalEurSpent * proportion;
+                    const priceEur = costEur / crypto.change;
+                    
+                    // Verifica se esiste già un lotto simile
                     const exists = costBasisLots.find(lot => 
-                        lot.coin === r.coin.toUpperCase() &&
-                        lot.date === r.date.toISOString() &&
-                        lot.txType === r.type
+                        lot.coin === crypto.coin.toUpperCase() &&
+                        lot.date === crypto.date.toISOString() &&
+                        Math.abs(lot.amount - crypto.change) < 0.0001
                     );
                     
-                    if (!exists) {
-                        // Per rewards, il cost basis è 0 (o il valore al momento della ricezione per le tasse)
-                        // Qui usiamo 0 come cost basis
-                        createLot(r.date, r.coin, r.change, 0, 'binance', r.type);
+                    if (!exists && costEur > 0.01) {
+                        createLot(crypto.date, crypto.coin, crypto.change, priceEur, 'binance', 'buy');
                         lotsCreated++;
+                        totalCostBasis += costEur;
+                    }
+                }
+            }
+            
+            // Gestisci anche "Buy Crypto With Card" e "Fiat Deposit" seguiti da acquisto
+            for (const [timestamp, txGroup] of Object.entries(grouped)) {
+                const cardBuys = txGroup.filter(tx => 
+                    tx.operation?.toLowerCase().includes('buy crypto with')
+                );
+                
+                for (const tx of cardBuys) {
+                    if (tx.coin === 'EUR' && tx.change < 0) {
+                        // Trova la crypto corrispondente
+                        const cryptoTx = txGroup.find(t => 
+                            t.coin !== 'EUR' && t.change > 0
+                        );
+                        
+                        if (cryptoTx) {
+                            const costEur = Math.abs(tx.change);
+                            const priceEur = costEur / cryptoTx.change;
+                            
+                            const exists = costBasisLots.find(lot => 
+                                lot.coin === cryptoTx.coin.toUpperCase() &&
+                                Math.abs(new Date(lot.date).getTime() - cryptoTx.date.getTime()) < 5000
+                            );
+                            
+                            if (!exists && costEur > 0.01) {
+                                createLot(cryptoTx.date, cryptoTx.coin, cryptoTx.change, priceEur, 'binance', 'buy');
+                                lotsCreated++;
+                                totalCostBasis += costEur;
+                            }
+                        }
                     }
                 }
             }
             
             saveCostBasis();
-            console.log(`✅ Cost Basis: ${lotsCreated} lotti creati, totale investito: €${totalCostBasis.toFixed(2)}`);
+            console.log(`✅ Cost Basis: ${lotsCreated} lotti creati, totale EUR investiti: €${totalCostBasis.toFixed(2)}`);
             
             return { lotsCreated, totalCostBasis };
         }
         
         function calculateCostBasisFromBitpanda(transactions) {
             console.log('\n💰 CALCOLO COST BASIS DA BITPANDA...');
+            
+            // Reset lotti Bitpanda esistenti
+            costBasisLots = costBasisLots.filter(lot => lot.source !== 'bitpanda');
             
             let lotsCreated = 0;
             let totalCostBasis = 0;
@@ -1469,6 +1490,366 @@
         
         // ==================== END COST BASIS TRACKING ====================
         
+        // ==================== TRANSFER MATCHING (PONTE) ====================
+        
+        // Finestra temporale per matching (30 minuti)
+        const TRANSFER_MATCH_WINDOW_MS = 30 * 60 * 1000;
+        
+        // Database trasferimenti riconosciuti
+        let recognizedTransfers = JSON.parse(localStorage.getItem('cryptofolio_transfers') || '[]');
+        
+        function findMatchingTransfers(allTransactions) {
+            console.log('\n🔗 TRANSFER MATCHING - Ricerca spostamenti interni...');
+            
+            const matches = [];
+            
+            // Separa withdraw e deposit
+            const withdrawals = allTransactions.filter(tx => 
+                tx.type === 'withdrawal' && tx.change < 0
+            );
+            
+            const deposits = allTransactions.filter(tx => 
+                tx.type === 'deposit' && tx.change > 0
+            );
+            
+            console.log(`  📤 Withdrawals: ${withdrawals.length}`);
+            console.log(`  📥 Deposits: ${deposits.length}`);
+            
+            // Per ogni withdrawal, cerca deposit corrispondente
+            for (const withdraw of withdrawals) {
+                const withdrawTime = new Date(withdraw.date).getTime();
+                const withdrawAmount = Math.abs(withdraw.change);
+                
+                // Cerca deposit con:
+                // 1. Stessa coin
+                // 2. Stessa quantità (±1% per fee)
+                // 3. Entro 30 minuti DOPO il withdraw
+                const matchingDeposit = deposits.find(dep => {
+                    if (dep._matched) return false; // Già accoppiato
+                    
+                    const depTime = new Date(dep.date).getTime();
+                    const depAmount = Math.abs(dep.change);
+                    
+                    const sameCoim = dep.coin.toUpperCase() === withdraw.coin.toUpperCase();
+                    const similarAmount = Math.abs(depAmount - withdrawAmount) / withdrawAmount < 0.01; // ±1%
+                    const withinWindow = depTime >= withdrawTime && depTime <= withdrawTime + TRANSFER_MATCH_WINDOW_MS;
+                    const differentSource = dep.source !== withdraw.source;
+                    
+                    return sameCoim && similarAmount && withinWindow && differentSource;
+                });
+                
+                if (matchingDeposit) {
+                    matchingDeposit._matched = true;
+                    
+                    const transfer = {
+                        id: `TRF_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+                        coin: withdraw.coin.toUpperCase(),
+                        amount: withdrawAmount,
+                        from: withdraw.source,
+                        to: matchingDeposit.source || 'wallet',
+                        withdrawDate: withdraw.date,
+                        depositDate: matchingDeposit.date,
+                        withdrawTx: withdraw,
+                        depositTx: matchingDeposit
+                    };
+                    
+                    matches.push(transfer);
+                    
+                    console.log(`  ✅ Match: ${withdrawAmount.toFixed(4)} ${withdraw.coin} | ${withdraw.source} → ${transfer.to}`);
+                }
+            }
+            
+            // Salva trasferimenti riconosciuti
+            recognizedTransfers = [...recognizedTransfers, ...matches];
+            localStorage.setItem('cryptofolio_transfers', JSON.stringify(recognizedTransfers));
+            
+            console.log(`🔗 Transfer Matching completato: ${matches.length} trasferimenti trovati`);
+            
+            return matches;
+        }
+        
+        function linkCostBasisToTransfer(transfer) {
+            // Trova lotti del coin dalla sorgente
+            const lots = costBasisLots.filter(lot => 
+                lot.coin === transfer.coin &&
+                lot.source === transfer.from &&
+                lot.status === 'held'
+            );
+            
+            // FIFO: prendi i più vecchi
+            lots.sort((a, b) => new Date(a.date) - new Date(b.date));
+            
+            let remaining = transfer.amount;
+            
+            for (const lot of lots) {
+                if (remaining <= 0) break;
+                
+                if (lot.amount <= remaining) {
+                    // Tutto il lotto si sposta
+                    lot.status = 'transferred';
+                    lot.linkedTo = transfer.to;
+                    lot.transferId = transfer.id;
+                    remaining -= lot.amount;
+                    
+                    // Crea nuovo lotto nel wallet di destinazione con stesso cost basis
+                    const newLot = {
+                        ...lot,
+                        id: lotIdCounter++,
+                        source: transfer.to,
+                        status: 'held',
+                        transferredFrom: lot.id,
+                        transferDate: transfer.depositDate
+                    };
+                    costBasisLots.push(newLot);
+                } else {
+                    // Split del lotto
+                    const transferAmount = remaining;
+                    const transferCost = lot.priceEur * transferAmount;
+                    
+                    // Aggiorna lotto originale
+                    lot.amount -= transferAmount;
+                    lot.costEur = lot.amount * lot.priceEur;
+                    
+                    // Crea lotto trasferito
+                    const newLot = {
+                        id: lotIdCounter++,
+                        coin: lot.coin,
+                        amount: transferAmount,
+                        priceEur: lot.priceEur,
+                        costEur: transferCost,
+                        date: lot.date,
+                        source: transfer.to,
+                        status: 'held',
+                        txType: lot.txType,
+                        transferredFrom: lot.id,
+                        transferDate: transfer.depositDate
+                    };
+                    costBasisLots.push(newLot);
+                    
+                    remaining = 0;
+                }
+            }
+            
+            saveCostBasis();
+        }
+        
+        // ==================== COSTO MEDIO PONDERATO ====================
+        
+        function calculateWeightedAverageCost(coin) {
+            const coinUpper = coin.toUpperCase();
+            
+            // Trova tutti i lotti held per questo coin
+            const lots = costBasisLots.filter(lot => 
+                lot.coin === coinUpper && 
+                lot.status === 'held' &&
+                lot.amount > 0
+            );
+            
+            if (lots.length === 0) {
+                return { avgPrice: 0, totalAmount: 0, totalCost: 0 };
+            }
+            
+            const totalAmount = lots.reduce((sum, lot) => sum + lot.amount, 0);
+            const totalCost = lots.reduce((sum, lot) => sum + lot.costEur, 0);
+            const avgPrice = totalAmount > 0 ? totalCost / totalAmount : 0;
+            
+            return {
+                coin: coinUpper,
+                avgPrice,
+                totalAmount,
+                totalCost,
+                lots: lots.length
+            };
+        }
+        
+        // ==================== ALIQUOTE 2026 (DOPPIO BINARIO) ====================
+        
+        // Token Euro-backed (MiCAR) - 26%
+        const EURO_TOKENS_26 = ['EURC', 'EURT', 'EUROC', 'EURS', 'AGEUR', 'CEUR', 'JEUR', 'SEUR'];
+        
+        // Tutti gli altri - 33% dal 2026
+        function getTaxRate(coin, year) {
+            const coinUpper = coin.toUpperCase();
+            
+            if (year <= 2025) {
+                return 0.26; // 26% per tutti nel 2025
+            }
+            
+            // Dal 2026: doppio binario
+            if (EURO_TOKENS_26.includes(coinUpper)) {
+                return 0.26; // 26% per stablecoin EUR (MiCAR)
+            }
+            
+            return 0.33; // 33% per tutto il resto (BTC, ETH, SOL, USDT, USDC, etc.)
+        }
+        
+        function getTaxRateLabel(coin, year) {
+            const rate = getTaxRate(coin, year);
+            if (rate === 0.26) {
+                return year >= 2026 ? '26% (MiCAR EUR)' : '26%';
+            }
+            return '33% (2026+)';
+        }
+        
+        // ==================== CALCOLO PLUSVALENZA COMPLETO ====================
+        
+        function calculateCapitalGainComplete(coin, amountSold, sellPriceEur, sellDate, method = 'CMP') {
+            const coinUpper = coin.toUpperCase();
+            const sellYear = new Date(sellDate).getFullYear();
+            const taxRate = getTaxRate(coinUpper, sellYear);
+            
+            let costBasis = 0;
+            let lotsUsed = [];
+            
+            if (method === 'CMP') {
+                // Costo Medio Ponderato
+                const avg = calculateWeightedAverageCost(coinUpper);
+                costBasis = avg.avgPrice * amountSold;
+                lotsUsed = [{ method: 'CMP', avgPrice: avg.avgPrice, amount: amountSold }];
+                
+            } else if (method === 'LIFO') {
+                // Last In First Out - vendi i più recenti
+                const lots = costBasisLots.filter(lot => 
+                    lot.coin === coinUpper && lot.status === 'held'
+                ).sort((a, b) => new Date(b.date) - new Date(a.date)); // Più recenti prima
+                
+                let remaining = amountSold;
+                for (const lot of lots) {
+                    if (remaining <= 0) break;
+                    const useAmount = Math.min(lot.amount, remaining);
+                    costBasis += useAmount * lot.priceEur;
+                    remaining -= useAmount;
+                    lotsUsed.push({ lotId: lot.id, amount: useAmount, price: lot.priceEur, date: lot.date });
+                }
+                
+            } else {
+                // FIFO - vendi i più vecchi
+                const lots = costBasisLots.filter(lot => 
+                    lot.coin === coinUpper && lot.status === 'held'
+                ).sort((a, b) => new Date(a.date) - new Date(b.date)); // Più vecchi prima
+                
+                let remaining = amountSold;
+                for (const lot of lots) {
+                    if (remaining <= 0) break;
+                    const useAmount = Math.min(lot.amount, remaining);
+                    costBasis += useAmount * lot.priceEur;
+                    remaining -= useAmount;
+                    lotsUsed.push({ lotId: lot.id, amount: useAmount, price: lot.priceEur, date: lot.date });
+                }
+            }
+            
+            const sellValue = amountSold * sellPriceEur;
+            const gain = sellValue - costBasis;
+            const tax = gain > 0 ? gain * taxRate : 0;
+            
+            return {
+                coin: coinUpper,
+                amountSold,
+                sellPriceEur,
+                sellValue,
+                costBasis,
+                gain,
+                isProfit: gain > 0,
+                taxRate,
+                taxRatePercent: (taxRate * 100).toFixed(0) + '%',
+                taxDue: tax,
+                method,
+                lotsUsed,
+                sellDate,
+                sellYear
+            };
+        }
+        
+        // ==================== RECONCILIATOR ====================
+        
+        function reconcileInventory() {
+            console.log('\n🔍 RECONCILIATOR - Verifica coerenza magazzino...');
+            
+            const issues = [];
+            
+            // Per ogni coin, verifica che il saldo calcolato corrisponda ai lotti
+            const summary = getCostBasisSummary();
+            
+            for (const [coin, data] of Object.entries(summary)) {
+                // Cerca il saldo reale dagli exchange
+                let realBalance = 0;
+                
+                for (const exchId of Object.keys(exchangeData)) {
+                    const exchData = exchangeData[exchId];
+                    if (exchData.balances) {
+                        // Prendi l'ultimo anno disponibile
+                        const years = Object.keys(exchData.balances).sort((a, b) => b - a);
+                        if (years.length > 0) {
+                            const latestYear = years[0];
+                            realBalance += exchData.balances[latestYear][coin] || 0;
+                        }
+                    }
+                }
+                
+                // Confronta
+                const diff = Math.abs(data.totalAmount - realBalance);
+                const diffPercent = realBalance > 0 ? (diff / realBalance) * 100 : 0;
+                
+                if (diffPercent > 5 && diff > 0.01) {
+                    issues.push({
+                        coin,
+                        costBasisAmount: data.totalAmount,
+                        realBalance,
+                        difference: diff,
+                        diffPercent,
+                        message: `⚠️ ${coin}: Cost Basis ${data.totalAmount.toFixed(4)} ≠ Saldo reale ${realBalance.toFixed(4)} (diff: ${diffPercent.toFixed(1)}%)`
+                    });
+                }
+            }
+            
+            if (issues.length === 0) {
+                console.log('✅ Nessun problema rilevato!');
+            } else {
+                console.log(`⚠️ ${issues.length} problemi rilevati:`);
+                for (const issue of issues) {
+                    console.log(`  ${issue.message}`);
+                }
+            }
+            
+            return issues;
+        }
+        
+        // ==================== END ADVANCED TAX CALCULATIONS ====================
+        
+        function runReconciliator() {
+            const issues = reconcileInventory();
+            const container = document.getElementById('reconciliatorResults');
+            
+            if (!container) return;
+            
+            container.style.display = 'block';
+            
+            if (issues.length === 0) {
+                container.innerHTML = `
+                    <div style="background:var(--green);color:#000;padding:12px;border-radius:8px;">
+                        ✅ <strong>Tutto OK!</strong> I saldi del Cost Basis corrispondono ai saldi reali.
+                    </div>
+                `;
+            } else {
+                let html = `
+                    <div style="background:var(--yellow);color:#000;padding:12px;border-radius:8px;">
+                        <strong>⚠️ ${issues.length} discrepanze trovate:</strong>
+                        <ul style="margin:8px 0 0;padding-left:20px;">
+                `;
+                for (const issue of issues) {
+                    html += `<li>${issue.coin}: Magazzino ${issue.costBasisAmount.toFixed(4)} ≠ Saldo ${issue.realBalance.toFixed(4)}</li>`;
+                }
+                html += `
+                        </ul>
+                        <div style="font-size:12px;margin-top:8px;">
+                            💡 Possibili cause: trasferimenti non tracciati, CSV incompleti, o transazioni mancanti.
+                        </div>
+                    </div>
+                `;
+                container.innerHTML = html;
+            }
+        }
+        
         function refreshCostBasisUI() {
             const container = document.getElementById('costBasisContent');
             if (!container) return;
@@ -1488,6 +1869,7 @@
             }
             
             let totalInvestment = 0;
+            const currentYear = new Date().getFullYear();
             
             let html = `
                 <table style="width:100%;border-collapse:collapse;">
@@ -1496,6 +1878,7 @@
                         <th style="padding:10px;text-align:right;border-bottom:2px solid var(--border);">Quantità</th>
                         <th style="padding:10px;text-align:right;border-bottom:2px solid var(--border);">Costo Totale</th>
                         <th style="padding:10px;text-align:right;border-bottom:2px solid var(--border);">Prezzo Medio</th>
+                        <th style="padding:10px;text-align:right;border-bottom:2px solid var(--border);">Aliquota 2026</th>
                         <th style="padding:10px;text-align:right;border-bottom:2px solid var(--border);">Fonte</th>
                     </tr>
             `;
@@ -1516,12 +1899,18 @@
                     amountStr = data.totalAmount.toFixed(6);
                 }
                 
+                // Aliquota fiscale 2026
+                const taxRate = getTaxRate(coin, 2026);
+                const taxColor = taxRate === 0.26 ? 'var(--green)' : 'var(--yellow)';
+                const taxLabel = taxRate === 0.26 ? '26% EUR' : '33%';
+                
                 html += `
                     <tr>
                         <td style="padding:10px;border-bottom:1px solid var(--border);font-weight:bold;">${coin}</td>
                         <td style="padding:10px;text-align:right;border-bottom:1px solid var(--border);">${amountStr}</td>
                         <td style="padding:10px;text-align:right;border-bottom:1px solid var(--border);color:var(--green);">€${data.totalCost.toFixed(2)}</td>
                         <td style="padding:10px;text-align:right;border-bottom:1px solid var(--border);">€${data.avgPrice.toFixed(6)}</td>
+                        <td style="padding:10px;text-align:right;border-bottom:1px solid var(--border);color:${taxColor};font-weight:bold;">${taxLabel}</td>
                         <td style="padding:10px;text-align:right;border-bottom:1px solid var(--border);color:var(--text-secondary);font-size:12px;">${sources}</td>
                     </tr>
                 `;
@@ -1529,11 +1918,14 @@
             
             html += `
                 <tr style="background:var(--bg-primary);font-weight:bold;">
-                    <td style="padding:12px;" colspan="2">📊 TOTALE INVESTITO</td>
+                    <td style="padding:12px;" colspan="2">📊 TOTALE INVESTITO (EUR reali)</td>
                     <td style="padding:12px;text-align:right;color:var(--green);font-size:18px;">€${totalInvestment.toFixed(2)}</td>
-                    <td style="padding:12px;text-align:right;" colspan="2">${costBasisLots.length} lotti</td>
+                    <td style="padding:12px;text-align:right;" colspan="3">${costBasisLots.length} lotti</td>
                 </tr>
             </table>
+            <div style="margin-top:12px;font-size:12px;color:var(--text-secondary);">
+                💡 <strong>2026:</strong> 33% su BTC, ETH, stablecoin USD | 26% solo su stablecoin EUR (MiCAR)
+            </div>
             `;
             
             container.innerHTML = html;
