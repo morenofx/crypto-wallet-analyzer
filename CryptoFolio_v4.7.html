@@ -886,7 +886,7 @@
         const EXCHANGE_LIST = [
             { id: 'binance', name: 'Binance', color: '#f3ba2f', icon: 'B', logo: 'https://assets.coingecko.com/markets/images/52/small/binance.jpg', hasApi: true },
             { id: 'bitget', name: 'Bitget', color: '#00f0ff', icon: 'Bg', logo: 'https://assets.coingecko.com/markets/images/540/small/bitget.jpg', hasApi: true },
-            { id: 'bitpanda', name: 'Bitpanda', color: '#08b289', icon: 'Bp', logo: 'https://assets.coingecko.com/markets/images/237/small/bitpanda.jpg' },
+            { id: 'bitpanda', name: 'Bitpanda', color: '#08b289', icon: 'Bp', logo: 'https://assets.coingecko.com/markets/images/237/small/bitpanda.jpg', hasApi: true },
             { id: 'bybit', name: 'Bybit', color: '#f7a600', icon: 'By', logo: 'https://assets.coingecko.com/markets/images/698/small/bybit_spot.png' },
             { id: 'bybit_eu', name: 'Bybit EU', color: '#f7a600', icon: 'BE', logo: 'https://assets.coingecko.com/markets/images/698/small/bybit_spot.png' },
             { id: 'cake', name: 'Cake DeFi', color: '#00d395', icon: '🍰', logo: null },
@@ -4026,6 +4026,10 @@
                     apiBtn.textContent = '🔗 Connetti API Bitget';
                     apiBtn.style.background = '#00f0ff';
                     apiBtn.style.color = '#000';
+                } else if (exchId === 'bitpanda') {
+                    apiBtn.textContent = '🔗 Connetti API Bitpanda';
+                    apiBtn.style.background = '#08b289';
+                    apiBtn.style.color = '#fff';
                 }
                 checkBinanceServerStatus();
             } else {
@@ -4239,6 +4243,8 @@
                 openBinanceApiModal();
             } else if (currentDetailExchange === 'bitget') {
                 openBitgetApiModal();
+            } else if (currentDetailExchange === 'bitpanda') {
+                openBitpandaApiModal();
             } else {
                 document.getElementById('exchDetailFileInput').click();
             }
@@ -4314,6 +4320,8 @@
                 openBinanceApiModal();
             } else if (currentDetailExchange === 'bitget') {
                 openBitgetApiModal();
+            } else if (currentDetailExchange === 'bitpanda') {
+                openBitpandaApiModal();
             } else {
                 alert('API non supportata per questo exchange');
             }
@@ -4781,6 +4789,323 @@
                     alert('❌ Errore: ' + e.message);
                 }
             }
+        }
+        
+        // ==================== BITPANDA API FUNCTIONS ====================
+        
+        function openBitpandaApiModal() {
+            const modal = document.getElementById('bitpandaApiModal');
+            const apiKeyInput = document.getElementById('bitpandaModalApiKey');
+            
+            // Pre-popola con chiave salvata
+            if (apiKeys.bitpandaApiKey) apiKeyInput.value = apiKeys.bitpandaApiKey;
+            
+            // Reset progress
+            document.getElementById('bitpandaModalProgress').style.display = 'none';
+            document.getElementById('bitpandaModalProgressBar').style.width = '0%';
+            document.getElementById('bitpandaModalProgressText').textContent = '';
+            
+            modal.classList.add('active');
+        }
+        
+        function closeBitpandaApiModal() {
+            document.getElementById('bitpandaApiModal').classList.remove('active');
+        }
+        
+        async function downloadFromBitpandaModal() {
+            const apiKey = document.getElementById('bitpandaModalApiKey').value.trim();
+            const progressContainer = document.getElementById('bitpandaModalProgress');
+            const progressBar = document.getElementById('bitpandaModalProgressBar');
+            const progressText = document.getElementById('bitpandaModalProgressText');
+            
+            if (!apiKey) {
+                alert('⚠️ Inserisci la tua Bitpanda API Key!\n\nVai su Bitpanda → Profilo → API');
+                return;
+            }
+            
+            // Salva la chiave
+            apiKeys.bitpandaApiKey = apiKey;
+            localStorage.setItem('cryptofolio_apikeys', JSON.stringify(apiKeys));
+            saveToFirebase();
+            
+            // Mostra progress
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '5%';
+            progressText.textContent = 'Connessione a Bitpanda...';
+            
+            try {
+                const allTransactions = [];
+                const realBalances = {};
+                
+                // 1. Fetch crypto wallets (saldi)
+                progressBar.style.width = '10%';
+                progressText.textContent = 'Caricamento wallet crypto...';
+                
+                const walletsRes = await fetch('https://api.bitpanda.com/v1/wallets', {
+                    headers: { 'X-Api-Key': apiKey }
+                });
+                
+                if (!walletsRes.ok) {
+                    if (walletsRes.status === 401) throw new Error('API Key non valida');
+                    throw new Error(`Errore wallet: ${walletsRes.status}`);
+                }
+                
+                const walletsData = await walletsRes.json();
+                console.log('Bitpanda wallets:', walletsData);
+                
+                // Estrai saldi reali
+                for (const wallet of (walletsData.data || [])) {
+                    const symbol = wallet.attributes?.cryptocoin_symbol;
+                    const balance = parseFloat(wallet.attributes?.balance) || 0;
+                    if (symbol && balance > 0) {
+                        realBalances[symbol] = (realBalances[symbol] || 0) + balance;
+                    }
+                }
+                
+                // 2. Fetch crypto transactions
+                progressBar.style.width = '30%';
+                progressText.textContent = 'Caricamento transazioni crypto...';
+                
+                let cursor = null;
+                let pageCount = 0;
+                const maxPages = 50;
+                
+                do {
+                    let txUrl = 'https://api.bitpanda.com/v1/wallets/transactions?page_size=100';
+                    if (cursor) txUrl += `&cursor=${cursor}`;
+                    
+                    const txRes = await fetch(txUrl, {
+                        headers: { 'X-Api-Key': apiKey }
+                    });
+                    
+                    if (!txRes.ok) break;
+                    
+                    const txData = await txRes.json();
+                    
+                    for (const tx of (txData.data || [])) {
+                        const attrs = tx.attributes;
+                        const date = attrs?.time?.date_iso8601 ? new Date(attrs.time.date_iso8601) : new Date();
+                        const amount = parseFloat(attrs?.amount) || 0;
+                        const amountEur = parseFloat(attrs?.amount_eur) || 0;
+                        
+                        // Mappa tipo transazione
+                        let type = attrs?.type || 'unknown';
+                        const inOrOut = attrs?.in_or_out || '';
+                        
+                        if (type === 'transfer' && inOrOut === 'incoming') type = 'deposit';
+                        if (type === 'transfer' && inOrOut === 'outgoing') type = 'withdrawal';
+                        if (type === 'buy') type = 'buy';
+                        if (type === 'sell') type = 'sell';
+                        
+                        // Trova simbolo crypto (da cryptocoin_id)
+                        const cryptoId = attrs?.cryptocoin_id;
+                        const symbol = findBitpandaCryptoSymbol(cryptoId, walletsData.data) || 'UNKNOWN';
+                        
+                        allTransactions.push({
+                            date: date,
+                            type: type,
+                            coin: symbol,
+                            amount: amount,
+                            amountEur: amountEur,
+                            fee: parseFloat(attrs?.fee) || 0,
+                            account: 'bitpanda',
+                            txHash: tx.id || ''
+                        });
+                    }
+                    
+                    // Paginazione
+                    cursor = txData.links?.next ? extractCursor(txData.links.next) : null;
+                    pageCount++;
+                    
+                    progressBar.style.width = `${30 + (pageCount / maxPages) * 30}%`;
+                    progressText.textContent = `Transazioni crypto: ${allTransactions.length}...`;
+                    
+                    await new Promise(r => setTimeout(r, 200));
+                } while (cursor && pageCount < maxPages);
+                
+                // 3. Fetch trades
+                progressBar.style.width = '65%';
+                progressText.textContent = 'Caricamento trades...';
+                
+                cursor = null;
+                pageCount = 0;
+                
+                do {
+                    let tradesUrl = 'https://api.bitpanda.com/v1/trades?page_size=100';
+                    if (cursor) tradesUrl += `&cursor=${cursor}`;
+                    
+                    const tradesRes = await fetch(tradesUrl, {
+                        headers: { 'X-Api-Key': apiKey }
+                    });
+                    
+                    if (!tradesRes.ok) break;
+                    
+                    const tradesData = await tradesRes.json();
+                    
+                    for (const trade of (tradesData.data || [])) {
+                        const attrs = trade.attributes;
+                        const date = attrs?.time?.date_iso8601 ? new Date(attrs.time.date_iso8601) : new Date();
+                        const amount = parseFloat(attrs?.amount_cryptocoin) || 0;
+                        const amountFiat = parseFloat(attrs?.amount_fiat) || 0;
+                        const type = attrs?.type || 'trade'; // buy o sell
+                        const cryptoId = attrs?.cryptocoin_id;
+                        const symbol = findBitpandaCryptoSymbol(cryptoId, walletsData.data) || 'UNKNOWN';
+                        
+                        allTransactions.push({
+                            date: date,
+                            type: type,
+                            coin: symbol,
+                            amount: amount,
+                            amountEur: amountFiat,
+                            fee: parseFloat(attrs?.fee) || 0,
+                            account: 'bitpanda',
+                            txHash: trade.id || ''
+                        });
+                    }
+                    
+                    cursor = tradesData.links?.next ? extractCursor(tradesData.links.next) : null;
+                    pageCount++;
+                    
+                    await new Promise(r => setTimeout(r, 200));
+                } while (cursor && pageCount < maxPages);
+                
+                // 4. Fetch fiat wallets
+                progressBar.style.width = '85%';
+                progressText.textContent = 'Caricamento wallet fiat...';
+                
+                try {
+                    const fiatWalletsRes = await fetch('https://api.bitpanda.com/v1/fiatwallets', {
+                        headers: { 'X-Api-Key': apiKey }
+                    });
+                    
+                    if (fiatWalletsRes.ok) {
+                        const fiatData = await fiatWalletsRes.json();
+                        for (const wallet of (fiatData.data || [])) {
+                            const symbol = wallet.attributes?.fiat_symbol;
+                            const balance = parseFloat(wallet.attributes?.balance) || 0;
+                            if (symbol && balance > 0) {
+                                realBalances[symbol] = (realBalances[symbol] || 0) + balance;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.log('Fiat wallets non disponibili');
+                }
+                
+                // Ordina per data
+                allTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+                
+                // Calcola totali per anno
+                const years = [2021, 2022, 2023, 2024, 2025, 2026];
+                const yearTotals = {};
+                const yearEndSnapshots = {};
+                
+                for (const year of years) {
+                    yearEndSnapshots[year] = {};
+                    yearTotals[year] = 0;
+                }
+                
+                // Calcola snapshot fine anno dai trades
+                for (const tx of allTransactions) {
+                    const txYear = new Date(tx.date).getFullYear();
+                    for (const year of years) {
+                        if (txYear <= year) {
+                            if (!yearEndSnapshots[year][tx.coin]) yearEndSnapshots[year][tx.coin] = 0;
+                            if (tx.type === 'buy' || tx.type === 'deposit') {
+                                yearEndSnapshots[year][tx.coin] += tx.amount;
+                            } else if (tx.type === 'sell' || tx.type === 'withdrawal') {
+                                yearEndSnapshots[year][tx.coin] -= tx.amount;
+                            }
+                        }
+                    }
+                }
+                
+                // Calcola valore EUR per anno (approssimato)
+                for (const year of years) {
+                    let totalEur = 0;
+                    for (const [coin, amount] of Object.entries(yearEndSnapshots[year])) {
+                        if (amount > 0) {
+                            const price = cachedPrices[coin.toLowerCase()]?.eur || cachedPrices[coin]?.eur || 0;
+                            totalEur += amount * price;
+                        }
+                    }
+                    yearTotals[year] = Math.round(totalEur * 100) / 100;
+                }
+                
+                // Salva
+                const hasRealBalances = Object.keys(realBalances).length > 0;
+                exchangeData['bitpanda'] = {
+                    transactions: allTransactions,
+                    balances: yearEndSnapshots,
+                    realBalances: hasRealBalances ? realBalances : null,
+                    totals: yearTotals,
+                    transactionCount: allTransactions.length,
+                    isManual: false,
+                    lastImport: new Date().toISOString(),
+                    source: 'api'
+                };
+                
+                progressBar.style.width = '100%';
+                const realMsg = hasRealBalances ? ` (con saldi reali!)` : '';
+                progressText.textContent = `✅ ${allTransactions.length} transazioni importate${realMsg}`;
+                
+                saveExchangeDataToFirebase();
+                initExchangeGrid();
+                updateExchangeTotals();
+                
+                // Messaggio finale
+                let alertMsg = `✅ Bitpanda importato!\n\n📊 ${allTransactions.length} transazioni`;
+                if (hasRealBalances) {
+                    alertMsg += `\n\n💎 SALDI REALI:`;
+                    const topBalances = Object.entries(realBalances)
+                        .filter(([_, amt]) => amt > 0)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 5);
+                    for (const [coin, amt] of topBalances) {
+                        alertMsg += `\n   ${coin}: ${typeof amt === 'number' ? amt.toFixed(amt < 1 ? 6 : 2) : amt}`;
+                    }
+                }
+                
+                setTimeout(() => {
+                    closeBitpandaApiModal();
+                    alert(alertMsg);
+                    if (currentDetailExchange === 'bitpanda') {
+                        openExchangeDetail('bitpanda');
+                    }
+                }, 1500);
+                
+            } catch (e) {
+                console.error('Bitpanda API error:', e);
+                progressBar.style.width = '0%';
+                
+                if (e.message.includes('Failed to fetch') || e.name === 'TypeError') {
+                    progressText.textContent = '❌ CORS bloccato - serve proxy server';
+                    alert('⚠️ Bitpanda blocca le richieste dal browser (CORS).\n\nServe un proxy server per usare l\'API.\n\nAlternativa: importa il CSV da Bitpanda.');
+                } else {
+                    progressText.textContent = '❌ ' + e.message;
+                    alert('❌ Errore: ' + e.message);
+                }
+            }
+        }
+        
+        // Helper: trova simbolo crypto da ID
+        function findBitpandaCryptoSymbol(cryptoId, wallets) {
+            if (!cryptoId || !wallets) return null;
+            for (const wallet of wallets) {
+                if (wallet.attributes?.cryptocoin_id === cryptoId) {
+                    return wallet.attributes?.cryptocoin_symbol;
+                }
+            }
+            // Mapping comune
+            const idMap = { '1': 'BTC', '3': 'ETH', '5': 'LTC', '8': 'XRP', '27': 'ADA', '28': 'DOT' };
+            return idMap[cryptoId] || null;
+        }
+        
+        // Helper: estrai cursor da URL
+        function extractCursor(url) {
+            if (!url) return null;
+            const match = url.match(/cursor=([^&]+)/);
+            return match ? match[1] : null;
         }
         
         async function testExchangeApi(exchId) {
@@ -7239,6 +7564,46 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="checkBitgetServerStatus()">🔄 Check Server</button>
                 <button class="btn btn-primary" onclick="downloadFromBitgetModal()" style="background:#00f0ff;color:#000;">📥 Scarica Storico</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- BITPANDA API MODAL -->
+    <div id="bitpandaApiModal" class="modal-overlay" onclick="if(event.target===this)closeBitpandaApiModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><img src="https://assets.coingecko.com/markets/images/237/small/bitpanda.jpg" style="width:28px;height:28px;border-radius:6px;"> Bitpanda API</h3>
+                <button class="modal-close" onclick="closeBitpandaApiModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="background:var(--bg-primary);padding:12px;border-radius:8px;margin-bottom:16px;font-size:13px;">
+                    <strong>ℹ️ Nota:</strong> Bitpanda API è semplice - serve solo l'API Key!<br>
+                    <span style="color:var(--text-secondary);">Scope richiesti: <strong>Transaction</strong> + <strong>Trading</strong></span>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">API Key</label>
+                    <input type="password" id="bitpandaModalApiKey" class="form-input" placeholder="Incolla la tua Bitpanda API Key...">
+                </div>
+                
+                <a href="https://web.bitpanda.com/apikey" target="_blank" class="api-help-link">
+                    📋 Come creare API su Bitpanda →
+                </a>
+                
+                <div style="background:var(--yellow);color:#000;padding:10px;border-radius:8px;margin:16px 0;font-size:12px;">
+                    ⚠️ <strong>CORS:</strong> Se vedi errore "CORS bloccato", Bitpanda non permette chiamate dirette dal browser. Usa l'import CSV in alternativa.
+                </div>
+                
+                <div id="bitpandaModalProgress" class="progress-container">
+                    <div class="progress-bar-bg">
+                        <div id="bitpandaModalProgressBar" class="progress-bar-fill"></div>
+                    </div>
+                    <div id="bitpandaModalProgressText" class="progress-text">Preparazione...</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeBitpandaApiModal()">Annulla</button>
+                <button class="btn btn-primary" onclick="downloadFromBitpandaModal()" style="background:#08b289;color:#fff;">📥 Scarica Storico</button>
             </div>
         </div>
     </div>
