@@ -4207,8 +4207,20 @@
                 };
                 const typeLabel = typeLabels[tx.type] || tx.type || '-';
                 
-                // Valore EUR se disponibile
-                const eurValue = tx.amountEur ? `€${formatNumber(tx.amountEur)}` : '';
+                // Valore EUR se disponibile o calcolato
+                let eurValue = '';
+                if (tx.amountEur && tx.amountEur > 0) {
+                    eurValue = `€${formatNumber(tx.amountEur)}`;
+                } else {
+                    // Prova a calcolare dal prezzo attuale
+                    const price = getHistoricalPrice(tx.coin, new Date(tx.date).getFullYear());
+                    if (price && price > 0) {
+                        const calcEur = amt * price * EUR_USD;
+                        if (calcEur > 0.01) {
+                            eurValue = `~€${formatNumber(calcEur)}`;
+                        }
+                    }
+                }
                 
                 html += `<tr>
                     <td style="white-space:nowrap;">
@@ -5074,6 +5086,9 @@
                     }
                 }
                 
+                // Calcola se ci sono saldi reali
+                const hasRealBalances = Object.keys(realBalances).length > 0;
+                
                 // Calcola valore EUR per anno
                 const currentYear = new Date().getFullYear();
                 for (const year of years) {
@@ -5098,7 +5113,6 @@
                 }
                 
                 // Salva
-                const hasRealBalances = Object.keys(realBalances).length > 0;
                 exchangeData['bitpanda'] = {
                     transactions: allTransactions,
                     balances: yearEndSnapshots,
