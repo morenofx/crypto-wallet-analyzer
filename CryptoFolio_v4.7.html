@@ -2399,18 +2399,42 @@
                 const startTime = Date.now();
                 
                 // ========== STEP 1: Raccolta Dati ==========
-                await updateAnalysisStep(1, 'Raccolta dati da tutti gli exchange...');
+                await updateAnalysisStep(1, 'Raccolta dati da tutti gli exchange e wallet...');
+                
+                // 🔑 IMPORTANTE: Carica wallet da localStorage!
+                loadWalletTransactions();
+                
+                // 🔧 Ripara tipi transazioni esistenti
+                for (const exchId of Object.keys(exchangeData)) {
+                    const exchData = exchangeData[exchId];
+                    if (!exchData?.transactions) continue;
+                    
+                    for (const tx of exchData.transactions) {
+                        // Inferisci tipo se mancante o generico
+                        if (!tx.type || tx.type === 'unknown' || tx.type === '') {
+                            const change = tx.change || 0;
+                            if (change > 0) tx.type = 'deposit';
+                            else if (change < 0) tx.type = 'withdrawal';
+                        }
+                    }
+                }
                 
                 const exchanges = Object.keys(exchangeData).filter(id => 
                     exchangeData[id]?.transactions?.length > 0 || 
                     exchangeData[id]?.realBalances
                 );
                 
-                if (exchanges.length === 0) {
-                    throw new Error('Nessun exchange con dati. Importa prima i dati!');
+                // 🆕 Includi anche i Wallet!
+                const walletAddresses = Object.keys(walletTransactions || {});
+                const hasWallets = walletAddresses.length > 0;
+                
+                logAnalysis(`🔍 Debug: walletTransactions keys = ${walletAddresses.length}`);
+                
+                if (exchanges.length === 0 && !hasWallets) {
+                    throw new Error('Nessun dato trovato. Importa prima exchange o wallet!');
                 }
                 
-                logAnalysis(`📊 Trovati ${exchanges.length} exchange con dati: ${exchanges.join(', ')}`);
+                logAnalysis(`📊 Trovati ${exchanges.length} exchange con dati: ${exchanges.join(', ') || 'nessuno'}`);
                 
                 let totalTransactions = 0;
                 for (const exchId of exchanges) {
@@ -2419,8 +2443,88 @@
                     logAnalysis(`   • ${exchId}: ${count} transazioni`);
                 }
                 
-                // ========== STEP 2: Fetch Prezzi Storici ==========
-                await updateAnalysisStep(2, 'Recupero prezzi storici da CryptoCompare...');
+                // Conta transazioni wallet
+                let walletTxCount = 0;
+                if (hasWallets) {
+                    logAnalysis(`📱 Trovati ${walletAddresses.length} wallet:`);
+                    for (const addr of walletAddresses) {
+                        const wData = walletTransactions[addr];
+                        const count = (wData?.nativeTx?.length || 0) + (wData?.tokenTx?.length || 0);
+                        walletTxCount += count;
+                        logAnalysis(`   • ${addr.slice(0, 8)}...${addr.slice(-6)}: ${count} tx`);
+                    }
+                    totalTransactions += walletTxCount;
+                }
+                
+                logAnalysis(`\n📈 Totale: ${totalTransactions} transazioni`);
+                
+                // ========== STEP 2: Converti Wallet in formato Exchange ==========
+                if (hasWallets) {
+                    await updateAnalysisStep(2, 'Conversione wallet in formato exchange...');
+                    
+                    for (const addr of walletAddresses) {
+                        const walletId = `wallet_${addr.slice(0, 8)}`;
+                        const wData = walletTransactions[addr];
+                        
+                        // Converti transazioni wallet in formato exchange
+                        const convertedTx = [];
+                        
+                        // Native transactions
+                        for (const tx of (wData?.nativeTx || [])) {
+                            convertedTx.push(createEnrichedTransaction({
+                                timestamp: new Date(tx.block_timestamp || tx.timestamp),
+                                type: tx.from_address?.toLowerCase() === addr.toLowerCase() ? 'withdrawal' : 'deposit',
+                                asset_in: tx.token_symbol || 'ETH',
+                                amount_in: parseFloat(tx.value) / Math.pow(10, tx.token_decimals || 18),
+                                tx_hash: tx.transaction_hash || tx.hash,
+                                source: walletId,
+                                exchange: walletId,
+                                change: tx.from_address?.toLowerCase() === addr.toLowerCase() 
+                                    ? -parseFloat(tx.value) / Math.pow(10, tx.token_decimals || 18)
+                                    : parseFloat(tx.value) / Math.pow(10, tx.token_decimals || 18)
+                            }));
+                        }
+                        
+                        // Token transactions
+                        for (const tx of (wData?.tokenTx || [])) {
+                            convertedTx.push(createEnrichedTransaction({
+                                timestamp: new Date(tx.block_timestamp || tx.timestamp),
+                                type: tx.from_address?.toLowerCase() === addr.toLowerCase() ? 'withdrawal' : 'deposit',
+                                asset_in: tx.token_symbol || 'UNKNOWN',
+                                amount_in: parseFloat(tx.value) / Math.pow(10, tx.token_decimals || 18),
+                                tx_hash: tx.transaction_hash || tx.hash,
+                                source: walletId,
+                                exchange: walletId,
+                                change: tx.from_address?.toLowerCase() === addr.toLowerCase() 
+                                    ? -parseFloat(tx.value) / Math.pow(10, tx.token_decimals || 18)
+                                    : parseFloat(tx.value) / Math.pow(10, tx.token_decimals || 18)
+                            }));
+                        }
+                        
+                        // Salva come pseudo-exchange
+                        if (convertedTx.length > 0) {
+                            exchangeData[walletId] = {
+                                transactions: convertedTx,
+                                isWallet: true,
+                                walletAddress: addr,
+                                source: 'wallet'
+                            };
+                            exchanges.push(walletId);
+                            logAnalysis(`   ✅ ${walletId}: ${convertedTx.length} tx convertite`);
+                        }
+                    }
+                } else {
+                    // Skip step 2 se nessun wallet
+                    const step2El = document.getElementById('analysisStep2');
+                    if (step2El) {
+                        step2El.innerHTML = '⏭️ 2. Conversione wallet (nessun wallet)';
+                        step2El.style.opacity = '0.5';
+                    }
+                    logAnalysis(`⏭️ Step 2 skippato (nessun wallet)`);
+                }
+                
+                // ========== STEP 3: Fetch Prezzi Storici ==========
+                await updateAnalysisStep(3, 'Recupero prezzi storici da CryptoCompare...');
                 
                 let pricesFetched = 0;
                 let pricesTotal = 0;
@@ -2467,8 +2571,8 @@
                 
                 logAnalysis(`💰 Recuperati ${pricesFetched} prezzi storici`);
                 
-                // ========== STEP 3: Arricchimento Transazioni ==========
-                await updateAnalysisStep(3, 'Arricchimento transazioni con prezzi e cost basis...');
+                // ========== STEP 4: Arricchimento Transazioni ==========
+                await updateAnalysisStep(4, 'Arricchimento transazioni con prezzi e cost basis...');
                 
                 let enriched = 0;
                 
@@ -2504,8 +2608,8 @@
                 
                 logAnalysis(`📝 Arricchite ${enriched} transazioni con prezzi`);
                 
-                // ========== STEP 4: Transfer Matching ==========
-                await updateAnalysisStep(4, 'Riconciliazione trasferimenti tra exchange/wallet...');
+                // ========== STEP 5: Transfer Matching ==========
+                await updateAnalysisStep(5, 'Riconciliazione trasferimenti tra exchange/wallet...');
                 
                 // Raccogli tutte le transazioni
                 const allTransactions = [];
@@ -2516,12 +2620,27 @@
                     }
                 }
                 
+                // Debug: conta per exchange e tipo
+                const bySource = {};
+                for (const tx of allTransactions) {
+                    const source = tx._source;
+                    if (!bySource[source]) bySource[source] = { total: 0, withdrawal: 0, deposit: 0 };
+                    bySource[source].total++;
+                    if (tx.type === 'withdrawal' || tx.type === 'withdraw') bySource[source].withdrawal++;
+                    if (tx.type === 'deposit') bySource[source].deposit++;
+                }
+                
+                logAnalysis(`📊 Transazioni per source:`);
+                for (const [src, counts] of Object.entries(bySource)) {
+                    logAnalysis(`   • ${src}: ${counts.total} totali (${counts.withdrawal} withdraw, ${counts.deposit} deposit)`);
+                }
+                
                 // Match transfers cross-exchange
                 const matched = matchCrossExchangeTransfers(allTransactions);
                 logAnalysis(`🔗 Matchati ${matched} trasferimenti interni`);
                 
-                // ========== STEP 5: Risoluzione Discrepanze ==========
-                await updateAnalysisStep(5, 'Analisi e risoluzione discrepanze...');
+                // ========== STEP 6: Risoluzione Discrepanze ==========
+                await updateAnalysisStep(6, 'Analisi e risoluzione discrepanze...');
                 
                 let discrepanciesResolved = 0;
                 let totalDiscrepancies = 0;
@@ -2566,17 +2685,17 @@
                 
                 logAnalysis(`🔧 Risolte ${discrepanciesResolved}/${totalDiscrepancies} discrepanze`);
                 
-                // ========== STEP 6: Ricalcolo Totali ==========
-                await updateAnalysisStep(6, 'Ricalcolo totali per anno...');
+                // ========== STEP 7: Ricalcolo Totali ==========
+                await updateAnalysisStep(7, 'Ricalcolo totali per anno...');
                 
                 for (const exchId of exchanges) {
                     recalculateExchangeBalances(exchId);
                 }
                 
-                logAnalysis(`📊 Totali ricalcolati per ${exchanges.length} exchange`);
+                logAnalysis(`📊 Totali ricalcolati per ${exchanges.length} exchange/wallet`);
                 
-                // ========== STEP 7: Aggiornamento Cost Basis ==========
-                await updateAnalysisStep(7, 'Aggiornamento registro cost basis...');
+                // ========== STEP 8: Aggiornamento Cost Basis ==========
+                await updateAnalysisStep(8, 'Aggiornamento registro cost basis...');
                 
                 // Ricostruisci cost basis da tutte le transazioni
                 let lotsCreated = 0;
@@ -2588,8 +2707,8 @@
                 
                 logAnalysis(`📦 Creati ${lotsCreated} lotti cost basis`);
                 
-                // ========== STEP 8: Salvataggio ==========
-                await updateAnalysisStep(8, 'Salvataggio dati...');
+                // ========== STEP 9: Salvataggio ==========
+                await updateAnalysisStep(9, 'Salvataggio dati...');
                 
                 saveExchangeDataToFirebase();
                 saveCostBasisLots();
@@ -2631,16 +2750,44 @@
         
         // Match trasferimenti cross-exchange
         function matchCrossExchangeTransfers(allTransactions) {
-            const windowMs = 60 * 60 * 1000; // 1 ora
+            const windowMs = 2 * 60 * 60 * 1000; // 2 ore (aumentato da 1 ora)
             let matched = 0;
             
+            // Debug: conta per tipo
+            const typeCounts = {};
+            for (const tx of allTransactions) {
+                const type = tx.type || 'unknown';
+                typeCounts[type] = (typeCounts[type] || 0) + 1;
+            }
+            console.log('📊 Transazioni per tipo:', typeCounts);
+            
             const withdrawals = allTransactions.filter(tx => 
-                tx.type === 'withdrawal' && !tx.is_internal && !tx.linked_tx_id
+                (tx.type === 'withdrawal' || tx.type === 'withdraw') && !tx.is_internal && !tx.linked_tx_id
             );
             
             const deposits = allTransactions.filter(tx => 
                 tx.type === 'deposit' && !tx.is_internal && !tx.linked_tx_id
             );
+            
+            console.log(`🔍 Transfer Matching: ${withdrawals.length} withdrawals, ${deposits.length} deposits`);
+            
+            // Debug: mostra primi 5 withdrawal e deposit
+            if (withdrawals.length > 0) {
+                console.log('📤 Sample withdrawals:', withdrawals.slice(0, 5).map(w => ({
+                    source: w._source,
+                    coin: w.asset_in || w.coin,
+                    amount: w.amount_in || w.amount,
+                    date: w.timestamp || w.date
+                })));
+            }
+            if (deposits.length > 0) {
+                console.log('📥 Sample deposits:', deposits.slice(0, 5).map(d => ({
+                    source: d._source,
+                    coin: d.asset_in || d.coin,
+                    amount: d.amount_in || d.amount,
+                    date: d.timestamp || d.date
+                })));
+            }
             
             for (const w of withdrawals) {
                 const wTime = (w.timestamp || w.date) instanceof Date 
@@ -2662,7 +2809,12 @@
                     const timeDiff = Math.abs(dTime - wTime);
                     const amountDiff = Math.abs(wAmount - dAmount) / Math.max(wAmount, dAmount, 0.0001);
                     
-                    if (wCoin === dCoin && timeDiff <= windowMs && amountDiff <= 0.05) {
+                    // Debug: log near matches
+                    if (wCoin === dCoin && timeDiff <= windowMs * 2) {
+                        console.log(`🔎 Potential match: ${wCoin} ${wAmount} (${w._source}) ↔ ${dAmount} (${d._source}) | timeDiff=${Math.round(timeDiff/60000)}min | amountDiff=${(amountDiff*100).toFixed(1)}%`);
+                    }
+                    
+                    if (wCoin === dCoin && timeDiff <= windowMs && amountDiff <= 0.10) { // Aumentato tolleranza a 10%
                         w.linked_tx_id = d.id;
                         w.is_internal = true;
                         w.type = 'transfer';
@@ -2672,6 +2824,7 @@
                         d.type = 'transfer';
                         d.cost_basis_eur = w.cost_basis_eur;
                         
+                        console.log(`✅ MATCH: ${wCoin} ${wAmount.toFixed(4)} | ${w._source} → ${d._source}`);
                         matched++;
                         break;
                     }
@@ -2757,14 +2910,15 @@
                         </div>
                         
                         <div style="display:grid;gap:8px;margin-bottom:20px;">
-                            <div id="analysisStep1" style="padding:8px;background:var(--bg-primary);border-radius:6px;">⏳ 1. Raccolta dati exchange</div>
-                            <div id="analysisStep2" style="padding:8px;background:var(--bg-primary);border-radius:6px;">⏳ 2. Fetch prezzi storici</div>
-                            <div id="analysisStep3" style="padding:8px;background:var(--bg-primary);border-radius:6px;">⏳ 3. Arricchimento transazioni</div>
-                            <div id="analysisStep4" style="padding:8px;background:var(--bg-primary);border-radius:6px;">⏳ 4. Riconciliazione trasferimenti</div>
-                            <div id="analysisStep5" style="padding:8px;background:var(--bg-primary);border-radius:6px;">⏳ 5. Risoluzione discrepanze</div>
-                            <div id="analysisStep6" style="padding:8px;background:var(--bg-primary);border-radius:6px;">⏳ 6. Ricalcolo totali</div>
-                            <div id="analysisStep7" style="padding:8px;background:var(--bg-primary);border-radius:6px;">⏳ 7. Aggiornamento cost basis</div>
-                            <div id="analysisStep8" style="padding:8px;background:var(--bg-primary);border-radius:6px;">⏳ 8. Salvataggio</div>
+                            <div id="analysisStep1" style="padding:8px;background:var(--bg-primary);border-radius:6px;">⏳ 1. Raccolta dati exchange e wallet</div>
+                            <div id="analysisStep2" style="padding:8px;background:var(--bg-primary);border-radius:6px;">⏳ 2. Conversione wallet</div>
+                            <div id="analysisStep3" style="padding:8px;background:var(--bg-primary);border-radius:6px;">⏳ 3. Fetch prezzi storici</div>
+                            <div id="analysisStep4" style="padding:8px;background:var(--bg-primary);border-radius:6px;">⏳ 4. Arricchimento transazioni</div>
+                            <div id="analysisStep5" style="padding:8px;background:var(--bg-primary);border-radius:6px;">⏳ 5. Riconciliazione trasferimenti</div>
+                            <div id="analysisStep6" style="padding:8px;background:var(--bg-primary);border-radius:6px;">⏳ 6. Risoluzione discrepanze</div>
+                            <div id="analysisStep7" style="padding:8px;background:var(--bg-primary);border-radius:6px;">⏳ 7. Ricalcolo totali</div>
+                            <div id="analysisStep8" style="padding:8px;background:var(--bg-primary);border-radius:6px;">⏳ 8. Aggiornamento cost basis</div>
+                            <div id="analysisStep9" style="padding:8px;background:var(--bg-primary);border-radius:6px;">⏳ 9. Salvataggio</div>
                         </div>
                         
                         <div style="background:var(--bg-primary);border-radius:8px;padding:12px;max-height:200px;overflow-y:auto;" id="analysisLog">
@@ -3776,6 +3930,9 @@
             localStorage.setItem('cryptofolio_costbasis', JSON.stringify(costBasisLots));
             localStorage.setItem('cryptofolio_lotcounter', lotIdCounter.toString());
         }
+        
+        // Alias per compatibilità
+        const saveCostBasisLots = saveCostBasis;
         
         function createLot(date, coin, amount, priceEur, source, txType = 'buy') {
             const lot = {
@@ -8655,25 +8812,37 @@
                 }
                 
                 // 🆕 Converti in transazioni ARRICCHITE
-                const allTransactions = uniqueTransactions.map(tx => createEnrichedTransaction({
-                    timestamp: new Date(tx.date),
-                    type: tx.type || 'unknown',
-                    asset_in: tx.coin,
-                    asset_out: tx.asset_out || (tx.type === 'buy' ? 'EUR' : null),
-                    amount_in: Math.abs(tx.amount || tx.change || 0),
-                    amount_out: tx.amount_out || 0,
-                    price_eur: tx.priceEur || 0,
-                    value_eur: tx.amountEur || 0,
-                    fee_eur: tx.feeEur || 0,
-                    fee_asset: tx.feeAsset || null,
-                    fee_amount: tx.feeAmount || 0,
-                    tx_hash: tx.txId || null,
-                    order_id: tx.orderId || null,
-                    source: 'binance',
-                    exchange: 'binance',
-                    change: tx.change || tx.amount || 0,
-                    notes: tx.notes || ''
-                }));
+                const allTransactions = uniqueTransactions.map(tx => {
+                    // Inferisci tipo se non specificato
+                    let txType = tx.type || 'unknown';
+                    const change = tx.change || tx.amount || 0;
+                    
+                    // Se tipo generico, inferisci da change
+                    if (txType === 'unknown' || txType === '') {
+                        if (change > 0) txType = 'deposit';
+                        else if (change < 0) txType = 'withdrawal';
+                    }
+                    
+                    return createEnrichedTransaction({
+                        timestamp: new Date(tx.date),
+                        type: txType,
+                        asset_in: tx.coin,
+                        asset_out: tx.asset_out || (tx.type === 'buy' ? 'EUR' : null),
+                        amount_in: Math.abs(tx.amount || tx.change || 0),
+                        amount_out: tx.amount_out || 0,
+                        price_eur: tx.priceEur || 0,
+                        value_eur: tx.amountEur || 0,
+                        fee_eur: tx.feeEur || 0,
+                        fee_asset: tx.feeAsset || null,
+                        fee_amount: tx.feeAmount || 0,
+                        tx_hash: tx.txId || null,
+                        order_id: tx.orderId || null,
+                        source: 'binance',
+                        exchange: 'binance',
+                        change: change,
+                        notes: tx.notes || ''
+                    });
+                });
                 
                 allTransactions.sort((a, b) => a.timestamp - b.timestamp);
                 
