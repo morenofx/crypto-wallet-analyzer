@@ -149,6 +149,10 @@
         .progress-bar-fill { background: linear-gradient(90deg, #f3ba2f, #f0b90b); height: 100%; width: 0%; transition: width 0.3s ease; }
         .progress-text { font-size: 12px; color: var(--text-secondary); margin-top: 8px; text-align: center; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
     </style>
 </head>
 <body>
@@ -594,6 +598,13 @@
                         <input type="file" id="exchDetailFileInput" accept=".csv,.zip" multiple style="display:none;" onchange="handleExchDetailFileSelect(event)">
                         <button class="btn btn-secondary" onclick="document.getElementById('exchDetailFileInput').click()">
                             📁 Importa CSV/ZIP
+                        </button>
+                    </div>
+                    
+                    <!-- AI Analysis -->
+                    <div>
+                        <button class="btn" onclick="openAIAnalysisModal()" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;">
+                            🤖 Analizza con AI
                         </button>
                     </div>
                     
@@ -5282,6 +5293,301 @@
             return match ? match[1] : null;
         }
         
+        // ==================== AI ANALYSIS FUNCTIONS ====================
+        
+        function openAIAnalysisModal() {
+            const exchId = currentDetailExchange;
+            const data = exchangeData[exchId];
+            
+            if (!data || !data.transactions || data.transactions.length === 0) {
+                alert('⚠️ Nessuna transazione da analizzare!\n\nImporta prima i dati CSV o tramite API.');
+                return;
+            }
+            
+            // Reset UI
+            document.getElementById('aiApiKeySection').style.display = 'block';
+            document.getElementById('aiResultsSection').style.display = 'none';
+            document.getElementById('aiLoadingSection').style.display = 'none';
+            document.getElementById('aiAnalyzeBtn').style.display = 'block';
+            
+            // Load saved API key
+            const savedKey = localStorage.getItem('claudeApiKey') || '';
+            document.getElementById('claudeApiKeyInput').value = savedKey;
+            
+            // Setup radio button listener for custom question
+            document.querySelectorAll('input[name="aiAnalysisType"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    document.getElementById('aiCustomQuestionSection').style.display = 
+                        this.value === 'question' ? 'block' : 'none';
+                });
+            });
+            
+            document.getElementById('aiAnalysisModal').classList.add('active');
+        }
+        
+        function closeAIAnalysisModal() {
+            document.getElementById('aiAnalysisModal').classList.remove('active');
+        }
+        
+        async function runAIAnalysis() {
+            const apiKey = document.getElementById('claudeApiKeyInput').value.trim();
+            if (!apiKey) {
+                alert('⚠️ Inserisci la tua Claude API Key!\n\nOttienila da console.anthropic.com');
+                return;
+            }
+            
+            // Save API key
+            localStorage.setItem('claudeApiKey', apiKey);
+            
+            const analysisType = document.querySelector('input[name="aiAnalysisType"]:checked').value;
+            const customQuestion = document.getElementById('aiCustomQuestion')?.value || '';
+            
+            const exchId = currentDetailExchange;
+            const data = exchangeData[exchId];
+            
+            // Show loading
+            document.getElementById('aiApiKeySection').style.display = 'none';
+            document.getElementById('aiLoadingSection').style.display = 'block';
+            document.getElementById('aiAnalyzeBtn').style.display = 'none';
+            
+            try {
+                // Prepare transaction data for Claude
+                const txSummary = prepareTransactionsForAI(data.transactions, exchId);
+                
+                document.getElementById('aiLoadingDetail').textContent = 
+                    `${data.transactions.length} transazioni preparate...`;
+                
+                // Build prompt based on analysis type
+                const prompt = buildAIPrompt(analysisType, txSummary, customQuestion, exchId);
+                
+                // Call Claude API
+                const response = await callClaudeAPI(apiKey, prompt);
+                
+                // Show results
+                document.getElementById('aiLoadingSection').style.display = 'none';
+                document.getElementById('aiResultsSection').style.display = 'block';
+                document.getElementById('aiResultsContent').innerHTML = formatAIResponse(response);
+                
+            } catch (error) {
+                document.getElementById('aiLoadingSection').style.display = 'none';
+                document.getElementById('aiApiKeySection').style.display = 'block';
+                document.getElementById('aiAnalyzeBtn').style.display = 'block';
+                
+                if (error.message.includes('401')) {
+                    alert('❌ API Key non valida!\n\nVerifica la tua Claude API Key.');
+                } else if (error.message.includes('429')) {
+                    alert('⚠️ Rate limit raggiunto!\n\nRiprova tra qualche secondo.');
+                } else {
+                    alert('❌ Errore: ' + error.message);
+                }
+                console.error('AI Analysis error:', error);
+            }
+        }
+        
+        function prepareTransactionsForAI(transactions, exchId) {
+            // Group by token
+            const byToken = {};
+            let totalBuys = 0, totalSells = 0, totalRewards = 0;
+            
+            for (const tx of transactions) {
+                const coin = tx.coin;
+                if (!byToken[coin]) {
+                    byToken[coin] = {
+                        bought: 0, boughtValue: 0,
+                        sold: 0, soldValue: 0,
+                        rewards: 0, rewardsValue: 0,
+                        deposits: 0, withdrawals: 0,
+                        balance: 0,
+                        transactions: []
+                    };
+                }
+                
+                const t = byToken[coin];
+                const value = tx.amountEur || 0;
+                
+                // Track transaction
+                t.transactions.push({
+                    date: tx.date instanceof Date ? tx.date.toISOString().slice(0,10) : tx.date,
+                    type: tx.type,
+                    amount: tx.amount,
+                    value: value,
+                    price: tx.priceEur || (value / tx.amount) || 0
+                });
+                
+                // Aggregate
+                switch(tx.type) {
+                    case 'buy':
+                        t.bought += tx.amount;
+                        t.boughtValue += value;
+                        t.balance += tx.amount;
+                        totalBuys += value;
+                        break;
+                    case 'sell':
+                        t.sold += tx.amount;
+                        t.soldValue += value;
+                        t.balance -= tx.amount;
+                        totalSells += value;
+                        break;
+                    case 'reward':
+                    case 'staking':
+                        t.rewards += tx.amount;
+                        t.rewardsValue += value;
+                        t.balance += tx.amount;
+                        totalRewards += value;
+                        break;
+                    case 'deposit':
+                        t.deposits += tx.amount;
+                        t.balance += tx.amount;
+                        break;
+                    case 'withdrawal':
+                        t.withdrawals += tx.amount;
+                        t.balance -= tx.amount;
+                        break;
+                }
+            }
+            
+            // Find anomalies
+            const anomalies = [];
+            for (const tx of transactions) {
+                // Stablecoin with wrong price
+                if (['USDT','USDC','BUSD','DAI'].includes(tx.coin) && tx.priceEur > 2) {
+                    anomalies.push({
+                        date: tx.date,
+                        coin: tx.coin,
+                        issue: `Prezzo stablecoin anomalo: €${tx.priceEur?.toFixed(2)}`
+                    });
+                }
+                // Negative balance (shouldn't happen)
+                if (byToken[tx.coin]?.balance < -0.001) {
+                    anomalies.push({
+                        coin: tx.coin,
+                        issue: `Saldo negativo: ${byToken[tx.coin].balance.toFixed(4)}`
+                    });
+                }
+            }
+            
+            return {
+                exchange: exchId,
+                totalTransactions: transactions.length,
+                dateRange: {
+                    from: transactions[0]?.date,
+                    to: transactions[transactions.length - 1]?.date
+                },
+                summary: {
+                    totalBuys: totalBuys.toFixed(2),
+                    totalSells: totalSells.toFixed(2),
+                    totalRewards: totalRewards.toFixed(2),
+                    netFlow: (totalSells - totalBuys + totalRewards).toFixed(2)
+                },
+                tokens: Object.fromEntries(
+                    Object.entries(byToken)
+                        .filter(([_, v]) => Math.abs(v.balance) > 0.0001 || v.boughtValue > 1)
+                        .map(([k, v]) => [k, {
+                            balance: v.balance.toFixed(4),
+                            bought: v.bought.toFixed(4),
+                            boughtValue: v.boughtValue.toFixed(2),
+                            sold: v.sold.toFixed(4),
+                            soldValue: v.soldValue.toFixed(2),
+                            rewards: v.rewards.toFixed(4),
+                            rewardsValue: v.rewardsValue.toFixed(2),
+                            avgBuyPrice: v.bought > 0 ? (v.boughtValue / v.bought).toFixed(4) : '0',
+                            txCount: v.transactions.length
+                        }])
+                ),
+                anomalies: anomalies.slice(0, 10) // Max 10 anomalies
+            };
+        }
+        
+        function buildAIPrompt(type, txSummary, customQuestion, exchId) {
+            const baseContext = `
+Sei un assistente fiscale crypto esperto in normativa italiana. Analizza questi dati dell'exchange ${exchId.toUpperCase()}.
+
+DATI TRANSAZIONI:
+${JSON.stringify(txSummary, null, 2)}
+
+NOTA: I prezzi sono in EUR. Per le tasse italiane conta il valore al 31/12.
+`;
+            
+            if (type === 'quick') {
+                return baseContext + `
+ANALISI RICHIESTA (rapida):
+1. 🚨 ANOMALIE: Elenca eventuali problemi nei dati (prezzi anomali, saldi negativi, etc.)
+2. 📊 RIEPILOGO: Totale acquisti, vendite, rewards in formato tabella
+3. 💡 SUGGERIMENTI: 1-2 consigli basati sui dati
+
+Rispondi in italiano, usa emoji, sii conciso.`;
+            }
+            
+            if (type === 'full') {
+                return baseContext + `
+ANALISI RICHIESTA (completa):
+1. 🚨 ANOMALIE: Tutti i problemi rilevati nei dati
+2. 📊 RIEPILOGO PER TOKEN: Per ogni token con valore > €1:
+   - Quantità posseduta
+   - Costo medio di acquisto
+   - Valore rewards ricevuti
+   - P&L stimato (se ha venduto)
+3. 📋 REPORT FISCALE:
+   - Valore portfolio stimato
+   - Plusvalenze realizzate (vendite)
+   - Rewards tassabili
+   - Note per Quadro RW
+4. 💡 SUGGERIMENTI: Azioni consigliate per ottimizzazione fiscale
+
+Rispondi in italiano, usa emoji e tabelle dove utile.`;
+            }
+            
+            if (type === 'question') {
+                return baseContext + `
+DOMANDA UTENTE:
+${customQuestion}
+
+Rispondi in italiano, in modo chiaro e dettagliato. Usa i dati forniti per rispondere.`;
+            }
+            
+            return baseContext;
+        }
+        
+        async function callClaudeAPI(apiKey, prompt) {
+            const response = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey,
+                    'anthropic-version': '2023-06-01',
+                    'anthropic-dangerous-direct-browser-access': 'true'
+                },
+                body: JSON.stringify({
+                    model: 'claude-sonnet-4-20250514',
+                    max_tokens: 2000,
+                    messages: [{
+                        role: 'user',
+                        content: prompt
+                    }]
+                })
+            });
+            
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(error.error?.message || `HTTP ${response.status}`);
+            }
+            
+            const data = await response.json();
+            return data.content[0].text;
+        }
+        
+        function formatAIResponse(text) {
+            // Convert markdown-style formatting to HTML
+            return text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n\n/g, '<br><br>')
+                .replace(/\n/g, '<br>')
+                .replace(/#{1,3}\s?(.*?)(<br>|$)/g, '<strong style="font-size:1.1em;">$1</strong>$2')
+                .replace(/`([^`]+)`/g, '<code style="background:var(--bg-secondary);padding:2px 6px;border-radius:4px;">$1</code>');
+        }
+        
+        // ==================== END AI ANALYSIS ====================
+        
         async function testExchangeApi(exchId) {
             if (exchId === 'binance') {
                 const apiKey = document.getElementById('apiKey-binance')?.value.trim();
@@ -8106,6 +8412,88 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeBitpandaApiModal()">Annulla</button>
                 <button class="btn btn-primary" onclick="downloadFromBitpandaModal()" style="background:#08b289;color:#fff;">📥 Scarica Storico</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- AI ANALYSIS MODAL -->
+    <div id="aiAnalysisModal" class="modal-overlay" onclick="if(event.target===this)closeAIAnalysisModal()">
+        <div class="modal-content" style="max-width:700px;">
+            <div class="modal-header">
+                <h3>🤖 Analisi AI Transazioni</h3>
+                <button class="modal-close" onclick="closeAIAnalysisModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- API Key Section -->
+                <div id="aiApiKeySection">
+                    <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:16px;border-radius:12px;margin-bottom:16px;color:#fff;">
+                        <strong>🔐 API Key Anthropic</strong><br>
+                        <span style="opacity:0.9;font-size:13px;">Necessaria per usare Claude AI. I dati restano privati.</span>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Claude API Key</label>
+                        <input type="password" id="claudeApiKeyInput" class="form-input" placeholder="sk-ant-api03-...">
+                        <div style="font-size:11px;color:var(--text-secondary);margin-top:4px;">
+                            <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:var(--accent);">
+                                🔑 Ottieni API Key da console.anthropic.com →
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div style="margin:20px 0;">
+                        <label class="form-label">Tipo di Analisi</label>
+                        <div style="display:flex;flex-direction:column;gap:10px;">
+                            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px;background:var(--bg-primary);border-radius:8px;">
+                                <input type="radio" name="aiAnalysisType" value="quick" checked>
+                                <div>
+                                    <strong>⚡ Analisi Rapida</strong>
+                                    <div style="font-size:12px;color:var(--text-secondary);">Anomalie + Riepilogo (~€0.01)</div>
+                                </div>
+                            </label>
+                            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px;background:var(--bg-primary);border-radius:8px;">
+                                <input type="radio" name="aiAnalysisType" value="full">
+                                <div>
+                                    <strong>📊 Analisi Completa</strong>
+                                    <div style="font-size:12px;color:var(--text-secondary);">+ Report Fiscale + P&L per token (~€0.03)</div>
+                                </div>
+                            </label>
+                            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px;background:var(--bg-primary);border-radius:8px;">
+                                <input type="radio" name="aiAnalysisType" value="question">
+                                <div>
+                                    <strong>💬 Fai una Domanda</strong>
+                                    <div style="font-size:12px;color:var(--text-secondary);">Chiedi qualsiasi cosa sui tuoi dati</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Custom Question -->
+                    <div id="aiCustomQuestionSection" style="display:none;" class="form-group">
+                        <label class="form-label">La tua domanda</label>
+                        <textarea id="aiCustomQuestion" class="form-input" rows="3" placeholder="Es: Quanto ho guadagnato/perso su VSN? Quali sono i miei rewards totali?"></textarea>
+                    </div>
+                </div>
+                
+                <!-- Results Section -->
+                <div id="aiResultsSection" style="display:none;">
+                    <div style="background:var(--bg-primary);padding:16px;border-radius:12px;max-height:400px;overflow-y:auto;">
+                        <div id="aiResultsContent" style="white-space:pre-wrap;font-family:monospace;font-size:13px;line-height:1.6;"></div>
+                    </div>
+                </div>
+                
+                <!-- Loading -->
+                <div id="aiLoadingSection" style="display:none;text-align:center;padding:40px;">
+                    <div style="font-size:48px;animation:pulse 1.5s infinite;">🤖</div>
+                    <div style="margin-top:16px;color:var(--text-secondary);">Claude sta analizzando le transazioni...</div>
+                    <div id="aiLoadingDetail" style="font-size:12px;color:var(--text-secondary);margin-top:8px;"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeAIAnalysisModal()">Chiudi</button>
+                <button id="aiAnalyzeBtn" class="btn btn-primary" onclick="runAIAnalysis()" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);">
+                    🚀 Avvia Analisi
+                </button>
             </div>
         </div>
     </div>
