@@ -6451,6 +6451,9 @@
             }
             
             // Calcola totali EUR per ogni anno (PRECISIONE CONTABILE)
+            // Lista stablecoin - prezzo fisso 1 USD
+            const STABLECOINS = ['USDT', 'USDC', 'BUSD', 'DAI', 'TUSD', 'USDP', 'GUSD', 'FDUSD', 'FRAX', 'UST', 'USTC'];
+            
             for (const year of years) {
                 // Skip anni prima della prima TX o dopo l'ultima TX
                 if (year < firstYear) {
@@ -6474,8 +6477,13 @@
                     let priceEur = 0;
                     let priceSource = '';
                     
+                    // STABLECOIN: prezzo fisso 1 USD = EUR_USD
+                    if (STABLECOINS.includes(coin.toUpperCase())) {
+                        priceEur = EUR_USD; // ~0.85
+                        priceSource = 'Stablecoin (1 USD)';
+                    }
                     // 1. Cerca ultimo prezzo dalle transazioni PRIMA del 31/12
-                    if (tokenPricesFromTx[coin]) {
+                    else if (tokenPricesFromTx[coin]) {
                         // tokenPricesFromTx contiene l'ultimo prezzo, ma cerchiamo quello più vicino al 31/12
                         const priceHistory = window.bitpandaPriceHistory?.[coin] || [];
                         let bestPrice = null;
@@ -6490,10 +6498,10 @@
                             }
                         }
                         
-                        if (bestPrice) {
+                        if (bestPrice && bestPrice < 100000) { // Sanity check: prezzo < 100k EUR
                             priceEur = bestPrice;
                             priceSource = `TX ${bestDate?.toISOString().slice(0,10)}`;
-                        } else {
+                        } else if (tokenPricesFromTx[coin] < 100000) {
                             // Usa ultimo prezzo disponibile
                             priceEur = tokenPricesFromTx[coin];
                             priceSource = 'TX (ultimo)';
