@@ -6384,16 +6384,15 @@
             data.transactions.sort((a, b) => a.date - b.date);
             
             // Calcola prezzi token dalle transazioni (per token senza prezzo CoinGecko)
+            // Usa il PREZZO UNITARIO dal CSV, NON il valore totale diviso quantità
             const tokenPricesFromTx = {};
             for (const tx of data.transactions) {
-                if (tx.amountEur && tx.amount && tx.amount > 0) {
-                    const pricePerUnit = tx.amountEur / tx.amount;
-                    if (pricePerUnit > 0) {
-                        tokenPricesFromTx[tx.coin] = pricePerUnit;
-                    }
+                // priceEur è il prezzo unitario già convertito in EUR
+                if (tx.priceEur && tx.priceEur > 0) {
+                    tokenPricesFromTx[tx.coin] = tx.priceEur;
                 }
             }
-            console.log('Token prices from transactions:', tokenPricesFromTx);
+            console.log('Token prices from transactions (unit price EUR):', tokenPricesFromTx);
             
             // Salva i prezzi nell'exchangeData
             data.tokenPrices = tokenPricesFromTx;
@@ -6445,8 +6444,11 @@
             }
             
             // Log dei saldi finali
-            console.log('Final balances (coins with value):', 
-                Object.entries(balances).filter(([c, a]) => a > 0.0001).map(([c, a]) => c + ': ' + a.toFixed(4)).join(', ').substring(0, 200));
+            console.log('📊 SALDI FINALI PER TOKEN:');
+            for (const [coin, amt] of Object.entries(balances).filter(([c, a]) => Math.abs(a) > 0.0001)) {
+                const price = tokenPricesFromTx[coin] || 0;
+                console.log(`  ${coin}: ${amt.toFixed(4)} × €${price.toFixed(4)} = €${(amt * price).toFixed(2)}`);
+            }
             
             // Calcola totali EUR per ogni anno (PRECISIONE CONTABILE)
             for (const year of years) {
