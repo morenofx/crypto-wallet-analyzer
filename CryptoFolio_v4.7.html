@@ -915,8 +915,13 @@
             'pancakeswap-token': { 2020: 0, 2021: 12.7, 2022: 3.7, 2023: 2.4, 2024: 2.1, 2025: 2.0, 2026: 2.5 },
             '1inch': { 2020: 0, 2021: 2.9, 2022: 0.47, 2023: 0.42, 2024: 0.52, 2025: 0.50, 2026: 0.55 },
             // Terra/Luna
-            'terra-luna': { 2020: 0.64, 2021: 93, 2022: 0.00017, 2023: 0.00015, 2024: 0.00008, 2025: 0.00004, 2026: 0.00004 },
+            'terra-luna': { 2020: 0.64, 2021: 93, 2022: 0.00017, 2023: 0.00012, 2024: 0.00012, 2025: 0.00004, 2026: 0.00004 },
             'terra-luna-2': { 2020: 0, 2021: 0, 2022: 2.5, 2023: 0.8, 2024: 0.45, 2025: 0.40, 2026: 0.45 },
+            // Telegram/TON ecosystem
+            'notcoin': { 2020: 0, 2021: 0, 2022: 0, 2023: 0, 2024: 0.015, 2025: 0.005, 2026: 0.005 },
+            'dogs-2': { 2020: 0, 2021: 0, 2022: 0, 2023: 0, 2024: 0.0008, 2025: 0.0003, 2026: 0.0003 },
+            'hamster-kombat': { 2020: 0, 2021: 0, 2022: 0, 2023: 0, 2024: 0.004, 2025: 0.002, 2026: 0.002 },
+            'catizen': { 2020: 0, 2021: 0, 2022: 0, 2023: 0, 2024: 0.5, 2025: 0.3, 2026: 0.35 },
             // Exchange tokens
             'crypto-com-chain': { 2020: 0.06, 2021: 0.60, 2022: 0.057, 2023: 0.073, 2024: 0.12, 2025: 0.10, 2026: 0.12 },
             // Other
@@ -955,6 +960,8 @@
             'CRV': 'curve-dao-token', 'SNX': 'synthetix-network-token',
             // Meme
             'PEPE': 'pepe', 'FLOKI': 'floki', 'BONE': 'bone-shibaswap',
+            // Telegram/TON meme
+            'NOT': 'notcoin', 'DOGS': 'dogs-2', 'HMSTR': 'hamster-kombat', 'CATI': 'catizen',
             // Gaming/Metaverse  
             'SAND': 'the-sandbox', 'MANA': 'decentraland', 'AXS': 'axie-infinity',
             'ENJ': 'enjincoin', 'GALA': 'gala', 'IMX': 'immutable-x',
@@ -7559,10 +7566,11 @@ Rispondi in italiano.`;
                     type = 'transfer';
                     stats.transfers++;
                 }
-                // SUBSCRIPTION/REDEMPTION (Earn - movimento interno)
+                // SUBSCRIPTION/REDEMPTION (Earn - movimento interno, NON contare!)
                 else if (opLower.includes('subscription') || opLower.includes('redemption')) {
-                    type = 'earn_move';
-                    stats.transfers++;
+                    // SKIP - questo è solo un movimento Spot ↔ Earn, i token sono ancora tuoi!
+                    stats.skipped++;
+                    continue;
                 }
                 // TRANSACTION RELATED / REVENUE (spesso accoppiato con altre TX)
                 else if (opLower.includes('transaction related') || opLower.includes('transaction revenue')) {
