@@ -9591,6 +9591,15 @@ Rispondi in italiano.`;
             loadWalletTransactions(); // Carica transazioni wallet
             loadQuadriRWHistory(); // Carica storico Quadri RW
             initChainSelector();
+            
+            // Forza refresh UI dopo un breve delay (fix timing issues)
+            setTimeout(() => {
+                initExchangeGrid();
+                updateExchangeTotals();
+                updateWalletsList();
+                console.log('🔄 UI refreshed after init');
+            }, 100);
+            
             initExchangeGrid();
             updateBlacklist();
             updateWalletsList();
