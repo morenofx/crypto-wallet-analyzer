@@ -1135,6 +1135,436 @@
         
         // ==================== END CRYPTOCOMPARE API ====================
         
+        // ==================== SISTEMA PREZZI UNIFICATO ====================
+        
+        // Funzione UNICA per ottenere prezzo EUR
+        // Priorità: 1. CryptoCompare (data) → 2. CryptoCompare (anno) → 3. CoinGecko → 4. Stablecoin
+        function getPriceEur(coin, dateOrYear) {
+            const coinUpper = (coin || '').toUpperCase();
+            if (!coinUpper) return 0;
+            
+            // Stablecoins - prezzo fisso
+            const STABLECOINS = ['USDT', 'USDC', 'BUSD', 'DAI', 'TUSD', 'FDUSD', 'UST', 'USTC'];
+            if (STABLECOINS.includes(coinUpper)) return EUR_USD;
+            if (coinUpper === 'EUR') return 1;
+            if (coinUpper === 'USD') return EUR_USD;
+            
+            // Skip token Earn (LD*)
+            if (coinUpper.startsWith('LD')) return 0;
+            
+            let year, dateKey;
+            
+            if (typeof dateOrYear === 'number') {
+                // È un anno
+                year = dateOrYear;
+                dateKey = `${year}-12-31`;
+            } else if (dateOrYear instanceof Date) {
+                // È una data
+                year = dateOrYear.getFullYear();
+                dateKey = dateOrYear.toISOString().slice(0, 10);
+            } else if (typeof dateOrYear === 'string') {
+                // Potrebbe essere ISO date o anno
+                if (dateOrYear.length === 4) {
+                    year = parseInt(dateOrYear);
+                    dateKey = `${year}-12-31`;
+                } else {
+                    const d = new Date(dateOrYear);
+                    year = d.getFullYear();
+                    dateKey = d.toISOString().slice(0, 10);
+                }
+            } else {
+                year = new Date().getFullYear();
+                dateKey = new Date().toISOString().slice(0, 10);
+            }
+            
+            // 1. CryptoCompare cache con data specifica
+            const ccKeyDate = `${coinUpper}_${dateKey}`;
+            if (cryptoComparePriceCache[ccKeyDate] && cryptoComparePriceCache[ccKeyDate] > 0) {
+                return cryptoComparePriceCache[ccKeyDate];
+            }
+            
+            // 2. CryptoCompare cache con anno (31/12)
+            const ccKeyYear = `${coinUpper}_${year}`;
+            if (cryptoComparePriceCache[ccKeyYear] && cryptoComparePriceCache[ccKeyYear] > 0) {
+                return cryptoComparePriceCache[ccKeyYear];
+            }
+            
+            // 3. CoinGecko hardcoded (fallback)
+            const cgPrice = getHistoricalPrice(coinUpper, year);
+            if (cgPrice && cgPrice > 0) {
+                return cgPrice * EUR_USD; // CoinGecko è in USD
+            }
+            
+            // 4. CoinGecko real-time cache (per anno corrente)
+            const currentYear = new Date().getFullYear();
+            if (year >= currentYear - 1) {
+                const cachedPrice = getCachedPrice ? getCachedPrice(coinUpper) : null;
+                if (cachedPrice && cachedPrice > 0) {
+                    return cachedPrice; // Già in EUR
+                }
+            }
+            
+            return 0;
+        }
+        
+        // Versione async che fetcha da CryptoCompare se non in cache
+        async function getPriceEurAsync(coin, dateOrYear) {
+            // Prima prova cache
+            let price = getPriceEur(coin, dateOrYear);
+            if (price > 0) return price;
+            
+            const coinUpper = (coin || '').toUpperCase();
+            if (!coinUpper) return 0;
+            
+            // Fetch da CryptoCompare
+            let year;
+            if (typeof dateOrYear === 'number') {
+                year = dateOrYear;
+                price = await fetchCryptoComparePrice(coinUpper, year);
+            } else if (dateOrYear instanceof Date || typeof dateOrYear === 'string') {
+                const d = dateOrYear instanceof Date ? dateOrYear : new Date(dateOrYear);
+                price = await fetchCryptoComparePriceForDate(coinUpper, d);
+            }
+            
+            return price || 0;
+        }
+        
+        // ==================== END SISTEMA PREZZI UNIFICATO ====================
+        
+        // ==================== SISTEMA TRANSAZIONI ARRICCHITE ====================
+        
+        // Struttura transazione "perfetta" per fisco italiano
+        function createEnrichedTransaction(data) {
+            const tx = {
+                // Identificazione
+                id: data.id || `TX_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+                timestamp: data.timestamp instanceof Date ? data.timestamp : new Date(data.timestamp || data.date),
+                
+                // Tipo operazione
+                type: data.type || 'unknown', // buy, sell, transfer, swap, reward, staking, fee, deposit, withdrawal
+                
+                // Asset movimentati (per swap: BTC → ETH)
+                asset_in: data.asset_in || data.coin || null,   // Cosa ricevo
+                asset_out: data.asset_out || null,              // Cosa do (EUR per buy, crypto per swap)
+                amount_in: Math.abs(data.amount_in || data.amount || 0),
+                amount_out: Math.abs(data.amount_out || 0),
+                
+                // Prezzi e valori
+                price_eur: data.price_eur || 0,          // Prezzo unitario asset_in in EUR
+                value_eur: data.value_eur || 0,          // Valore totale operazione in EUR
+                fee_eur: data.fee_eur || 0,              // Commissione in EUR
+                fee_asset: data.fee_asset || null,       // Asset usato per fee (BNB, EUR, etc)
+                fee_amount: data.fee_amount || 0,        // Quantità fee
+                
+                // Cost Basis (prezzo di carico)
+                cost_basis_eur: data.cost_basis_eur || 0, // Per acquisti: (amount × price) + fee
+                
+                // Riconciliazione
+                tx_hash: data.tx_hash || null,           // Hash blockchain
+                order_id: data.order_id || null,         // ID ordine exchange
+                is_internal: data.is_internal || false,  // Transfer tra miei wallet
+                linked_tx_id: data.linked_tx_id || null, // ID transazione collegata (transfer matching)
+                is_taxable: data.is_taxable !== false,   // Default true, false per transfer interni
+                
+                // Metadati
+                source: data.source || 'manual',         // binance, bitpanda, bitget, wallet, manual
+                exchange: data.exchange || data.source || null,
+                wallet: data.wallet || null,
+                notes: data.notes || '',
+                
+                // Legacy compatibility
+                coin: data.asset_in || data.coin || null,
+                amount: data.amount_in || data.amount || 0,
+                change: data.change || (data.type === 'sell' || data.type === 'withdrawal' ? -Math.abs(data.amount_in || data.amount || 0) : Math.abs(data.amount_in || data.amount || 0)),
+                date: data.timestamp instanceof Date ? data.timestamp : new Date(data.timestamp || data.date),
+                amountEur: data.value_eur || data.amountEur || 0
+            };
+            
+            // Auto-calcola campi mancanti
+            if (!tx.price_eur && tx.asset_in && tx.timestamp) {
+                tx.price_eur = getPriceEur(tx.asset_in, tx.timestamp);
+            }
+            
+            if (!tx.value_eur && tx.price_eur > 0 && tx.amount_in > 0) {
+                tx.value_eur = tx.amount_in * tx.price_eur;
+                tx.amountEur = tx.value_eur;
+            }
+            
+            // Cost basis per acquisti
+            if ((tx.type === 'buy' || tx.type === 'deposit') && tx.value_eur > 0) {
+                tx.cost_basis_eur = tx.value_eur + tx.fee_eur;
+            }
+            
+            // Determina se tassabile
+            if (tx.type === 'transfer' || tx.is_internal) {
+                tx.is_taxable = false;
+            }
+            
+            return tx;
+        }
+        
+        // Arricchisce array di transazioni esistenti
+        function enrichTransactions(transactions, source) {
+            if (!transactions || !Array.isArray(transactions)) return [];
+            
+            return transactions.map(tx => {
+                // Se già arricchita, ritorna come è
+                if (tx.id && tx.asset_in !== undefined && tx.cost_basis_eur !== undefined) {
+                    return tx;
+                }
+                
+                // Arricchisci
+                return createEnrichedTransaction({
+                    ...tx,
+                    source: source || tx.source || 'unknown'
+                });
+            });
+        }
+        
+        // Calcola cost basis automatico per una transazione
+        async function calculateTransactionCostBasis(tx) {
+            if (!tx.asset_in || tx.amount_in <= 0) return tx;
+            
+            // Fetch prezzo se non presente
+            if (!tx.price_eur || tx.price_eur <= 0) {
+                tx.price_eur = await getPriceEurAsync(tx.asset_in, tx.timestamp);
+            }
+            
+            // Calcola valore
+            if (tx.price_eur > 0) {
+                tx.value_eur = tx.amount_in * tx.price_eur;
+                tx.amountEur = tx.value_eur;
+            }
+            
+            // Cost basis = valore + fee (per acquisti)
+            if (tx.type === 'buy' || tx.type === 'deposit') {
+                tx.cost_basis_eur = tx.value_eur + (tx.fee_eur || 0);
+            }
+            
+            return tx;
+        }
+        
+        // Batch enrich con fetch prezzi da CryptoCompare
+        async function enrichTransactionsWithPrices(transactions, progressCallback) {
+            const total = transactions.length;
+            let processed = 0;
+            
+            // Raggruppa per coin+data per minimizzare API calls
+            const priceRequests = new Map();
+            
+            for (const tx of transactions) {
+                if (!tx.asset_in || tx.asset_in === 'EUR' || tx.asset_in === 'USD') continue;
+                if (tx.price_eur && tx.price_eur > 0) continue;
+                
+                const date = tx.timestamp instanceof Date ? tx.timestamp : new Date(tx.timestamp);
+                const dateKey = date.toISOString().slice(0, 10);
+                const key = `${tx.asset_in.toUpperCase()}_${dateKey}`;
+                
+                if (!priceRequests.has(key)) {
+                    priceRequests.set(key, { coin: tx.asset_in, date, dateKey });
+                }
+            }
+            
+            console.log(`📊 Fetching ${priceRequests.size} prezzi unici per ${total} transazioni...`);
+            
+            // Fetch prezzi mancanti
+            let fetched = 0;
+            for (const [key, info] of priceRequests) {
+                // Skip se già in cache
+                if (cryptoComparePriceCache[key]) continue;
+                
+                const price = await fetchCryptoComparePriceForDate(info.coin, info.date);
+                fetched++;
+                
+                if (progressCallback) {
+                    progressCallback(fetched, priceRequests.size);
+                }
+                
+                // Rate limit
+                await new Promise(r => setTimeout(r, 60));
+            }
+            
+            // Applica prezzi alle transazioni
+            for (const tx of transactions) {
+                if (!tx.asset_in || tx.price_eur > 0) continue;
+                
+                const date = tx.timestamp instanceof Date ? tx.timestamp : new Date(tx.timestamp);
+                tx.price_eur = getPriceEur(tx.asset_in, date);
+                
+                if (tx.price_eur > 0 && tx.amount_in > 0) {
+                    tx.value_eur = tx.amount_in * tx.price_eur;
+                    tx.amountEur = tx.value_eur;
+                    
+                    if (tx.type === 'buy' || tx.type === 'deposit') {
+                        tx.cost_basis_eur = tx.value_eur + (tx.fee_eur || 0);
+                    }
+                }
+                
+                processed++;
+            }
+            
+            console.log(`✅ Arricchite ${processed} transazioni con prezzi`);
+            return transactions;
+        }
+        
+        // Deduplicazione transazioni per TxHash o OrderID
+        function deduplicateTransactions(transactions) {
+            const seen = new Map();
+            const duplicates = [];
+            const unique = [];
+            
+            for (const tx of transactions) {
+                // Chiave univoca: tx_hash > order_id > timestamp+coin+amount
+                let key;
+                if (tx.tx_hash) {
+                    key = `hash_${tx.tx_hash}`;
+                } else if (tx.order_id) {
+                    key = `order_${tx.order_id}`;
+                } else {
+                    const ts = tx.timestamp instanceof Date ? tx.timestamp.getTime() : new Date(tx.timestamp).getTime();
+                    key = `${ts}_${tx.asset_in || tx.coin}_${tx.amount_in || tx.amount}`;
+                }
+                
+                if (seen.has(key)) {
+                    duplicates.push(tx);
+                    console.log(`⚠️ Duplicato trovato: ${key}`);
+                } else {
+                    seen.set(key, tx);
+                    unique.push(tx);
+                }
+            }
+            
+            if (duplicates.length > 0) {
+                console.log(`🔍 Rimossi ${duplicates.length} duplicati su ${transactions.length} transazioni`);
+            }
+            
+            return { unique, duplicates };
+        }
+        
+        // Transfer Matching migliorato
+        function matchInternalTransfers(transactions, windowMinutes = 30) {
+            const windowMs = windowMinutes * 60 * 1000;
+            const withdrawals = transactions.filter(tx => tx.type === 'withdrawal');
+            const deposits = transactions.filter(tx => tx.type === 'deposit');
+            
+            let matched = 0;
+            
+            for (const withdrawal of withdrawals) {
+                if (withdrawal.linked_tx_id) continue; // Già matchato
+                
+                const wTime = withdrawal.timestamp instanceof Date ? withdrawal.timestamp.getTime() : new Date(withdrawal.timestamp).getTime();
+                const wCoin = (withdrawal.asset_in || withdrawal.coin || '').toUpperCase();
+                const wAmount = Math.abs(withdrawal.amount_in || withdrawal.amount || 0);
+                
+                // Cerca deposit corrispondente
+                for (const deposit of deposits) {
+                    if (deposit.linked_tx_id) continue;
+                    
+                    const dTime = deposit.timestamp instanceof Date ? deposit.timestamp.getTime() : new Date(deposit.timestamp).getTime();
+                    const dCoin = (deposit.asset_in || deposit.coin || '').toUpperCase();
+                    const dAmount = Math.abs(deposit.amount_in || deposit.amount || 0);
+                    
+                    // Match: stesso coin, quantità simile (±5%), tempo entro finestra
+                    const timeDiff = Math.abs(dTime - wTime);
+                    const amountDiff = Math.abs(wAmount - dAmount) / Math.max(wAmount, dAmount);
+                    
+                    if (wCoin === dCoin && 
+                        timeDiff <= windowMs && 
+                        amountDiff <= 0.05 && // Tolleranza 5% per fee di rete
+                        deposit.source !== withdrawal.source) { // Diversi exchange/wallet
+                        
+                        // Match trovato!
+                        withdrawal.linked_tx_id = deposit.id;
+                        withdrawal.is_internal = true;
+                        withdrawal.is_taxable = false;
+                        withdrawal.type = 'transfer';
+                        
+                        deposit.linked_tx_id = withdrawal.id;
+                        deposit.is_internal = true;
+                        deposit.is_taxable = false;
+                        deposit.type = 'transfer';
+                        
+                        // Il deposit eredita il cost basis del withdrawal
+                        deposit.cost_basis_eur = withdrawal.cost_basis_eur || deposit.cost_basis_eur;
+                        
+                        matched++;
+                        console.log(`🔗 Transfer match: ${wCoin} ${wAmount.toFixed(4)} (${withdrawal.source} → ${deposit.source})`);
+                        break;
+                    }
+                }
+            }
+            
+            console.log(`✅ Matched ${matched} trasferimenti interni`);
+            return transactions;
+        }
+        
+        // Zero-Sum Check: verifica coerenza saldi
+        function zeroSumCheck(transactions, realBalances) {
+            const calculated = {};
+            const issues = [];
+            
+            // Calcola saldi dalle transazioni
+            for (const tx of transactions) {
+                const coin = (tx.asset_in || tx.coin || '').toUpperCase();
+                if (!coin || coin === 'EUR' || coin === 'USD') continue;
+                
+                if (!calculated[coin]) calculated[coin] = 0;
+                calculated[coin] += tx.change || 0;
+                
+                if (Math.abs(calculated[coin]) < 0.00000001) {
+                    calculated[coin] = 0;
+                }
+            }
+            
+            // Confronta con saldi reali
+            if (realBalances) {
+                for (const [coin, realAmount] of Object.entries(realBalances)) {
+                    if (coin.startsWith('LD')) continue; // Skip Earn tokens
+                    
+                    const calcAmount = calculated[coin] || 0;
+                    const diff = Math.abs(realAmount - calcAmount);
+                    const diffPercent = realAmount > 0 ? (diff / realAmount) * 100 : 0;
+                    
+                    if (diffPercent > 1 && diff > 0.001) { // >1% differenza
+                        issues.push({
+                            coin,
+                            calculated: calcAmount,
+                            real: realAmount,
+                            difference: realAmount - calcAmount,
+                            percentDiff: diffPercent
+                        });
+                    }
+                }
+                
+                // Check coin mancanti
+                for (const coin of Object.keys(calculated)) {
+                    if (calculated[coin] > 0.001 && !realBalances[coin]) {
+                        issues.push({
+                            coin,
+                            calculated: calculated[coin],
+                            real: 0,
+                            difference: -calculated[coin],
+                            percentDiff: 100,
+                            note: 'Transazione mancante? Coin calcolato ma non presente nei saldi reali'
+                        });
+                    }
+                }
+            }
+            
+            if (issues.length > 0) {
+                console.warn('⚠️ Zero-Sum Check - Discrepanze trovate:');
+                for (const issue of issues) {
+                    console.warn(`  ${issue.coin}: calcolato=${issue.calculated.toFixed(6)}, reale=${issue.real.toFixed(6)}, diff=${issue.difference.toFixed(6)} (${issue.percentDiff.toFixed(1)}%)`);
+                }
+            } else {
+                console.log('✅ Zero-Sum Check: tutti i saldi corrispondono');
+            }
+            
+            return { calculated, issues, isValid: issues.length === 0 };
+        }
+        
+        // ==================== END SISTEMA TRANSAZIONI ARRICCHITE ====================
+        
         // Fetch prezzi mancanti da CryptoCompare
         async function fetchMissingPrices() {
             const btn = event.target;
@@ -2187,6 +2617,248 @@
         }
         
         // ==================== END ADVANCED TAX CALCULATIONS ====================
+        
+        // ==================== IVCA (Imposta 0.2%) PRO-RATA ====================
+        
+        // Database minusvalenze
+        let minusvalenzeDB = JSON.parse(localStorage.getItem('cryptofolio_minusvalenze') || '[]');
+        
+        function saveMinusvalenze() {
+            localStorage.setItem('cryptofolio_minusvalenze', JSON.stringify(minusvalenzeDB));
+        }
+        
+        // Registra minusvalenza
+        function registerMinusvalenza(data) {
+            // data: { date, coin, amount (EUR), saleId }
+            const minusvalenza = {
+                id: `MINUS_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+                date: data.date,
+                year: new Date(data.date).getFullYear(),
+                coin: data.coin.toUpperCase(),
+                amount: data.amount, // Importo perdita in EUR
+                usedAmount: 0, // Quanto è stato compensato
+                expiryYear: new Date(data.date).getFullYear() + 4, // Valida per 4 anni
+                saleId: data.saleId || null
+            };
+            
+            minusvalenzeDB.push(minusvalenza);
+            saveMinusvalenze();
+            
+            console.log(`📉 Minusvalenza registrata: €${minusvalenza.amount.toFixed(2)} (valida fino ${minusvalenza.expiryYear})`);
+            return minusvalenza;
+        }
+        
+        // Ottieni crediti fiscali disponibili
+        function getAvailableMinusvalenze(forYear) {
+            return minusvalenzeDB.filter(m => 
+                m.expiryYear >= forYear && 
+                m.usedAmount < m.amount
+            ).map(m => ({
+                ...m,
+                available: m.amount - m.usedAmount
+            }));
+        }
+        
+        // Compensa plusvalenza con minusvalenze
+        function compensateWithMinusvalenze(plusvalenza, forYear) {
+            let remaining = plusvalenza;
+            const compensations = [];
+            
+            const available = getAvailableMinusvalenze(forYear)
+                .sort((a, b) => a.year - b.year); // Usa prima le più vecchie
+            
+            for (const minus of available) {
+                if (remaining <= 0) break;
+                
+                const toUse = Math.min(minus.available, remaining);
+                minus.usedAmount += toUse;
+                remaining -= toUse;
+                
+                compensations.push({
+                    minusId: minus.id,
+                    amount: toUse,
+                    fromYear: minus.year
+                });
+                
+                // Aggiorna nel database
+                const dbEntry = minusvalenzeDB.find(m => m.id === minus.id);
+                if (dbEntry) dbEntry.usedAmount = minus.usedAmount;
+            }
+            
+            saveMinusvalenze();
+            
+            return {
+                originalPlusvalenza: plusvalenza,
+                compensated: plusvalenza - remaining,
+                netPlusvalenza: remaining,
+                compensations
+            };
+        }
+        
+        // Calcola IVCA con pro-rata giorni
+        function calculateIVCA(year, yearEndValue, firstPurchaseDates) {
+            const IVCA_RATE = 0.002; // 0.2%
+            const daysInYear = (year % 4 === 0) ? 366 : 365;
+            
+            if (!yearEndValue || !yearEndValue.assets) {
+                console.log(`⚠️ Nessun dato per calcolo IVCA ${year}`);
+                return null;
+            }
+            
+            let totalIVCA = 0;
+            const details = {};
+            
+            for (const [coin, data] of Object.entries(yearEndValue.assets)) {
+                if (!data.valueEur || data.valueEur < 1) continue;
+                
+                // Trova data primo acquisto
+                let daysHeld = daysInYear;
+                const firstPurchase = firstPurchaseDates?.[coin.toUpperCase()];
+                
+                if (firstPurchase) {
+                    const purchaseDate = new Date(firstPurchase);
+                    if (purchaseDate.getFullYear() === year) {
+                        // Acquistato durante l'anno - calcola giorni
+                        const yearEnd = new Date(year, 11, 31);
+                        daysHeld = Math.ceil((yearEnd - purchaseDate) / (1000 * 60 * 60 * 24)) + 1;
+                    }
+                }
+                
+                const proRata = daysHeld / daysInYear;
+                const ivcaCoin = data.valueEur * IVCA_RATE * proRata;
+                totalIVCA += ivcaCoin;
+                
+                details[coin] = {
+                    valueEur: data.valueEur,
+                    daysHeld,
+                    proRata: Math.round(proRata * 1000) / 1000,
+                    ivca: Math.round(ivcaCoin * 100) / 100
+                };
+            }
+            
+            return {
+                year,
+                totalIVCA: Math.round(totalIVCA * 100) / 100,
+                totalValue: yearEndValue.totalValueEur,
+                rate: '0.2%',
+                details
+            };
+        }
+        
+        // Trova data primo acquisto per ogni coin
+        function getFirstPurchaseDates() {
+            const dates = {};
+            
+            // Da cost basis lots
+            for (const lot of costBasisLots) {
+                const coin = lot.coin.toUpperCase();
+                const lotDate = new Date(lot.date);
+                
+                if (!dates[coin] || lotDate < new Date(dates[coin])) {
+                    dates[coin] = lot.date;
+                }
+            }
+            
+            // Da transazioni exchange
+            for (const exchId of Object.keys(exchangeData)) {
+                const data = exchangeData[exchId];
+                if (data.transactions) {
+                    for (const tx of data.transactions) {
+                        if (tx.type === 'buy' || tx.type === 'deposit' || (tx.change > 0 && tx.type === 'trade')) {
+                            const coin = (tx.coin || '').toUpperCase();
+                            if (!coin || coin === 'EUR' || coin === 'USD') continue;
+                            
+                            const txDate = tx.date instanceof Date ? tx.date : new Date(tx.date);
+                            
+                            if (!dates[coin] || txDate < new Date(dates[coin])) {
+                                dates[coin] = txDate.toISOString();
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return dates;
+        }
+        
+        // ==================== REPORT FISCALE COMPLETO ====================
+        
+        function generateCompleteFiscalReport(year) {
+            console.log(`\n📋 Generazione Report Fiscale ${year}...`);
+            
+            // Raccogli dati
+            const yearEndData = { assets: {}, totalValueEur: 0 };
+            
+            // Da tutti gli exchange
+            for (const exchId of Object.keys(exchangeData)) {
+                const data = exchangeData[exchId];
+                if (data.balances && data.balances[year]) {
+                    for (const [coin, amount] of Object.entries(data.balances[year])) {
+                        if (amount > 0.0001 && !coin.startsWith('LD')) {
+                            if (!yearEndData.assets[coin]) {
+                                yearEndData.assets[coin] = { amount: 0, valueEur: 0, sources: [] };
+                            }
+                            yearEndData.assets[coin].amount += amount;
+                            yearEndData.assets[coin].sources.push(exchId);
+                        }
+                    }
+                }
+                if (data.totals && data.totals[year]) {
+                    yearEndData.totalValueEur += data.totals[year];
+                }
+            }
+            
+            // Calcola prezzi per ogni asset
+            for (const [coin, data] of Object.entries(yearEndData.assets)) {
+                const priceEur = getPriceEur(coin, year);
+                data.priceEur = priceEur;
+                data.valueEur = data.amount * priceEur;
+            }
+            
+            // IVCA
+            const firstPurchaseDates = getFirstPurchaseDates();
+            const ivca = calculateIVCA(year, yearEndData, firstPurchaseDates);
+            
+            // Minusvalenze disponibili
+            const minusvalenzeDisponibili = getAvailableMinusvalenze(year);
+            const totaleMinusvalenze = minusvalenzeDisponibili.reduce((sum, m) => sum + m.available, 0);
+            
+            // Costruisci report
+            const report = {
+                year,
+                generatedAt: new Date().toISOString(),
+                
+                // Quadro RW
+                quadroRW: {
+                    totalValue: Math.round(yearEndData.totalValueEur * 100) / 100,
+                    assets: yearEndData.assets,
+                    threshold: 15000, // Soglia dichiarazione
+                    requiresDeclaration: yearEndData.totalValueEur > 15000
+                },
+                
+                // IVCA
+                ivca: ivca,
+                
+                // Minusvalenze
+                minusvalenze: {
+                    disponibili: minusvalenzeDisponibili,
+                    totale: Math.round(totaleMinusvalenze * 100) / 100
+                },
+                
+                // Aliquote
+                taxRates: {
+                    standard: year >= 2026 ? '33%' : '26%',
+                    eurStablecoin: '26% (MiCAR)'
+                }
+            };
+            
+            console.log(`\n✅ Report Fiscale ${year}:`);
+            console.log(`   📊 Quadro RW: €${report.quadroRW.totalValue.toLocaleString('it-IT')}`);
+            console.log(`   💶 IVCA (0.2%): €${(ivca?.totalIVCA || 0).toFixed(2)}`);
+            console.log(`   📉 Minusvalenze disponibili: €${totaleMinusvalenze.toFixed(2)}`);
+            
+            return report;
+        }
         
         function runReconciliator() {
             const issues = reconcileInventory();
@@ -5309,10 +5981,9 @@
                     skippedLD++;
                     continue;
                 }
-                const price = getHistoricalPrice(coin, year);
-                const eurValue = amount * price * EUR_USD;
+                const eurValue = amount * getPriceEur(coin, year);
                 totalEur += eurValue;
-                items.push({ coin, amount, price, eurValue });
+                items.push({ coin, amount, price: getPriceEur(coin, year), eurValue });
             }
             
             // Ordina per valore EUR
@@ -5365,8 +6036,7 @@
                         earnTokens.push([coin, amount]);
                     } else {
                         normalTokens.push([coin, amount]);
-                        const price = getHistoricalPrice(coin, 2026);
-                        totalEur += amount * price * EUR_USD;
+                        totalEur += amount * getPriceEur(coin, 2026);
                     }
                 }
                 
@@ -5377,10 +6047,9 @@
                 details += `✅ SALDI REALI (Spot + Earn):\n\n`;
                 for (const [coin, amount] of normalTokens) {
                     const amtStr = amount < 1 ? amount.toFixed(6) : amount.toLocaleString('it-IT', { maximumFractionDigits: 2 });
-                    const price = getHistoricalPrice(coin, 2026);
-                    const eurValue = amount * price * EUR_USD;
+                    const eurValue = amount * getPriceEur(coin, 2026);
                     details += `${coin}: ${amtStr}`;
-                    if (price > 0) {
+                    if (eurValue > 0) {
                         details += ` → €${eurValue.toFixed(2)}`;
                     }
                     details += `\n`;
@@ -5650,16 +6319,15 @@
             const items = Object.entries(balances)
                 .filter(([coin, amt]) => amt > 0 && !coin.startsWith('LD')) // Escludi token LD* (Earn duplicati)
                 .sort((a, b) => {
-                    const priceA = getHistoricalPrice(a[0], 2026) * a[1];
-                    const priceB = getHistoricalPrice(b[0], 2026) * b[1];
+                    const priceA = getPriceEur(a[0], 2026) * a[1];
+                    const priceB = getPriceEur(b[0], 2026) * b[1];
                     return priceB - priceA;
                 })
                 .slice(0, 8);
             
             let html = '';
             for (const [coin, amount] of items) {
-                const price = getHistoricalPrice(coin, 2026);
-                const eurValue = amount * price * EUR_USD;
+                const eurValue = amount * getPriceEur(coin, 2026);
                 const amtStr = amount < 1 ? amount.toFixed(4) : amount.toLocaleString('it-IT', { maximumFractionDigits: 2 });
                 html += `<div style="background:var(--bg-primary);padding:10px;border-radius:6px;">
                     <div style="font-weight:600;font-size:13px;">${coin}</div>
@@ -5732,11 +6400,12 @@
             
             let html = '';
             for (const tx of pageTx) {
-                const d = tx.date instanceof Date ? tx.date : new Date(tx.date);
-                const dateStr = d.toLocaleDateString('it-IT');
-                const timeStr = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+                const d = tx.timestamp || tx.date;
+                const txDate = d instanceof Date ? d : new Date(d);
+                const dateStr = txDate.toLocaleDateString('it-IT');
+                const timeStr = txDate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
                 const style = typeColors[tx.type] || { bg: 'rgba(160,160,160,0.15)', color: 'var(--text-secondary)', icon: '•' };
-                const amt = parseFloat(tx.amount) || 0;
+                const amt = parseFloat(tx.amount_in || tx.amount) || 0;
                 const change = parseFloat(tx.change) || 0;
                 const amtColor = change >= 0 ? 'var(--green)' : 'var(--red)';
                 const sign = change >= 0 ? '+' : '';
@@ -5751,45 +6420,51 @@
                     buy: 'Buy',
                     sell: 'Sell',
                     convert: 'Convert',
+                    swap: 'Swap',
                     staking: 'Staking',
                     interest: 'Interest',
                     dividend: 'Dividend',
+                    reward: 'Reward',
                     fee: 'Fee',
                     dust: 'Dust',
                     transfer: 'Transfer',
                     refund: 'Refund'
                 };
-                const typeLabel = typeLabels[tx.type] || tx.type || '-';
+                let typeLabel = typeLabels[tx.type] || tx.type || '-';
                 
-                // Valore EUR se disponibile o calcolato
+                // 🔗 Indicatore transfer interno
+                if (tx.is_internal || tx.linked_tx_id) {
+                    typeLabel = '🔗 ' + typeLabel;
+                }
+                
+                // Coin display (con asset_out per swap)
+                const coinDisplay = tx.asset_out && tx.asset_out !== 'EUR' && tx.type === 'swap' 
+                    ? `${tx.asset_in || tx.coin} → ${tx.asset_out}`
+                    : (tx.asset_in || tx.coin || '-');
+                
+                // Valore EUR - usa nuovi campi se disponibili
                 let eurValue = '';
-                if (tx.amountEur && tx.amountEur > 0) {
+                let eurColor = 'var(--text-secondary)';
+                
+                // 1. value_eur dalla transazione arricchita
+                if (tx.value_eur && tx.value_eur > 0) {
+                    eurValue = `€${formatNumber(tx.value_eur)}`;
+                    eurColor = 'var(--text-primary)';
+                }
+                // 2. amountEur legacy
+                else if (tx.amountEur && tx.amountEur > 0) {
                     eurValue = `€${formatNumber(tx.amountEur)}`;
-                } else {
-                    // Prova a calcolare dal prezzo
-                    const exchData = exchangeData[currentDetailExchange] || {};
-                    const savedPrices = exchData.tokenPrices || {};
-                    
-                    // 1. Prima CryptoCompare con data specifica
-                    const txDate = tx.date instanceof Date ? tx.date : new Date(tx.date);
-                    const dateKey = txDate.toISOString().slice(0, 10);
-                    const ccKey = `${(tx.coin || '').toUpperCase()}_${dateKey}`;
-                    let price = cryptoComparePriceCache[ccKey];
-                    let priceSource = 'CC';
-                    
-                    // 2. Poi prezzo salvato dall'exchange
-                    if (!price || price <= 0) {
-                        price = savedPrices[tx.coin];
-                        priceSource = 'saved';
+                }
+                // 3. Calcola da prezzo
+                else if (tx.price_eur && tx.price_eur > 0) {
+                    const calcEur = amt * tx.price_eur;
+                    if (calcEur > 0.001) {
+                        eurValue = `~€${formatNumber(calcEur)}`;
                     }
-                    
-                    // 3. Poi CoinGecko hardcoded
-                    if (!price || price <= 0) {
-                        price = getHistoricalPrice(tx.coin, txDate.getFullYear());
-                        if (price > 0) price = price * EUR_USD;
-                        priceSource = 'CG';
-                    }
-                    
+                }
+                // 4. Fallback: getPriceEur
+                else {
+                    const price = getPriceEur(tx.asset_in || tx.coin, txDate);
                     if (price && price > 0) {
                         const calcEur = amt * price;
                         if (calcEur > 0.001) {
@@ -5798,7 +6473,15 @@
                     }
                 }
                 
-                html += `<tr>
+                // Fee indicator
+                const feeIndicator = tx.fee_eur && tx.fee_eur > 0 
+                    ? `<span style="font-size:10px;color:var(--yellow);" title="Fee: €${tx.fee_eur.toFixed(2)}">💸</span>` 
+                    : '';
+                
+                // Row style per transfer interni (sfondo diverso)
+                const rowStyle = tx.is_internal ? 'background:rgba(108,92,231,0.05);' : '';
+                
+                html += `<tr style="${rowStyle}">
                     <td style="white-space:nowrap;">
                         <div style="font-size:14px;font-weight:500;">${dateStr}</div>
                         <div style="font-size:11px;color:var(--text-secondary);">${timeStr}</div>
@@ -5806,9 +6489,9 @@
                     <td>
                         <span class="tx-badge" style="background:${style.bg};color:${style.color};">${style.icon} ${typeLabel}</span>
                     </td>
-                    <td style="text-align:center;font-weight:600;font-size:14px;">${tx.coin || '-'}</td>
-                    <td style="text-align:right;color:${amtColor};font-weight:600;font-size:14px;font-family:'SF Mono',Monaco,monospace;">${sign}${formatNumber(Math.abs(change) || amt)}</td>
-                    <td style="text-align:right;font-size:13px;color:var(--text-secondary);font-family:'SF Mono',Monaco,monospace;">${eurValue}</td>
+                    <td style="text-align:center;font-weight:600;font-size:14px;">${coinDisplay}</td>
+                    <td style="text-align:right;color:${amtColor};font-weight:600;font-size:14px;font-family:'SF Mono',Monaco,monospace;">${sign}${formatNumber(Math.abs(change) || amt)} ${feeIndicator}</td>
+                    <td style="text-align:right;font-size:13px;color:${eurColor};font-family:'SF Mono',Monaco,monospace;">${eurValue}</td>
                 </tr>`;
             }
             tbody.innerHTML = html;
@@ -6046,32 +6729,45 @@
                 progressBar.style.width = '70%';
                 progressText.textContent = `Elaborazione ${txCount} transazioni...`;
                 
-                // 🔑 De-duplicazione transazioni (Binance a volte restituisce duplicati)
-                const seenTx = new Set();
-                const uniqueTransactions = rawTransactions.filter(tx => {
-                    // Chiave unica basata su txId O combinazione data+coin+amount+type
-                    const key = tx.txId || `${tx.date}-${tx.coin}-${tx.amount}-${tx.type}`;
-                    if (seenTx.has(key)) {
-                        console.log('⚠️ Duplicato rimosso:', tx.type, tx.coin, tx.amount);
-                        return false;
-                    }
-                    seenTx.add(key);
-                    return true;
-                });
+                // 🔑 De-duplicazione transazioni migliorata
+                const { unique: uniqueTransactions, duplicates } = deduplicateTransactions(
+                    rawTransactions.map(tx => ({
+                        ...tx,
+                        tx_hash: tx.txId || null,
+                        order_id: tx.orderId || null,
+                        timestamp: new Date(tx.date)
+                    }))
+                );
                 
-                const removedCount = rawTransactions.length - uniqueTransactions.length;
-                if (removedCount > 0) {
-                    console.log(`🔑 Rimossi ${removedCount} duplicati`);
+                if (duplicates.length > 0) {
+                    console.log(`🔑 Rimossi ${duplicates.length} duplicati`);
                 }
                 
-                // Converti le transazioni
-                const allTransactions = uniqueTransactions.map(tx => ({
-                    ...tx,
-                    date: new Date(tx.date),
-                    change: tx.change || tx.amount || 0
+                // 🆕 Converti in transazioni ARRICCHITE
+                const allTransactions = uniqueTransactions.map(tx => createEnrichedTransaction({
+                    timestamp: new Date(tx.date),
+                    type: tx.type || 'unknown',
+                    asset_in: tx.coin,
+                    asset_out: tx.asset_out || (tx.type === 'buy' ? 'EUR' : null),
+                    amount_in: Math.abs(tx.amount || tx.change || 0),
+                    amount_out: tx.amount_out || 0,
+                    price_eur: tx.priceEur || 0,
+                    value_eur: tx.amountEur || 0,
+                    fee_eur: tx.feeEur || 0,
+                    fee_asset: tx.feeAsset || null,
+                    fee_amount: tx.feeAmount || 0,
+                    tx_hash: tx.txId || null,
+                    order_id: tx.orderId || null,
+                    source: 'binance',
+                    exchange: 'binance',
+                    change: tx.change || tx.amount || 0,
+                    notes: tx.notes || ''
                 }));
                 
-                allTransactions.sort((a, b) => a.date - b.date);
+                allTransactions.sort((a, b) => a.timestamp - b.timestamp);
+                
+                // 🔗 Transfer Matching
+                matchInternalTransfers(allTransactions, 30);
                 
                 progressBar.style.width = '85%';
                 progressText.textContent = 'Calcolo saldi 31/12...';
@@ -6083,11 +6779,13 @@
                 let yearIndex = 0;
                 
                 for (const tx of allTransactions) {
-                    if (!balances[tx.coin]) balances[tx.coin] = 0;
-                    balances[tx.coin] += tx.change || 0;
-                    if (Math.abs(balances[tx.coin]) < 0.00000001) balances[tx.coin] = 0;
+                    const coin = tx.asset_in || tx.coin;
+                    if (!balances[coin]) balances[coin] = 0;
+                    balances[coin] += tx.change || 0;
+                    if (Math.abs(balances[coin]) < 0.00000001) balances[coin] = 0;
                     
-                    while (yearIndex < years.length && tx.date > new Date(years[yearIndex], 11, 31, 23, 59, 59)) {
+                    const txDate = tx.timestamp || tx.date;
+                    while (yearIndex < years.length && txDate > new Date(years[yearIndex], 11, 31, 23, 59, 59)) {
                         yearEndSnapshots[years[yearIndex]] = { ...balances };
                         yearIndex++;
                     }
@@ -6119,9 +6817,9 @@
                             console.log('⚠️ Saltato token Earn duplicato:', coin);
                             continue;
                         }
-                        const price = getHistoricalPrice(coin, year);
-                        if (price && !isNaN(price)) {
-                            totalEur += amount * price * EUR_USD;
+                        const priceEur = getPriceEur(coin, year);
+                        if (priceEur && !isNaN(priceEur)) {
+                            totalEur += amount * priceEur;
                         }
                     }
                     yearTotals[year] = isNaN(totalEur) ? 0 : Math.round(totalEur * 100) / 100;
@@ -6139,6 +6837,9 @@
                     source: 'api'
                 };
                 
+                // 🔍 Zero-Sum Check
+                const zeroCheck = zeroSumCheck(allTransactions, realBalances);
+                
                 progressBar.style.width = '100%';
                 const realMsg = hasRealBalances ? ` (con saldi reali!)` : '';
                 progressText.textContent = `✅ ${txCount} transazioni importate${realMsg}`;
@@ -6149,6 +6850,16 @@
                 
                 // Mostra dettagli saldi reali
                 let alertMsg = `✅ Binance importato!\n\n📊 ${txCount} transazioni`;
+                
+                // Mostra warning se discrepanze
+                if (!zeroCheck.isValid && zeroCheck.issues.length > 0) {
+                    alertMsg += `\n\n⚠️ ATTENZIONE: ${zeroCheck.issues.length} discrepanze trovate!`;
+                    for (const issue of zeroCheck.issues.slice(0, 3)) {
+                        alertMsg += `\n   ${issue.coin}: diff ${issue.difference > 0 ? '+' : ''}${issue.difference.toFixed(4)}`;
+                    }
+                    alertMsg += `\n\n(Potrebbero mancare transazioni)`;
+                }
+                
                 if (hasRealBalances) {
                     alertMsg += `\n\n💎 SALDI REALI 2025:`;
                     const topBalances = Object.entries(realBalances)
@@ -6345,9 +7056,9 @@
                     const snapshot = yearEndSnapshots[year] || {};
                     for (const [coin, amount] of Object.entries(snapshot)) {
                         if (!amount || amount <= 0) continue;
-                        const price = getHistoricalPrice(coin, year);
-                        if (price && !isNaN(price)) {
-                            totalEur += amount * price * EUR_USD;
+                        const priceEur = getPriceEur(coin, year);
+                        if (priceEur && !isNaN(priceEur)) {
+                            totalEur += amount * priceEur;
                         }
                     }
                     yearTotals[year] = isNaN(totalEur) ? 0 : Math.round(totalEur * 100) / 100;
@@ -6714,20 +7425,18 @@
                                 continue;
                             }
                             
-                            // 2. Prova prezzo CoinGecko
-                            const price = getHistoricalPrice(coin, year);
-                            if (price && !isNaN(price) && price > 0) {
-                                const eurVal = amount * price * EUR_USD;
-                                totalEur += eurVal;
-                                if (year === currentYear) console.log(`  🪙 ${coin}: ${amount} × $${price} → €${eurVal.toFixed(2)}`);
-                                continue;
+                            // 2. Usa getPriceEur (CryptoCompare → CoinGecko → cache)
+                            let priceEur = getPriceEur(coin, year);
+                            
+                            // 3. Fallback: prezzo da transazioni
+                            if (!priceEur && tokenPricesFromTx[coin]) {
+                                priceEur = tokenPricesFromTx[coin];
                             }
                             
-                            // 3. Usa prezzo da transazioni se disponibile
-                            if (tokenPricesFromTx[coin]) {
-                                const eurVal = amount * tokenPricesFromTx[coin];
+                            if (priceEur && priceEur > 0) {
+                                const eurVal = amount * priceEur;
                                 totalEur += eurVal;
-                                if (year === currentYear) console.log(`  🏷️ ${coin}: ${amount} × €${tokenPricesFromTx[coin].toFixed(4)} → €${eurVal.toFixed(2)}`);
+                                if (year === currentYear) console.log(`  🪙 ${coin}: ${amount} × €${priceEur.toFixed(4)} → €${eurVal.toFixed(2)}`);
                             } else {
                                 if (year === currentYear) console.log(`  ❌ ${coin}: ${amount} (nessun prezzo)`);
                             }
@@ -8058,8 +8767,8 @@ Rispondi in italiano.`;
                             if (amount <= 0) continue;
                             // 🚫 Salta token LD* (duplicati Earn)
                             if (coin.startsWith('LD')) continue;
-                            const price = getHistoricalPrice(coin, year);
-                            totalEur += amount * price * EUR_USD;
+                            const priceEur = getPriceEur(coin, year);
+                            totalEur += amount * priceEur;
                         }
                         yearTotals[year] = Math.round(totalEur * 100) / 100;
                     }
@@ -9245,9 +9954,8 @@ Rispondi in italiano.`;
                         priceEur = EUR_USD; // ~0.85
                         priceSource = 'Stablecoin (1 USD)';
                     }
-                    // 1. Cerca ultimo prezzo dalle transazioni PRIMA del 31/12
+                    // 1. Cerca ultimo prezzo dalle transazioni PRIMA del 31/12 (per Bitpanda)
                     else if (tokenPricesFromTx[coin]) {
-                        // tokenPricesFromTx contiene l'ultimo prezzo, ma cerchiamo quello più vicino al 31/12
                         const priceHistory = window.bitpandaPriceHistory?.[coin] || [];
                         let bestPrice = null;
                         let bestDate = null;
@@ -9261,40 +9969,22 @@ Rispondi in italiano.`;
                             }
                         }
                         
-                        if (bestPrice && bestPrice < 100000) { // Sanity check: prezzo < 100k EUR
+                        if (bestPrice && bestPrice < 100000) {
                             priceEur = bestPrice;
                             priceSource = `TX ${bestDate?.toISOString().slice(0,10)}`;
                         } else if (tokenPricesFromTx[coin] < 100000) {
-                            // Usa ultimo prezzo disponibile
                             priceEur = tokenPricesFromTx[coin];
                             priceSource = 'TX (ultimo)';
                         }
                     }
                     
-                    // 2. Se non trovato, prova CoinGecko storico
+                    // 2. Se non trovato, usa sistema unificato (CryptoCompare → CoinGecko)
                     if (priceEur <= 0) {
-                        const cgPrice = getHistoricalPrice(coin, year);
-                        if (cgPrice > 0) {
-                            priceEur = cgPrice * EUR_USD;
-                            priceSource = 'CoinGecko';
-                        }
-                    }
-                    
-                    // 3. Prova cache CryptoCompare (prezzi storici fetched)
-                    if (priceEur <= 0) {
-                        const ccCacheKey = `${coin.toUpperCase()}_${year}`;
-                        if (cryptoComparePriceCache[ccCacheKey]) {
-                            priceEur = cryptoComparePriceCache[ccCacheKey];
-                            priceSource = 'CryptoCompare';
-                        }
-                    }
-                    
-                    // 4. Se ancora non trovato, prova cache CoinGecko real-time
-                    if (priceEur <= 0) {
-                        const cachedPrice = getCachedPrice(coin);
-                        if (cachedPrice && cachedPrice > 0) {
-                            priceEur = cachedPrice;
-                            priceSource = 'CoinGecko (live)';
+                        priceEur = getPriceEur(coin, year);
+                        if (priceEur > 0) {
+                            // Determina fonte per log
+                            const ccKey = `${coin.toUpperCase()}_${year}`;
+                            priceSource = cryptoComparePriceCache[ccKey] ? 'CryptoCompare' : 'CoinGecko';
                         }
                     }
                     
