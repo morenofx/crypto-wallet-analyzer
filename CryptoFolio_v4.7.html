@@ -4918,7 +4918,13 @@
                         const attrs = tx.attributes;
                         const date = attrs?.time?.date_iso8601 ? new Date(attrs.time.date_iso8601) : new Date();
                         const amount = parseFloat(attrs?.amount) || 0;
-                        const amountEur = parseFloat(attrs?.amount_eur) || 0;
+                        // Prova vari campi per il valore EUR
+                        const amountEur = parseFloat(attrs?.amount_eur) || parseFloat(attrs?.current_fiat_amount) || 0;
+                        
+                        // Debug primi 3 tx
+                        if (allTransactions.length < 3) {
+                            console.log('📋 Bitpanda TX attrs:', JSON.stringify(attrs, null, 2));
+                        }
                         
                         // Mappa tipo transazione
                         let type = attrs?.type || 'unknown';
@@ -4939,11 +4945,16 @@
                         const cryptoId = attrs?.cryptocoin_id;
                         const symbol = findBitpandaCryptoSymbol(cryptoId, walletsData.data) || 'UNKNOWN';
                         
+                        // Calcola change (positivo per incoming, negativo per outgoing)
+                        const isIncoming = inOrOut === 'incoming' || type === 'buy' || type === 'deposit' || type === 'staking';
+                        const change = isIncoming ? amount : -amount;
+                        
                         allTransactions.push({
                             date: date,
                             type: type,
                             coin: symbol,
                             amount: amount,
+                            change: change,
                             amountEur: amountEur,
                             fee: parseFloat(attrs?.fee) || 0,
                             account: 'bitpanda',
@@ -4989,11 +5000,15 @@
                         const cryptoId = attrs?.cryptocoin_id;
                         const symbol = findBitpandaCryptoSymbol(cryptoId, walletsData.data) || 'UNKNOWN';
                         
+                        // Buy = +crypto, Sell = -crypto
+                        const change = type === 'buy' ? amount : -amount;
+                        
                         allTransactions.push({
                             date: date,
                             type: type,
                             coin: symbol,
                             amount: amount,
+                            change: change,
                             amountEur: amountFiat,
                             fee: parseFloat(attrs?.fee) || 0,
                             account: 'bitpanda',
