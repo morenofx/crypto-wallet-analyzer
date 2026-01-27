@@ -4078,14 +4078,46 @@
             }
             
             let html = '';
+            const lastTxYear = data.lastYear || 2025;
+            const firstTxYear = data.firstYear || 2024;
+            
             for (const y of years) {
-                const val = data.totals?.[y] || 0;
+                const val = data.totals?.[y];
                 const txCount = txByYear[y];
+                
+                // Determina cosa mostrare
+                let valueDisplay = '';
+                let valueColor = 'var(--green)';
+                let subtitle = '';
+                
+                if (y < firstTxYear) {
+                    // Anno prima della prima transazione
+                    valueDisplay = '-';
+                    valueColor = 'var(--text-secondary)';
+                    subtitle = '<div style="font-size:10px;color:var(--text-secondary);">No TX</div>';
+                } else if (y > lastTxYear) {
+                    // Anno dopo l'ultima transazione (es. 2026 se ultima TX è 2025)
+                    valueDisplay = '-';
+                    valueColor = 'var(--text-secondary)';
+                    const lastTxDate = data.lastTxDate ? new Date(data.lastTxDate).toLocaleDateString('it-IT') : '';
+                    subtitle = `<div style="font-size:9px;color:var(--text-secondary);">Ultima TX: ${lastTxDate}</div>`;
+                } else if (val === null || val === undefined) {
+                    valueDisplay = '?';
+                    valueColor = 'var(--text-secondary)';
+                    subtitle = '<div style="font-size:10px;color:var(--text-secondary);">N/D</div>';
+                } else {
+                    valueDisplay = '€' + Math.round(val).toLocaleString('it-IT');
+                    valueColor = val > 0 ? 'var(--green)' : 'var(--text-secondary)';
+                    subtitle = txCount > 0 
+                        ? `<div style="font-size:10px;color:var(--accent);background:rgba(108,92,231,0.15);padding:3px 6px;border-radius:4px;display:inline-block;">${txCount} tx</div>` 
+                        : '<div style="font-size:10px;color:var(--text-secondary);">-</div>';
+                }
+                
                 html += `<div style="background:var(--bg-primary);padding:12px 8px;border-radius:8px;text-align:center;cursor:pointer;" 
                          onclick="showYearDetails('${currentDetailExchange}',${y})" title="Clicca per dettagli">
                     <div style="font-size:13px;font-weight:600;color:var(--text-primary);">${y}</div>
-                    <div style="font-size:20px;font-weight:700;color:var(--green);margin:6px 0;">€${Math.round(val)}</div>
-                    ${txCount > 0 ? `<div style="font-size:10px;color:var(--accent);background:rgba(108,92,231,0.15);padding:3px 6px;border-radius:4px;display:inline-block;">${txCount} tx</div>` : '<div style="font-size:10px;color:var(--text-secondary);">-</div>'}
+                    <div style="font-size:20px;font-weight:700;color:${valueColor};margin:6px 0;">${valueDisplay}</div>
+                    ${subtitle}
                 </div>`;
             }
             container.innerHTML = html;
@@ -5908,81 +5940,253 @@
             return transactions;
         }
         
-        // === BITPANDA PARSER ===
+        // === BITPANDA PARSER - CONTABILITÀ PRECISA ===
         function parseBitpandaCSV(lines) {
-            // "Transaction ID",Timestamp,"Transaction Type",In/Out,"Amount Fiat",Fiat,"Amount Asset",Asset,...
+            // Colonne CSV Bitpanda:
+            // 0: Transaction ID, 1: Timestamp, 2: Transaction Type, 3: In/Out
+            // 4: Amount Fiat, 5: Fiat, 6: Amount Asset, 7: Asset
+            // 8: Asset market price, 9: Asset market price currency
+            // 10: Asset class, 11: Product ID, 12: Fee, 13: Fee asset
+            // 14: Fee percent, 15: Spread, 16: Spread Currency, 17: Tax Fiat
+            
             const transactions = [];
-            console.log('Parsing Bitpanda CSV, lines:', lines.length);
+            const priceHistory = {}; // { "VSN": [{ date, price, currency }, ...] }
+            
+            console.log('🔍 Parsing Bitpanda CSV (PRECISIONE CONTABILE)');
+            console.log('📋 Righe da processare:', lines.length);
             
             for (let i = 1; i < lines.length; i++) {
                 const cols = parseCSVLine(lines[i]);
                 if (cols.length < 8) continue;
                 
-                const [txId, timestamp, txType, inOut, amountFiat, fiat, amountAsset, asset] = cols;
+                const txId = cols[0];
+                const timestamp = cols[1];
+                const txType = cols[2];
+                const inOut = cols[3];
+                const amountFiat = parseFloat(cols[4]) || 0;
+                const fiatCurrency = cols[5] || 'EUR';
+                const amountAsset = parseFloat(cols[6]) || 0;
+                const asset = cols[7];
+                const assetPrice = parseFloat(cols[8]) || 0;
+                const priceCurrency = cols[9] || 'USD';
+                const fee = parseFloat(cols[12]) || 0;
+                const feeAsset = cols[13] || '';
+                const taxFiat = parseFloat(cols[17]) || 0;
+                
                 const date = new Date(timestamp);
                 if (isNaN(date.getTime())) continue;
+                if (amountAsset === 0 || !asset || asset === '-') continue;
                 
-                let qty = parseFloat(amountAsset) || 0;
-                if (qty === 0 || !asset || asset === '-') continue;
+                // Converti prezzo in EUR se necessario
+                let priceEur = assetPrice;
+                if (priceCurrency === 'USD' && assetPrice > 0) {
+                    priceEur = assetPrice * EUR_USD;
+                }
                 
-                // Parse amount fiat
-                const eurValue = parseFloat(amountFiat) || 0;
+                // Converti valore fiat in EUR
+                let valueEur = amountFiat;
+                if (fiatCurrency === 'USD' && amountFiat > 0) {
+                    valueEur = amountFiat * EUR_USD;
+                }
                 
-                // Normalizza tipo transazione
+                // Salva prezzo storico per questo asset
+                if (assetPrice > 0) {
+                    if (!priceHistory[asset]) priceHistory[asset] = [];
+                    priceHistory[asset].push({
+                        date: date,
+                        price: assetPrice,
+                        priceEur: priceEur,
+                        currency: priceCurrency
+                    });
+                }
+                
+                // Determina tipo e direzione
                 let type = txType.toLowerCase().replace(/[()]/g, '');
                 const inOutLower = inOut.toLowerCase();
-                
-                // IMPORTANTE: In/Out si riferisce al FIAT, non all'asset!
-                // - buy + outgoing (fiat) = asset ENTRA (+)
-                // - sell + incoming (fiat) = asset ESCE (-)
-                // - deposit/transfer = segue In/Out direttamente
-                // - reward/staking = sempre positivo
-                
                 let isAssetIncoming = false;
                 
+                // Logica precisa per ogni tipo
                 if (type === 'buy') {
-                    isAssetIncoming = true; // Compri = ricevi asset
+                    isAssetIncoming = true;
                     type = 'buy';
                 } else if (type === 'sell') {
-                    isAssetIncoming = false; // Vendi = perdi asset
+                    isAssetIncoming = false;
                     type = 'sell';
-                } else if (type === 'reward' || type.includes('stake') || type === 'distribution') {
-                    isAssetIncoming = true; // Rewards = ricevi asset
-                    type = 'staking';
+                } else if (type === 'reward' || type === 'distribution') {
+                    isAssetIncoming = true;
+                    type = 'reward';
                 } else if (type === 'deposit') {
-                    isAssetIncoming = (inOutLower === 'incoming');
+                    isAssetIncoming = true;
                     type = 'deposit';
+                } else if (type === 'withdrawal') {
+                    isAssetIncoming = false;
+                    type = 'withdrawal';
                 } else if (type === 'transfer') {
                     isAssetIncoming = (inOutLower === 'incoming');
                     type = isAssetIncoming ? 'deposit' : 'withdrawal';
-                } else if (type === 'transferstake') {
-                    // Trasferimento in/da staking - NON cambia il saldo totale!
-                    // È solo uno spostamento interno
-                    console.log('  Skip transferstake (internal move):', asset, qty);
-                    continue;
+                } else if (type === 'transferstake' || type.includes('stake')) {
+                    // Movimento interno staking - tracciamo ma non cambia saldo totale
+                    isAssetIncoming = (inOutLower === 'incoming');
+                    type = 'staking_move';
+                    // Skip se è un movimento interno
+                    if (type === 'staking_move') {
+                        console.log(`  ⏭️ Skip staking move: ${asset} ${amountAsset}`);
+                        continue;
+                    }
                 } else {
-                    // Default: segui In/Out
                     isAssetIncoming = (inOutLower === 'incoming');
                 }
                 
-                const change = isAssetIncoming ? Math.abs(qty) : -Math.abs(qty);
+                const change = isAssetIncoming ? Math.abs(amountAsset) : -Math.abs(amountAsset);
                 
-                console.log(`  ${date.toISOString().slice(0,10)} ${type} ${asset}: ${change > 0 ? '+' : ''}${change.toFixed(2)} (€${eurValue})`);
+                // Calcola valore EUR preciso
+                // Priorità: 1) amountFiat convertito, 2) quantità × prezzo
+                let finalValueEur = valueEur;
+                if (finalValueEur === 0 && priceEur > 0) {
+                    finalValueEur = Math.abs(amountAsset) * priceEur;
+                }
                 
-                transactions.push({
+                const tx = {
+                    id: txId,
                     date: date,
                     account: 'bitpanda',
                     type: type,
                     operation: txType,
                     coin: asset,
-                    amount: Math.abs(qty),
+                    amount: Math.abs(amountAsset),
                     change: change,
-                    amountEur: eurValue,
-                    remark: ''
-                });
+                    // Prezzi
+                    priceAtTx: assetPrice,
+                    priceCurrency: priceCurrency,
+                    priceEur: priceEur,
+                    // Valori
+                    amountFiat: amountFiat,
+                    fiatCurrency: fiatCurrency,
+                    amountEur: finalValueEur,
+                    // Costi
+                    fee: fee,
+                    feeAsset: feeAsset,
+                    tax: taxFiat
+                };
+                
+                transactions.push(tx);
+                
+                // Log dettagliato
+                const sign = change >= 0 ? '+' : '';
+                console.log(`  ${date.toISOString().slice(0,10)} ${type.padEnd(10)} ${asset.padEnd(6)} ${sign}${change.toFixed(4).padStart(12)} @ €${priceEur.toFixed(4)} = €${finalValueEur.toFixed(2)}`);
             }
-            console.log('Parsed', transactions.length, 'Bitpanda transactions');
+            
+            // Salva price history globalmente per calcoli futuri
+            window.bitpandaPriceHistory = priceHistory;
+            
+            // Calcola statistiche
+            const stats = calculateTransactionStats(transactions);
+            console.log('\n📊 RIEPILOGO CONTABILE:');
+            console.log('  Transazioni totali:', transactions.length);
+            console.log('  Token diversi:', Object.keys(priceHistory).length);
+            console.log('  Totale acquisti:', '€' + stats.totalBuys.toFixed(2));
+            console.log('  Totale vendite:', '€' + stats.totalSells.toFixed(2));
+            console.log('  Totale rewards:', '€' + stats.totalRewards.toFixed(2));
+            console.log('  Fee totali:', '€' + stats.totalFees.toFixed(2));
+            
+            // Salva stats
+            window.bitpandaStats = stats;
+            
             return transactions;
+        }
+        
+        // Calcola statistiche contabili precise
+        function calculateTransactionStats(transactions) {
+            let totalBuys = 0;      // Acquisti (costo)
+            let totalSells = 0;     // Vendite (ricavo)
+            let totalRewards = 0;   // Rewards ricevuti
+            let totalDeposits = 0;  // Depositi
+            let totalWithdrawals = 0; // Prelievi
+            let totalFees = 0;      // Fee pagate
+            
+            const byAsset = {}; // Per asset: { bought, sold, balance, avgCost }
+            
+            for (const tx of transactions) {
+                const asset = tx.coin;
+                if (!byAsset[asset]) {
+                    byAsset[asset] = {
+                        bought: 0,
+                        boughtValue: 0,
+                        sold: 0,
+                        soldValue: 0,
+                        rewards: 0,
+                        rewardsValue: 0,
+                        balance: 0,
+                        totalCost: 0
+                    };
+                }
+                
+                const a = byAsset[asset];
+                const valueEur = tx.amountEur || 0;
+                
+                switch (tx.type) {
+                    case 'buy':
+                        totalBuys += valueEur;
+                        a.bought += tx.amount;
+                        a.boughtValue += valueEur;
+                        a.balance += tx.amount;
+                        a.totalCost += valueEur;
+                        break;
+                    case 'sell':
+                        totalSells += valueEur;
+                        a.sold += tx.amount;
+                        a.soldValue += valueEur;
+                        a.balance -= tx.amount;
+                        break;
+                    case 'reward':
+                    case 'staking':
+                        totalRewards += valueEur;
+                        a.rewards += tx.amount;
+                        a.rewardsValue += valueEur;
+                        a.balance += tx.amount;
+                        break;
+                    case 'deposit':
+                        totalDeposits += valueEur;
+                        a.balance += tx.amount;
+                        break;
+                    case 'withdrawal':
+                        totalWithdrawals += valueEur;
+                        a.balance -= tx.amount;
+                        break;
+                }
+                
+                // Fee
+                if (tx.fee && tx.feeAsset) {
+                    // Converti fee in EUR se possibile
+                    const feePrice = tx.priceEur || 0;
+                    if (tx.feeAsset === asset && feePrice > 0) {
+                        totalFees += tx.fee * feePrice;
+                    } else if (tx.feeAsset === 'EUR') {
+                        totalFees += tx.fee;
+                    } else if (tx.feeAsset === 'USD') {
+                        totalFees += tx.fee * EUR_USD;
+                    }
+                }
+            }
+            
+            // Calcola prezzo medio di carico per ogni asset
+            for (const asset of Object.keys(byAsset)) {
+                const a = byAsset[asset];
+                if (a.bought > 0) {
+                    a.avgCost = a.boughtValue / a.bought;
+                }
+            }
+            
+            return {
+                totalBuys,
+                totalSells,
+                totalRewards,
+                totalDeposits,
+                totalWithdrawals,
+                totalFees,
+                byAsset,
+                profitLoss: totalSells - totalBuys + totalRewards
+            };
         }
         
         function parseBitgetCSV(lines) {
@@ -6202,10 +6406,19 @@
             const years = [2021, 2022, 2023, 2024, 2025, 2026];
             let currentYearIndex = 0;
             
-            // Prima trova la data più vecchia
+            // Trova la data più vecchia e più recente
             const firstDate = data.transactions[0]?.date;
             const lastDate = data.transactions[data.transactions.length - 1]?.date;
+            const firstYear = firstDate ? firstDate.getFullYear() : 2024;
+            const lastYear = lastDate ? lastDate.getFullYear() : 2025;
             console.log('Date range:', firstDate, 'to', lastDate);
+            console.log('Year range:', firstYear, '-', lastYear);
+            
+            // Salva info date per UI
+            data.firstTxDate = firstDate;
+            data.lastTxDate = lastDate;
+            data.firstYear = firstYear;
+            data.lastYear = lastYear;
             
             for (const tx of data.transactions) {
                 // Aggiorna saldo
@@ -6214,54 +6427,103 @@
                 
                 // Controlla se abbiamo superato la fine dell'anno
                 while (currentYearIndex < years.length && tx.date > new Date(years[currentYearIndex], 11, 31, 23, 59, 59)) {
-                    // Salva snapshot al 31/12
-                    yearEndBalances[years[currentYearIndex]] = { ...balances };
-                    console.log('Snapshot for', years[currentYearIndex], '- coins:', Object.keys(balances).length);
+                    // Salva snapshot al 31/12 SOLO se l'anno è >= firstYear
+                    if (years[currentYearIndex] >= firstYear) {
+                        yearEndBalances[years[currentYearIndex]] = { ...balances };
+                        console.log('Snapshot for', years[currentYearIndex], '- coins:', Object.keys(balances).length);
+                    }
                     currentYearIndex++;
                 }
             }
             
-            // Salva ultimi anni rimasti
+            // Salva solo per anni con transazioni (fino a lastYear incluso)
             for (let i = currentYearIndex; i < years.length; i++) {
-                yearEndBalances[years[i]] = { ...balances };
+                if (years[i] >= firstYear && years[i] <= lastYear) {
+                    yearEndBalances[years[i]] = { ...balances };
+                }
+                // Per anni futuri (es. 2026 se ultima TX è 2025), NON salviamo
             }
             
             // Log dei saldi finali
             console.log('Final balances (coins with value):', 
                 Object.entries(balances).filter(([c, a]) => a > 0.0001).map(([c, a]) => c + ': ' + a.toFixed(4)).join(', ').substring(0, 200));
             
-            // Calcola totali EUR per ogni anno
+            // Calcola totali EUR per ogni anno (PRECISIONE CONTABILE)
             for (const year of years) {
+                // Skip anni prima della prima TX o dopo l'ultima TX
+                if (year < firstYear) {
+                    yearEndTotals[year] = 0;
+                    continue;
+                }
+                if (year > lastYear) {
+                    // Anno futuro - non ci sono TX
+                    yearEndTotals[year] = null; // null = non calcolabile
+                    continue;
+                }
+                
                 const yb = yearEndBalances[year] || {};
                 let totalEur = 0;
                 let coinsWithValue = [];
+                const yearEnd = new Date(year, 11, 31, 23, 59, 59);
                 
                 for (const [coin, amount] of Object.entries(yb)) {
-                    if (amount <= 0) continue;
+                    if (amount <= 0.0001) continue;
                     
-                    // 1. Prova prezzo CoinGecko
-                    let price = getHistoricalPrice(coin, year);
-                    let priceSource = 'CoinGecko';
+                    let priceEur = 0;
+                    let priceSource = '';
                     
-                    // 2. Se non trovato, usa prezzo da transazioni
-                    if (!price || price <= 0) {
-                        price = tokenPricesFromTx[coin];
-                        priceSource = 'TX';
+                    // 1. Cerca ultimo prezzo dalle transazioni PRIMA del 31/12
+                    if (tokenPricesFromTx[coin]) {
+                        // tokenPricesFromTx contiene l'ultimo prezzo, ma cerchiamo quello più vicino al 31/12
+                        const priceHistory = window.bitpandaPriceHistory?.[coin] || [];
+                        let bestPrice = null;
+                        let bestDate = null;
+                        
+                        for (const ph of priceHistory) {
+                            if (ph.date <= yearEnd) {
+                                if (!bestDate || ph.date > bestDate) {
+                                    bestDate = ph.date;
+                                    bestPrice = ph.priceEur;
+                                }
+                            }
+                        }
+                        
+                        if (bestPrice) {
+                            priceEur = bestPrice;
+                            priceSource = `TX ${bestDate?.toISOString().slice(0,10)}`;
+                        } else {
+                            // Usa ultimo prezzo disponibile
+                            priceEur = tokenPricesFromTx[coin];
+                            priceSource = 'TX (ultimo)';
+                        }
                     }
                     
-                    if (price > 0) {
-                        // Se prezzo da CoinGecko è in USD, converti. Se da TX è già in EUR
-                        const valueEur = (priceSource === 'CoinGecko') ? (amount * price * EUR_USD) : (amount * price);
-                        totalEur += valueEur;
-                        if (valueEur > 1) { // Solo coin > €1
-                            coinsWithValue.push(coin + ': €' + valueEur.toFixed(0) + ' (' + priceSource + ')');
+                    // 2. Se non trovato, prova CoinGecko
+                    if (priceEur <= 0) {
+                        const cgPrice = getHistoricalPrice(coin, year);
+                        if (cgPrice > 0) {
+                            priceEur = cgPrice * EUR_USD;
+                            priceSource = 'CoinGecko';
                         }
+                    }
+                    
+                    if (priceEur > 0) {
+                        const valueEur = amount * priceEur;
+                        totalEur += valueEur;
+                        if (valueEur > 0.5) {
+                            coinsWithValue.push(`${coin}: ${amount.toFixed(2)} × €${priceEur.toFixed(4)} = €${valueEur.toFixed(2)} (${priceSource})`);
+                        }
+                    } else {
+                        console.log(`  ⚠️ ${year} ${coin}: ${amount.toFixed(4)} - NESSUN PREZZO`);
                     }
                 }
                 
-                yearEndTotals[year] = Math.round(totalEur * 100) / 100; // Arrotonda a 2 decimali
+                yearEndTotals[year] = Math.round(totalEur * 100) / 100;
                 if (coinsWithValue.length > 0) {
-                    console.log('Year', year, '- Top coins:', coinsWithValue.slice(0, 10).join(', '));
+                    console.log(`\n📅 ${year} - Valore al 31/12: €${yearEndTotals[year]}`);
+                    for (const c of coinsWithValue) {
+                        console.log(`  ${c}`);
+                    }
                 }
             }
             
@@ -6483,7 +6745,12 @@
                         isZeroed: data.isZeroed || false,
                         isManual: data.isManual || false,
                         lastImport: data.lastImport || new Date().toISOString(),
-                        source: data.source || 'manual'
+                        source: data.source || 'manual',
+                        // Date range transazioni
+                        firstYear: data.firstYear || null,
+                        lastYear: data.lastYear || null,
+                        firstTxDate: data.firstTxDate ? data.firstTxDate.toISOString() : null,
+                        lastTxDate: data.lastTxDate ? data.lastTxDate.toISOString() : null
                     };
                 }
                 
@@ -6585,7 +6852,12 @@
                             isZeroed: savedData[exchId].isZeroed || false,
                             isManual: savedData[exchId].isManual || false,
                             lastImport: savedData[exchId].lastImport || null,
-                            source: savedData[exchId].source || 'manual'
+                            source: savedData[exchId].source || 'manual',
+                            // Date range transazioni
+                            firstYear: savedData[exchId].firstYear || null,
+                            lastYear: savedData[exchId].lastYear || null,
+                            firstTxDate: savedData[exchId].firstTxDate ? new Date(savedData[exchId].firstTxDate) : null,
+                            lastTxDate: savedData[exchId].lastTxDate ? new Date(savedData[exchId].lastTxDate) : null
                         };
                     }
                     
