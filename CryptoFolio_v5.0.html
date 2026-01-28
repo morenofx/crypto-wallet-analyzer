@@ -5184,7 +5184,7 @@
         let saveTimeout = null;
         
         // Binance
-        const BINANCE_SERVER_URL = 'http://localhost:3457';
+        const BINANCE_SERVER_URL = 'http://69.164.247.56:3457';
         let binanceData = { balances: { spot: [], earn: [], staking: [] }, totals: { spot: 0, earn: 0, staking: 0 }, lastUpdate: null };
         
         // Exchange values per Tax Report (31/12 di ogni anno)
@@ -8704,7 +8704,7 @@
             const modalStatusEl = document.getElementById('modalServerStatus');
             
             try {
-                const response = await fetch('http://localhost:3457/status', { 
+                const response = await fetch('http://69.164.247.56:3457/status', { 
                     method: 'GET',
                     signal: AbortSignal.timeout(2000) 
                 });
@@ -8783,7 +8783,7 @@
             const cardStatusEl = document.getElementById('serverStatus-binance');
             
             try {
-                const response = await fetch('http://localhost:3457/status', { 
+                const response = await fetch('http://69.164.247.56:3457/status', { 
                     method: 'GET',
                     signal: AbortSignal.timeout(2000) 
                 });
@@ -8843,7 +8843,7 @@
                 progressText.textContent = 'Download in corso... (1-2 minuti)';
                 
                 // Download
-                const downloadUrl = `http://localhost:3457/download?apiKey=${encodeURIComponent(apiKey)}&secretKey=${encodeURIComponent(secretKey)}`;
+                const downloadUrl = `http://69.164.247.56:3457/download?apiKey=${encodeURIComponent(apiKey)}&secretKey=${encodeURIComponent(secretKey)}`;
                 const response = await fetch(downloadUrl);
                 const data = await response.json();
                 
@@ -9068,7 +9068,7 @@
             const statusEl = document.getElementById('bitgetModalServerStatus');
             
             try {
-                const response = await fetch('http://localhost:3457/status', { 
+                const response = await fetch('http://69.164.247.56:3457/status', { 
                     method: 'GET',
                     signal: AbortSignal.timeout(2000) 
                 });
@@ -9121,7 +9121,7 @@
                 progressText.textContent = 'Download in corso... (1-2 minuti)';
                 
                 // Download
-                const downloadUrl = `http://localhost:3457/bitget/download?apiKey=${encodeURIComponent(apiKey)}&secretKey=${encodeURIComponent(secretKey)}&passphrase=${encodeURIComponent(passphrase)}`;
+                const downloadUrl = `http://69.164.247.56:3457/bitget/download?apiKey=${encodeURIComponent(apiKey)}&secretKey=${encodeURIComponent(secretKey)}&passphrase=${encodeURIComponent(passphrase)}`;
                 const response = await fetch(downloadUrl);
                 const data = await response.json();
                 
@@ -10786,11 +10786,11 @@ Rispondi in italiano.`;
                 
                 try {
                     // Prima verifica che il server sia attivo
-                    const statusResponse = await fetch('http://localhost:3457/status');
+                    const statusResponse = await fetch('http://69.164.247.56:3457/status');
                     if (!statusResponse.ok) throw new Error('Server non attivo');
                     
                     // Test connessione Binance
-                    const testUrl = `http://localhost:3457/test?apiKey=${encodeURIComponent(apiKey)}&secretKey=${encodeURIComponent(secretKey)}`;
+                    const testUrl = `http://69.164.247.56:3457/test?apiKey=${encodeURIComponent(apiKey)}&secretKey=${encodeURIComponent(secretKey)}`;
                     const response = await fetch(testUrl);
                     const data = await response.json();
                     
@@ -10844,7 +10844,7 @@ Rispondi in italiano.`;
                     if (progressText) progressText.textContent = 'Download in corso... (può richiedere 1-2 minuti)';
                     if (progressBar) progressBar.style.width = '10%';
                     
-                    const downloadUrl = `http://localhost:3457/download?apiKey=${encodeURIComponent(apiKey)}&secretKey=${encodeURIComponent(secretKey)}`;
+                    const downloadUrl = `http://69.164.247.56:3457/download?apiKey=${encodeURIComponent(apiKey)}&secretKey=${encodeURIComponent(secretKey)}`;
                     const response = await fetch(downloadUrl);
                     const data = await response.json();
                     
