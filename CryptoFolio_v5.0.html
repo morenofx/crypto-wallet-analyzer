@@ -11748,8 +11748,11 @@ Rispondi in italiano.`;
             // Statistiche per debug
             const stats = {
                 rewards: 0, buys: 0, sells: 0, deposits: 0, withdrawals: 0, 
-                fees: 0, transfers: 0, other: 0, skipped: 0
+                fees: 0, transfers: 0, other: 0, skipped: 0, duplicates: 0
             };
+            
+            // Track per deduplicazione (stesso timestamp + coin + change + operation)
+            const seenTransactions = new Set();
             
             // Track internal transfers to avoid double counting
             const processedTransfers = new Set();
@@ -11774,6 +11777,15 @@ Rispondi in italiano.`;
                 
                 const changeNum = parseFloat(change) || 0;
                 if (changeNum === 0) continue;
+                
+                // === DEDUPLICAZIONE ===
+                // Crea chiave unica per questa transazione
+                const txKey = `${utcTime}|${coin}|${changeNum.toFixed(8)}|${operation}`;
+                if (seenTransactions.has(txKey)) {
+                    stats.duplicates++;
+                    continue; // Skip duplicato
+                }
+                seenTransactions.add(txKey);
                 
                 const opLower = operation.toLowerCase();
                 
@@ -11850,11 +11862,14 @@ Rispondi in italiano.`;
                     type = 'transfer';
                     stats.transfers++;
                 }
-                // SUBSCRIPTION/REDEMPTION (Earn - movimento interno, NON contare!)
+                // SUBSCRIPTION/REDEMPTION (Earn - movimenti Spot ↔ Earn)
+                // QUESTI VANNO CONTATI perché rappresentano token che escono/entrano nel wallet Spot
+                // Subscription = token che metti in Earn (escono da Spot = -)
+                // Redemption = token che ritiri da Earn (entrano in Spot = +)
                 else if (opLower.includes('subscription') || opLower.includes('redemption')) {
-                    // SKIP - questo è solo un movimento Spot ↔ Earn, i token sono ancora tuoi!
-                    stats.skipped++;
-                    continue;
+                    type = 'earn_movement';
+                    stats.transfers++;
+                    // NON skip - conta per il saldo!
                 }
                 // TRANSACTION RELATED / REVENUE (spesso accoppiato con altre TX)
                 else if (opLower.includes('transaction related') || opLower.includes('transaction revenue')) {
@@ -11894,7 +11909,8 @@ Rispondi in italiano.`;
             console.log(`  💸 Fees: ${stats.fees}`);
             console.log(`  🔄 Transfers: ${stats.transfers}`);
             console.log(`  ❓ Other: ${stats.other}`);
-            console.log(`  ⏭️ Skipped: ${stats.skipped}`);
+            console.log(`  ⏭️ Skipped (subscr/redemp): ${stats.skipped}`);
+            console.log(`  🔄 Duplicates removed: ${stats.duplicates}`);
             console.log(`  📋 Total parsed: ${transactions.length}`);
             
             return transactions;
@@ -11991,7 +12007,10 @@ Rispondi in italiano.`;
                 return;
             }
             
-            console.log('Calculating balances for', exchId, 'with', data.transactions.length, 'transactions');
+            console.log('═══════════════════════════════════════');
+            console.log('📊 CALCOLO SALDI', exchId.toUpperCase());
+            console.log('═══════════════════════════════════════');
+            console.log('Transazioni totali:', data.transactions.length);
             
             // Ordina transazioni per data
             data.transactions.sort((a, b) => a.date - b.date);
@@ -12032,6 +12051,15 @@ Rispondi in italiano.`;
             data.firstYear = firstYear;
             data.lastYear = lastYear;
             
+            // Conta transazioni per anno
+            const txByYear = {};
+            for (const tx of data.transactions) {
+                const year = tx.date.getFullYear();
+                txByYear[year] = (txByYear[year] || 0) + 1;
+            }
+            console.log('Transazioni per anno:', txByYear);
+            data.txByYear = txByYear;
+            
             for (const tx of data.transactions) {
                 // Aggiorna saldo
                 if (!balances[tx.coin]) balances[tx.coin] = 0;
@@ -12056,16 +12084,26 @@ Rispondi in italiano.`;
                 // Per anni futuri (es. 2026 se ultima TX è 2025), NON salviamo
             }
             
-            // Log dei saldi finali
-            console.log('📊 SALDI FINALI PER TOKEN:');
-            for (const [coin, amt] of Object.entries(balances).filter(([c, a]) => Math.abs(a) > 0.0001)) {
-                const price = tokenPricesFromTx[coin] || 0;
-                console.log(`  ${coin}: ${amt.toFixed(4)} × €${price.toFixed(4)} = €${(amt * price).toFixed(2)}`);
+            // Log dei saldi finali con filtro per saldi significativi
+            console.log('───────────────────────────────────────');
+            console.log('📊 SALDI FINALI PER TOKEN (solo > 0):');
+            const significantBalances = Object.entries(balances)
+                .filter(([c, a]) => Math.abs(a) > 0.0001)
+                .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
+            
+            for (const [coin, amt] of significantBalances) {
+                console.log(`  ${coin}: ${amt.toFixed(6)}`);
             }
             
             // Calcola totali EUR per ogni anno (PRECISIONE CONTABILE)
             // Lista stablecoin - prezzo fisso 1 USD
             const STABLECOINS = ['USDT', 'USDC', 'BUSD', 'DAI', 'TUSD', 'USDP', 'GUSD', 'FDUSD', 'FRAX', 'UST', 'USTC'];
+            
+            // Lista token da ignorare (valore ~0, airdrop spam, ecc)
+            const IGNORE_TOKENS = ['NFT', '1MBABYDOGE', 'LUNC', 'USTC', 'SANTOS', 'HIGH', 'MC'];
+            
+            // Salva dettaglio calcolo per debug UI
+            data.yearEndDetails = {};
             
             for (const year of years) {
                 // Skip anni prima della prima TX o dopo l'ultima TX
@@ -12083,9 +12121,16 @@ Rispondi in italiano.`;
                 let totalEur = 0;
                 let coinsWithValue = [];
                 const yearEnd = new Date(year, 11, 31, 23, 59, 59);
+                const details = []; // Per debug UI
                 
                 for (const [coin, amount] of Object.entries(yb)) {
                     if (amount <= 0.0001) continue;
+                    
+                    // Skip token da ignorare
+                    if (IGNORE_TOKENS.includes(coin.toUpperCase())) {
+                        details.push({ coin, amount, priceEur: 0, valueEur: 0, source: 'Ignored token' });
+                        continue;
+                    }
                     
                     let priceEur = 0;
                     let priceSource = '';
@@ -12129,20 +12174,33 @@ Rispondi in italiano.`;
                         }
                     }
                     
+                    // === SANITY CHECK ===
+                    // Se il prezzo sembra assurdo (>€100k per un token sconosciuto), ignora
+                    const majorCoins = ['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'DOT', 'AVAX', 'LINK'];
+                    if (priceEur > 100000 && !majorCoins.includes(coin.toUpperCase())) {
+                        console.log(`  ⚠️ SANITY CHECK FAIL: ${coin} prezzo €${priceEur} ignorato`);
+                        priceEur = 0;
+                        priceSource = 'Price sanity check failed';
+                    }
+                    
                     if (priceEur > 0) {
                         const valueEur = amount * priceEur;
                         totalEur += valueEur;
+                        details.push({ coin, amount, priceEur, valueEur, source: priceSource });
                         if (valueEur > 0.5) {
                             coinsWithValue.push(`${coin}: ${amount.toFixed(2)} × €${priceEur.toFixed(4)} = €${valueEur.toFixed(2)} (${priceSource})`);
                         }
                     } else {
+                        details.push({ coin, amount, priceEur: 0, valueEur: 0, source: 'No price' });
                         console.log(`  ⚠️ ${year} ${coin}: ${amount.toFixed(4)} - NESSUN PREZZO`);
                     }
                 }
                 
                 yearEndTotals[year] = Math.round(totalEur * 100) / 100;
+                data.yearEndDetails[year] = details;
+                
+                console.log(`\n📅 ${year} - Valore al 31/12: €${yearEndTotals[year]} (TX: ${txByYear[year] || 0})`);
                 if (coinsWithValue.length > 0) {
-                    console.log(`\n📅 ${year} - Valore al 31/12: €${yearEndTotals[year]}`);
                     for (const c of coinsWithValue) {
                         console.log(`  ${c}`);
                     }
@@ -12152,7 +12210,15 @@ Rispondi in italiano.`;
             data.balances = yearEndBalances;
             data.totals = yearEndTotals;
             
-            console.log('Year-end totals (EUR):', yearEndTotals);
+            console.log('───────────────────────────────────────');
+            console.log('📊 RIEPILOGO TOTALI (EUR):');
+            for (const year of years) {
+                if (yearEndTotals[year] !== null && yearEndTotals[year] !== undefined) {
+                    const txCount = txByYear[year] || 0;
+                    console.log(`  ${year}: €${yearEndTotals[year]} (${txCount} tx)`);
+                }
+            }
+            console.log('═══════════════════════════════════════');
         }
         
         function getHistoricalPrice(coin, year, chain = '') {
