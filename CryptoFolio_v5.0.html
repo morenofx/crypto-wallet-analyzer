@@ -8341,9 +8341,9 @@
                     apiBtn.textContent = '🔗 Connetti API Binance';
                     apiBtn.style.background = '#f3ba2f';
                     apiBtn.style.color = '#000';
-                    // Binance: SOLO API, no CSV
-                    csvSection.style.display = 'none';
-                    dropzone.style.display = 'none';
+                    // Binance: API + CSV (CSV è più completo per lo storico!)
+                    csvSection.style.display = 'block';
+                    dropzone.style.display = 'block';
                 } else if (exchId === 'bitget') {
                     apiBtn.textContent = '🔗 Connetti API Bitget';
                     apiBtn.style.background = '#00f0ff';
