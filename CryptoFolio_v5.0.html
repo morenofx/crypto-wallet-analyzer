@@ -1038,11 +1038,12 @@
             'pancakeswap-token': { 2020: 0, 2021: 12.7, 2022: 3.7, 2023: 2.4, 2024: 2.1, 2025: 2.0, 2026: 2.5 },
             '1inch': { 2020: 0, 2021: 2.9, 2022: 0.47, 2023: 0.42, 2024: 0.52, 2025: 0.50, 2026: 0.55 },
             // Terra/Luna
-            'terra-luna': { 2020: 0.64, 2021: 93, 2022: 0.00017, 2023: 0.00012, 2024: 0.00012, 2025: 0.00004, 2026: 0.00004 },
+            'terra-luna': { 2020: 0.64, 2021: 93, 2022: 0.00017, 2023: 0.00012, 2024: 0.00012, 2025: 0.000038, 2026: 0.00004 },
             'terra-luna-2': { 2020: 0, 2021: 0, 2022: 2.5, 2023: 0.8, 2024: 0.45, 2025: 0.40, 2026: 0.45 },
             // Telegram/TON ecosystem
-            'notcoin': { 2020: 0, 2021: 0, 2022: 0, 2023: 0, 2024: 0.008, 2025: 0.0005, 2026: 0.0005 },
+            'notcoin': { 2020: 0, 2021: 0, 2022: 0, 2023: 0, 2024: 0.008, 2025: 0.00052, 2026: 0.0005 },
             'dogs-2': { 2020: 0, 2021: 0, 2022: 0, 2023: 0, 2024: 0.0005, 2025: 0.00002, 2026: 0.00002 },
+            'bonk': { 2020: 0, 2021: 0, 2022: 0, 2023: 0.00001, 2024: 0.000033, 2025: 0.000025, 2026: 0.00003 },
             'hamster-kombat': { 2020: 0, 2021: 0, 2022: 0, 2023: 0, 2024: 0.003, 2025: 0.002, 2026: 0.002 },
             'catizen': { 2020: 0, 2021: 0, 2022: 0, 2023: 0, 2024: 0.4, 2025: 0.3, 2026: 0.35 },
             // Exchange tokens
@@ -11863,13 +11864,14 @@ Rispondi in italiano.`;
                     stats.transfers++;
                 }
                 // SUBSCRIPTION/REDEMPTION (Earn - movimenti Spot ↔ Earn)
-                // QUESTI VANNO CONTATI perché rappresentano token che escono/entrano nel wallet Spot
-                // Subscription = token che metti in Earn (escono da Spot = -)
-                // Redemption = token che ritiri da Earn (entrano in Spot = +)
+                // Per calcolare il TOTALE (Spot + Earn), questi movimenti si annullano:
+                // - Subscription: esci da Spot, entri in Earn → totale invariato
+                // - Redemption: esci da Earn, entri in Spot → totale invariato
+                // Quindi li SKIPPIAMO per avere il saldo TOTALE corretto!
                 else if (opLower.includes('subscription') || opLower.includes('redemption')) {
-                    type = 'earn_movement';
-                    stats.transfers++;
-                    // NON skip - conta per il saldo!
+                    // SKIP - movimento interno tra Spot e Earn, non cambia il totale
+                    stats.skipped++;
+                    continue;
                 }
                 // TRANSACTION RELATED / REVENUE (spesso accoppiato con altre TX)
                 else if (opLower.includes('transaction related') || opLower.includes('transaction revenue')) {
@@ -12100,7 +12102,8 @@ Rispondi in italiano.`;
             const STABLECOINS = ['USDT', 'USDC', 'BUSD', 'DAI', 'TUSD', 'USDP', 'GUSD', 'FDUSD', 'FRAX', 'UST', 'USTC'];
             
             // Lista token da ignorare (valore ~0, airdrop spam, ecc)
-            const IGNORE_TOKENS = ['NFT', '1MBABYDOGE', 'LUNC', 'USTC', 'SANTOS', 'HIGH', 'MC'];
+            // Token da ignorare (solo spam/airdrop senza valore)
+            const IGNORE_TOKENS = ['NFT', 'SANTOS', 'MC', 'HIGH'];
             
             // Salva dettaglio calcolo per debug UI
             data.yearEndDetails = {};
