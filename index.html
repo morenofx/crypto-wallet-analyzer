@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CryptoFolio - Login</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔐</text></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -28,6 +28,16 @@
         .logo { font-size: 64px; margin-bottom: 16px; }
         h1 { color: #fff; font-size: 28px; font-weight: 700; margin-bottom: 8px; }
         .subtitle { color: #888; font-size: 14px; margin-bottom: 32px; }
+        .version-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 24px;
+        }
         input[type="password"] {
             width: 100%;
             padding: 16px 20px;
@@ -68,6 +78,32 @@
             75% { transform: translateX(10px); }
         }
         .footer { margin-top: 32px; color: #555; font-size: 12px; }
+        .features {
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            text-align: left;
+        }
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            color: #888;
+            font-size: 13px;
+        }
+        .feature-item span:first-child {
+            font-size: 16px;
+        }
+        .new-badge {
+            background: #00cec9;
+            color: #000;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: 700;
+            margin-left: 6px;
+        }
     </style>
 </head>
 <body>
@@ -75,6 +111,7 @@
         <div class="logo">📊</div>
         <h1>CryptoFolio</h1>
         <p class="subtitle">Portfolio & Tax Manager</p>
+        <div class="version-badge">v5.0 - Smart Reconciliation</div>
         
         <form onsubmit="return checkPassword()">
             <input type="password" id="password" placeholder="Password" autofocus>
@@ -82,20 +119,37 @@
         </form>
         
         <p class="error" id="error">❌ Password errata</p>
-        <p class="footer">v4.4 - Exchanges</p>
+        
+        <div class="features">
+            <div class="feature-item">
+                <span>🔗</span>
+                <span>Riconciliazione Smart a 3 Livelli <span class="new-badge">NEW</span></span>
+            </div>
+            <div class="feature-item">
+                <span>🔒</span>
+                <span>Match per TxHash (100% sicuro)</span>
+            </div>
+            <div class="feature-item">
+                <span>✓</span>
+                <span>Match Esatto (±0.1%, ±2h)</span>
+            </div>
+            <div class="feature-item">
+                <span>~</span>
+                <span>Match Fuzzy con conferma manuale</span>
+            </div>
+        </div>
+        
+        <p class="footer">Powered by Firebase + Moralis</p>
     </div>
 
     <script>
-        // Password: "moreno2024" - cambia l'hash per cambiare password
-        const PASS_HASH = 'a]Kx9#Lm2$Qw';
-        
+        // Password: "moreno2024"
         function checkPassword() {
             const pwd = document.getElementById('password').value;
             
-            // Simple obfuscation (per uso personale va bene)
             if (btoa(pwd) === 'bW9yZW5vMjAyNA==') {
                 sessionStorage.setItem('cryptofolio_auth', Date.now().toString());
-                window.location.href = 'CryptoFolio_v4.4.html';
+                window.location.href = 'CryptoFolio_v5.0.html';
             } else {
                 document.getElementById('error').classList.add('show');
                 document.getElementById('password').value = '';
@@ -107,7 +161,7 @@
         // Auto-redirect se già autenticato (sessione valida 24h)
         const auth = sessionStorage.getItem('cryptofolio_auth');
         if (auth && (Date.now() - parseInt(auth)) < 86400000) {
-            window.location.href = 'CryptoFolio_v4.4.html';
+            window.location.href = 'CryptoFolio_v5.0.html';
         }
     </script>
 </body>
