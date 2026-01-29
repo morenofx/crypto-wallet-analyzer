@@ -860,7 +860,16 @@
             
             // Show selected
             document.getElementById(`view-${viewName}`).classList.add('active');
-            document.querySelector(`.nav-item[onclick="showView('${viewName}')"]`).classList.add('active');
+            
+            // Update nav (solo se esiste il nav-item)
+            const navItem = document.querySelector(`.nav-item[onclick="showView('${viewName}')"]`);
+            if (navItem) {
+                navItem.classList.add('active');
+            } else if (viewName === 'walletDetail') {
+                // Per walletDetail, evidenzia "Wallets" nel menu
+                const walletsNav = document.querySelector(`.nav-item[onclick="showView('wallets')"]`);
+                if (walletsNav) walletsNav.classList.add('active');
+            }
             
             // Update title
             const titles = {
@@ -1022,20 +1031,36 @@
             
             // Trova token di questo wallet
             const walletBalances = [];
+            const searchSource = `wallet_${currentWalletAddress.toLowerCase()}`;
+            
+            console.log('🔍 Cercando balance per:', searchSource);
+            console.log('📦 Balances disponibili:', Object.keys(state.balances));
+            
             for (const [key, balance] of Object.entries(state.balances)) {
-                if (balance.source === `wallet_${currentWalletAddress}`) {
+                console.log(`  - ${key}: source=${balance.source}, amount=${balance.amount}`);
+                
+                // Match più permissivo: controlla se source contiene l'indirizzo
+                if (balance.source && balance.source.toLowerCase() === searchSource) {
+                    walletBalances.push(balance);
+                } else if (balance.source && balance.source.toLowerCase().includes(currentWalletAddress.toLowerCase())) {
                     walletBalances.push(balance);
                 }
             }
+            
+            console.log('✅ Trovati', walletBalances.length, 'token');
             
             // Ordina per valore
             walletBalances.sort((a, b) => (b.valueEUR || 0) - (a.valueEUR || 0));
             
             // Trova transazioni di questo wallet
-            const walletTx = state.transactions.filter(tx => 
-                tx.wallet === currentWalletAddress || 
-                tx.source === `wallet_${currentWalletAddress}`
-            );
+            const addrLower = currentWalletAddress.toLowerCase();
+            const walletTx = state.transactions.filter(tx => {
+                const txWallet = (tx.wallet || '').toLowerCase();
+                const txSource = (tx.source || '').toLowerCase();
+                return txWallet === addrLower || 
+                       txWallet.includes(addrLower) ||
+                       txSource.includes(addrLower);
+            });
             
             // Calcola totale
             let totalValue = 0;
