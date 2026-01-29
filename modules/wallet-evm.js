@@ -134,9 +134,12 @@ const WalletEVM = (function() {
                         if (balance > 0) {
                             allBalances.push(createBalance({
                                 coin: token.symbol || 'UNKNOWN',
+                                name: token.name || token.symbol || 'Unknown',
                                 amount: balance,
                                 source: `wallet_${address.toLowerCase()}`,
-                                chain: chainKey
+                                chain: chainKey,
+                                logo: token.logo || token.thumbnail || null,
+                                contractAddress: token.token_address || null
                             }));
                         }
                     }

@@ -1087,13 +1087,38 @@
         const SCAM_PATTERNS = [
             'visit', 'claim', 'reward', 'airdrop', 'voucher', 'promo',
             '.com', '.org', '.xyz', '.io', '.net', 'http', 'www',
-            'bonus', 'free', 'gift', 'win', '$', 'earn'
+            'bonus', 'free', 'gift', 'win', '$', 'earn', 'giveaway',
+            'elon', 'trump', 'doge2', 'safemoon', '100x', '1000x'
         ];
         
-        function isScamToken(name) {
+        // Token legittimi con alto valore (non sono scam anche se valgono molto)
+        const LEGITIMATE_HIGH_VALUE = [
+            'BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'AVAX', 'DOT', 
+            'LINK', 'MATIC', 'LTC', 'ATOM', 'UNI', 'AAVE', 'MKR'
+        ];
+        
+        function isScamToken(name, amount = 0, price = 0) {
             if (!name) return false;
             const lower = name.toLowerCase();
-            return SCAM_PATTERNS.some(pattern => lower.includes(pattern));
+            const upper = name.toUpperCase();
+            
+            // Check pattern scam nel nome
+            if (SCAM_PATTERNS.some(pattern => lower.includes(pattern))) {
+                return true;
+            }
+            
+            // Check valore anomalo: se un token non noto vale > 100k€, probabilmente è fake
+            // (es: token LINK fake con milioni di unità)
+            const value = amount * price;
+            if (value > 100000 && !LEGITIMATE_HIGH_VALUE.includes(upper)) {
+                // Verifica ulteriore: se ha più di 1 milione di unità, è sospetto
+                if (amount > 1000000) {
+                    console.log(`⚠️ Token sospetto: ${name} - ${amount} unità, €${value.toFixed(0)} valore`);
+                    return true;
+                }
+            }
+            
+            return false;
         }
         
         // Blacklist personalizzata (salvata in localStorage)
@@ -1139,38 +1164,83 @@
             updateWalletDetail();
         }
         
-        // Mappa icone token conosciute
+        // Mappa icone token conosciute (fallback)
         const TOKEN_ICONS = {
+            // Major coins
             'ETH': 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
+            'WETH': 'https://assets.coingecko.com/coins/images/2518/small/weth.png',
+            'BTC': 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',
+            'WBTC': 'https://assets.coingecko.com/coins/images/7598/small/wrapped_bitcoin_wbtc.png',
             'BNB': 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',
             'MATIC': 'https://assets.coingecko.com/coins/images/4713/small/matic-token-icon.png',
-            'BTC': 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',
-            'USDT': 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
-            'USDC': 'https://assets.coingecko.com/coins/images/6319/small/usdc.png',
-            'SHIB': 'https://assets.coingecko.com/coins/images/11939/small/shiba.png',
-            'LINK': 'https://assets.coingecko.com/coins/images/877/small/chainlink-new-logo.png',
-            'UNI': 'https://assets.coingecko.com/coins/images/12504/small/uniswap-uni.png',
-            'AAVE': 'https://assets.coingecko.com/coins/images/12645/small/AAVE.png',
-            'CRO': 'https://assets.coingecko.com/coins/images/7310/small/cro_token_logo.png',
+            'POL': 'https://assets.coingecko.com/coins/images/4713/small/matic-token-icon.png',
+            'SOL': 'https://assets.coingecko.com/coins/images/4128/small/solana.png',
             'AVAX': 'https://assets.coingecko.com/coins/images/12559/small/Avalanche_Circle_RedWhite_Trans.png',
             'FTM': 'https://assets.coingecko.com/coins/images/4001/small/Fantom_round.png',
             'ARB': 'https://assets.coingecko.com/coins/images/16547/small/photo_2023-03-29_21.47.00.jpeg',
             'OP': 'https://assets.coingecko.com/coins/images/25244/small/Optimism.png',
-            'WETH': 'https://assets.coingecko.com/coins/images/2518/small/weth.png',
-            'WBTC': 'https://assets.coingecko.com/coins/images/7598/small/wrapped_bitcoin_wbtc.png',
+            'CRO': 'https://assets.coingecko.com/coins/images/7310/small/cro_token_logo.png',
+            // Stablecoins
+            'USDT': 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
+            'USDC': 'https://assets.coingecko.com/coins/images/6319/small/usdc.png',
             'DAI': 'https://assets.coingecko.com/coins/images/9956/small/Badge_Dai.png',
-            'LUNC': 'https://assets.coingecko.com/coins/images/8284/small/01_LussnaC_400x400.png',
-            'PLS': 'https://assets.coingecko.com/coins/images/25667/small/pulse.png',
+            'BUSD': 'https://assets.coingecko.com/coins/images/9576/small/BUSD.png',
+            'TUSD': 'https://assets.coingecko.com/coins/images/3449/small/tusd.png',
+            'FRAX': 'https://assets.coingecko.com/coins/images/13422/small/FRAX_icon.png',
+            // DeFi
+            'LINK': 'https://assets.coingecko.com/coins/images/877/small/chainlink-new-logo.png',
+            'UNI': 'https://assets.coingecko.com/coins/images/12504/small/uniswap-uni.png',
+            'AAVE': 'https://assets.coingecko.com/coins/images/12645/small/AAVE.png',
+            'MKR': 'https://assets.coingecko.com/coins/images/1364/small/Mark_Maker.png',
+            'COMP': 'https://assets.coingecko.com/coins/images/10775/small/COMP.png',
+            'CRV': 'https://assets.coingecko.com/coins/images/12124/small/Curve.png',
+            'SNX': 'https://assets.coingecko.com/coins/images/3406/small/SNX.png',
+            'SUSHI': 'https://assets.coingecko.com/coins/images/12271/small/512x512_Logo_no_chop.png',
+            '1INCH': 'https://assets.coingecko.com/coins/images/13469/small/1inch-token.png',
+            'CAKE': 'https://assets.coingecko.com/coins/images/12632/small/pancakeswap-cake-logo.png',
+            // Meme coins
+            'SHIB': 'https://assets.coingecko.com/coins/images/11939/small/shiba.png',
+            'DOGE': 'https://assets.coingecko.com/coins/images/5/small/dogecoin.png',
+            'PEPE': 'https://assets.coingecko.com/coins/images/29850/small/pepe-token.jpeg',
+            'FLOKI': 'https://assets.coingecko.com/coins/images/16746/small/PNG_image.png',
+            'BONE': 'https://assets.coingecko.com/coins/images/16916/small/bone_icon.png',
+            'LEASH': 'https://assets.coingecko.com/coins/images/15802/small/LEASH.png',
+            // PulseChain
+            'PLS': 'https://tokens.app.pulsex.com/images/tokens/0xA1077a294dDE1B09bB078844df40758a5D0f9a27.png',
+            'PLSX': 'https://tokens.app.pulsex.com/images/tokens/0x95B303987A60C71504D99Aa1b13B4DA07b0790ab.png',
+            'HEX': 'https://tokens.app.pulsex.com/images/tokens/0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39.png',
+            'INC': 'https://tokens.app.pulsex.com/images/tokens/0x2fa878Ab3F87CC1C9737Fc071108F904c0B0C95d.png',
+            // Cosmos
             'ATOM': 'https://assets.coingecko.com/coins/images/1481/small/cosmos_hub.png',
-            'OSMO': 'https://assets.coingecko.com/coins/images/16724/small/osmo.png'
+            'OSMO': 'https://assets.coingecko.com/coins/images/16724/small/osmo.png',
+            'LUNC': 'https://assets.coingecko.com/coins/images/8284/small/01_LunasLogo_color.png',
+            'USTC': 'https://assets.coingecko.com/coins/images/12681/small/UST.png',
+            // Others
+            'LTC': 'https://assets.coingecko.com/coins/images/2/small/litecoin.png',
+            'XRP': 'https://assets.coingecko.com/coins/images/44/small/xrp-symbol-white-128.png',
+            'ADA': 'https://assets.coingecko.com/coins/images/975/small/cardano.png',
+            'DOT': 'https://assets.coingecko.com/coins/images/12171/small/polkadot.png',
+            'NEAR': 'https://assets.coingecko.com/coins/images/10365/small/near.jpg',
+            'APT': 'https://assets.coingecko.com/coins/images/26455/small/aptos_round.png',
+            'SUI': 'https://assets.coingecko.com/coins/images/26375/small/sui_asset.jpeg',
+            'TRX': 'https://assets.coingecko.com/coins/images/1094/small/tron-logo.png',
+            'TON': 'https://assets.coingecko.com/coins/images/17980/small/ton_symbol.png',
         };
         
-        function getTokenIcon(coin, chainColor) {
-            const iconUrl = TOKEN_ICONS[coin.toUpperCase()];
-            if (iconUrl) {
-                return `<img src="${iconUrl}" style="width:32px;height:32px;border-radius:50%;" onerror="this.outerHTML='<div style=\\'width:32px;height:32px;border-radius:50%;background:${chainColor}30;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;\\'>${coin.slice(0,3)}</div>'">`;
+        function getTokenIcon(bal, chainColor) {
+            // 1. Logo salvata dal wallet scan (Moralis)
+            if (bal.logo) {
+                return `<img src="${bal.logo}" style="width:32px;height:32px;border-radius:50%;" onerror="this.outerHTML='<div style=\\'width:32px;height:32px;border-radius:50%;background:${chainColor}30;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;\\'>${bal.coin.slice(0,3)}</div>'">`;
             }
-            return `<div style="width:32px;height:32px;border-radius:50%;background:${chainColor}30;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;">${coin.slice(0,3)}</div>`;
+            
+            // 2. TOKEN_ICONS hardcoded
+            const coinUpper = bal.coin.toUpperCase();
+            if (TOKEN_ICONS[coinUpper]) {
+                return `<img src="${TOKEN_ICONS[coinUpper]}" style="width:32px;height:32px;border-radius:50%;" onerror="this.outerHTML='<div style=\\'width:32px;height:32px;border-radius:50%;background:${chainColor}30;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;\\'>${bal.coin.slice(0,3)}</div>'">`;
+            }
+            
+            // 3. Fallback con iniziali
+            return `<div style="width:32px;height:32px;border-radius:50%;background:${chainColor}30;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;">${bal.coin.slice(0,3)}</div>`;
         }
         
         function renderWalletTokens(balances) {
@@ -1188,7 +1258,8 @@
                         blacklistCount++;
                         return false;
                     }
-                    if (isScamToken(bal.coin)) {
+                    const price = PriceService.getPrice(bal.coin, 'eur');
+                    if (isScamToken(bal.coin, bal.amount, price)) {
                         scamCount++;
                         return false;
                     }
@@ -1273,7 +1344,7 @@
                 for (const bal of tokens) {
                     const price = PriceService.getPrice(bal.coin, 'eur');
                     const value = bal.amount * price;
-                    const iconHtml = getTokenIcon(bal.coin, chainInfo.color);
+                    const iconHtml = getTokenIcon(bal, chainInfo.color);
                     
                     html += `
                         <tr style="border-bottom:1px solid var(--border);">
@@ -1282,6 +1353,7 @@
                                     ${iconHtml}
                                     <div>
                                         <div style="font-weight:500;">${bal.coin}</div>
+                                        ${bal.name && bal.name !== bal.coin ? `<div class="text-secondary" style="font-size:10px;">${bal.name.slice(0,20)}</div>` : ''}
                                     </div>
                                 </div>
                             </td>
@@ -1427,25 +1499,19 @@
             document.getElementById('totalWallets').textContent = state.wallets.length;
             document.getElementById('totalTx').textContent = state.transactions.length;
             
-            // Conta asset non-scam
-            let validAssets = 0;
-            
             // Aggrega balance per coin (sommando da tutti i wallet)
             const aggregated = {};
             for (const [key, balance] of Object.entries(state.balances)) {
                 const coin = balance.coin;
                 
-                // Filtra token scam
-                if (isScamToken(coin)) continue;
+                // Filtra pattern scam ovvi (senza prezzo)
+                if (isScamToken(coin, 0, 0)) continue;
                 
                 if (!aggregated[coin]) {
                     aggregated[coin] = { coin, amount: 0, valueEUR: 0 };
-                    validAssets++;
                 }
                 aggregated[coin].amount += balance.amount;
             }
-            
-            document.getElementById('totalAssets').textContent = validAssets;
             
             // Fetch prezzi per tutti i coin
             const coins = Object.keys(aggregated);
@@ -1453,12 +1519,24 @@
                 await PriceService.fetchCurrentPrices(coins);
             }
             
-            // Calcola valori dopo aver fetchato i prezzi
+            // Calcola valori e filtra scam con valore anomalo
+            let validAssets = 0;
             for (const coin of coins) {
                 const price = PriceService.getPrice(coin, 'eur');
-                aggregated[coin].valueEUR = aggregated[coin].amount * price;
+                const amount = aggregated[coin].amount;
+                
+                // Filtra token con valore anomalo (probabili scam)
+                if (isScamToken(coin, amount, price)) {
+                    delete aggregated[coin];
+                    continue;
+                }
+                
+                aggregated[coin].valueEUR = amount * price;
                 aggregated[coin].price = price;
+                validAssets++;
             }
+            
+            document.getElementById('totalAssets').textContent = validAssets;
             
             // Converti in array e ordina per valore
             const holdings = Object.values(aggregated)
