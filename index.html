@@ -1029,26 +1029,43 @@
             if (!currentWalletAddress) return;
             
             const state = Database.getState();
+            const blacklist = getBlacklist();
             
-            // Trova token di questo wallet
+            // Trova token di questo wallet (esclusi blacklist)
             const walletBalances = [];
             const searchSource = `wallet_${currentWalletAddress.toLowerCase()}`;
             
             console.log('🔍 Cercando balance per:', searchSource);
-            console.log('📦 Balances disponibili:', Object.keys(state.balances));
             
             for (const [key, balance] of Object.entries(state.balances)) {
-                console.log(`  - ${key}: source=${balance.source}, amount=${balance.amount}`);
-                
                 // Match più permissivo: controlla se source contiene l'indirizzo
-                if (balance.source && balance.source.toLowerCase() === searchSource) {
-                    walletBalances.push(balance);
-                } else if (balance.source && balance.source.toLowerCase().includes(currentWalletAddress.toLowerCase())) {
-                    walletBalances.push(balance);
+                const isMatch = (balance.source && balance.source.toLowerCase() === searchSource) ||
+                               (balance.source && balance.source.toLowerCase().includes(currentWalletAddress.toLowerCase()));
+                
+                if (!isMatch) continue;
+                
+                // ⚠️ IMPORTANTE: Filtra token in blacklist
+                if (blacklist.includes(balance.coin.toLowerCase())) {
+                    console.log(`  ❌ Escluso (blacklist): ${balance.coin}`);
+                    continue;
                 }
+                
+                // Filtra anche per contract address in blacklist
+                if (balance.contractAddress && blacklist.includes(balance.contractAddress.toLowerCase())) {
+                    console.log(`  ❌ Escluso (blacklist contract): ${balance.coin}`);
+                    continue;
+                }
+                
+                // Filtra pattern scam
+                if (isScamToken(balance.coin, 0, 0)) {
+                    console.log(`  ❌ Escluso (scam pattern): ${balance.coin}`);
+                    continue;
+                }
+                
+                walletBalances.push(balance);
             }
             
-            console.log('✅ Trovati', walletBalances.length, 'token');
+            console.log('✅ Trovati', walletBalances.length, 'token (dopo filtri)');
             
             // Ordina per valore
             walletBalances.sort((a, b) => (b.valueEUR || 0) - (a.valueEUR || 0));
@@ -1085,7 +1102,7 @@
         
         // Lista token scam/spam da filtrare (come v5.2)
         const SCAM_PATTERNS = [
-            'visit', 'claim', 'reward', '.com', '.org', '.io', '.xyz', '.net',
+            'visit', 'claim', 'reward', '.com', '.org', '.xyz', '.net',
             'airdrop', 'bonus', 'free', 'gift', 'http', 'www', '$', '#',
             'giveaway', 'elon', 'trump', '100x', '1000x', 'safemoon'
         ];
@@ -1099,7 +1116,12 @@
             'WETH', 'WBTC', 'WBNB', 'WPLS',
             'CRO', 'FTM', 'ARB', 'OP', 'NEAR', 'APT', 'SUI', 'TON', 'TRX',
             'CAKE', 'OKB', 'BXN', 'BGB', 'KCS', 'GT', 'INJ', 'SEI', 'TIA',
-            'SAND', 'MANA', 'AXS', 'GALA', 'ENJ', 'IMX'
+            'SAND', 'MANA', 'AXS', 'GALA', 'ENJ', 'IMX',
+            // Gaming/Metaverse
+            'MAVIA', 'PIXEL', 'PRIME', 'GODS', 'ILV', 'YGG', 'RONIN', 'RON',
+            // Altri token comuni
+            'SHIFU', 'BUBBLE', 'CIV', 'STONE', 'ONE', 'BLUR', 'APE', 'LDO',
+            'RENDER', 'FET', 'AGIX', 'OCEAN', 'GRT', 'RNDR', 'WLD', 'TAO'
         ];
         
         function isScamToken(name, amount = 0, price = 0) {
@@ -1125,23 +1147,16 @@
                 return true;
             }
             
-            // 🆕 Token con prezzo €0 e quantità significativa = probabilmente spam/airdrop
-            if (price === 0 && amount > 100) {
-                console.log(`⚠️ Token nascosto (prezzo €0): ${name} - ${amount} unità`);
-                return true;
-            }
+            // RIMOSSO: filtro prezzo €0 (troppo aggressivo, nasconde token legittimi)
+            // I token senza prezzo CoinGecko possono essere legittimi!
             
-            // 🆕 Token con milioni di unità e valore basso = sospetto
-            if (amount > 1000000 && price * amount < 10) {
-                console.log(`⚠️ Token nascosto (troppi token, poco valore): ${name} - ${amount} unità`);
-                return true;
-            }
-            
-            // Check valore anomalo: se un token non noto vale > 100k€ con > 1M unità
-            const value = amount * price;
-            if (value > 100000 && amount > 1000000) {
-                console.log(`⚠️ Token sospetto (valore anomalo): ${name} - ${amount} unità, €${value.toFixed(0)}`);
-                return true;
+            // Solo nascondere token con pattern MOLTO sospetti:
+            // - Milioni di unità E prezzo €0 E nome non riconosciuto
+            if (amount > 10000000 && price === 0) {
+                // Potrebbe essere airdrop spam, ma non filtrare automaticamente
+                // L'utente può aggiungerlo alla blacklist manualmente
+                console.log(`⚠️ Token sospetto (molte unità, no prezzo): ${name} - ${amount.toLocaleString()} unità`);
+                // return true; // DISABILITATO - lascia decidere all'utente
             }
             
             return false;
@@ -1164,6 +1179,32 @@
                 list.push(coinLower);
                 saveBlacklist(list);
                 log(`🚫 ${coin} aggiunto alla blacklist`);
+                
+                // ⚠️ IMPORTANTE: Rimuovi dal database tutti i balance di questo token
+                const state = Database.getState();
+                const keysToRemove = [];
+                
+                for (const [key, balance] of Object.entries(state.balances)) {
+                    if (balance.coin && balance.coin.toLowerCase() === coinLower) {
+                        keysToRemove.push(key);
+                    }
+                    // Controlla anche contract address
+                    if (balance.contractAddress && balance.contractAddress.toLowerCase() === coinLower) {
+                        keysToRemove.push(key);
+                    }
+                }
+                
+                // Rimuovi dal database
+                for (const key of keysToRemove) {
+                    delete state.balances[key];
+                    Logger.info('Blacklist', `Rimosso dal DB: ${key}`);
+                }
+                
+                if (keysToRemove.length > 0) {
+                    Database.save();
+                    log(`🗑️ Rimossi ${keysToRemove.length} record dal database`);
+                }
+                
                 // Aggiorna tutte le view
                 updateWalletDetail();
                 updateDashboard();
@@ -1186,6 +1227,44 @@
         function isBlacklisted(coin) {
             if (!coin) return false;
             return getBlacklist().includes(coin.toLowerCase());
+        }
+        
+        // Rimuove TUTTI i token blacklistati dal database
+        function cleanupBlacklistedTokens() {
+            const blacklist = getBlacklist();
+            if (blacklist.length === 0) {
+                log('📋 Blacklist vuota, nulla da rimuovere');
+                return;
+            }
+            
+            const state = Database.getState();
+            const keysToRemove = [];
+            
+            for (const [key, balance] of Object.entries(state.balances)) {
+                const coinLower = (balance.coin || '').toLowerCase();
+                const contractLower = (balance.contractAddress || '').toLowerCase();
+                
+                if (blacklist.includes(coinLower) || (contractLower && blacklist.includes(contractLower))) {
+                    keysToRemove.push(key);
+                }
+            }
+            
+            if (keysToRemove.length === 0) {
+                log('✅ Database già pulito');
+                return;
+            }
+            
+            for (const key of keysToRemove) {
+                delete state.balances[key];
+            }
+            
+            Database.save();
+            log(`🗑️ Rimossi ${keysToRemove.length} token blacklistati dal database`);
+            
+            // Aggiorna view
+            updateWalletDetail();
+            updateDashboard();
+            updateTransactionTable();
         }
         
         // Stato filtro scam
@@ -1447,7 +1526,10 @@
             }
             
             html += `
-                        <button onclick="closeBlacklistModal()" class="btn btn-secondary mt-16" style="width:100%;">Chiudi</button>
+                        <div class="flex gap-8 mt-16">
+                            <button onclick="cleanupBlacklistedTokens();closeBlacklistModal();" class="btn btn-danger" style="flex:1;font-size:12px;">🗑️ Pulisci Database</button>
+                            <button onclick="closeBlacklistModal()" class="btn btn-secondary" style="flex:1;">Chiudi</button>
+                        </div>
                     </div>
                 </div>
             `;

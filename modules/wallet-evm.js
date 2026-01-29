@@ -19,6 +19,7 @@ const WalletEVM = (function() {
         'bsc': '0x38',
         'polygon': '0x89',
         'arbitrum': '0xa4b1',
+        'optimism': '0xa',
         'base': '0x2105',
         'avalanche': '0xa86a',
         'fantom': '0xfa',
@@ -28,14 +29,18 @@ const WalletEVM = (function() {
     // PulseChain (non supportato da Moralis, usa PulseScan)
     const PULSESCAN_API = 'https://api.scan.pulsechain.com/api';
     
-    // Explorer APIs
+    // BlackFort (usa Blockscout API)
+    const BLACKFORT_API = 'https://blackfortscan.com/api';
+    
+    // Explorer APIs (per chain non supportate da Moralis/Etherscan V2)
     const EXPLORER_APIS = {
         'eth': 'https://api.etherscan.io/api',
         'bsc': 'https://api.bscscan.com/api',
         'polygon': 'https://api.polygonscan.com/api',
         'arbitrum': 'https://api.arbiscan.io/api',
         'base': 'https://api.basescan.org/api',
-        'pulse': 'https://api.scan.pulsechain.com/api'
+        'pulse': 'https://api.scan.pulsechain.com/api',
+        'blackfort': 'https://blackfortscan.com/api'
     };
     
     // ═══════════════════════════════════════════════════════════
@@ -43,7 +48,7 @@ const WalletEVM = (function() {
     // ═══════════════════════════════════════════════════════════
     
     const SPAM_PATTERNS = [
-        'visit', 'claim', 'reward', '.com', '.org', '.io', '.xyz', '.net',
+        'visit', 'claim', 'reward', '.com', '.org', '.xyz', '.net',
         'airdrop', 'bonus', 'free', 'gift', 'http', 'www', '$', '#',
         'giveaway', '100x', '1000x', 'elon', 'trump'
     ];
@@ -76,6 +81,7 @@ const WalletEVM = (function() {
         'bsc': 56,
         'polygon': 137,
         'arbitrum': 42161,
+        'optimism': 10,
         'base': 8453,
         'avalanche': 43114,
         'fantom': 250,
@@ -176,8 +182,8 @@ const WalletEVM = (function() {
         const allBalances = [];
         
         for (const chainKey of chains) {
-            // Skip PulseChain - gestito separatamente
-            if (chainKey === 'pulse') continue;
+            // Skip PulseChain e BlackFort - gestiti separatamente
+            if (chainKey === 'pulse' || chainKey === 'blackfort') continue;
             
             const chainId = MORALIS_CHAINS[chainKey];
             
@@ -444,9 +450,10 @@ const WalletEVM = (function() {
     async function fullScan(address, chains = ['eth', 'bsc', 'polygon']) {
         Logger.info('WalletEVM', `Full scan: ${address.slice(0,8)}...`);
         
-        // Separa PulseChain dalle altre chain (Moralis non lo supporta)
-        const moralisChains = chains.filter(c => c !== 'pulse');
+        // Separa chain speciali (non supportate da Moralis)
+        const moralisChains = chains.filter(c => c !== 'pulse' && c !== 'blackfort');
         const includePulse = chains.includes('pulse');
+        const includeBlackFort = chains.includes('blackfort');
         
         let allBalances = [];
         let allTransactions = [];
@@ -469,6 +476,15 @@ const WalletEVM = (function() {
             }
         }
         
+        // Scan BlackFort separatamente
+        if (includeBlackFort) {
+            const blackfortResult = await scanBlackFort(address);
+            if (blackfortResult.success) {
+                allBalances.push(...(blackfortResult.balances || []));
+                allTransactions.push(...(blackfortResult.transactions || []));
+            }
+        }
+        
         // Calcola valueEUR per le transazioni (prezzo corrente come approssimazione)
         for (const tx of allTransactions) {
             const coin = tx.coinIn || tx.coinOut;
@@ -480,20 +496,48 @@ const WalletEVM = (function() {
             }
         }
         
+        // Leggi blacklist da localStorage
+        let blacklist = [];
+        try {
+            const saved = localStorage.getItem('cryptofolio_blacklist');
+            blacklist = saved ? JSON.parse(saved).map(s => s.toLowerCase()) : [];
+        } catch (e) {
+            blacklist = [];
+        }
+        
+        // Filtra balance: rimuovi token in blacklist PRIMA di salvare
+        const filteredBalances = allBalances.filter(bal => {
+            const coinLower = (bal.coin || '').toLowerCase();
+            const contractLower = (bal.contractAddress || '').toLowerCase();
+            
+            // Se coin o contract è in blacklist, non salvare
+            if (blacklist.includes(coinLower)) {
+                Logger.info('WalletEVM', `⛔ Non salvo (blacklist): ${bal.coin}`);
+                return false;
+            }
+            if (contractLower && blacklist.includes(contractLower)) {
+                Logger.info('WalletEVM', `⛔ Non salvo (blacklist contract): ${bal.coin}`);
+                return false;
+            }
+            return true;
+        });
+        
+        Logger.info('WalletEVM', `Filtrati ${allBalances.length - filteredBalances.length} token blacklistati`);
+        
         // Aggiungi al database
         if (allTransactions.length > 0) {
             Database.addTransactions(allTransactions);
         }
         
-        // Aggiorna balances
-        for (const bal of allBalances) {
-            const key = `${bal.coin}_${bal.chain}`;
+        // Aggiorna balances (solo quelli filtrati)
+        for (const bal of filteredBalances) {
+            const key = `${bal.coin}_${bal.chain}_${bal.source}`;
             Database.updateBalance(key, bal);
         }
         
         return {
             success: true,
-            balances: allBalances,
+            balances: filteredBalances,
             transactions: allTransactions
         };
     }
@@ -637,6 +681,115 @@ const WalletEVM = (function() {
             
         } catch (error) {
             Logger.error('WalletEVM', 'Errore scan PulseChain', error);
+            return { success: false, error: error.message, balances: [], transactions: [] };
+        }
+    }
+    
+    // ═══════════════════════════════════════════════════════════
+    // BLACKFORT CHAIN (usa Blockscout API)
+    // ═══════════════════════════════════════════════════════════
+    
+    async function scanBlackFort(address) {
+        Logger.info('WalletEVM', `Scanning BlackFort: ${address.slice(0,8)}...`);
+        
+        const balances = [];
+        const transactions = [];
+        const addrLower = address.toLowerCase();
+        
+        try {
+            // Native BXN balance
+            const balanceUrl = `${BLACKFORT_API}?module=account&action=balance&address=${address}`;
+            const balResp = await fetch(balanceUrl);
+            
+            if (balResp.ok) {
+                const balData = await balResp.json();
+                if (balData.status === '1' && balData.result) {
+                    const bxnBalance = parseFloat(balData.result) / 1e18;
+                    if (bxnBalance > 0.0001) {
+                        balances.push(createBalance({
+                            coin: 'BXN',
+                            name: 'BlackFort',
+                            amount: bxnBalance,
+                            source: `wallet_${addrLower}`,
+                            chain: 'blackfort',
+                            logo: 'https://assets.coingecko.com/coins/images/29287/small/bxn.png'
+                        }));
+                    }
+                }
+            }
+            
+            // Token list (ERC20 su BlackFort)
+            const tokenUrl = `${BLACKFORT_API}?module=account&action=tokenlist&address=${address}`;
+            const tokenResp = await fetch(tokenUrl);
+            
+            if (tokenResp.ok) {
+                const tokenData = await tokenResp.json();
+                if (tokenData.status === '1' && tokenData.result) {
+                    for (const token of tokenData.result) {
+                        const decimals = parseInt(token.decimals) || 18;
+                        const balance = parseFloat(token.balance) / Math.pow(10, decimals);
+                        
+                        // Filtra spam/scam durante scan
+                        if (isSpamToken(token.name, token.symbol)) {
+                            Logger.info('WalletEVM', `Filtrato spam BlackFort: ${token.symbol}`);
+                            continue;
+                        }
+                        
+                        if (balance > 0) {
+                            balances.push(createBalance({
+                                coin: token.symbol || 'UNKNOWN',
+                                name: token.name || token.symbol || 'Unknown',
+                                amount: balance,
+                                source: `wallet_${addrLower}`,
+                                chain: 'blackfort',
+                                contractAddress: token.contractAddress || null
+                            }));
+                        }
+                    }
+                }
+            }
+            
+            // Native transactions
+            const txUrl = `${BLACKFORT_API}?module=account&action=txlist&address=${address}&sort=desc&page=1&offset=100`;
+            const txResp = await fetch(txUrl);
+            
+            if (txResp.ok) {
+                const txData = await txResp.json();
+                if (txData.status === '1' && txData.result) {
+                    for (const tx of txData.result) {
+                        if (tx.isError === '1') continue;
+                        
+                        const value = parseFloat(tx.value) / 1e18;
+                        if (value === 0) continue;
+                        
+                        const isIncoming = tx.to?.toLowerCase() === addrLower;
+                        const timestamp = parseInt(tx.timeStamp) * 1000;
+                        
+                        transactions.push(createTransaction({
+                            source: `wallet_${addrLower}`,
+                            sourceId: tx.hash,
+                            timestamp: timestamp,
+                            date: new Date(timestamp).toISOString(),
+                            year: new Date(timestamp).getFullYear(),
+                            type: isIncoming ? 'deposit' : 'withdrawal',
+                            coinIn: isIncoming ? 'BXN' : '',
+                            amountIn: isIncoming ? value : 0,
+                            coinOut: !isIncoming ? 'BXN' : '',
+                            amountOut: !isIncoming ? value : 0,
+                            feeCoin: 'BXN',
+                            feeAmount: parseFloat(tx.gasUsed || 0) * parseFloat(tx.gasPrice || 0) / 1e18,
+                            wallet: addrLower,
+                            chain: 'blackfort'
+                        }));
+                    }
+                }
+            }
+            
+            Logger.success('WalletEVM', `BlackFort: ${balances.length} token, ${transactions.length} tx`);
+            return { success: true, balances, transactions };
+            
+        } catch (error) {
+            Logger.error('WalletEVM', 'Errore scan BlackFort', error);
             return { success: false, error: error.message, balances: [], transactions: [] };
         }
     }

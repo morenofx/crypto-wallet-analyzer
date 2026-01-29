@@ -59,41 +59,96 @@ const AppState = {
 // ═══════════════════════════════════════════════════════════════
 
 const CHAINS = {
-    // EVM
+    // EVM - Principali
     eth: { 
         name: 'Ethereum', 
         symbol: 'ETH', 
         color: '#627eea',
         explorer: 'https://etherscan.io',
-        type: 'evm'
+        type: 'evm',
+        chainId: 1
     },
     bsc: { 
         name: 'BSC', 
         symbol: 'BNB', 
         color: '#f3ba2f',
         explorer: 'https://bscscan.com',
-        type: 'evm'
+        type: 'evm',
+        chainId: 56
     },
     polygon: { 
         name: 'Polygon', 
         symbol: 'MATIC', 
         color: '#8247e5',
         explorer: 'https://polygonscan.com',
-        type: 'evm'
+        type: 'evm',
+        chainId: 137
     },
     arbitrum: { 
         name: 'Arbitrum', 
         symbol: 'ETH', 
         color: '#28a0f0',
         explorer: 'https://arbiscan.io',
-        type: 'evm'
+        type: 'evm',
+        chainId: 42161
+    },
+    optimism: { 
+        name: 'Optimism', 
+        symbol: 'ETH', 
+        color: '#ff0420',
+        explorer: 'https://optimistic.etherscan.io',
+        type: 'evm',
+        chainId: 10
     },
     base: { 
         name: 'Base', 
         symbol: 'ETH', 
         color: '#0052ff',
         explorer: 'https://basescan.org',
-        type: 'evm'
+        type: 'evm',
+        chainId: 8453
+    },
+    
+    // EVM - Altre
+    avalanche: { 
+        name: 'Avalanche', 
+        symbol: 'AVAX', 
+        color: '#e84142',
+        explorer: 'https://snowtrace.io',
+        type: 'evm',
+        chainId: 43114
+    },
+    fantom: { 
+        name: 'Fantom', 
+        symbol: 'FTM', 
+        color: '#1969ff',
+        explorer: 'https://ftmscan.com',
+        type: 'evm',
+        chainId: 250
+    },
+    cronos: { 
+        name: 'Cronos', 
+        symbol: 'CRO', 
+        color: '#002d74',
+        explorer: 'https://cronoscan.com',
+        type: 'evm',
+        chainId: 25
+    },
+    pulse: { 
+        name: 'PulseChain', 
+        symbol: 'PLS', 
+        color: '#00ff00',
+        explorer: 'https://scan.pulsechain.com',
+        type: 'evm',
+        chainId: 369
+    },
+    blackfort: { 
+        name: 'BlackFort', 
+        symbol: 'BXN', 
+        color: '#00d4ff',
+        explorer: 'https://blackfortscan.com',
+        type: 'evm',
+        chainId: 4999
     },
     
     // Cosmos
@@ -135,13 +190,6 @@ const CHAINS = {
         color: '#9945ff',
         explorer: 'https://solscan.io',
         type: 'solana'
-    },
-    pulse: { 
-        name: 'PulseChain', 
-        symbol: 'PLS', 
-        color: '#00ff00',
-        explorer: 'https://scan.pulsechain.com',
-        type: 'evm'
     }
 };
 
@@ -320,7 +368,31 @@ const COINGECKO_IDS = {
     'ONE': 'harmony',
     'CELO': 'celo',
     'BXN': 'bxn',
-    'VSN': 'vision-network'
+    'VSN': 'vision-network',
+    
+    // Gaming / Metaverse
+    'MAVIA': 'heroes-of-mavia',
+    'PIXEL': 'pixels',
+    'PRIME': 'echelon-prime',
+    'GODS': 'gods-unchained',
+    'ILV': 'illuvium',
+    'YGG': 'yield-guild-games',
+    'RON': 'ronin',
+    'BLUR': 'blur',
+    'APE': 'apecoin',
+    
+    // AI tokens
+    'RENDER': 'render-token',
+    'RNDR': 'render-token',
+    'FET': 'fetch-ai',
+    'AGIX': 'singularitynet',
+    'OCEAN': 'ocean-protocol',
+    'WLD': 'worldcoin-wld',
+    'TAO': 'bittensor',
+    
+    // Altri
+    'CIV': 'civilization',
+    'SHIFU': 'shifu'
 };
 
 // ═══════════════════════════════════════════════════════════════
