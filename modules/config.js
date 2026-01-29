@@ -318,7 +318,9 @@ const COINGECKO_IDS = {
     'ROSE': 'oasis-network',
     'ZIL': 'zilliqa',
     'ONE': 'harmony',
-    'CELO': 'celo'
+    'CELO': 'celo',
+    'BXN': 'bxn',
+    'VSN': 'vision-network'
 };
 
 // ═══════════════════════════════════════════════════════════════
