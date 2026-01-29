@@ -621,8 +621,8 @@
                 
                 <!-- Tabs -->
                 <div class="flex gap-8 mb-16">
-                    <button class="btn" id="tabTokens" onclick="showWalletTab('tokens')">🪙 Token</button>
-                    <button class="btn btn-secondary" id="tabTx" onclick="showWalletTab('tx')" style="color:var(--text-primary);">📜 Transazioni</button>
+                    <button class="btn" id="tabTokens" onclick="showWalletTab('tokens')" style="background:var(--accent);color:white;">🪙 Token</button>
+                    <button class="btn" id="tabTx" onclick="showWalletTab('tx')" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);">📜 Transazioni</button>
                 </div>
                 
                 <!-- Token List -->
@@ -1139,6 +1139,40 @@
             updateWalletDetail();
         }
         
+        // Mappa icone token conosciute
+        const TOKEN_ICONS = {
+            'ETH': 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
+            'BNB': 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',
+            'MATIC': 'https://assets.coingecko.com/coins/images/4713/small/matic-token-icon.png',
+            'BTC': 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',
+            'USDT': 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
+            'USDC': 'https://assets.coingecko.com/coins/images/6319/small/usdc.png',
+            'SHIB': 'https://assets.coingecko.com/coins/images/11939/small/shiba.png',
+            'LINK': 'https://assets.coingecko.com/coins/images/877/small/chainlink-new-logo.png',
+            'UNI': 'https://assets.coingecko.com/coins/images/12504/small/uniswap-uni.png',
+            'AAVE': 'https://assets.coingecko.com/coins/images/12645/small/AAVE.png',
+            'CRO': 'https://assets.coingecko.com/coins/images/7310/small/cro_token_logo.png',
+            'AVAX': 'https://assets.coingecko.com/coins/images/12559/small/Avalanche_Circle_RedWhite_Trans.png',
+            'FTM': 'https://assets.coingecko.com/coins/images/4001/small/Fantom_round.png',
+            'ARB': 'https://assets.coingecko.com/coins/images/16547/small/photo_2023-03-29_21.47.00.jpeg',
+            'OP': 'https://assets.coingecko.com/coins/images/25244/small/Optimism.png',
+            'WETH': 'https://assets.coingecko.com/coins/images/2518/small/weth.png',
+            'WBTC': 'https://assets.coingecko.com/coins/images/7598/small/wrapped_bitcoin_wbtc.png',
+            'DAI': 'https://assets.coingecko.com/coins/images/9956/small/Badge_Dai.png',
+            'LUNC': 'https://assets.coingecko.com/coins/images/8284/small/01_LussnaC_400x400.png',
+            'PLS': 'https://assets.coingecko.com/coins/images/25667/small/pulse.png',
+            'ATOM': 'https://assets.coingecko.com/coins/images/1481/small/cosmos_hub.png',
+            'OSMO': 'https://assets.coingecko.com/coins/images/16724/small/osmo.png'
+        };
+        
+        function getTokenIcon(coin, chainColor) {
+            const iconUrl = TOKEN_ICONS[coin.toUpperCase()];
+            if (iconUrl) {
+                return `<img src="${iconUrl}" style="width:32px;height:32px;border-radius:50%;" onerror="this.outerHTML='<div style=\\'width:32px;height:32px;border-radius:50%;background:${chainColor}30;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;\\'>${coin.slice(0,3)}</div>'">`;
+            }
+            return `<div style="width:32px;height:32px;border-radius:50%;background:${chainColor}30;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;">${coin.slice(0,3)}</div>`;
+        }
+        
         function renderWalletTokens(balances) {
             const container = document.getElementById('walletTokensList');
             const blacklist = getBlacklist();
@@ -1173,54 +1207,101 @@
                 return;
             }
             
+            // Raggruppa per chain
+            const byChain = {};
+            for (const bal of filtered) {
+                const chain = bal.chain || 'unknown';
+                if (!byChain[chain]) byChain[chain] = [];
+                byChain[chain].push(bal);
+            }
+            
+            // Ordina chain per valore totale
+            const chainOrder = Object.keys(byChain).sort((a, b) => {
+                const totalA = byChain[a].reduce((sum, t) => sum + (t.amount * PriceService.getPrice(t.coin, 'eur')), 0);
+                const totalB = byChain[b].reduce((sum, t) => sum + (t.amount * PriceService.getPrice(t.coin, 'eur')), 0);
+                return totalB - totalA;
+            });
+            
             // Header con filtro e info
             const hiddenCount = scamCount + blacklistCount;
             let html = `
                 <div class="flex items-center justify-between mb-16">
                     <span class="text-secondary" style="font-size:12px;">
-                        ${filtered.length} token${hiddenCount > 0 ? ` (${hiddenCount} nascosti: ${scamCount} scam, ${blacklistCount} blacklist)` : ''}
+                        ${filtered.length} token su ${chainOrder.length} chain${hiddenCount > 0 ? ` (${hiddenCount} nascosti)` : ''}
                     </span>
                     <div class="flex gap-8">
-                        ${blacklist.length > 0 ? `<button class="btn btn-secondary" onclick="showBlacklistModal()" style="padding:6px 12px;font-size:12px;">📋 Blacklist (${blacklist.length})</button>` : ''}
-                        <button class="btn btn-secondary" id="scamFilterBtn" onclick="toggleScamFilter()" style="padding:6px 12px;font-size:12px;">
+                        ${blacklist.length > 0 ? `<button class="btn btn-secondary" onclick="showBlacklistModal()" style="padding:6px 12px;font-size:12px;color:var(--text-primary);">📋 Blacklist (${blacklist.length})</button>` : ''}
+                        <button class="btn btn-secondary" id="scamFilterBtn" onclick="toggleScamFilter()" style="padding:6px 12px;font-size:12px;color:var(--text-primary);">
                             ${showScamTokens ? '👁️ Mostra Tutti' : '🔒 Nascondi Scam'}
                         </button>
                     </div>
                 </div>
             `;
             
-            html += '<table style="width:100%;"><thead><tr><th>Token</th><th style="text-align:right;">Balance</th><th style="text-align:right;">Prezzo</th><th style="text-align:right;">Valore</th><th style="width:40px;"></th></tr></thead><tbody>';
-            
-            for (const bal of filtered) {
-                const chainInfo = CHAINS[bal.chain] || { color: '#888' };
-                const price = PriceService.getPrice(bal.coin, 'eur');
-                const value = bal.amount * price;
+            // Render ogni chain
+            for (const chain of chainOrder) {
+                const tokens = byChain[chain];
+                const chainInfo = CHAINS[chain] || { name: chain.toUpperCase(), color: '#888', symbol: '?' };
                 
-                // Icona token 
-                const iconHtml = `<div style="width:32px;height:32px;border-radius:50%;background:${chainInfo.color}20;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;">${bal.coin.slice(0,2)}</div>`;
+                // Calcola totale chain
+                let chainTotal = 0;
+                for (const t of tokens) {
+                    chainTotal += t.amount * PriceService.getPrice(t.coin, 'eur');
+                }
+                
+                // Ordina token per valore
+                tokens.sort((a, b) => {
+                    const valA = a.amount * PriceService.getPrice(a.coin, 'eur');
+                    const valB = b.amount * PriceService.getPrice(b.coin, 'eur');
+                    return valB - valA;
+                });
                 
                 html += `
-                    <tr>
-                        <td>
+                    <div style="margin-bottom:24px;">
+                        <div class="flex items-center justify-between" style="padding:12px 16px;background:${chainInfo.color}15;border-radius:8px 8px 0 0;border-left:4px solid ${chainInfo.color};">
                             <div class="flex items-center gap-8">
-                                ${iconHtml}
-                                <div>
-                                    <div style="font-weight:500;">${bal.coin}</div>
-                                    <div class="text-secondary" style="font-size:11px;">${bal.chain || ''}</div>
-                                </div>
+                                <span style="font-size:18px;">${chainInfo.symbol === 'ETH' ? '⟠' : chainInfo.symbol === 'BNB' ? '🟡' : chainInfo.symbol === 'MATIC' ? '🟣' : chainInfo.symbol === 'PLS' ? '💜' : chainInfo.symbol === 'ARB' ? '🔵' : '🔗'}</span>
+                                <span style="font-weight:600;">${chainInfo.name}</span>
+                                <span class="text-secondary" style="font-size:12px;">(${tokens.length} token)</span>
                             </div>
-                        </td>
-                        <td style="text-align:right;font-family:monospace;">${formatCrypto(bal.amount)}</td>
-                        <td style="text-align:right;">€${formatEUR(price)}</td>
-                        <td style="text-align:right;font-weight:600;color:var(--green);">€${formatEUR(value)}</td>
-                        <td style="text-align:center;">
-                            <button onclick="addToBlacklist('${bal.coin}')" title="Aggiungi a blacklist" style="background:none;border:none;cursor:pointer;font-size:16px;opacity:0.5;padding:4px;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5">❌</button>
-                        </td>
-                    </tr>
+                            <span style="font-weight:600;color:var(--green);">€${formatEUR(chainTotal)}</span>
+                        </div>
+                        <table style="width:100%;background:var(--bg-secondary);border-radius:0 0 8px 8px;">
+                            <tbody>
+                `;
+                
+                for (const bal of tokens) {
+                    const price = PriceService.getPrice(bal.coin, 'eur');
+                    const value = bal.amount * price;
+                    const iconHtml = getTokenIcon(bal.coin, chainInfo.color);
+                    
+                    html += `
+                        <tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:12px;">
+                                <div class="flex items-center gap-8">
+                                    ${iconHtml}
+                                    <div>
+                                        <div style="font-weight:500;">${bal.coin}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="text-align:right;font-family:monospace;padding:12px;">${formatCrypto(bal.amount)}</td>
+                            <td style="text-align:right;padding:12px;color:var(--text-secondary);">€${formatEUR(price)}</td>
+                            <td style="text-align:right;font-weight:600;color:var(--green);padding:12px;">€${formatEUR(value)}</td>
+                            <td style="text-align:center;padding:12px;width:40px;">
+                                <button onclick="addToBlacklist('${bal.coin}')" title="Aggiungi a blacklist" style="background:none;border:none;cursor:pointer;font-size:14px;opacity:0.4;padding:4px;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4">✕</button>
+                            </td>
+                        </tr>
+                    `;
+                }
+                
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
                 `;
             }
             
-            html += '</tbody></table>';
             container.innerHTML = html;
         }
         
@@ -1309,17 +1390,21 @@
             if (tab === 'tokens') {
                 document.getElementById('walletTokensTab').style.display = 'block';
                 document.getElementById('walletTxTab').style.display = 'none';
-                document.getElementById('tabTokens').classList.remove('btn-secondary');
-                document.getElementById('tabTokens').classList.add('btn');
-                document.getElementById('tabTx').classList.remove('btn');
-                document.getElementById('tabTx').classList.add('btn-secondary');
+                document.getElementById('tabTokens').style.background = 'var(--accent)';
+                document.getElementById('tabTokens').style.color = 'white';
+                document.getElementById('tabTokens').style.border = 'none';
+                document.getElementById('tabTx').style.background = 'var(--bg-secondary)';
+                document.getElementById('tabTx').style.color = 'var(--text-primary)';
+                document.getElementById('tabTx').style.border = '1px solid var(--border)';
             } else {
                 document.getElementById('walletTokensTab').style.display = 'none';
                 document.getElementById('walletTxTab').style.display = 'block';
-                document.getElementById('tabTx').classList.remove('btn-secondary');
-                document.getElementById('tabTx').classList.add('btn');
-                document.getElementById('tabTokens').classList.remove('btn');
-                document.getElementById('tabTokens').classList.add('btn-secondary');
+                document.getElementById('tabTx').style.background = 'var(--accent)';
+                document.getElementById('tabTx').style.color = 'white';
+                document.getElementById('tabTx').style.border = 'none';
+                document.getElementById('tabTokens').style.background = 'var(--bg-secondary)';
+                document.getElementById('tabTokens').style.color = 'var(--text-primary)';
+                document.getElementById('tabTokens').style.border = '1px solid var(--border)';
             }
         }
         
