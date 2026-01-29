@@ -230,6 +230,7 @@
         .btn-secondary {
             background: var(--bg-primary);
             border: 1px solid var(--border);
+            color: var(--text-primary);
         }
         
         .btn-danger {
@@ -621,7 +622,7 @@
                 <!-- Tabs -->
                 <div class="flex gap-8 mb-16">
                     <button class="btn" id="tabTokens" onclick="showWalletTab('tokens')">🪙 Token</button>
-                    <button class="btn btn-secondary" id="tabTx" onclick="showWalletTab('tx')">📜 Transazioni</button>
+                    <button class="btn btn-secondary" id="tabTx" onclick="showWalletTab('tx')" style="color:var(--text-primary);">📜 Transazioni</button>
                 </div>
                 
                 <!-- Token List -->
@@ -1082,10 +1083,86 @@
             renderWalletTransactions(walletTx);
         }
         
+        // Lista token scam/spam da filtrare
+        const SCAM_PATTERNS = [
+            'visit', 'claim', 'reward', 'airdrop', 'voucher', 'promo',
+            '.com', '.org', '.xyz', '.io', '.net', 'http', 'www',
+            'bonus', 'free', 'gift', 'win', '$', 'earn'
+        ];
+        
+        function isScamToken(name) {
+            if (!name) return false;
+            const lower = name.toLowerCase();
+            return SCAM_PATTERNS.some(pattern => lower.includes(pattern));
+        }
+        
+        // Blacklist personalizzata (salvata in localStorage)
+        function getBlacklist() {
+            const saved = localStorage.getItem('cryptofolio_blacklist');
+            return saved ? JSON.parse(saved) : [];
+        }
+        
+        function saveBlacklist(list) {
+            localStorage.setItem('cryptofolio_blacklist', JSON.stringify(list));
+        }
+        
+        function addToBlacklist(coin) {
+            const list = getBlacklist();
+            if (!list.includes(coin)) {
+                list.push(coin);
+                saveBlacklist(list);
+                log(`🚫 ${coin} aggiunto alla blacklist`);
+                updateWalletDetail();
+                updateDashboard();
+            }
+        }
+        
+        function removeFromBlacklist(coin) {
+            let list = getBlacklist();
+            list = list.filter(c => c !== coin);
+            saveBlacklist(list);
+            log(`✅ ${coin} rimosso dalla blacklist`);
+            updateWalletDetail();
+            updateDashboard();
+        }
+        
+        function isBlacklisted(coin) {
+            return getBlacklist().includes(coin);
+        }
+        
+        // Stato filtro scam
+        let showScamTokens = false;
+        
+        function toggleScamFilter() {
+            showScamTokens = !showScamTokens;
+            document.getElementById('scamFilterBtn').textContent = showScamTokens ? '👁️ Mostra Tutti' : '🔒 Nascondi Scam';
+            updateWalletDetail();
+        }
+        
         function renderWalletTokens(balances) {
             const container = document.getElementById('walletTokensList');
+            const blacklist = getBlacklist();
             
-            if (balances.length === 0) {
+            // Filtra scam e blacklist se necessario
+            let filtered = balances;
+            let scamCount = 0;
+            let blacklistCount = 0;
+            
+            if (!showScamTokens) {
+                filtered = balances.filter(bal => {
+                    if (isBlacklisted(bal.coin)) {
+                        blacklistCount++;
+                        return false;
+                    }
+                    if (isScamToken(bal.coin)) {
+                        scamCount++;
+                        return false;
+                    }
+                    return true;
+                });
+            }
+            
+            if (filtered.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
                         <div class="icon">🪙</div>
@@ -1096,20 +1173,37 @@
                 return;
             }
             
-            let html = '<table style="width:100%;"><thead><tr><th>Token</th><th style="text-align:right;">Balance</th><th style="text-align:right;">Prezzo</th><th style="text-align:right;">Valore</th></tr></thead><tbody>';
+            // Header con filtro e info
+            const hiddenCount = scamCount + blacklistCount;
+            let html = `
+                <div class="flex items-center justify-between mb-16">
+                    <span class="text-secondary" style="font-size:12px;">
+                        ${filtered.length} token${hiddenCount > 0 ? ` (${hiddenCount} nascosti: ${scamCount} scam, ${blacklistCount} blacklist)` : ''}
+                    </span>
+                    <div class="flex gap-8">
+                        ${blacklist.length > 0 ? `<button class="btn btn-secondary" onclick="showBlacklistModal()" style="padding:6px 12px;font-size:12px;">📋 Blacklist (${blacklist.length})</button>` : ''}
+                        <button class="btn btn-secondary" id="scamFilterBtn" onclick="toggleScamFilter()" style="padding:6px 12px;font-size:12px;">
+                            ${showScamTokens ? '👁️ Mostra Tutti' : '🔒 Nascondi Scam'}
+                        </button>
+                    </div>
+                </div>
+            `;
             
-            for (const bal of balances) {
+            html += '<table style="width:100%;"><thead><tr><th>Token</th><th style="text-align:right;">Balance</th><th style="text-align:right;">Prezzo</th><th style="text-align:right;">Valore</th><th style="width:40px;"></th></tr></thead><tbody>';
+            
+            for (const bal of filtered) {
                 const chainInfo = CHAINS[bal.chain] || { color: '#888' };
                 const price = PriceService.getPrice(bal.coin, 'eur');
                 const value = bal.amount * price;
+                
+                // Icona token 
+                const iconHtml = `<div style="width:32px;height:32px;border-radius:50%;background:${chainInfo.color}20;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;">${bal.coin.slice(0,2)}</div>`;
                 
                 html += `
                     <tr>
                         <td>
                             <div class="flex items-center gap-8">
-                                <div style="width:32px;height:32px;border-radius:50%;background:${chainInfo.color}20;display:flex;align-items:center;justify-content:center;font-size:14px;">
-                                    ${bal.coin.slice(0,2)}
-                                </div>
+                                ${iconHtml}
                                 <div>
                                     <div style="font-weight:500;">${bal.coin}</div>
                                     <div class="text-secondary" style="font-size:11px;">${bal.chain || ''}</div>
@@ -1119,12 +1213,56 @@
                         <td style="text-align:right;font-family:monospace;">${formatCrypto(bal.amount)}</td>
                         <td style="text-align:right;">€${formatEUR(price)}</td>
                         <td style="text-align:right;font-weight:600;color:var(--green);">€${formatEUR(value)}</td>
+                        <td style="text-align:center;">
+                            <button onclick="addToBlacklist('${bal.coin}')" title="Aggiungi a blacklist" style="background:none;border:none;cursor:pointer;font-size:16px;opacity:0.5;padding:4px;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5">❌</button>
+                        </td>
                     </tr>
                 `;
             }
             
             html += '</tbody></table>';
             container.innerHTML = html;
+        }
+        
+        // Modal per gestire blacklist
+        function showBlacklistModal() {
+            const blacklist = getBlacklist();
+            
+            let html = `
+                <div id="blacklistModal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:1000;" onclick="if(event.target.id==='blacklistModal')closeBlacklistModal()">
+                    <div class="card" style="width:400px;max-height:80vh;overflow-y:auto;">
+                        <div class="card-header">
+                            <div class="card-title">📋 Blacklist Personalizzata</div>
+                            <button onclick="closeBlacklistModal()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text-secondary);">✕</button>
+                        </div>
+                        <p class="text-secondary mb-16" style="font-size:12px;">Token che hai nascosto manualmente. Clicca ✅ per ripristinarli.</p>
+            `;
+            
+            if (blacklist.length === 0) {
+                html += `<p class="text-secondary">Nessun token in blacklist</p>`;
+            } else {
+                for (const coin of blacklist) {
+                    html += `
+                        <div class="flex items-center justify-between" style="padding:8px;background:var(--bg-secondary);border-radius:8px;margin-bottom:8px;">
+                            <span>${coin}</span>
+                            <button onclick="removeFromBlacklist('${coin}');closeBlacklistModal();" class="btn btn-success" style="padding:4px 12px;font-size:12px;">✅ Ripristina</button>
+                        </div>
+                    `;
+                }
+            }
+            
+            html += `
+                        <button onclick="closeBlacklistModal()" class="btn btn-secondary mt-16" style="width:100%;">Chiudi</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', html);
+        }
+        
+        function closeBlacklistModal() {
+            const modal = document.getElementById('blacklistModal');
+            if (modal) modal.remove();
         }
         
         function renderWalletTransactions(transactions) {
@@ -1203,19 +1341,37 @@
             // Totali
             document.getElementById('totalWallets').textContent = state.wallets.length;
             document.getElementById('totalTx').textContent = state.transactions.length;
-            document.getElementById('totalAssets').textContent = Object.keys(state.balances).length;
+            
+            // Conta asset non-scam
+            let validAssets = 0;
             
             // Aggrega balance per coin (sommando da tutti i wallet)
             const aggregated = {};
             for (const [key, balance] of Object.entries(state.balances)) {
                 const coin = balance.coin;
+                
+                // Filtra token scam
+                if (isScamToken(coin)) continue;
+                
                 if (!aggregated[coin]) {
                     aggregated[coin] = { coin, amount: 0, valueEUR: 0 };
+                    validAssets++;
                 }
-                const price = PriceService.getPrice(coin, 'eur');
-                const value = balance.amount * price;
                 aggregated[coin].amount += balance.amount;
-                aggregated[coin].valueEUR += value;
+            }
+            
+            document.getElementById('totalAssets').textContent = validAssets;
+            
+            // Fetch prezzi per tutti i coin
+            const coins = Object.keys(aggregated);
+            if (coins.length > 0) {
+                await PriceService.fetchCurrentPrices(coins);
+            }
+            
+            // Calcola valori dopo aver fetchato i prezzi
+            for (const coin of coins) {
+                const price = PriceService.getPrice(coin, 'eur');
+                aggregated[coin].valueEUR = aggregated[coin].amount * price;
                 aggregated[coin].price = price;
             }
             
