@@ -376,9 +376,11 @@ const WalletEVM = (function() {
                     if (plsBalance > 0.0001) {
                         balances.push(createBalance({
                             coin: 'PLS',
+                            name: 'PulseChain',
                             amount: plsBalance,
                             source: `wallet_${addrLower}`,
-                            chain: 'pulse'
+                            chain: 'pulse',
+                            logo: 'https://tokens.app.pulsex.com/images/tokens/0xA1077a294dDE1B09bB078844df40758a5D0f9a27.png'
                         }));
                     }
                 }
@@ -398,9 +400,11 @@ const WalletEVM = (function() {
                         if (balance > 0) {
                             balances.push(createBalance({
                                 coin: token.symbol || 'UNKNOWN',
+                                name: token.name || token.symbol || 'Unknown',
                                 amount: balance,
                                 source: `wallet_${addrLower}`,
-                                chain: 'pulse'
+                                chain: 'pulse',
+                                contractAddress: token.contractAddress || null
                             }));
                         }
                     }

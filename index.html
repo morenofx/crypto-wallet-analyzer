@@ -1083,39 +1083,51 @@
             renderWalletTransactions(walletTx);
         }
         
-        // Lista token scam/spam da filtrare
+        // Lista token scam/spam da filtrare (come v5.2)
         const SCAM_PATTERNS = [
-            'visit', 'claim', 'reward', 'airdrop', 'voucher', 'promo',
-            '.com', '.org', '.xyz', '.io', '.net', 'http', 'www',
-            'bonus', 'free', 'gift', 'win', '$', 'earn', 'giveaway',
-            'elon', 'trump', 'doge2', 'safemoon', '100x', '1000x'
+            'visit', 'claim', 'reward', '.com', '.org', '.io', '.xyz', '.net',
+            'airdrop', 'bonus', 'free', 'gift', 'http', 'www', '$', '#',
+            'giveaway', 'elon', 'trump', '100x', '1000x', 'safemoon'
         ];
         
-        // Token legittimi con alto valore (non sono scam anche se valgono molto)
-        const LEGITIMATE_HIGH_VALUE = [
-            'BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'AVAX', 'DOT', 
-            'LINK', 'MATIC', 'LTC', 'ATOM', 'UNI', 'AAVE', 'MKR'
+        // Token legittimi (mai filtrati)
+        const LEGITIMATE_TOKENS = [
+            'BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'AVAX', 'DOT', 'LINK', 'MATIC', 'POL',
+            'LTC', 'ATOM', 'UNI', 'AAVE', 'MKR', 'SHIB', 'DOGE', 'PEPE', 'FLOKI',
+            'USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FRAX',
+            'PLS', 'PLSX', 'HEX', 'INC', 'LUNC', 'USTC', 'OSMO',
+            'WETH', 'WBTC', 'WBNB', 'WPLS',
+            'CRO', 'FTM', 'ARB', 'OP', 'NEAR', 'APT', 'SUI', 'TON', 'TRX'
         ];
         
         function isScamToken(name, amount = 0, price = 0) {
             if (!name) return false;
-            const lower = name.toLowerCase();
-            const upper = name.toUpperCase();
             
-            // Check pattern scam nel nome
-            if (SCAM_PATTERNS.some(pattern => lower.includes(pattern))) {
+            const lower = (name || '').toLowerCase();
+            const upper = (name || '').toUpperCase();
+            
+            // Token legittimi - mai filtrati
+            if (LEGITIMATE_TOKENS.includes(upper)) {
+                return false;
+            }
+            
+            // Check pattern spam nel nome/simbolo (come v5.2)
+            for (const pattern of SCAM_PATTERNS) {
+                if (lower.includes(pattern)) {
+                    return true;
+                }
+            }
+            
+            // Nome troppo lungo (> 40 caratteri) = spam (come v5.2)
+            if (name.length > 40) {
                 return true;
             }
             
-            // Check valore anomalo: se un token non noto vale > 100k€, probabilmente è fake
-            // (es: token LINK fake con milioni di unità)
+            // Check valore anomalo: se un token non noto vale > 100k€ con > 1M unità
             const value = amount * price;
-            if (value > 100000 && !LEGITIMATE_HIGH_VALUE.includes(upper)) {
-                // Verifica ulteriore: se ha più di 1 milione di unità, è sospetto
-                if (amount > 1000000) {
-                    console.log(`⚠️ Token sospetto: ${name} - ${amount} unità, €${value.toFixed(0)} valore`);
-                    return true;
-                }
+            if (value > 100000 && amount > 1000000) {
+                console.log(`⚠️ Token sospetto (valore anomalo): ${name} - ${amount} unità, €${value.toFixed(0)}`);
+                return true;
             }
             
             return false;
@@ -1663,14 +1675,16 @@
             for (const holding of top5) {
                 const pct = totalValue > 0 ? ((holding.valueEUR / totalValue) * 100).toFixed(1) : 0;
                 
+                // Crea oggetto balance fittizio per getTokenIcon
+                const fakeBal = { coin: holding.coin, logo: null };
+                const iconHtml = getTokenIcon(fakeBal, 'var(--accent)');
+                
                 html += `
-                    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
-                        <div style="display:flex;align-items:center;gap:10px;">
-                            <div style="width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px;">
-                                ${holding.coin.slice(0,3)}
-                            </div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);">
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            ${iconHtml}
                             <div>
-                                <div style="font-weight:500;">${holding.coin}</div>
+                                <div style="font-weight:600;">${holding.coin}</div>
                                 <div class="text-secondary" style="font-size:11px;">${formatCrypto(holding.amount)}</div>
                             </div>
                         </div>
