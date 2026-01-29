@@ -37,9 +37,6 @@ const WalletEVM = (function() {
         'base': 'https://api.basescan.org/api',
         'pulse': 'https://api.scan.pulsechain.com/api'
     };
-        'arbitrum': 'https://api.arbiscan.io/api',
-        'base': 'https://api.basescan.org/api'
-    };
     
     // ═══════════════════════════════════════════════════════════
     // SCAN WALLET - TOKEN BALANCES
