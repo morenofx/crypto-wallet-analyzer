@@ -579,6 +579,16 @@
                             <p>Nessun wallet aggiunto</p>
                         </div>
                     </div>
+                    
+                    <!-- Pulsante Reset -->
+                    <div class="mt-16 pt-16" style="border-top:1px solid var(--border);">
+                        <button class="btn btn-danger" onclick="clearAllData()" style="width:100%;">
+                            🗑️ Cancella Tutti i Dati Locali
+                        </button>
+                        <p class="text-secondary mt-8" style="font-size:11px;text-align:center;">
+                            Rimuove wallet, balance e transazioni dalla memoria locale
+                        </p>
+                    </div>
                 </div>
             </div>
             
@@ -944,11 +954,25 @@
         }
         
         function removeWallet(address) {
-            if (confirm('Eliminare questo wallet?')) {
+            if (confirm('Eliminare questo wallet e TUTTI i dati associati (balance e transazioni)?')) {
                 Database.removeWallet(address);
                 updateWalletList();
                 updateDashboard();
-                log(`🗑️ Wallet eliminato`);
+                updateTransactionTable();
+                log(`🗑️ Wallet e dati associati eliminati`);
+            }
+        }
+        
+        // Cancella TUTTI i dati
+        function clearAllData() {
+            if (confirm('⚠️ ATTENZIONE!\n\nQuesto cancellerà TUTTI i dati:\n- Wallet\n- Balance\n- Transazioni\n- Exchange\n- Blacklist\n\nI dati verranno cancellati anche su Firebase!\n\nContinuare?')) {
+                Database.clearAllData();
+                localStorage.removeItem('cryptofolio_blacklist');
+                updateWalletList();
+                updateDashboard();
+                updateTransactionTable();
+                log(`🗑️ RESET TOTALE - tutti i dati cancellati`);
+                alert('✅ Tutti i dati cancellati!\n\nWallet: 0\nBalance: 0\nTransazioni: 0');
             }
         }
         
@@ -1338,6 +1362,27 @@
             'TRX': 'https://assets.coingecko.com/coins/images/1094/small/tron-logo.png',
             'TON': 'https://assets.coingecko.com/coins/images/17980/small/ton_symbol.png',
             'BXN': 'https://assets.coingecko.com/coins/images/29287/small/bxn.png',
+            // Gaming / Nuovi token
+            'ONE': 'https://assets.coingecko.com/coins/images/4344/small/Y88JAze.png',
+            'MAVIA': 'https://assets.coingecko.com/coins/images/35420/small/mavia.png',
+            'PIXEL': 'https://assets.coingecko.com/coins/images/35338/small/pixel-icon.png',
+            'BLUR': 'https://assets.coingecko.com/coins/images/28453/small/blur.png',
+            'APE': 'https://assets.coingecko.com/coins/images/24383/small/apecoin.jpg',
+            'LDO': 'https://assets.coingecko.com/coins/images/13573/small/Lido_DAO.png',
+            'IMX': 'https://assets.coingecko.com/coins/images/17233/small/immutableX-symbol-BLK-RGB.png',
+            'SAND': 'https://assets.coingecko.com/coins/images/12129/small/sandbox_logo.jpg',
+            'MANA': 'https://assets.coingecko.com/coins/images/878/small/decentraland-mana.png',
+            'AXS': 'https://assets.coingecko.com/coins/images/13029/small/axie_infinity_logo.png',
+            'GALA': 'https://assets.coingecko.com/coins/images/12493/small/GALA-COINGECKO.png',
+            'ENJ': 'https://assets.coingecko.com/coins/images/1102/small/enjin-coin-logo.png',
+            'RENDER': 'https://assets.coingecko.com/coins/images/11636/small/rndr.png',
+            'FET': 'https://assets.coingecko.com/coins/images/5681/small/Fetch.jpg',
+            'GRT': 'https://assets.coingecko.com/coins/images/13397/small/Graph_Token.png',
+            'WLD': 'https://assets.coingecko.com/coins/images/31069/small/worldcoin.jpeg',
+            // Token specifici (potrebbero non avere icona CoinGecko)
+            'SHIFU': 'https://assets.coingecko.com/coins/images/35165/small/shifu.png',
+            'BUBBLE': 'https://assets.coingecko.com/coins/images/33874/small/bubble.png',
+            'CIV': 'https://assets.coingecko.com/coins/images/17528/small/civilization.png',
         };
         
         function getTokenIcon(bal, chainColor) {
@@ -1391,9 +1436,29 @@
                 return;
             }
             
+            // ⚠️ IMPORTANTE: Aggrega token duplicati per coin+chain
+            const aggregatedByChainCoin = {};
+            for (const bal of filtered) {
+                const chain = bal.chain || 'unknown';
+                const key = `${chain}_${bal.coin}`;
+                
+                if (!aggregatedByChainCoin[key]) {
+                    aggregatedByChainCoin[key] = {
+                        ...bal,
+                        chain: chain
+                    };
+                } else {
+                    // Somma le quantità
+                    aggregatedByChainCoin[key].amount += bal.amount;
+                }
+            }
+            
+            // Converti in array
+            const uniqueTokens = Object.values(aggregatedByChainCoin);
+            
             // Raggruppa per chain
             const byChain = {};
-            for (const bal of filtered) {
+            for (const bal of uniqueTokens) {
                 const chain = bal.chain || 'unknown';
                 if (!byChain[chain]) byChain[chain] = [];
                 byChain[chain].push(bal);
@@ -1937,7 +2002,7 @@
                 
                 // Icona Rabby Wallet per EVM
                 const walletIcon = wallet.type === 'evm' 
-                    ? `<img src="https://rabby.io/assets/images/logo.svg" style="width:28px;height:28px;" onerror="this.outerHTML='🔷'">`
+                    ? `<img src="https://raw.githubusercontent.com/RabbyHub/logo/master/symbol.png" style="width:28px;height:28px;border-radius:50%;" onerror="this.outerHTML='<span style=\\'font-size:24px;\\'>🔷</span>'">`
                     : '🌐';
                 
                 html += `
@@ -2155,13 +2220,6 @@
                 }
             };
             reader.readAsText(file);
-        }
-        
-        function clearAllData() {
-            if (confirm('⚠️ Cancellare TUTTI i dati? Questa azione è irreversibile!')) {
-                localStorage.clear();
-                location.reload();
-            }
         }
         
         // ═══════════════════════════════════════════════════════════

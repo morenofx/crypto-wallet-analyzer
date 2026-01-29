@@ -295,16 +295,83 @@ const Database = (function() {
     }
     
     function removeWallet(address) {
+        const addrLower = address.toLowerCase();
         const index = AppState.wallets.findIndex(w => 
-            w.address.toLowerCase() === address.toLowerCase()
+            w.address.toLowerCase() === addrLower
         );
         
         if (index !== -1) {
             AppState.wallets.splice(index, 1);
-            save();
+            
+            // ⚠️ IMPORTANTE: Rimuovi anche balance associati a questo wallet
+            const balanceKeysToRemove = [];
+            for (const [key, balance] of Object.entries(AppState.balances)) {
+                const source = (balance.source || '').toLowerCase();
+                if (source.includes(addrLower)) {
+                    balanceKeysToRemove.push(key);
+                }
+            }
+            for (const key of balanceKeysToRemove) {
+                delete AppState.balances[key];
+            }
+            
+            // ⚠️ IMPORTANTE: Rimuovi anche transazioni associate
+            const txBefore = AppState.transactions.length;
+            AppState.transactions = AppState.transactions.filter(tx => {
+                const txWallet = (tx.wallet || '').toLowerCase();
+                const txSource = (tx.source || '').toLowerCase();
+                return !txWallet.includes(addrLower) && !txSource.includes(addrLower);
+            });
+            const txRemoved = txBefore - AppState.transactions.length;
+            
+            Logger.info('Database', `Rimosso wallet ${addrLower}: ${balanceKeysToRemove.length} balance, ${txRemoved} transazioni`);
+            
+            // ⚠️ Salva IMMEDIATAMENTE (senza debounce)
+            saveNow();
             return true;
         }
         return false;
+    }
+    
+    // Reset completo di tutti i dati
+    function resetAll() {
+        AppState.wallets = [];
+        AppState.transactions = [];
+        AppState.balances = {};
+        AppState.exchanges = {};
+        AppState.prices = {};
+        AppState.historicalPrices = {};
+        
+        Logger.info('Database', 'RESET TOTALE - tutti i dati cancellati');
+        
+        // Salva immediatamente
+        saveNow();
+        
+        // Pulisci anche localStorage
+        localStorage.removeItem('cryptofolio_v6_backup');
+        localStorage.removeItem('cryptofolio_blacklist');
+        
+        return true;
+    }
+    }
+    
+    // Pulisce TUTTI i dati (wallet, balance, transazioni)
+    function clearAllData() {
+        AppState.wallets = [];
+        AppState.balances = {};
+        AppState.transactions = [];
+        AppState.exchanges = {};
+        AppState.prices = {};
+        AppState.historicalPrices = {};
+        
+        // Salva IMMEDIATAMENTE
+        saveNow();
+        
+        // Pulisci anche localStorage
+        localStorage.removeItem('cryptofolio_v6_backup');
+        
+        Logger.info('Database', '🗑️ RESET TOTALE - tutti i dati cancellati');
+        return true;
     }
     
     function getWallets() {
@@ -439,6 +506,9 @@ const Database = (function() {
         removeMoralisKey,
         getMoralisKeys,
         getNextMoralisKey,
+        
+        // Utilities
+        clearAllData,
         
         // State access
         getState: () => AppState
