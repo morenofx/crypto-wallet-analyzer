@@ -1,0 +1,2662 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoFolio v6 - Modulare</title>
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        /* ═══════════════════════════════════════════════════════════
+           VARIABILI CSS
+           ═══════════════════════════════════════════════════════════ */
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-card: #1c2128;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --accent: #58a6ff;
+            --green: #3fb950;
+            --red: #f85149;
+            --yellow: #d29922;
+            --border: #30363d;
+            --radius: 12px;
+        }
+        
+        /* ═══════════════════════════════════════════════════════════
+           RESET & BASE
+           ═══════════════════════════════════════════════════════════ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+        
+        /* ═══════════════════════════════════════════════════════════
+           LAYOUT
+           ═══════════════════════════════════════════════════════════ */
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 240px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            padding: 20px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        
+        .logo {
+            padding: 0 20px 20px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+        
+        .logo h1 {
+            font-size: 20px;
+            color: var(--accent);
+        }
+        
+        .logo span {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .nav-item:hover {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+        
+        .nav-item.active {
+            background: var(--accent);
+            color: white;
+        }
+        
+        .nav-item .icon {
+            font-size: 18px;
+        }
+        
+        /* Main content */
+        .main-content {
+            flex: 1;
+            margin-left: 240px;
+            padding: 24px;
+        }
+        
+        /* ═══════════════════════════════════════════════════════════
+           HEADER
+           ═══════════════════════════════════════════════════════════ */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        
+        .header h2 {
+            font-size: 24px;
+        }
+        
+        .sync-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        
+        #syncDot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+        }
+        
+        /* ═══════════════════════════════════════════════════════════
+           CARDS
+           ═══════════════════════════════════════════════════════════ */
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            padding: 20px;
+        }
+        
+        .stat-card .label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: 700;
+        }
+        
+        .stat-card .value.positive { color: var(--green); }
+        .stat-card .value.negative { color: var(--red); }
+        
+        /* ═══════════════════════════════════════════════════════════
+           FORMS
+           ═══════════════════════════════════════════════════════════ */
+        input, select {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: var(--text-primary);
+            font-size: 14px;
+            width: 100%;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        
+        .btn:hover {
+            opacity: 0.9;
+        }
+        
+        .btn-secondary {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+        
+        .btn-danger {
+            background: var(--red);
+        }
+        
+        .btn-success {
+            background: var(--green);
+        }
+        
+        /* ═══════════════════════════════════════════════════════════
+           TABLE
+           ═══════════════════════════════════════════════════════════ */
+        .table-container {
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        th {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-weight: 500;
+        }
+        
+        td {
+            font-size: 14px;
+        }
+        
+        tr:hover {
+            background: var(--bg-secondary);
+        }
+        
+        /* ═══════════════════════════════════════════════════════════
+           VIEWS
+           ═══════════════════════════════════════════════════════════ */
+        .view {
+            display: none;
+        }
+        
+        .view.active {
+            display: block;
+        }
+        
+        /* ═══════════════════════════════════════════════════════════
+           UTILITIES
+           ═══════════════════════════════════════════════════════════ */
+        .text-green { color: var(--green); }
+        .text-red { color: var(--red); }
+        .text-yellow { color: var(--yellow); }
+        .text-secondary { color: var(--text-secondary); }
+        
+        .mt-8 { margin-top: 8px; }
+        .mt-16 { margin-top: 16px; }
+        .mb-8 { margin-bottom: 8px; }
+        .mb-16 { margin-bottom: 16px; }
+        
+        .flex { display: flex; }
+        .gap-8 { gap: 8px; }
+        .gap-16 { gap: 16px; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        
+        /* ═══════════════════════════════════════════════════════════
+           LOADING
+           ═══════════════════════════════════════════════════════════ */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+        
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 12px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* ═══════════════════════════════════════════════════════════
+           EMPTY STATE
+           ═══════════════════════════════════════════════════════════ */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+        
+        .empty-state .icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        
+        /* ═══════════════════════════════════════════════════════════
+           WALLET LIST
+           ═══════════════════════════════════════════════════════════ */
+        .wallet-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            transition: all 0.2s;
+        }
+        
+        .wallet-item:hover {
+            background: var(--bg-card);
+            transform: translateX(4px);
+        }
+        
+        .wallet-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .wallet-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        
+        .wallet-name {
+            font-weight: 500;
+        }
+        
+        .wallet-address {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-family: monospace;
+        }
+        
+        .wallet-value {
+            text-align: right;
+        }
+        
+        .wallet-value .amount {
+            font-weight: 600;
+            font-size: 16px;
+        }
+        
+        /* ═══════════════════════════════════════════════════════════
+           LOG CONSOLE
+           ═══════════════════════════════════════════════════════════ */
+        #logConsole {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .log-entry {
+            padding: 4px 0;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        
+        <!-- ═══════════════════════════════════════════════════════════
+             SIDEBAR
+             ═══════════════════════════════════════════════════════════ -->
+        <nav class="sidebar">
+            <div class="logo">
+                <h1>💰 CryptoFolio</h1>
+                <span>v6.0 Modulare</span>
+            </div>
+            
+            <div class="nav-item active" onclick="showView('dashboard')">
+                <span class="icon">📊</span>
+                <span>Dashboard</span>
+            </div>
+            
+            <div class="nav-item" onclick="showView('wallets')">
+                <span class="icon">👛</span>
+                <span>Wallets</span>
+            </div>
+            
+            <div class="nav-item" onclick="showView('transactions')">
+                <span class="icon">📜</span>
+                <span>Transazioni</span>
+            </div>
+            
+            <div class="nav-item" onclick="showView('tax')">
+                <span class="icon">📋</span>
+                <span>Report Fiscale</span>
+            </div>
+            
+            <div class="nav-item" onclick="showView('settings')">
+                <span class="icon">⚙️</span>
+                <span>Impostazioni</span>
+            </div>
+        </nav>
+        
+        <!-- ═══════════════════════════════════════════════════════════
+             MAIN CONTENT
+             ═══════════════════════════════════════════════════════════ -->
+        <main class="main-content">
+            
+            <!-- HEADER -->
+            <div class="header">
+                <h2 id="viewTitle">Dashboard</h2>
+                <div class="sync-status">
+                    <span id="syncDot"></span>
+                    <span id="syncStatus">Inizializzazione...</span>
+                </div>
+            </div>
+            
+            <!-- ═══════════════════════════════════════════════════════
+                 VIEW: DASHBOARD
+                 ═══════════════════════════════════════════════════════ -->
+            <div id="view-dashboard" class="view active">
+                
+                <!-- Stats -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="label">💰 Patrimonio Totale</div>
+                        <div class="value" id="totalValue">€0,00</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">👛 Wallets</div>
+                        <div class="value" id="totalWallets">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">📜 Transazioni</div>
+                        <div class="value" id="totalTx">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">🪙 Asset Diversi</div>
+                        <div class="value" id="totalAssets">0</div>
+                    </div>
+                </div>
+                
+                <!-- Grafico e Top Holdings -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+                    
+                    <!-- Grafico a Torta -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">📊 Distribuzione Portfolio</div>
+                        </div>
+                        <div style="position:relative;height:280px;">
+                            <canvas id="portfolioChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Top Holdings -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">🏆 Top Holdings</div>
+                        </div>
+                        <div id="topHoldingsList">
+                            <div class="empty-state" style="padding:20px;">
+                                <p class="text-secondary">Nessun asset</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quick Actions -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">⚡ Azioni Rapide</div>
+                    </div>
+                    <div class="flex gap-8">
+                        <button class="btn" onclick="showView('wallets')">➕ Aggiungi Wallet</button>
+                        <button class="btn btn-secondary" onclick="refreshAll()">🔄 Aggiorna Tutto</button>
+                        <button class="btn btn-secondary" onclick="showView('tax')">📋 Genera Report</button>
+                    </div>
+                </div>
+                
+                <!-- Log Console -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">📝 Log</div>
+                        <button class="btn btn-secondary" onclick="clearLog()">Pulisci</button>
+                    </div>
+                    <div id="logConsole">
+                        <div class="log-entry text-secondary">In attesa di inizializzazione...</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ═══════════════════════════════════════════════════════
+                 VIEW: WALLETS
+                 ═══════════════════════════════════════════════════════ -->
+            <div id="view-wallets" class="view">
+                
+                <!-- Add Wallet -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">➕ Aggiungi Wallet</div>
+                    </div>
+                    <div class="flex gap-8 items-center">
+                        <input type="text" id="walletName" placeholder="Nome (es: Main Wallet)" style="max-width:200px">
+                        <input type="text" id="walletAddress" placeholder="Indirizzo (0x... o terra1... o cosmos1...)">
+                        <button class="btn" onclick="addWallet()">Aggiungi</button>
+                    </div>
+                    <p class="text-secondary mt-8" style="font-size:12px;">
+                        Supportati: EVM (ETH, BSC, Polygon...), Cosmos (Terra, ATOM, OSMO)
+                    </p>
+                </div>
+                
+                <!-- Chain Selector -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">⛓️ Chain da Scansionare</div>
+                        <div class="flex gap-8">
+                            <button class="btn btn-secondary" onclick="selectAllChains()" style="padding:6px 12px;font-size:12px;">✅ Tutte</button>
+                            <button class="btn btn-secondary" onclick="selectNoChains()" style="padding:6px 12px;font-size:12px;">❌ Nessuna</button>
+                            <button class="btn btn-secondary" onclick="selectMainChains()" style="padding:6px 12px;font-size:12px;">⭐ Principali</button>
+                        </div>
+                    </div>
+                    <p class="text-secondary mb-12" style="font-size:12px;">
+                        💡 Seleziona solo le chain che usi realmente per evitare token scam e velocizzare lo scan
+                    </p>
+                    <div id="chainSelector" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));gap:8px;">
+                        <!-- Popolato da JS -->
+                    </div>
+                    <div class="mt-12 text-secondary" style="font-size:11px;">
+                        <span id="selectedChainsCount">0</span> chain selezionate
+                    </div>
+                </div>
+                
+                <!-- Wallet List -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">👛 I Tuoi Wallets</div>
+                        <button class="btn btn-secondary" onclick="scanAllWallets()">🔄 Scansiona Tutti</button>
+                    </div>
+                    <div id="walletList">
+                        <div class="empty-state">
+                            <div class="icon">👛</div>
+                            <p>Nessun wallet aggiunto</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Pulsante Reset -->
+                    <div class="mt-16 pt-16" style="border-top:1px solid var(--border);">
+                        <button class="btn btn-danger" onclick="clearAllData()" style="width:100%;">
+                            🗑️ Cancella Tutti i Dati Locali
+                        </button>
+                        <p class="text-secondary mt-8" style="font-size:11px;text-align:center;">
+                            Rimuove wallet, balance e transazioni dalla memoria locale
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ═══════════════════════════════════════════════════════
+                 VIEW: WALLET DETAIL
+                 ═══════════════════════════════════════════════════════ -->
+            <div id="view-walletDetail" class="view">
+                
+                <!-- Header -->
+                <div class="card">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-16">
+                            <button class="btn btn-secondary" onclick="showView('wallets')">← Indietro</button>
+                            <div>
+                                <h3 id="detailWalletName" style="font-size:20px;">Wallet</h3>
+                                <code id="detailWalletAddress" class="text-secondary" style="font-size:12px;"></code>
+                            </div>
+                        </div>
+                        <div class="flex gap-8">
+                            <button class="btn" onclick="scanCurrentWallet()">🔄 Scansiona</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Stats -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="label">💰 Valore Totale</div>
+                        <div class="value" id="detailTotalValue">€0,00</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">🪙 Token</div>
+                        <div class="value" id="detailTokenCount">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">📜 Transazioni</div>
+                        <div class="value" id="detailTxCount">0</div>
+                    </div>
+                </div>
+                
+                <!-- Tabs -->
+                <div class="flex gap-8 mb-16">
+                    <button class="btn" id="tabTokens" onclick="showWalletTab('tokens')" style="background:var(--accent);color:white;">🪙 Token</button>
+                    <button class="btn" id="tabTx" onclick="showWalletTab('tx')" style="background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);">📜 Transazioni</button>
+                </div>
+                
+                <!-- Token List -->
+                <div id="walletTokensTab" class="card">
+                    <div class="card-header">
+                        <div class="card-title">🪙 Token</div>
+                    </div>
+                    <div id="walletTokensList">
+                        <div class="empty-state">
+                            <div class="icon">🪙</div>
+                            <p>Nessun token trovato</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Transactions List -->
+                <div id="walletTxTab" class="card" style="display:none;">
+                    <div class="card-header">
+                        <div class="card-title">📜 Transazioni</div>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Tipo</th>
+                                    <th>Coin</th>
+                                    <th>Importo</th>
+                                    <th>Chain</th>
+                                </tr>
+                            </thead>
+                            <tbody id="walletTxTableBody">
+                                <tr>
+                                    <td colspan="5" class="text-secondary" style="text-align:center;">
+                                        Nessuna transazione
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ═══════════════════════════════════════════════════════
+                 VIEW: TRANSACTIONS
+                 ═══════════════════════════════════════════════════════ -->
+            <div id="view-transactions" class="view">
+                
+                <!-- Filters -->
+                <div class="card">
+                    <div class="flex gap-8 items-center">
+                        <select id="txFilterYear" onchange="filterTransactions()">
+                            <option value="">Tutti gli anni</option>
+                        </select>
+                        <select id="txFilterSource" onchange="filterTransactions()">
+                            <option value="">Tutte le fonti</option>
+                        </select>
+                        <select id="txFilterType" onchange="filterTransactions()">
+                            <option value="">Tutti i tipi</option>
+                            <option value="deposit">Depositi</option>
+                            <option value="withdrawal">Prelievi</option>
+                            <option value="trade">Trade</option>
+                            <option value="fee">Fee</option>
+                            <option value="staking">Staking</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Transaction Table -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">📜 Transazioni (<span id="txCount">0</span>)</div>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Tipo</th>
+                                    <th>Coin In</th>
+                                    <th>Coin Out</th>
+                                    <th>Valore €</th>
+                                    <th>Fonte</th>
+                                </tr>
+                            </thead>
+                            <tbody id="txTableBody">
+                                <tr>
+                                    <td colspan="6" class="text-secondary" style="text-align:center;padding:40px;">
+                                        Nessuna transazione
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ═══════════════════════════════════════════════════════
+                 VIEW: TAX
+                 ═══════════════════════════════════════════════════════ -->
+            <div id="view-tax" class="view">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">📋 Report Fiscale</div>
+                    </div>
+                    <div class="flex gap-8 items-center mb-16">
+                        <select id="taxYear">
+                            <option value="2025">2025</option>
+                            <option value="2024" selected>2024</option>
+                            <option value="2023">2023</option>
+                            <option value="2022">2022</option>
+                            <option value="2021">2021</option>
+                            <option value="2020">2020</option>
+                        </select>
+                        <button class="btn" onclick="generateTaxReport()">📊 Genera Report</button>
+                        <button class="btn btn-secondary" onclick="exportTaxReport()">📤 Esporta CSV</button>
+                    </div>
+                    <div id="taxReportContent">
+                        <div class="empty-state">
+                            <div class="icon">📋</div>
+                            <p>Seleziona un anno e genera il report</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ═══════════════════════════════════════════════════════
+                 VIEW: SETTINGS
+                 ═══════════════════════════════════════════════════════ -->
+            <div id="view-settings" class="view">
+                
+                <!-- API Keys -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🔑 API Keys Moralis (a cascata)</div>
+                    </div>
+                    
+                    <p class="text-secondary mb-16" style="font-size:12px;">
+                        Aggiungi più API key per evitare rate limit. Verranno usate a rotazione.<br>
+                        Ottieni gratis su <a href="https://moralis.io" target="_blank" style="color:var(--accent)">moralis.io</a>
+                    </p>
+                    
+                    <div class="flex gap-8 mb-16">
+                        <input type="text" id="newMoralisKey" placeholder="Incolla nuova API Key Moralis">
+                        <button class="btn" onclick="addMoralisKey()">➕ Aggiungi</button>
+                    </div>
+                    
+                    <div id="moralisKeysList">
+                        <!-- Lista dinamica -->
+                    </div>
+                </div>
+                
+                <!-- Etherscan API -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🔑 Etherscan API Key (opzionale)</div>
+                    </div>
+                    
+                    <div class="flex gap-8">
+                        <input type="password" id="apiEtherscan" placeholder="Inserisci API Key Etherscan">
+                        <button class="btn btn-secondary" onclick="saveApiKey('etherscan')">Salva</button>
+                    </div>
+                </div>
+                
+                <!-- Data Management -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">💾 Gestione Dati</div>
+                    </div>
+                    <div class="flex gap-8">
+                        <button class="btn btn-secondary" onclick="exportData()">📤 Esporta JSON</button>
+                        <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">📥 Importa JSON</button>
+                        <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+                        <button class="btn btn-danger" onclick="clearAllData()">🗑️ Cancella Tutto</button>
+                    </div>
+                </div>
+                
+                <!-- Debug Info -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🐛 Debug Info</div>
+                    </div>
+                    <pre id="debugInfo" style="font-size:11px;color:var(--text-secondary);"></pre>
+                </div>
+            </div>
+            
+        </main>
+    </div>
+    
+    <!-- ═══════════════════════════════════════════════════════════════
+         MODULI JAVASCRIPT
+         ═══════════════════════════════════════════════════════════════ -->
+    <script src="modules/schema.js"></script>
+    <script src="modules/config.js"></script>
+    <script src="modules/database.js"></script>
+    <script src="modules/prices.js"></script>
+    <script src="modules/wallet-evm.js"></script>
+    <script src="modules/wallet-cosmos.js"></script>
+    
+    <!-- ═══════════════════════════════════════════════════════════════
+         APP MAIN
+         ═══════════════════════════════════════════════════════════════ -->
+    <script>
+        // ═══════════════════════════════════════════════════════════
+        // INITIALIZATION
+        // ═══════════════════════════════════════════════════════════
+        
+        async function init() {
+            log('🚀 Inizializzazione CryptoFolio v6...');
+            
+            // Init database (Firebase)
+            await Database.init();
+            
+            // Carica API keys salvate
+            loadApiKeys();
+            
+            // Inizializza chain selector
+            initChainSelector();
+            
+            // Aggiorna UI
+            updateDashboard();
+            updateWalletList();
+            await updateTransactionTable();
+            updateDebugInfo();
+            
+            log('✅ Inizializzazione completata');
+            document.getElementById('syncStatus').textContent = 'Pronto';
+            document.getElementById('syncDot').style.background = 'var(--green)';
+        }
+        
+        // ═══════════════════════════════════════════════════════════
+        // CHAIN SELECTOR
+        // ═══════════════════════════════════════════════════════════
+        
+        // Chain EVM disponibili per Moralis
+        const EVM_CHAINS = {
+            'eth': { name: 'Ethereum', color: '#627eea', icon: '⟠' },
+            'bsc': { name: 'BSC', color: '#f3ba2f', icon: '🔶' },
+            'polygon': { name: 'Polygon', color: '#8247e5', icon: '🟣' },
+            'arbitrum': { name: 'Arbitrum', color: '#28a0f0', icon: '🔵' },
+            'optimism': { name: 'Optimism', color: '#ff0420', icon: '🔴' },
+            'base': { name: 'Base', color: '#0052ff', icon: '🔷' },
+            'avalanche': { name: 'Avalanche', color: '#e84142', icon: '🔺' },
+            'fantom': { name: 'Fantom', color: '#1969ff', icon: '👻' },
+            'cronos': { name: 'Cronos', color: '#002d74', icon: '🦎' },
+            'pulse': { name: 'PulseChain', color: '#00ff00', icon: '💚' },
+            'blackfort': { name: 'BlackFort', color: '#00d4ff', icon: '🏰' }
+        };
+        
+        // Chain principali (default)
+        const MAIN_CHAINS = ['eth', 'bsc', 'polygon', 'arbitrum', 'base'];
+        
+        function initChainSelector() {
+            const container = document.getElementById('chainSelector');
+            if (!container) return;
+            
+            // Carica selezione salvata o usa default
+            const saved = localStorage.getItem('cryptofolio_selectedChains');
+            const selectedChains = saved ? JSON.parse(saved) : MAIN_CHAINS;
+            AppState.selectedChains = selectedChains;
+            
+            let html = '';
+            for (const [key, chain] of Object.entries(EVM_CHAINS)) {
+                const isChecked = selectedChains.includes(key);
+                html += `
+                    <label class="chain-checkbox" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:${isChecked ? chain.color + '20' : 'var(--bg-secondary)'};border:1px solid ${isChecked ? chain.color : 'var(--border)'};border-radius:8px;cursor:pointer;transition:all 0.2s;">
+                        <input type="checkbox" 
+                               id="chain_${key}" 
+                               value="${key}" 
+                               ${isChecked ? 'checked' : ''} 
+                               onchange="toggleChain('${key}')"
+                               style="width:16px;height:16px;accent-color:${chain.color};">
+                        <span style="font-size:16px;">${chain.icon}</span>
+                        <span style="font-size:13px;font-weight:${isChecked ? '600' : '400'};color:${isChecked ? chain.color : 'var(--text-primary)'};">${chain.name}</span>
+                    </label>
+                `;
+            }
+            
+            container.innerHTML = html;
+            updateSelectedChainsCount();
+        }
+        
+        function toggleChain(chainKey) {
+            const checkbox = document.getElementById(`chain_${chainKey}`);
+            const chain = EVM_CHAINS[chainKey];
+            const label = checkbox.closest('.chain-checkbox');
+            
+            if (checkbox.checked) {
+                if (!AppState.selectedChains.includes(chainKey)) {
+                    AppState.selectedChains.push(chainKey);
+                }
+                label.style.background = chain.color + '20';
+                label.style.borderColor = chain.color;
+                label.querySelector('span:last-child').style.color = chain.color;
+                label.querySelector('span:last-child').style.fontWeight = '600';
+            } else {
+                AppState.selectedChains = AppState.selectedChains.filter(c => c !== chainKey);
+                label.style.background = 'var(--bg-secondary)';
+                label.style.borderColor = 'var(--border)';
+                label.querySelector('span:last-child').style.color = 'var(--text-primary)';
+                label.querySelector('span:last-child').style.fontWeight = '400';
+            }
+            
+            // Salva in localStorage
+            localStorage.setItem('cryptofolio_selectedChains', JSON.stringify(AppState.selectedChains));
+            updateSelectedChainsCount();
+            
+            log(`⛓️ Chain ${chainKey}: ${checkbox.checked ? 'attivata' : 'disattivata'}`);
+        }
+        
+        function selectAllChains() {
+            AppState.selectedChains = Object.keys(EVM_CHAINS);
+            localStorage.setItem('cryptofolio_selectedChains', JSON.stringify(AppState.selectedChains));
+            initChainSelector();
+            log('✅ Tutte le chain selezionate');
+        }
+        
+        function selectNoChains() {
+            AppState.selectedChains = [];
+            localStorage.setItem('cryptofolio_selectedChains', JSON.stringify(AppState.selectedChains));
+            initChainSelector();
+            log('❌ Nessuna chain selezionata');
+        }
+        
+        function selectMainChains() {
+            AppState.selectedChains = [...MAIN_CHAINS];
+            localStorage.setItem('cryptofolio_selectedChains', JSON.stringify(AppState.selectedChains));
+            initChainSelector();
+            log('⭐ Chain principali selezionate: ' + MAIN_CHAINS.join(', '));
+        }
+        
+        function updateSelectedChainsCount() {
+            const countEl = document.getElementById('selectedChainsCount');
+            if (countEl) {
+                countEl.textContent = AppState.selectedChains.length;
+            }
+        }
+        
+        function getSelectedChains() {
+            return AppState.selectedChains || MAIN_CHAINS;
+        }
+        
+        // ═══════════════════════════════════════════════════════════
+        // NAVIGATION
+        // ═══════════════════════════════════════════════════════════
+        
+        function showView(viewName) {
+            // Hide all views
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            
+            // Show selected
+            document.getElementById(`view-${viewName}`).classList.add('active');
+            
+            // Update nav (solo se esiste il nav-item)
+            const navItem = document.querySelector(`.nav-item[onclick="showView('${viewName}')"]`);
+            if (navItem) {
+                navItem.classList.add('active');
+            } else if (viewName === 'walletDetail') {
+                // Per walletDetail, evidenzia "Wallets" nel menu
+                const walletsNav = document.querySelector(`.nav-item[onclick="showView('wallets')"]`);
+                if (walletsNav) walletsNav.classList.add('active');
+            }
+            
+            // Update title
+            const titles = {
+                'dashboard': 'Dashboard',
+                'wallets': 'Wallets',
+                'walletDetail': 'Dettaglio Wallet',
+                'transactions': 'Transazioni',
+                'tax': 'Report Fiscale',
+                'settings': 'Impostazioni'
+            };
+            document.getElementById('viewTitle').textContent = titles[viewName] || viewName;
+        }
+        
+        // ═══════════════════════════════════════════════════════════
+        // WALLET MANAGEMENT
+        // ═══════════════════════════════════════════════════════════
+        
+        function addWallet() {
+            const name = document.getElementById('walletName').value.trim();
+            const address = document.getElementById('walletAddress').value.trim();
+            
+            if (!name) {
+                alert('Inserisci un nome per il wallet');
+                return;
+            }
+            if (!address) {
+                alert('Inserisci un indirizzo');
+                return;
+            }
+            
+            // Rileva tipo wallet
+            let type = 'unknown';
+            let chain = '';
+            
+            if (address.startsWith('0x') && address.length === 42) {
+                type = 'evm';
+                chain = 'eth'; // Default, verrà scansionato su multiple chain
+            } else if (address.startsWith('terra1')) {
+                type = 'cosmos';
+                chain = 'terra';
+            } else if (address.startsWith('cosmos1')) {
+                type = 'cosmos';
+                chain = 'atom';
+            } else if (address.startsWith('osmo1')) {
+                type = 'cosmos';
+                chain = 'osmo';
+            } else {
+                alert('Indirizzo non riconosciuto. Supportati: EVM (0x...), Terra (terra1...), Cosmos (cosmos1...), Osmosis (osmo1...)');
+                return;
+            }
+            
+            const wallet = {
+                id: generateUUID(),
+                name: name,
+                address: address,
+                type: type,
+                chain: chain,
+                addedAt: Date.now(),
+                lastSync: null
+            };
+            
+            if (Database.addWallet(wallet)) {
+                log(`✅ Wallet aggiunto: ${name}`);
+                document.getElementById('walletName').value = '';
+                document.getElementById('walletAddress').value = '';
+                updateWalletList();
+                updateDashboard();
+            } else {
+                alert('Wallet già esistente');
+            }
+        }
+        
+        function removeWallet(address) {
+            if (confirm('Eliminare questo wallet e TUTTI i dati associati (balance e transazioni)?')) {
+                Database.removeWallet(address);
+                updateWalletList();
+                updateDashboard();
+                updateTransactionTable();
+                log(`🗑️ Wallet e dati associati eliminati`);
+            }
+        }
+        
+        // Cancella TUTTI i dati
+        function clearAllData() {
+            if (confirm('⚠️ ATTENZIONE!\n\nQuesto cancellerà TUTTI i dati:\n- Wallet\n- Balance\n- Transazioni\n- Exchange\n- Blacklist\n\nI dati verranno cancellati anche su Firebase!\n\nContinuare?')) {
+                Database.clearAllData();
+                localStorage.removeItem('cryptofolio_blacklist');
+                updateWalletList();
+                updateDashboard();
+                updateTransactionTable();
+                log(`🗑️ RESET TOTALE - tutti i dati cancellati`);
+                alert('✅ Tutti i dati cancellati!\n\nWallet: 0\nBalance: 0\nTransazioni: 0');
+            }
+        }
+        
+        async function scanWallet(address) {
+            const wallets = Database.getWallets();
+            const wallet = wallets.find(w => w.address.toLowerCase() === address.toLowerCase());
+            
+            if (!wallet) {
+                log('❌ Wallet non trovato');
+                return;
+            }
+            
+            log(`🔄 Scansione ${wallet.name}...`);
+            document.getElementById('syncStatus').textContent = 'Scansione...';
+            document.getElementById('syncDot').style.background = 'var(--yellow)';
+            
+            let result;
+            
+            // Usa le chain selezionate dall'utente
+            const selectedChains = getSelectedChains();
+            
+            if (selectedChains.length === 0) {
+                log('⚠️ Nessuna chain selezionata! Vai su Wallets e seleziona almeno una chain.');
+                document.getElementById('syncStatus').textContent = 'Pronto';
+                document.getElementById('syncDot').style.background = 'var(--green)';
+                return;
+            }
+            
+            log(`⛓️ Scansione su ${selectedChains.length} chain: ${selectedChains.join(', ')}`);
+            
+            if (wallet.type === 'evm') {
+                result = await WalletEVM.fullScan(wallet.address, selectedChains);
+            } else if (wallet.type === 'cosmos') {
+                result = await WalletCosmos.fullScan(wallet.address);
+            }
+            
+            if (result && result.success) {
+                log(`✅ ${wallet.name}: ${result.balances?.length || 0} token, ${result.transactions?.length || 0} tx`);
+                wallet.lastSync = Date.now();
+                Database.save();
+            } else {
+                log(`❌ Errore scansione: ${result?.error || 'Sconosciuto'}`);
+            }
+            
+            updateWalletList();
+            updateDashboard();
+            updateTransactionTable();
+            
+            document.getElementById('syncStatus').textContent = 'Pronto';
+            document.getElementById('syncDot').style.background = 'var(--green)';
+        }
+        
+        async function scanAllWallets() {
+            const wallets = Database.getWallets();
+            
+            for (const wallet of wallets) {
+                await scanWallet(wallet.address);
+            }
+        }
+        
+        // ═══════════════════════════════════════════════════════════
+        // WALLET DETAIL
+        // ═══════════════════════════════════════════════════════════
+        
+        let currentWalletAddress = null;
+        
+        function openWalletDetail(address) {
+            const wallets = Database.getWallets();
+            const wallet = wallets.find(w => w.address.toLowerCase() === address.toLowerCase());
+            
+            if (!wallet) {
+                log('❌ Wallet non trovato');
+                return;
+            }
+            
+            currentWalletAddress = address.toLowerCase();
+            
+            // Aggiorna header
+            document.getElementById('detailWalletName').textContent = wallet.name;
+            document.getElementById('detailWalletAddress').textContent = wallet.address;
+            
+            // Carica dati
+            updateWalletDetail();
+            
+            // Mostra view
+            showView('walletDetail');
+        }
+        
+        function updateWalletDetail() {
+            if (!currentWalletAddress) return;
+            
+            const state = Database.getState();
+            const blacklist = getBlacklist();
+            
+            // Trova token di questo wallet (esclusi blacklist)
+            const walletBalances = [];
+            const searchSource = `wallet_${currentWalletAddress.toLowerCase()}`;
+            
+            console.log('🔍 Cercando balance per:', searchSource);
+            
+            for (const [key, balance] of Object.entries(state.balances)) {
+                // Match più permissivo: controlla se source contiene l'indirizzo
+                const isMatch = (balance.source && balance.source.toLowerCase() === searchSource) ||
+                               (balance.source && balance.source.toLowerCase().includes(currentWalletAddress.toLowerCase()));
+                
+                if (!isMatch) continue;
+                
+                // ⚠️ IMPORTANTE: Filtra token in blacklist
+                if (blacklist.includes(balance.coin.toLowerCase())) {
+                    console.log(`  ❌ Escluso (blacklist): ${balance.coin}`);
+                    continue;
+                }
+                
+                // Filtra anche per contract address in blacklist
+                if (balance.contractAddress && blacklist.includes(balance.contractAddress.toLowerCase())) {
+                    console.log(`  ❌ Escluso (blacklist contract): ${balance.coin}`);
+                    continue;
+                }
+                
+                // Filtra pattern scam
+                if (isScamToken(balance.coin, 0, 0)) {
+                    console.log(`  ❌ Escluso (scam pattern): ${balance.coin}`);
+                    continue;
+                }
+                
+                walletBalances.push(balance);
+            }
+            
+            console.log('✅ Trovati', walletBalances.length, 'token (dopo filtri)');
+            
+            // Ordina per valore
+            walletBalances.sort((a, b) => (b.valueEUR || 0) - (a.valueEUR || 0));
+            
+            // Trova transazioni di questo wallet
+            const addrLower = currentWalletAddress.toLowerCase();
+            const walletTx = state.transactions.filter(tx => {
+                const txWallet = (tx.wallet || '').toLowerCase();
+                const txSource = (tx.source || '').toLowerCase();
+                return txWallet === addrLower || 
+                       txWallet.includes(addrLower) ||
+                       txSource.includes(addrLower);
+            });
+            
+            // Calcola totale
+            let totalValue = 0;
+            for (const bal of walletBalances) {
+                const price = PriceService.getPrice(bal.coin, 'eur');
+                bal.valueEUR = bal.amount * price;
+                totalValue += bal.valueEUR;
+            }
+            
+            // Aggiorna stats
+            document.getElementById('detailTotalValue').textContent = '€' + formatEUR(totalValue);
+            document.getElementById('detailTokenCount').textContent = walletBalances.length;
+            document.getElementById('detailTxCount').textContent = walletTx.length;
+            
+            // Render token list
+            renderWalletTokens(walletBalances);
+            
+            // Render transactions
+            renderWalletTransactions(walletTx);
+        }
+        
+        // Lista token scam/spam da filtrare (come v5.2)
+        const SCAM_PATTERNS = [
+            'visit', 'claim', 'reward', '.com', '.org', '.xyz', '.net',
+            'airdrop', 'bonus', 'free', 'gift', 'http', 'www', '$', '#',
+            'giveaway', 'elon', 'trump', '100x', '1000x', 'safemoon'
+        ];
+        
+        // Token legittimi (mai filtrati automaticamente)
+        const LEGITIMATE_TOKENS = [
+            'BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'AVAX', 'DOT', 'LINK', 'MATIC', 'POL',
+            'LTC', 'ATOM', 'UNI', 'AAVE', 'MKR', 'SHIB', 'DOGE', 'PEPE', 'FLOKI',
+            'USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FRAX', 'USDD', 'FDUSD',
+            'PLS', 'PLSX', 'HEX', 'INC', 'LUNC', 'USTC', 'OSMO', 'LUNA',
+            'WETH', 'WBTC', 'WBNB', 'WPLS',
+            'CRO', 'FTM', 'ARB', 'OP', 'NEAR', 'APT', 'SUI', 'TON', 'TRX',
+            'CAKE', 'OKB', 'BXN', 'BGB', 'KCS', 'GT', 'INJ', 'SEI', 'TIA',
+            'SAND', 'MANA', 'AXS', 'GALA', 'ENJ', 'IMX',
+            // Gaming/Metaverse
+            'MAVIA', 'PIXEL', 'PRIME', 'GODS', 'ILV', 'YGG', 'RONIN', 'RON',
+            // Altri token comuni
+            'SHIFU', 'BUBBLE', 'CIV', 'STONE', 'ONE', 'BLUR', 'APE', 'LDO',
+            'RENDER', 'FET', 'AGIX', 'OCEAN', 'GRT', 'RNDR', 'WLD', 'TAO'
+        ];
+        
+        function isScamToken(name, amount = 0, price = 0) {
+            if (!name) return false;
+            
+            const lower = (name || '').toLowerCase();
+            const upper = (name || '').toUpperCase();
+            
+            // Token legittimi - mai filtrati
+            if (LEGITIMATE_TOKENS.includes(upper)) {
+                return false;
+            }
+            
+            // Check pattern spam nel nome/simbolo (come v5.2)
+            for (const pattern of SCAM_PATTERNS) {
+                if (lower.includes(pattern)) {
+                    return true;
+                }
+            }
+            
+            // Nome troppo lungo (> 40 caratteri) = spam (come v5.2)
+            if (name.length > 40) {
+                return true;
+            }
+            
+            // RIMOSSO: filtro prezzo €0 (troppo aggressivo, nasconde token legittimi)
+            // I token senza prezzo CoinGecko possono essere legittimi!
+            
+            // Solo nascondere token con pattern MOLTO sospetti:
+            // - Milioni di unità E prezzo €0 E nome non riconosciuto
+            if (amount > 10000000 && price === 0) {
+                // Potrebbe essere airdrop spam, ma non filtrare automaticamente
+                // L'utente può aggiungerlo alla blacklist manualmente
+                console.log(`⚠️ Token sospetto (molte unità, no prezzo): ${name} - ${amount.toLocaleString()} unità`);
+                // return true; // DISABILITATO - lascia decidere all'utente
+            }
+            
+            return false;
+        }
+        
+        // Blacklist personalizzata (salvata in localStorage)
+        function getBlacklist() {
+            const saved = localStorage.getItem('cryptofolio_blacklist');
+            return saved ? JSON.parse(saved) : [];
+        }
+        
+        function saveBlacklist(list) {
+            localStorage.setItem('cryptofolio_blacklist', JSON.stringify(list));
+        }
+        
+        function addToBlacklist(coin) {
+            const list = getBlacklist();
+            const coinLower = coin.toLowerCase();
+            if (!list.includes(coinLower)) {
+                list.push(coinLower);
+                saveBlacklist(list);
+                log(`🚫 ${coin} aggiunto alla blacklist`);
+                
+                // ⚠️ IMPORTANTE: Rimuovi dal database tutti i balance di questo token
+                const state = Database.getState();
+                const keysToRemove = [];
+                
+                for (const [key, balance] of Object.entries(state.balances)) {
+                    if (balance.coin && balance.coin.toLowerCase() === coinLower) {
+                        keysToRemove.push(key);
+                    }
+                    // Controlla anche contract address
+                    if (balance.contractAddress && balance.contractAddress.toLowerCase() === coinLower) {
+                        keysToRemove.push(key);
+                    }
+                }
+                
+                // Rimuovi dal database
+                for (const key of keysToRemove) {
+                    delete state.balances[key];
+                    Logger.info('Blacklist', `Rimosso dal DB: ${key}`);
+                }
+                
+                if (keysToRemove.length > 0) {
+                    Database.save();
+                    log(`🗑️ Rimossi ${keysToRemove.length} record dal database`);
+                }
+                
+                // Aggiorna tutte le view
+                updateWalletDetail();
+                updateDashboard();
+                updateTransactionTable();
+            }
+        }
+        
+        function removeFromBlacklist(coin) {
+            let list = getBlacklist();
+            const coinLower = coin.toLowerCase();
+            list = list.filter(c => c !== coinLower);
+            saveBlacklist(list);
+            log(`✅ ${coin} rimosso dalla blacklist`);
+            // Aggiorna tutte le view
+            updateWalletDetail();
+            updateDashboard();
+            updateTransactionTable();
+        }
+        
+        function isBlacklisted(coin) {
+            if (!coin) return false;
+            return getBlacklist().includes(coin.toLowerCase());
+        }
+        
+        // Rimuove TUTTI i token blacklistati dal database
+        function cleanupBlacklistedTokens() {
+            const blacklist = getBlacklist();
+            if (blacklist.length === 0) {
+                log('📋 Blacklist vuota, nulla da rimuovere');
+                return;
+            }
+            
+            const state = Database.getState();
+            const keysToRemove = [];
+            
+            for (const [key, balance] of Object.entries(state.balances)) {
+                const coinLower = (balance.coin || '').toLowerCase();
+                const contractLower = (balance.contractAddress || '').toLowerCase();
+                
+                if (blacklist.includes(coinLower) || (contractLower && blacklist.includes(contractLower))) {
+                    keysToRemove.push(key);
+                }
+            }
+            
+            if (keysToRemove.length === 0) {
+                log('✅ Database già pulito');
+                return;
+            }
+            
+            for (const key of keysToRemove) {
+                delete state.balances[key];
+            }
+            
+            Database.save();
+            log(`🗑️ Rimossi ${keysToRemove.length} token blacklistati dal database`);
+            
+            // Aggiorna view
+            updateWalletDetail();
+            updateDashboard();
+            updateTransactionTable();
+        }
+        
+        // Stato filtro scam
+        let showScamTokens = false;
+        
+        function toggleScamFilter() {
+            showScamTokens = !showScamTokens;
+            document.getElementById('scamFilterBtn').textContent = showScamTokens ? '👁️ Mostra Tutti' : '🔒 Nascondi Scam';
+            updateWalletDetail();
+        }
+        
+        // Mappa icone token conosciute (fallback)
+        const TOKEN_ICONS = {
+            // Major coins
+            'ETH': 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
+            'WETH': 'https://assets.coingecko.com/coins/images/2518/small/weth.png',
+            'BTC': 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',
+            'WBTC': 'https://assets.coingecko.com/coins/images/7598/small/wrapped_bitcoin_wbtc.png',
+            'BNB': 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',
+            'MATIC': 'https://assets.coingecko.com/coins/images/4713/small/matic-token-icon.png',
+            'POL': 'https://assets.coingecko.com/coins/images/4713/small/matic-token-icon.png',
+            'SOL': 'https://assets.coingecko.com/coins/images/4128/small/solana.png',
+            'AVAX': 'https://assets.coingecko.com/coins/images/12559/small/Avalanche_Circle_RedWhite_Trans.png',
+            'FTM': 'https://assets.coingecko.com/coins/images/4001/small/Fantom_round.png',
+            'ARB': 'https://assets.coingecko.com/coins/images/16547/small/photo_2023-03-29_21.47.00.jpeg',
+            'OP': 'https://assets.coingecko.com/coins/images/25244/small/Optimism.png',
+            'CRO': 'https://assets.coingecko.com/coins/images/7310/small/cro_token_logo.png',
+            // Stablecoins
+            'USDT': 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
+            'USDC': 'https://assets.coingecko.com/coins/images/6319/small/usdc.png',
+            'DAI': 'https://assets.coingecko.com/coins/images/9956/small/Badge_Dai.png',
+            'BUSD': 'https://assets.coingecko.com/coins/images/9576/small/BUSD.png',
+            'TUSD': 'https://assets.coingecko.com/coins/images/3449/small/tusd.png',
+            'FRAX': 'https://assets.coingecko.com/coins/images/13422/small/FRAX_icon.png',
+            // DeFi
+            'LINK': 'https://assets.coingecko.com/coins/images/877/small/chainlink-new-logo.png',
+            'UNI': 'https://assets.coingecko.com/coins/images/12504/small/uniswap-uni.png',
+            'AAVE': 'https://assets.coingecko.com/coins/images/12645/small/AAVE.png',
+            'MKR': 'https://assets.coingecko.com/coins/images/1364/small/Mark_Maker.png',
+            'COMP': 'https://assets.coingecko.com/coins/images/10775/small/COMP.png',
+            'CRV': 'https://assets.coingecko.com/coins/images/12124/small/Curve.png',
+            'SNX': 'https://assets.coingecko.com/coins/images/3406/small/SNX.png',
+            'SUSHI': 'https://assets.coingecko.com/coins/images/12271/small/512x512_Logo_no_chop.png',
+            '1INCH': 'https://assets.coingecko.com/coins/images/13469/small/1inch-token.png',
+            'CAKE': 'https://assets.coingecko.com/coins/images/12632/small/pancakeswap-cake-logo.png',
+            // Meme coins
+            'SHIB': 'https://assets.coingecko.com/coins/images/11939/small/shiba.png',
+            'DOGE': 'https://assets.coingecko.com/coins/images/5/small/dogecoin.png',
+            'PEPE': 'https://assets.coingecko.com/coins/images/29850/small/pepe-token.jpeg',
+            'FLOKI': 'https://assets.coingecko.com/coins/images/16746/small/PNG_image.png',
+            'BONE': 'https://assets.coingecko.com/coins/images/16916/small/bone_icon.png',
+            'LEASH': 'https://assets.coingecko.com/coins/images/15802/small/LEASH.png',
+            // PulseChain
+            'PLS': 'https://tokens.app.pulsex.com/images/tokens/0xA1077a294dDE1B09bB078844df40758a5D0f9a27.png',
+            'PLSX': 'https://tokens.app.pulsex.com/images/tokens/0x95B303987A60C71504D99Aa1b13B4DA07b0790ab.png',
+            'HEX': 'https://tokens.app.pulsex.com/images/tokens/0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39.png',
+            'INC': 'https://tokens.app.pulsex.com/images/tokens/0x2fa878Ab3F87CC1C9737Fc071108F904c0B0C95d.png',
+            // Cosmos
+            'ATOM': 'https://assets.coingecko.com/coins/images/1481/small/cosmos_hub.png',
+            'OSMO': 'https://assets.coingecko.com/coins/images/16724/small/osmo.png',
+            'LUNC': 'https://assets.coingecko.com/coins/images/8284/small/01_LunasLogo_color.png',
+            'USTC': 'https://assets.coingecko.com/coins/images/12681/small/UST.png',
+            // Others
+            'LTC': 'https://assets.coingecko.com/coins/images/2/small/litecoin.png',
+            'XRP': 'https://assets.coingecko.com/coins/images/44/small/xrp-symbol-white-128.png',
+            'ADA': 'https://assets.coingecko.com/coins/images/975/small/cardano.png',
+            'DOT': 'https://assets.coingecko.com/coins/images/12171/small/polkadot.png',
+            'NEAR': 'https://assets.coingecko.com/coins/images/10365/small/near.jpg',
+            'APT': 'https://assets.coingecko.com/coins/images/26455/small/aptos_round.png',
+            'SUI': 'https://assets.coingecko.com/coins/images/26375/small/sui_asset.jpeg',
+            'TRX': 'https://assets.coingecko.com/coins/images/1094/small/tron-logo.png',
+            'TON': 'https://assets.coingecko.com/coins/images/17980/small/ton_symbol.png',
+            'BXN': 'https://assets.coingecko.com/coins/images/29287/small/bxn.png',
+            // Gaming / Nuovi token
+            'ONE': 'https://assets.coingecko.com/coins/images/4344/small/Y88JAze.png',
+            'MAVIA': 'https://assets.coingecko.com/coins/images/35420/small/mavia.png',
+            'PIXEL': 'https://assets.coingecko.com/coins/images/35338/small/pixel-icon.png',
+            'BLUR': 'https://assets.coingecko.com/coins/images/28453/small/blur.png',
+            'APE': 'https://assets.coingecko.com/coins/images/24383/small/apecoin.jpg',
+            'LDO': 'https://assets.coingecko.com/coins/images/13573/small/Lido_DAO.png',
+            'IMX': 'https://assets.coingecko.com/coins/images/17233/small/immutableX-symbol-BLK-RGB.png',
+            'SAND': 'https://assets.coingecko.com/coins/images/12129/small/sandbox_logo.jpg',
+            'MANA': 'https://assets.coingecko.com/coins/images/878/small/decentraland-mana.png',
+            'AXS': 'https://assets.coingecko.com/coins/images/13029/small/axie_infinity_logo.png',
+            'GALA': 'https://assets.coingecko.com/coins/images/12493/small/GALA-COINGECKO.png',
+            'ENJ': 'https://assets.coingecko.com/coins/images/1102/small/enjin-coin-logo.png',
+            'RENDER': 'https://assets.coingecko.com/coins/images/11636/small/rndr.png',
+            'FET': 'https://assets.coingecko.com/coins/images/5681/small/Fetch.jpg',
+            'GRT': 'https://assets.coingecko.com/coins/images/13397/small/Graph_Token.png',
+            'WLD': 'https://assets.coingecko.com/coins/images/31069/small/worldcoin.jpeg',
+            // Token specifici (potrebbero non avere icona CoinGecko)
+            'SHIFU': 'https://assets.coingecko.com/coins/images/35165/small/shifu.png',
+            'BUBBLE': 'https://assets.coingecko.com/coins/images/33874/small/bubble.png',
+            'CIV': 'https://assets.coingecko.com/coins/images/17528/small/civilization.png',
+        };
+        
+        function getTokenIcon(bal, chainColor) {
+            // 1. Logo salvata dal wallet scan (Moralis)
+            if (bal.logo) {
+                return `<img src="${bal.logo}" style="width:32px;height:32px;border-radius:50%;" onerror="this.outerHTML='<div style=\\'width:32px;height:32px;border-radius:50%;background:${chainColor}30;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;\\'>${bal.coin.slice(0,3)}</div>'">`;
+            }
+            
+            // 2. TOKEN_ICONS hardcoded
+            const coinUpper = bal.coin.toUpperCase();
+            if (TOKEN_ICONS[coinUpper]) {
+                return `<img src="${TOKEN_ICONS[coinUpper]}" style="width:32px;height:32px;border-radius:50%;" onerror="this.outerHTML='<div style=\\'width:32px;height:32px;border-radius:50%;background:${chainColor}30;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;\\'>${bal.coin.slice(0,3)}</div>'">`;
+            }
+            
+            // 3. Fallback con iniziali
+            return `<div style="width:32px;height:32px;border-radius:50%;background:${chainColor}30;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;">${bal.coin.slice(0,3)}</div>`;
+        }
+        
+        function renderWalletTokens(balances) {
+            const container = document.getElementById('walletTokensList');
+            const blacklist = getBlacklist();
+            
+            // Filtra scam e blacklist se necessario
+            let filtered = balances;
+            let scamCount = 0;
+            let blacklistCount = 0;
+            
+            if (!showScamTokens) {
+                filtered = balances.filter(bal => {
+                    if (isBlacklisted(bal.coin)) {
+                        blacklistCount++;
+                        return false;
+                    }
+                    const price = PriceService.getPrice(bal.coin, 'eur');
+                    if (isScamToken(bal.coin, bal.amount, price)) {
+                        scamCount++;
+                        return false;
+                    }
+                    return true;
+                });
+            }
+            
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">🪙</div>
+                        <p>Nessun token trovato</p>
+                        <p class="text-secondary" style="font-size:12px;">Scansiona il wallet per caricare i token</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // ⚠️ IMPORTANTE: Aggrega token duplicati per coin+chain
+            const aggregatedByChainCoin = {};
+            for (const bal of filtered) {
+                const chain = bal.chain || 'unknown';
+                const key = `${chain}_${bal.coin}`;
+                
+                if (!aggregatedByChainCoin[key]) {
+                    aggregatedByChainCoin[key] = {
+                        ...bal,
+                        chain: chain
+                    };
+                } else {
+                    // Somma le quantità
+                    aggregatedByChainCoin[key].amount += bal.amount;
+                }
+            }
+            
+            // Converti in array
+            const uniqueTokens = Object.values(aggregatedByChainCoin);
+            
+            // Raggruppa per chain
+            const byChain = {};
+            for (const bal of uniqueTokens) {
+                const chain = bal.chain || 'unknown';
+                if (!byChain[chain]) byChain[chain] = [];
+                byChain[chain].push(bal);
+            }
+            
+            // Ordina chain per valore totale
+            const chainOrder = Object.keys(byChain).sort((a, b) => {
+                const totalA = byChain[a].reduce((sum, t) => sum + (t.amount * PriceService.getPrice(t.coin, 'eur')), 0);
+                const totalB = byChain[b].reduce((sum, t) => sum + (t.amount * PriceService.getPrice(t.coin, 'eur')), 0);
+                return totalB - totalA;
+            });
+            
+            // Header con filtro e info
+            const hiddenCount = scamCount + blacklistCount;
+            let html = `
+                <div class="flex items-center justify-between mb-16">
+                    <span class="text-secondary" style="font-size:12px;">
+                        ${filtered.length} token su ${chainOrder.length} chain${hiddenCount > 0 ? ` (${hiddenCount} nascosti)` : ''}
+                    </span>
+                    <div class="flex gap-8">
+                        ${blacklist.length > 0 ? `<button class="btn btn-secondary" onclick="showBlacklistModal()" style="padding:6px 12px;font-size:12px;color:var(--text-primary);">📋 Blacklist (${blacklist.length})</button>` : ''}
+                        <button class="btn btn-secondary" id="scamFilterBtn" onclick="toggleScamFilter()" style="padding:6px 12px;font-size:12px;color:var(--text-primary);">
+                            ${showScamTokens ? '👁️ Mostra Tutti' : '🔒 Nascondi Scam'}
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // Render ogni chain
+            for (const chain of chainOrder) {
+                const tokens = byChain[chain];
+                const chainInfo = CHAINS[chain] || { name: chain.toUpperCase(), color: '#888', symbol: '?' };
+                
+                // Calcola totale chain
+                let chainTotal = 0;
+                for (const t of tokens) {
+                    chainTotal += t.amount * PriceService.getPrice(t.coin, 'eur');
+                }
+                
+                // Ordina token per valore
+                tokens.sort((a, b) => {
+                    const valA = a.amount * PriceService.getPrice(a.coin, 'eur');
+                    const valB = b.amount * PriceService.getPrice(b.coin, 'eur');
+                    return valB - valA;
+                });
+                
+                html += `
+                    <div style="margin-bottom:24px;">
+                        <div class="flex items-center justify-between" style="padding:12px 16px;background:${chainInfo.color}15;border-radius:8px 8px 0 0;border-left:4px solid ${chainInfo.color};">
+                            <div class="flex items-center gap-8">
+                                <span style="font-size:18px;">${chainInfo.symbol === 'ETH' ? '⟠' : chainInfo.symbol === 'BNB' ? '🟡' : chainInfo.symbol === 'MATIC' ? '🟣' : chainInfo.symbol === 'PLS' ? '💜' : chainInfo.symbol === 'ARB' ? '🔵' : '🔗'}</span>
+                                <span style="font-weight:600;">${chainInfo.name}</span>
+                                <span class="text-secondary" style="font-size:12px;">(${tokens.length} token)</span>
+                            </div>
+                            <span style="font-weight:600;color:var(--green);">€${formatEUR(chainTotal)}</span>
+                        </div>
+                        <table style="width:100%;background:var(--bg-secondary);border-radius:0 0 8px 8px;">
+                            <tbody>
+                `;
+                
+                for (const bal of tokens) {
+                    const price = PriceService.getPrice(bal.coin, 'eur');
+                    const value = bal.amount * price;
+                    const iconHtml = getTokenIcon(bal, chainInfo.color);
+                    
+                    // Link all'explorer per contract address
+                    let contractLink = '';
+                    if (bal.contractAddress) {
+                        const explorerUrl = chainInfo.explorer || 'https://etherscan.io';
+                        contractLink = `<a href="${explorerUrl}/token/${bal.contractAddress}" target="_blank" class="text-secondary" style="font-size:9px;text-decoration:none;opacity:0.6;" title="${bal.contractAddress}">${bal.contractAddress.slice(0,6)}...${bal.contractAddress.slice(-4)}</a>`;
+                    }
+                    
+                    html += `
+                        <tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:12px;">
+                                <div class="flex items-center gap-8">
+                                    ${iconHtml}
+                                    <div>
+                                        <div style="font-weight:500;">${bal.coin}</div>
+                                        ${bal.name && bal.name !== bal.coin ? `<div class="text-secondary" style="font-size:10px;">${bal.name.slice(0,25)}</div>` : ''}
+                                        ${contractLink}
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="text-align:right;font-family:monospace;padding:12px;">${formatCrypto(bal.amount)}</td>
+                            <td style="text-align:right;padding:12px;color:var(--text-secondary);">€${formatEUR(price)}</td>
+                            <td style="text-align:right;font-weight:600;color:var(--green);padding:12px;">€${formatEUR(value)}</td>
+                            <td style="text-align:center;padding:12px;width:40px;">
+                                <button onclick="addToBlacklist('${bal.coin}')" title="Aggiungi a blacklist" style="background:none;border:none;cursor:pointer;font-size:14px;opacity:0.4;padding:4px;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4">✕</button>
+                            </td>
+                        </tr>
+                    `;
+                }
+                
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        // Modal per gestire blacklist
+        function showBlacklistModal() {
+            const blacklist = getBlacklist();
+            
+            let html = `
+                <div id="blacklistModal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:1000;" onclick="if(event.target.id==='blacklistModal')closeBlacklistModal()">
+                    <div class="card" style="width:400px;max-height:80vh;overflow-y:auto;">
+                        <div class="card-header">
+                            <div class="card-title">📋 Blacklist Personalizzata</div>
+                            <button onclick="closeBlacklistModal()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text-secondary);">✕</button>
+                        </div>
+                        <p class="text-secondary mb-16" style="font-size:12px;">Token che hai nascosto manualmente. Clicca ✅ per ripristinarli.</p>
+            `;
+            
+            if (blacklist.length === 0) {
+                html += `<p class="text-secondary">Nessun token in blacklist</p>`;
+            } else {
+                for (const coin of blacklist) {
+                    html += `
+                        <div class="flex items-center justify-between" style="padding:8px;background:var(--bg-secondary);border-radius:8px;margin-bottom:8px;">
+                            <span>${coin}</span>
+                            <button onclick="removeFromBlacklist('${coin}');closeBlacklistModal();" class="btn btn-success" style="padding:4px 12px;font-size:12px;">✅ Ripristina</button>
+                        </div>
+                    `;
+                }
+            }
+            
+            html += `
+                        <div class="flex gap-8 mt-16">
+                            <button onclick="cleanupBlacklistedTokens();closeBlacklistModal();" class="btn btn-danger" style="flex:1;font-size:12px;">🗑️ Pulisci Database</button>
+                            <button onclick="closeBlacklistModal()" class="btn btn-secondary" style="flex:1;">Chiudi</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', html);
+        }
+        
+        function closeBlacklistModal() {
+            const modal = document.getElementById('blacklistModal');
+            if (modal) modal.remove();
+        }
+        
+        function renderWalletTransactions(transactions) {
+            const tbody = document.getElementById('walletTxTableBody');
+            
+            if (transactions.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-secondary" style="text-align:center;padding:40px;">
+                            Nessuna transazione trovata
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            // Ordina per data (più recenti prima)
+            transactions.sort((a, b) => b.timestamp - a.timestamp);
+            
+            // Mostra max 100
+            const toShow = transactions.slice(0, 100);
+            
+            let html = '';
+            for (const tx of toShow) {
+                const isIn = tx.type === 'deposit' || tx.amountIn > 0;
+                const coin = tx.coinIn || tx.coinOut || '-';
+                const amount = tx.amountIn || tx.amountOut || 0;
+                
+                html += `
+                    <tr>
+                        <td>${formatDate(tx.timestamp)}</td>
+                        <td class="${isIn ? 'text-green' : 'text-red'}">${tx.type || '-'}</td>
+                        <td>${coin}</td>
+                        <td class="${isIn ? 'text-green' : 'text-red'}">${isIn ? '+' : '-'}${formatCrypto(amount)}</td>
+                        <td class="text-secondary">${tx.chain || '-'}</td>
+                    </tr>
+                `;
+            }
+            
+            tbody.innerHTML = html;
+        }
+        
+        function showWalletTab(tab) {
+            if (tab === 'tokens') {
+                document.getElementById('walletTokensTab').style.display = 'block';
+                document.getElementById('walletTxTab').style.display = 'none';
+                document.getElementById('tabTokens').style.background = 'var(--accent)';
+                document.getElementById('tabTokens').style.color = 'white';
+                document.getElementById('tabTokens').style.border = 'none';
+                document.getElementById('tabTx').style.background = 'var(--bg-secondary)';
+                document.getElementById('tabTx').style.color = 'var(--text-primary)';
+                document.getElementById('tabTx').style.border = '1px solid var(--border)';
+            } else {
+                document.getElementById('walletTokensTab').style.display = 'none';
+                document.getElementById('walletTxTab').style.display = 'block';
+                document.getElementById('tabTx').style.background = 'var(--accent)';
+                document.getElementById('tabTx').style.color = 'white';
+                document.getElementById('tabTx').style.border = 'none';
+                document.getElementById('tabTokens').style.background = 'var(--bg-secondary)';
+                document.getElementById('tabTokens').style.color = 'var(--text-primary)';
+                document.getElementById('tabTokens').style.border = '1px solid var(--border)';
+            }
+        }
+        
+        async function scanCurrentWallet() {
+            if (!currentWalletAddress) return;
+            await scanWallet(currentWalletAddress);
+            updateWalletDetail();
+        }
+        
+        // ═══════════════════════════════════════════════════════════
+        // UI UPDATES
+        // ═══════════════════════════════════════════════════════════
+        
+        let portfolioChart = null;
+        
+        async function updateDashboard() {
+            const state = Database.getState();
+            
+            // Totali
+            document.getElementById('totalWallets').textContent = state.wallets.length;
+            document.getElementById('totalTx').textContent = state.transactions.length;
+            
+            // Aggrega balance per coin (sommando da tutti i wallet)
+            const aggregated = {};
+            for (const [key, balance] of Object.entries(state.balances)) {
+                const coin = balance.coin;
+                
+                // Filtra token in blacklist manuale
+                if (isBlacklisted(coin)) continue;
+                
+                // Filtra pattern scam ovvi (senza prezzo)
+                if (isScamToken(coin, 0, 0)) continue;
+                
+                if (!aggregated[coin]) {
+                    aggregated[coin] = { coin, amount: 0, valueEUR: 0 };
+                }
+                aggregated[coin].amount += balance.amount;
+            }
+            
+            // Fetch prezzi per tutti i coin
+            const coins = Object.keys(aggregated);
+            if (coins.length > 0) {
+                await PriceService.fetchCurrentPrices(coins);
+            }
+            
+            // Per token senza prezzo CoinGecko, prova DexScreener
+            for (const [key, balance] of Object.entries(state.balances)) {
+                const coin = balance.coin;
+                if (!aggregated[coin]) continue;
+                
+                const price = PriceService.getPrice(coin, 'eur');
+                if (price === 0 && balance.contractAddress) {
+                    // Prova DexScreener
+                    const chain = balance.chain === 'pulse' ? 'pulsechain' : balance.chain;
+                    try {
+                        const dexPrice = await PriceService.fetchTokenPriceFromDex(balance.contractAddress, chain);
+                        if (dexPrice && dexPrice.priceEur > 0) {
+                            Logger.info('Dashboard', `DexScreener: ${coin} = €${dexPrice.priceEur.toFixed(6)}`);
+                        }
+                    } catch (e) {
+                        // Ignora errori DexScreener
+                    }
+                }
+            }
+            
+            // Calcola valori e filtra scam con valore anomalo
+            let validAssets = 0;
+            for (const coin of coins) {
+                const price = PriceService.getPrice(coin, 'eur');
+                const amount = aggregated[coin].amount;
+                
+                // Filtra token con valore anomalo (probabili scam)
+                if (isScamToken(coin, amount, price)) {
+                    delete aggregated[coin];
+                    continue;
+                }
+                
+                aggregated[coin].valueEUR = amount * price;
+                aggregated[coin].price = price;
+                validAssets++;
+            }
+            
+            document.getElementById('totalAssets').textContent = validAssets;
+            
+            // Converti in array e ordina per valore
+            const holdings = Object.values(aggregated)
+                .filter(h => h.valueEUR > 0.01)
+                .sort((a, b) => b.valueEUR - a.valueEUR);
+            
+            // Calcola totale
+            const totalValue = holdings.reduce((sum, h) => sum + h.valueEUR, 0);
+            document.getElementById('totalValue').textContent = '€' + formatEUR(totalValue);
+            
+            // Aggiorna grafico a torta
+            updatePortfolioChart(holdings, totalValue);
+            
+            // Aggiorna top holdings list
+            updateTopHoldings(holdings, totalValue);
+        }
+        
+        function updatePortfolioChart(holdings, totalValue) {
+            const ctx = document.getElementById('portfolioChart');
+            if (!ctx) return;
+            
+            // Prendi top 6 + "Altri"
+            const topN = 6;
+            let chartData = holdings.slice(0, topN);
+            const othersValue = holdings.slice(topN).reduce((sum, h) => sum + h.valueEUR, 0);
+            
+            if (othersValue > 0) {
+                chartData.push({ coin: 'Altri', valueEUR: othersValue });
+            }
+            
+            // Colori
+            const colors = [
+                '#627eea', // ETH blue
+                '#f3ba2f', // BNB yellow
+                '#8247e5', // Polygon purple
+                '#3fb950', // Green
+                '#58a6ff', // Accent blue
+                '#f85149', // Red
+                '#8b949e', // Gray for "Altri"
+            ];
+            
+            // Distruggi grafico esistente
+            if (portfolioChart) {
+                portfolioChart.destroy();
+            }
+            
+            // Se non ci sono dati
+            if (chartData.length === 0) {
+                ctx.getContext('2d').clearRect(0, 0, ctx.width, ctx.height);
+                return;
+            }
+            
+            // Crea nuovo grafico
+            portfolioChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: chartData.map(h => h.coin),
+                    datasets: [{
+                        data: chartData.map(h => h.valueEUR),
+                        backgroundColor: colors.slice(0, chartData.length),
+                        borderColor: '#1c2128',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                color: '#e6edf3',
+                                padding: 12,
+                                font: { size: 12 },
+                                generateLabels: function(chart) {
+                                    const data = chart.data;
+                                    return data.labels.map((label, i) => {
+                                        const value = data.datasets[0].data[i];
+                                        const pct = totalValue > 0 ? ((value / totalValue) * 100).toFixed(1) : 0;
+                                        return {
+                                            text: `${label} (${pct}%)`,
+                                            fillStyle: colors[i],
+                                            strokeStyle: colors[i],
+                                            lineWidth: 0,
+                                            hidden: false,
+                                            index: i
+                                        };
+                                    });
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw;
+                                    const pct = totalValue > 0 ? ((value / totalValue) * 100).toFixed(1) : 0;
+                                    return `€${formatEUR(value)} (${pct}%)`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '60%'
+                }
+            });
+        }
+        
+        function updateTopHoldings(holdings, totalValue) {
+            const container = document.getElementById('topHoldingsList');
+            
+            if (holdings.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state" style="padding:20px;">
+                        <p class="text-secondary">Nessun asset trovato</p>
+                        <p class="text-secondary" style="font-size:11px;">Aggiungi un wallet e scansiona</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Mostra top 5
+            const top5 = holdings.slice(0, 5);
+            
+            let html = '';
+            for (const holding of top5) {
+                const pct = totalValue > 0 ? ((holding.valueEUR / totalValue) * 100).toFixed(1) : 0;
+                
+                // Crea oggetto balance fittizio per getTokenIcon
+                const fakeBal = { coin: holding.coin, logo: null };
+                const iconHtml = getTokenIcon(fakeBal, 'var(--accent)');
+                
+                html += `
+                    <div class="top-holding-item" style="display:flex;align-items:center;justify-content:space-between;padding:12px 8px;border-bottom:1px solid var(--border);cursor:pointer;border-radius:8px;transition:background 0.2s;" 
+                         onmouseover="this.style.background='var(--bg-secondary)'" 
+                         onmouseout="this.style.background='transparent'"
+                         onclick="showTokenActions('${holding.coin}', ${holding.valueEUR.toFixed(2)})">
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            ${iconHtml}
+                            <div>
+                                <div style="font-weight:600;">${holding.coin}</div>
+                                <div class="text-secondary" style="font-size:11px;">${formatCrypto(holding.amount)}</div>
+                            </div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-weight:600;color:var(--green);">€${formatEUR(holding.valueEUR)}</div>
+                            <div class="text-secondary" style="font-size:11px;">${pct}%</div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        // Modal per azioni su token dalla dashboard
+        function showTokenActions(coin, value) {
+            // Trova in quali wallet è presente il token
+            const state = Database.getState();
+            const walletSources = [];
+            
+            for (const [key, balance] of Object.entries(state.balances)) {
+                if (balance.coin === coin && balance.source) {
+                    const walletAddr = balance.source.replace('wallet_', '');
+                    const wallet = state.wallets.find(w => w.address.toLowerCase() === walletAddr.toLowerCase());
+                    if (wallet) {
+                        walletSources.push({
+                            name: wallet.name,
+                            address: wallet.address,
+                            chain: balance.chain,
+                            amount: balance.amount
+                        });
+                    }
+                }
+            }
+            
+            let walletsHtml = '';
+            if (walletSources.length > 0) {
+                walletsHtml = walletSources.map(ws => `
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--bg-primary);border-radius:8px;margin-bottom:8px;">
+                        <div>
+                            <div style="font-weight:500;">${ws.name}</div>
+                            <div class="text-secondary" style="font-size:11px;">${ws.chain} • ${formatCrypto(ws.amount)} ${coin}</div>
+                        </div>
+                        <button class="btn btn-secondary" onclick="openWalletDetail('${ws.address}');closeTokenActionsModal();" style="padding:6px 12px;font-size:12px;">
+                            👁️ Apri
+                        </button>
+                    </div>
+                `).join('');
+            } else {
+                walletsHtml = '<p class="text-secondary">Token non trovato nei wallet</p>';
+            }
+            
+            const modal = document.createElement('div');
+            modal.id = 'tokenActionsModal';
+            modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:1000;';
+            
+            modal.innerHTML = `
+                <div class="card" style="width:420px;max-height:80vh;overflow-y:auto;">
+                    <div class="card-header">
+                        <div class="card-title">🪙 ${coin}</div>
+                        <button onclick="closeTokenActionsModal()" style="background:none;border:none;color:var(--text-secondary);font-size:20px;cursor:pointer;">✕</button>
+                    </div>
+                    
+                    <div style="text-align:center;padding:16px;background:var(--bg-secondary);border-radius:8px;margin-bottom:16px;">
+                        <div style="font-size:24px;font-weight:700;color:var(--green);">€${formatEUR(value)}</div>
+                        <div class="text-secondary" style="font-size:12px;">Valore totale</div>
+                    </div>
+                    
+                    <div style="margin-bottom:16px;">
+                        <div style="font-weight:600;margin-bottom:8px;">📍 Presente in:</div>
+                        ${walletsHtml}
+                    </div>
+                    
+                    <div class="flex gap-8">
+                        <button class="btn btn-danger" onclick="addToBlacklist('${coin}');closeTokenActionsModal();" style="flex:1;">
+                            🚫 Nascondi (Scam)
+                        </button>
+                        <button class="btn btn-secondary" onclick="closeTokenActionsModal()" style="flex:1;">
+                            Chiudi
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            modal.onclick = (e) => { if (e.target === modal) closeTokenActionsModal(); };
+        }
+        
+        function closeTokenActionsModal() {
+            const modal = document.getElementById('tokenActionsModal');
+            if (modal) modal.remove();
+        }
+        
+        function updateWalletList() {
+            const wallets = Database.getWallets();
+            const container = document.getElementById('walletList');
+            
+            if (wallets.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">👛</div>
+                        <p>Nessun wallet aggiunto</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            for (const wallet of wallets) {
+                const chainInfo = CHAINS[wallet.chain] || { name: wallet.chain, color: '#888' };
+                const lastSync = wallet.lastSync ? formatDateTime(wallet.lastSync) : 'Mai';
+                
+                // Icona Rabby Wallet per EVM
+                const walletIcon = wallet.type === 'evm' 
+                    ? `<img src="https://raw.githubusercontent.com/RabbyHub/logo/master/symbol.png" style="width:28px;height:28px;border-radius:50%;" onerror="this.outerHTML='<span style=\\'font-size:24px;\\'>🔷</span>'">`
+                    : '🌐';
+                
+                html += `
+                    <div class="wallet-item" style="cursor:pointer;" onclick="openWalletDetail('${wallet.address}')">
+                        <div class="wallet-info">
+                            <div class="wallet-icon" style="background:${chainInfo.color}20;color:${chainInfo.color}">
+                                ${walletIcon}
+                            </div>
+                            <div>
+                                <div class="wallet-name">${wallet.name}</div>
+                                <div class="wallet-address">${wallet.address.slice(0,8)}...${wallet.address.slice(-6)}</div>
+                                <div class="text-secondary" style="font-size:11px;">Ultimo sync: ${lastSync}</div>
+                            </div>
+                        </div>
+                        <div class="flex gap-8" onclick="event.stopPropagation();">
+                            <button class="btn btn-secondary" onclick="scanWallet('${wallet.address}')">🔄 Scan</button>
+                            <button class="btn btn-danger" onclick="removeWallet('${wallet.address}')">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        async function updateTransactionTable() {
+            const transactions = Database.getTransactions();
+            const tbody = document.getElementById('txTableBody');
+            
+            document.getElementById('txCount').textContent = transactions.length;
+            
+            if (transactions.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-secondary" style="text-align:center;padding:40px;">
+                            Nessuna transazione
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            // Mostra solo le prime 100
+            const toShow = transactions.slice(0, 100);
+            
+            // Raccogli tutti i coin unici per fetch prezzi
+            const uniqueCoins = [...new Set(toShow.map(tx => tx.coinIn || tx.coinOut).filter(Boolean))];
+            if (uniqueCoins.length > 0) {
+                await PriceService.fetchCurrentPrices(uniqueCoins);
+            }
+            
+            let html = '';
+            for (const tx of toShow) {
+                const typeColors = {
+                    'deposit': 'text-green',
+                    'withdrawal': 'text-red',
+                    'trade': 'text-yellow',
+                    'fee': 'text-red',
+                    'staking': 'text-secondary'
+                };
+                
+                // Calcola valore EUR (usa prezzo corrente come approssimazione)
+                let valueEUR = tx.valueEUR || 0;
+                if (valueEUR === 0) {
+                    const coin = tx.coinIn || tx.coinOut;
+                    const amount = tx.amountIn || tx.amountOut || 0;
+                    if (coin && amount > 0) {
+                        const price = PriceService.getPrice(coin, 'eur');
+                        valueEUR = amount * price;
+                    }
+                }
+                
+                html += `
+                    <tr>
+                        <td>${formatDate(tx.timestamp)}</td>
+                        <td class="${typeColors[tx.type] || ''}">${tx.type}</td>
+                        <td>${tx.coinIn ? `+${formatCrypto(tx.amountIn)} ${tx.coinIn}` : '-'}</td>
+                        <td>${tx.coinOut ? `-${formatCrypto(tx.amountOut)} ${tx.coinOut}` : '-'}</td>
+                        <td>€${formatEUR(valueEUR)}</td>
+                        <td class="text-secondary">${tx.source}</td>
+                    </tr>
+                `;
+            }
+            
+            tbody.innerHTML = html;
+        }
+        
+        function updateDebugInfo() {
+            const state = Database.getState();
+            const moralisKeys = Database.getMoralisKeys();
+            const info = {
+                wallets: state.wallets.length,
+                transactions: state.transactions.length,
+                balances: Object.keys(state.balances).length,
+                lastSync: state.lastSync ? new Date(state.lastSync).toISOString() : 'Mai',
+                apiKeys: {
+                    moralis: moralisKeys.length > 0 ? `✅ ${moralisKeys.length} keys configurate` : '❌ Mancante',
+                    etherscan: state.apiKeys.etherscan ? '✅ Configurata' : '❌ Mancante'
+                }
+            };
+            
+            document.getElementById('debugInfo').textContent = JSON.stringify(info, null, 2);
+        }
+        
+        // ═══════════════════════════════════════════════════════════
+        // SETTINGS
+        // ═══════════════════════════════════════════════════════════
+        
+        function loadApiKeys() {
+            // Mostra lista Moralis keys
+            updateMoralisKeysList();
+            
+            // Etherscan
+            const etherscan = Database.getState().apiKeys.etherscan;
+            if (etherscan) document.getElementById('apiEtherscan').value = etherscan;
+        }
+        
+        function addMoralisKey() {
+            const input = document.getElementById('newMoralisKey');
+            const key = input.value.trim();
+            
+            if (!key) {
+                alert('Inserisci una API key');
+                return;
+            }
+            
+            if (Database.addMoralisKey(key)) {
+                input.value = '';
+                updateMoralisKeysList();
+                log(`✅ API Key Moralis aggiunta (${Database.getMoralisKeys().length} totali)`);
+            } else {
+                alert('API Key già presente');
+            }
+        }
+        
+        function removeMoralisKey(index) {
+            if (confirm('Rimuovere questa API key?')) {
+                Database.removeMoralisKey(index);
+                updateMoralisKeysList();
+                log(`🗑️ API Key Moralis rimossa`);
+            }
+        }
+        
+        function updateMoralisKeysList() {
+            const keys = Database.getMoralisKeys();
+            const container = document.getElementById('moralisKeysList');
+            
+            if (keys.length === 0) {
+                container.innerHTML = `
+                    <div class="text-secondary" style="font-size:13px;padding:12px;background:var(--bg-secondary);border-radius:8px;">
+                        ⚠️ Nessuna API key configurata. Aggiungi almeno una key per scansionare wallet EVM.
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            keys.forEach((key, index) => {
+                const masked = key.slice(0, 8) + '...' + key.slice(-4);
+                html += `
+                    <div class="flex items-center justify-between" style="padding:10px;background:var(--bg-secondary);border-radius:8px;margin-bottom:8px;">
+                        <div>
+                            <span style="color:var(--green);">✓</span>
+                            <code style="font-size:13px;margin-left:8px;">${masked}</code>
+                            <span class="text-secondary" style="font-size:11px;margin-left:8px;">Key #${index + 1}</span>
+                        </div>
+                        <button class="btn btn-danger" style="padding:6px 12px;font-size:12px;" onclick="removeMoralisKey(${index})">🗑️</button>
+                    </div>
+                `;
+            });
+            
+            html += `<div class="text-secondary mt-8" style="font-size:11px;">✅ ${keys.length} API key${keys.length > 1 ? 's' : ''} configurate - rotazione automatica attiva</div>`;
+            
+            container.innerHTML = html;
+        }
+        
+        function saveApiKey(name) {
+            if (name === 'etherscan') {
+                const value = document.getElementById('apiEtherscan').value.trim();
+                Database.setApiKey('etherscan', value);
+                log(`✅ API Key Etherscan salvata`);
+            }
+            updateDebugInfo();
+        }
+        
+        function exportData() {
+            const state = Database.getState();
+            const data = JSON.stringify(state, null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `cryptofolio_backup_${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+            
+            log('📤 Dati esportati');
+        }
+        
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    // TODO: Merge dati importati
+                    log('📥 Importazione completata');
+                    updateDashboard();
+                    updateWalletList();
+                    updateTransactionTable();
+                } catch (err) {
+                    alert('Errore importazione: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        // ═══════════════════════════════════════════════════════════
+        // REFRESH
+        // ═══════════════════════════════════════════════════════════
+        
+        async function refreshAll() {
+            log('🔄 Aggiornamento completo...');
+            
+            // Aggiorna prezzi
+            await PriceService.fetchCurrentPrices();
+            
+            // Scansiona tutti i wallet
+            await scanAllWallets();
+            
+            // Aggiorna UI
+            updateDashboard();
+            updateTransactionTable();
+            
+            log('✅ Aggiornamento completato');
+        }
+        
+        // ═══════════════════════════════════════════════════════════
+        // TAX REPORT
+        // ═══════════════════════════════════════════════════════════
+        
+        async function generateTaxReport() {
+            const year = parseInt(document.getElementById('taxYear').value);
+            log(`📋 Generazione report fiscale ${year}...`);
+            
+            const container = document.getElementById('taxReportContent');
+            container.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <span>Scaricamento prezzi storici 1/1 e 31/12/${year}...</span>
+                </div>
+            `;
+            
+            try {
+                const state = Database.getState();
+                
+                // Aggrega balance per coin
+                const holdings = {};
+                for (const [key, balance] of Object.entries(state.balances)) {
+                    const coin = balance.coin;
+                    if (!holdings[coin]) holdings[coin] = 0;
+                    holdings[coin] += balance.amount;
+                }
+                
+                // Lista coin con balance > 0
+                const coins = Object.keys(holdings).filter(c => holdings[c] > 0);
+                
+                if (coins.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="icon">📋</div>
+                            <p>Nessun asset trovato</p>
+                            <p class="text-secondary">Aggiungi wallet e scansiona per generare il report</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                log(`📊 Scaricamento prezzi per ${coins.length} coin...`);
+                
+                // Fetch prezzi 1/1 e 31/12
+                const prices = await PriceService.fetchYearPricesForTax(coins, year);
+                
+                // Calcola valori
+                let valoreInizio = 0;
+                let valoreFine = 0;
+                const dettagli = [];
+                
+                for (const coin of coins) {
+                    const amount = holdings[coin];
+                    const priceJan1 = prices.jan1[coin] || 0;
+                    const priceDec31 = prices.dec31[coin] || 0;
+                    const valueJan1 = amount * priceJan1;
+                    const valueDec31 = amount * priceDec31;
+                    
+                    valoreInizio += valueJan1;
+                    valoreFine += valueDec31;
+                    
+                    if (valueDec31 > 1) { // Solo se valore > 1€
+                        dettagli.push({
+                            coin,
+                            amount,
+                            priceJan1,
+                            priceDec31,
+                            valueJan1,
+                            valueDec31,
+                            variazione: priceDec31 > 0 && priceJan1 > 0 ? ((priceDec31 - priceJan1) / priceJan1 * 100) : 0
+                        });
+                    }
+                }
+                
+                // Ordina per valore 31/12
+                dettagli.sort((a, b) => b.valueDec31 - a.valueDec31);
+                
+                // Calcola IVAFE (0.2% sul valore medio)
+                const valoreMediaAnnuo = (valoreInizio + valoreFine) / 2;
+                const ivafe = valoreMediaAnnuo * 0.002;
+                
+                // Render report
+                let html = `
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="label">📅 Valore 01/01/${year}</div>
+                            <div class="value">€${formatEUR(valoreInizio)}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">📅 Valore 31/12/${year}</div>
+                            <div class="value" style="color:${valoreFine >= valoreInizio ? 'var(--green)' : 'var(--red)'}">€${formatEUR(valoreFine)}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">📊 Variazione</div>
+                            <div class="value" style="color:${valoreFine >= valoreInizio ? 'var(--green)' : 'var(--red)'}">
+                                ${valoreFine >= valoreInizio ? '+' : ''}${formatEUR(valoreFine - valoreInizio)}
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">💰 IVAFE Stimata (0.2%)</div>
+                            <div class="value text-yellow">€${formatEUR(ivafe)}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="card mt-16">
+                        <div class="card-header">
+                            <div class="card-title">📋 Quadro RW - Dettaglio Asset</div>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Asset</th>
+                                        <th style="text-align:right;">Quantità</th>
+                                        <th style="text-align:right;">Prezzo 01/01</th>
+                                        <th style="text-align:right;">Prezzo 31/12</th>
+                                        <th style="text-align:right;">Valore 31/12</th>
+                                        <th style="text-align:right;">Var. %</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+                
+                for (const d of dettagli) {
+                    const varClass = d.variazione >= 0 ? 'text-green' : 'text-red';
+                    html += `
+                        <tr>
+                            <td><strong>${d.coin}</strong></td>
+                            <td style="text-align:right;font-family:monospace;">${formatCrypto(d.amount)}</td>
+                            <td style="text-align:right;">€${formatEUR(d.priceJan1)}</td>
+                            <td style="text-align:right;">€${formatEUR(d.priceDec31)}</td>
+                            <td style="text-align:right;font-weight:600;">€${formatEUR(d.valueDec31)}</td>
+                            <td style="text-align:right;" class="${varClass}">${d.variazione >= 0 ? '+' : ''}${d.variazione.toFixed(1)}%</td>
+                        </tr>
+                    `;
+                }
+                
+                html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="card mt-16" style="background:var(--bg-secondary);">
+                        <div class="card-title mb-8">ℹ️ Note</div>
+                        <ul class="text-secondary" style="font-size:13px;line-height:1.8;padding-left:20px;">
+                            <li><strong>Quadro RW:</strong> Obbligatorio se il valore complessivo supera €15.000 in qualsiasi momento dell'anno</li>
+                            <li><strong>IVAFE:</strong> 0.2% sul valore medio annuo (proporzionata ai giorni di detenzione)</li>
+                            <li><strong>Plusvalenze:</strong> Tassate al 26% (Quadro RT) - richiede calcolo LIFO non ancora implementato</li>
+                            <li>I prezzi sono recuperati da CoinGecko. Verifica sempre con il tuo commercialista.</li>
+                        </ul>
+                    </div>
+                `;
+                
+                container.innerHTML = html;
+                log(`✅ Report fiscale ${year} completato`);
+                
+            } catch (error) {
+                Logger.error('TaxReport', 'Errore generazione', error);
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">❌</div>
+                        <p>Errore durante la generazione del report</p>
+                        <p class="text-secondary">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Variabile per salvare ultimo report generato
+        let lastTaxReportData = null;
+        
+        async function exportTaxReport() {
+            const year = document.getElementById('taxYear').value;
+            const state = Database.getState();
+            
+            // Aggrega balance
+            const holdings = {};
+            for (const [key, balance] of Object.entries(state.balances)) {
+                const coin = balance.coin;
+                if (!holdings[coin]) holdings[coin] = 0;
+                holdings[coin] += balance.amount;
+            }
+            
+            const coins = Object.keys(holdings).filter(c => holdings[c] > 0);
+            
+            if (coins.length === 0) {
+                alert('Nessun asset da esportare');
+                return;
+            }
+            
+            log(`📤 Esportazione CSV report ${year}...`);
+            
+            // Fetch prezzi se necessario
+            const prices = await PriceService.fetchYearPricesForTax(coins, parseInt(year));
+            
+            // Crea CSV
+            let csv = 'Asset,Quantità,Prezzo 01/01,Valore 01/01,Prezzo 31/12,Valore 31/12,Variazione %\n';
+            
+            let totJan1 = 0, totDec31 = 0;
+            
+            for (const coin of coins) {
+                const amount = holdings[coin];
+                const priceJan1 = prices.jan1[coin] || 0;
+                const priceDec31 = prices.dec31[coin] || 0;
+                const valueJan1 = amount * priceJan1;
+                const valueDec31 = amount * priceDec31;
+                const variazione = priceJan1 > 0 ? ((priceDec31 - priceJan1) / priceJan1 * 100).toFixed(2) : 0;
+                
+                totJan1 += valueJan1;
+                totDec31 += valueDec31;
+                
+                csv += `${coin},${amount},${priceJan1.toFixed(4)},${valueJan1.toFixed(2)},${priceDec31.toFixed(4)},${valueDec31.toFixed(2)},${variazione}\n`;
+            }
+            
+            // Riga totale
+            csv += `TOTALE,-,-,${totJan1.toFixed(2)},-,${totDec31.toFixed(2)},${((totDec31-totJan1)/totJan1*100).toFixed(2)}\n`;
+            csv += `IVAFE (0.2%),-,-,-,-,${((totJan1+totDec31)/2*0.002).toFixed(2)},-\n`;
+            
+            // Download
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `QuadroRW_${year}.csv`;
+            a.click();
+            
+            log(`✅ CSV esportato: QuadroRW_${year}.csv`);
+        }
+        
+        // ═══════════════════════════════════════════════════════════
+        // LOG CONSOLE
+        // ═══════════════════════════════════════════════════════════
+        
+        function log(message) {
+            const console = document.getElementById('logConsole');
+            const time = new Date().toLocaleTimeString('it-IT');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `<span class="text-secondary">[${time}]</span> ${message}`;
+            console.appendChild(entry);
+            console.scrollTop = console.scrollHeight;
+            
+            // Limita a 50 entries
+            while (console.children.length > 50) {
+                console.removeChild(console.firstChild);
+            }
+        }
+        
+        function clearLog() {
+            document.getElementById('logConsole').innerHTML = '';
+        }
+        
+        // ═══════════════════════════════════════════════════════════
+        // FILTER TRANSACTIONS
+        // ═══════════════════════════════════════════════════════════
+        
+        function filterTransactions() {
+            // TODO: Implementare filtri
+            updateTransactionTable();
+        }
+        
+        // ═══════════════════════════════════════════════════════════
+        // START APP
+        // ═══════════════════════════════════════════════════════════
+        
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
