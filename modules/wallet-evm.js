@@ -25,11 +25,18 @@ const WalletEVM = (function() {
         'cronos': '0x19'
     };
     
+    // PulseChain (non supportato da Moralis, usa PulseScan)
+    const PULSESCAN_API = 'https://api.scan.pulsechain.com/api';
+    
     // Explorer APIs
     const EXPLORER_APIS = {
         'eth': 'https://api.etherscan.io/api',
         'bsc': 'https://api.bscscan.com/api',
         'polygon': 'https://api.polygonscan.com/api',
+        'arbitrum': 'https://api.arbiscan.io/api',
+        'base': 'https://api.basescan.org/api',
+        'pulse': 'https://api.scan.pulsechain.com/api'
+    };
         'arbitrum': 'https://api.arbiscan.io/api',
         'base': 'https://api.basescan.org/api'
     };
@@ -292,30 +299,191 @@ const WalletEVM = (function() {
     async function fullScan(address, chains = ['eth', 'bsc', 'polygon']) {
         Logger.info('WalletEVM', `Full scan: ${address.slice(0,8)}...`);
         
-        // Scan token
-        const tokenResult = await scanTokens(address, chains);
+        // Separa PulseChain dalle altre chain (Moralis non lo supporta)
+        const moralisChains = chains.filter(c => c !== 'pulse');
+        const includePulse = chains.includes('pulse');
         
-        // Scan transazioni
-        const txResult = await scanTransactions(address, chains);
+        let allBalances = [];
+        let allTransactions = [];
+        
+        // Scan chain Moralis
+        if (moralisChains.length > 0) {
+            const tokenResult = await scanTokens(address, moralisChains);
+            const txResult = await scanTransactions(address, moralisChains);
+            
+            if (tokenResult.success) allBalances.push(...(tokenResult.balances || []));
+            if (txResult.success) allTransactions.push(...(txResult.transactions || []));
+        }
+        
+        // Scan PulseChain separatamente
+        if (includePulse) {
+            const pulseResult = await scanPulseChain(address);
+            if (pulseResult.success) {
+                allBalances.push(...(pulseResult.balances || []));
+                allTransactions.push(...(pulseResult.transactions || []));
+            }
+        }
+        
+        // Calcola valueEUR per le transazioni (prezzo corrente come approssimazione)
+        for (const tx of allTransactions) {
+            const coin = tx.coinIn || tx.coinOut;
+            const amount = tx.amountIn || tx.amountOut || 0;
+            if (coin && amount > 0) {
+                const price = PriceService.getPrice(coin, 'eur');
+                tx.valueEUR = amount * price;
+                tx.priceEUR = price;
+            }
+        }
         
         // Aggiungi al database
-        if (txResult.success && txResult.transactions.length > 0) {
-            Database.addTransactions(txResult.transactions);
+        if (allTransactions.length > 0) {
+            Database.addTransactions(allTransactions);
         }
         
         // Aggiorna balances
-        if (tokenResult.success && tokenResult.balances.length > 0) {
-            for (const bal of tokenResult.balances) {
-                const key = `${bal.coin}_${bal.chain}`;
-                Database.updateBalance(key, bal);
-            }
+        for (const bal of allBalances) {
+            const key = `${bal.coin}_${bal.chain}`;
+            Database.updateBalance(key, bal);
         }
         
         return {
             success: true,
-            balances: tokenResult.balances || [],
-            transactions: txResult.transactions || []
+            balances: allBalances,
+            transactions: allTransactions
         };
+    }
+    
+    // ═══════════════════════════════════════════════════════════
+    // SCAN PULSECHAIN (via PulseScan API)
+    // ═══════════════════════════════════════════════════════════
+    
+    async function scanPulseChain(address) {
+        Logger.info('WalletEVM', `Scanning PulseChain: ${address.slice(0,8)}...`);
+        
+        const balances = [];
+        const transactions = [];
+        const addrLower = address.toLowerCase();
+        
+        try {
+            // Native PLS balance
+            const balanceUrl = `${PULSESCAN_API}?module=account&action=balance&address=${address}`;
+            const balResp = await fetch(balanceUrl);
+            
+            if (balResp.ok) {
+                const balData = await balResp.json();
+                if (balData.status === '1' && balData.result) {
+                    const plsBalance = parseFloat(balData.result) / 1e18;
+                    if (plsBalance > 0.0001) {
+                        balances.push(createBalance({
+                            coin: 'PLS',
+                            amount: plsBalance,
+                            source: `wallet_${addrLower}`,
+                            chain: 'pulse'
+                        }));
+                    }
+                }
+            }
+            
+            // Token list (PRC20)
+            const tokenUrl = `${PULSESCAN_API}?module=account&action=tokenlist&address=${address}`;
+            const tokenResp = await fetch(tokenUrl);
+            
+            if (tokenResp.ok) {
+                const tokenData = await tokenResp.json();
+                if (tokenData.status === '1' && tokenData.result) {
+                    for (const token of tokenData.result) {
+                        const decimals = parseInt(token.decimals) || 18;
+                        const balance = parseFloat(token.balance) / Math.pow(10, decimals);
+                        
+                        if (balance > 0) {
+                            balances.push(createBalance({
+                                coin: token.symbol || 'UNKNOWN',
+                                amount: balance,
+                                source: `wallet_${addrLower}`,
+                                chain: 'pulse'
+                            }));
+                        }
+                    }
+                }
+            }
+            
+            // Native transactions
+            const txUrl = `${PULSESCAN_API}?module=account&action=txlist&address=${address}&sort=desc&page=1&offset=100`;
+            const txResp = await fetch(txUrl);
+            
+            if (txResp.ok) {
+                const txData = await txResp.json();
+                if (txData.status === '1' && txData.result) {
+                    for (const tx of txData.result) {
+                        if (tx.isError === '1') continue;
+                        
+                        const value = parseFloat(tx.value) / 1e18;
+                        if (value === 0) continue;
+                        
+                        const isIncoming = tx.to?.toLowerCase() === addrLower;
+                        const timestamp = parseInt(tx.timeStamp) * 1000;
+                        
+                        transactions.push(createTransaction({
+                            source: `wallet_${addrLower}`,
+                            sourceId: tx.hash,
+                            timestamp: timestamp,
+                            date: new Date(timestamp).toISOString(),
+                            year: new Date(timestamp).getFullYear(),
+                            type: isIncoming ? 'deposit' : 'withdrawal',
+                            coinIn: isIncoming ? 'PLS' : '',
+                            amountIn: isIncoming ? value : 0,
+                            coinOut: !isIncoming ? 'PLS' : '',
+                            amountOut: !isIncoming ? value : 0,
+                            feeCoin: 'PLS',
+                            feeAmount: parseFloat(tx.gasUsed || 0) * parseFloat(tx.gasPrice || 0) / 1e18,
+                            wallet: addrLower,
+                            chain: 'pulse'
+                        }));
+                    }
+                }
+            }
+            
+            // Token transfers (PRC20)
+            const tokenTxUrl = `${PULSESCAN_API}?module=account&action=tokentx&address=${address}&sort=desc&page=1&offset=100`;
+            const tokenTxResp = await fetch(tokenTxUrl);
+            
+            if (tokenTxResp.ok) {
+                const tokenTxData = await tokenTxResp.json();
+                if (tokenTxData.status === '1' && tokenTxData.result) {
+                    for (const tx of tokenTxData.result) {
+                        const decimals = parseInt(tx.tokenDecimal) || 18;
+                        const value = parseFloat(tx.value) / Math.pow(10, decimals);
+                        if (value === 0) continue;
+                        
+                        const isIncoming = tx.to?.toLowerCase() === addrLower;
+                        const timestamp = parseInt(tx.timeStamp) * 1000;
+                        const symbol = tx.tokenSymbol || 'UNKNOWN';
+                        
+                        transactions.push(createTransaction({
+                            source: `wallet_${addrLower}`,
+                            sourceId: tx.hash,
+                            timestamp: timestamp,
+                            date: new Date(timestamp).toISOString(),
+                            year: new Date(timestamp).getFullYear(),
+                            type: isIncoming ? 'deposit' : 'withdrawal',
+                            coinIn: isIncoming ? symbol : '',
+                            amountIn: isIncoming ? value : 0,
+                            coinOut: !isIncoming ? symbol : '',
+                            amountOut: !isIncoming ? value : 0,
+                            wallet: addrLower,
+                            chain: 'pulse'
+                        }));
+                    }
+                }
+            }
+            
+            Logger.success('WalletEVM', `PulseChain: ${balances.length} token, ${transactions.length} tx`);
+            return { success: true, balances, transactions };
+            
+        } catch (error) {
+            Logger.error('WalletEVM', 'Errore scan PulseChain', error);
+            return { success: false, error: error.message, balances: [], transactions: [] };
+        }
     }
     
     // ═══════════════════════════════════════════════════════════

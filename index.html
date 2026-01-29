@@ -9,6 +9,9 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <style>
         /* ═══════════════════════════════════════════════════════════
            VARIABILI CSS
@@ -350,6 +353,12 @@
             background: var(--bg-secondary);
             border-radius: 8px;
             margin-bottom: 8px;
+            transition: all 0.2s;
+        }
+        
+        .wallet-item:hover {
+            background: var(--bg-card);
+            transform: translateX(4px);
         }
         
         .wallet-info {
@@ -487,6 +496,32 @@
                     </div>
                 </div>
                 
+                <!-- Grafico e Top Holdings -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+                    
+                    <!-- Grafico a Torta -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">📊 Distribuzione Portfolio</div>
+                        </div>
+                        <div style="position:relative;height:280px;">
+                            <canvas id="portfolioChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Top Holdings -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="card-title">🏆 Top Holdings</div>
+                        </div>
+                        <div id="topHoldingsList">
+                            <div class="empty-state" style="padding:20px;">
+                                <p class="text-secondary">Nessun asset</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Quick Actions -->
                 <div class="card">
                     <div class="card-header">
@@ -550,6 +585,90 @@
                  VIEW: TRANSACTIONS
                  ═══════════════════════════════════════════════════════ -->
             <div id="view-transactions" class="view">
+            
+            <!-- ═══════════════════════════════════════════════════════
+                 VIEW: WALLET DETAIL
+                 ═══════════════════════════════════════════════════════ -->
+            <div id="view-walletDetail" class="view">
+                
+                <!-- Header -->
+                <div class="card">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-16">
+                            <button class="btn btn-secondary" onclick="showView('wallets')">← Indietro</button>
+                            <div>
+                                <h3 id="detailWalletName" style="font-size:20px;">Wallet</h3>
+                                <code id="detailWalletAddress" class="text-secondary" style="font-size:12px;"></code>
+                            </div>
+                        </div>
+                        <div class="flex gap-8">
+                            <button class="btn" onclick="scanCurrentWallet()">🔄 Scansiona</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Stats -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="label">💰 Valore Totale</div>
+                        <div class="value" id="detailTotalValue">€0,00</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">🪙 Token</div>
+                        <div class="value" id="detailTokenCount">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">📜 Transazioni</div>
+                        <div class="value" id="detailTxCount">0</div>
+                    </div>
+                </div>
+                
+                <!-- Tabs -->
+                <div class="flex gap-8 mb-16">
+                    <button class="btn" id="tabTokens" onclick="showWalletTab('tokens')">🪙 Token</button>
+                    <button class="btn btn-secondary" id="tabTx" onclick="showWalletTab('tx')">📜 Transazioni</button>
+                </div>
+                
+                <!-- Token List -->
+                <div id="walletTokensTab" class="card">
+                    <div class="card-header">
+                        <div class="card-title">🪙 Token</div>
+                    </div>
+                    <div id="walletTokensList">
+                        <div class="empty-state">
+                            <div class="icon">🪙</div>
+                            <p>Nessun token trovato</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Transactions List -->
+                <div id="walletTxTab" class="card" style="display:none;">
+                    <div class="card-header">
+                        <div class="card-title">📜 Transazioni</div>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Tipo</th>
+                                    <th>Coin</th>
+                                    <th>Importo</th>
+                                    <th>Chain</th>
+                                </tr>
+                            </thead>
+                            <tbody id="walletTxTableBody">
+                                <tr>
+                                    <td colspan="5" class="text-secondary" style="text-align:center;">
+                                        Nessuna transazione
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
                 
                 <!-- Filters -->
                 <div class="card">
@@ -610,11 +729,15 @@
                     </div>
                     <div class="flex gap-8 items-center mb-16">
                         <select id="taxYear">
-                            <option value="2024">2024</option>
+                            <option value="2025">2025</option>
+                            <option value="2024" selected>2024</option>
                             <option value="2023">2023</option>
                             <option value="2022">2022</option>
+                            <option value="2021">2021</option>
+                            <option value="2020">2020</option>
                         </select>
-                        <button class="btn" onclick="generateTaxReport()">Genera Report</button>
+                        <button class="btn" onclick="generateTaxReport()">📊 Genera Report</button>
+                        <button class="btn btn-secondary" onclick="exportTaxReport()">📤 Esporta CSV</button>
                     </div>
                     <div id="taxReportContent">
                         <div class="empty-state">
@@ -718,7 +841,7 @@
             // Aggiorna UI
             updateDashboard();
             updateWalletList();
-            updateTransactionTable();
+            await updateTransactionTable();
             updateDebugInfo();
             
             log('✅ Inizializzazione completata');
@@ -743,6 +866,7 @@
             const titles = {
                 'dashboard': 'Dashboard',
                 'wallets': 'Wallets',
+                'walletDetail': 'Dettaglio Wallet',
                 'transactions': 'Transazioni',
                 'tax': 'Report Fiscale',
                 'settings': 'Impostazioni'
@@ -834,7 +958,7 @@
             let result;
             
             if (wallet.type === 'evm') {
-                result = await WalletEVM.fullScan(wallet.address, ['eth', 'bsc', 'polygon', 'arbitrum', 'base']);
+                result = await WalletEVM.fullScan(wallet.address, ['eth', 'bsc', 'polygon', 'arbitrum', 'base', 'pulse']);
             } else if (wallet.type === 'cosmos') {
                 result = await WalletCosmos.fullScan(wallet.address);
             }
@@ -864,8 +988,189 @@
         }
         
         // ═══════════════════════════════════════════════════════════
+        // WALLET DETAIL
+        // ═══════════════════════════════════════════════════════════
+        
+        let currentWalletAddress = null;
+        
+        function openWalletDetail(address) {
+            const wallets = Database.getWallets();
+            const wallet = wallets.find(w => w.address.toLowerCase() === address.toLowerCase());
+            
+            if (!wallet) {
+                log('❌ Wallet non trovato');
+                return;
+            }
+            
+            currentWalletAddress = address.toLowerCase();
+            
+            // Aggiorna header
+            document.getElementById('detailWalletName').textContent = wallet.name;
+            document.getElementById('detailWalletAddress').textContent = wallet.address;
+            
+            // Carica dati
+            updateWalletDetail();
+            
+            // Mostra view
+            showView('walletDetail');
+        }
+        
+        function updateWalletDetail() {
+            if (!currentWalletAddress) return;
+            
+            const state = Database.getState();
+            
+            // Trova token di questo wallet
+            const walletBalances = [];
+            for (const [key, balance] of Object.entries(state.balances)) {
+                if (balance.source === `wallet_${currentWalletAddress}`) {
+                    walletBalances.push(balance);
+                }
+            }
+            
+            // Ordina per valore
+            walletBalances.sort((a, b) => (b.valueEUR || 0) - (a.valueEUR || 0));
+            
+            // Trova transazioni di questo wallet
+            const walletTx = state.transactions.filter(tx => 
+                tx.wallet === currentWalletAddress || 
+                tx.source === `wallet_${currentWalletAddress}`
+            );
+            
+            // Calcola totale
+            let totalValue = 0;
+            for (const bal of walletBalances) {
+                const price = PriceService.getPrice(bal.coin, 'eur');
+                bal.valueEUR = bal.amount * price;
+                totalValue += bal.valueEUR;
+            }
+            
+            // Aggiorna stats
+            document.getElementById('detailTotalValue').textContent = '€' + formatEUR(totalValue);
+            document.getElementById('detailTokenCount').textContent = walletBalances.length;
+            document.getElementById('detailTxCount').textContent = walletTx.length;
+            
+            // Render token list
+            renderWalletTokens(walletBalances);
+            
+            // Render transactions
+            renderWalletTransactions(walletTx);
+        }
+        
+        function renderWalletTokens(balances) {
+            const container = document.getElementById('walletTokensList');
+            
+            if (balances.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">🪙</div>
+                        <p>Nessun token trovato</p>
+                        <p class="text-secondary" style="font-size:12px;">Scansiona il wallet per caricare i token</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '<table style="width:100%;"><thead><tr><th>Token</th><th style="text-align:right;">Balance</th><th style="text-align:right;">Prezzo</th><th style="text-align:right;">Valore</th></tr></thead><tbody>';
+            
+            for (const bal of balances) {
+                const chainInfo = CHAINS[bal.chain] || { color: '#888' };
+                const price = PriceService.getPrice(bal.coin, 'eur');
+                const value = bal.amount * price;
+                
+                html += `
+                    <tr>
+                        <td>
+                            <div class="flex items-center gap-8">
+                                <div style="width:32px;height:32px;border-radius:50%;background:${chainInfo.color}20;display:flex;align-items:center;justify-content:center;font-size:14px;">
+                                    ${bal.coin.slice(0,2)}
+                                </div>
+                                <div>
+                                    <div style="font-weight:500;">${bal.coin}</div>
+                                    <div class="text-secondary" style="font-size:11px;">${bal.chain || ''}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td style="text-align:right;font-family:monospace;">${formatCrypto(bal.amount)}</td>
+                        <td style="text-align:right;">€${formatEUR(price)}</td>
+                        <td style="text-align:right;font-weight:600;color:var(--green);">€${formatEUR(value)}</td>
+                    </tr>
+                `;
+            }
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+        
+        function renderWalletTransactions(transactions) {
+            const tbody = document.getElementById('walletTxTableBody');
+            
+            if (transactions.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-secondary" style="text-align:center;padding:40px;">
+                            Nessuna transazione trovata
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            // Ordina per data (più recenti prima)
+            transactions.sort((a, b) => b.timestamp - a.timestamp);
+            
+            // Mostra max 100
+            const toShow = transactions.slice(0, 100);
+            
+            let html = '';
+            for (const tx of toShow) {
+                const isIn = tx.type === 'deposit' || tx.amountIn > 0;
+                const coin = tx.coinIn || tx.coinOut || '-';
+                const amount = tx.amountIn || tx.amountOut || 0;
+                
+                html += `
+                    <tr>
+                        <td>${formatDate(tx.timestamp)}</td>
+                        <td class="${isIn ? 'text-green' : 'text-red'}">${tx.type || '-'}</td>
+                        <td>${coin}</td>
+                        <td class="${isIn ? 'text-green' : 'text-red'}">${isIn ? '+' : '-'}${formatCrypto(amount)}</td>
+                        <td class="text-secondary">${tx.chain || '-'}</td>
+                    </tr>
+                `;
+            }
+            
+            tbody.innerHTML = html;
+        }
+        
+        function showWalletTab(tab) {
+            if (tab === 'tokens') {
+                document.getElementById('walletTokensTab').style.display = 'block';
+                document.getElementById('walletTxTab').style.display = 'none';
+                document.getElementById('tabTokens').classList.remove('btn-secondary');
+                document.getElementById('tabTokens').classList.add('btn');
+                document.getElementById('tabTx').classList.remove('btn');
+                document.getElementById('tabTx').classList.add('btn-secondary');
+            } else {
+                document.getElementById('walletTokensTab').style.display = 'none';
+                document.getElementById('walletTxTab').style.display = 'block';
+                document.getElementById('tabTx').classList.remove('btn-secondary');
+                document.getElementById('tabTx').classList.add('btn');
+                document.getElementById('tabTokens').classList.remove('btn');
+                document.getElementById('tabTokens').classList.add('btn-secondary');
+            }
+        }
+        
+        async function scanCurrentWallet() {
+            if (!currentWalletAddress) return;
+            await scanWallet(currentWalletAddress);
+            updateWalletDetail();
+        }
+        
+        // ═══════════════════════════════════════════════════════════
         // UI UPDATES
         // ═══════════════════════════════════════════════════════════
+        
+        let portfolioChart = null;
         
         async function updateDashboard() {
             const state = Database.getState();
@@ -875,9 +1180,165 @@
             document.getElementById('totalTx').textContent = state.transactions.length;
             document.getElementById('totalAssets').textContent = Object.keys(state.balances).length;
             
-            // Valore totale
-            const portfolioValue = await PriceService.calculatePortfolioValue();
-            document.getElementById('totalValue').textContent = '€' + formatEUR(portfolioValue.eur);
+            // Aggrega balance per coin (sommando da tutti i wallet)
+            const aggregated = {};
+            for (const [key, balance] of Object.entries(state.balances)) {
+                const coin = balance.coin;
+                if (!aggregated[coin]) {
+                    aggregated[coin] = { coin, amount: 0, valueEUR: 0 };
+                }
+                const price = PriceService.getPrice(coin, 'eur');
+                const value = balance.amount * price;
+                aggregated[coin].amount += balance.amount;
+                aggregated[coin].valueEUR += value;
+                aggregated[coin].price = price;
+            }
+            
+            // Converti in array e ordina per valore
+            const holdings = Object.values(aggregated)
+                .filter(h => h.valueEUR > 0.01)
+                .sort((a, b) => b.valueEUR - a.valueEUR);
+            
+            // Calcola totale
+            const totalValue = holdings.reduce((sum, h) => sum + h.valueEUR, 0);
+            document.getElementById('totalValue').textContent = '€' + formatEUR(totalValue);
+            
+            // Aggiorna grafico a torta
+            updatePortfolioChart(holdings, totalValue);
+            
+            // Aggiorna top holdings list
+            updateTopHoldings(holdings, totalValue);
+        }
+        
+        function updatePortfolioChart(holdings, totalValue) {
+            const ctx = document.getElementById('portfolioChart');
+            if (!ctx) return;
+            
+            // Prendi top 6 + "Altri"
+            const topN = 6;
+            let chartData = holdings.slice(0, topN);
+            const othersValue = holdings.slice(topN).reduce((sum, h) => sum + h.valueEUR, 0);
+            
+            if (othersValue > 0) {
+                chartData.push({ coin: 'Altri', valueEUR: othersValue });
+            }
+            
+            // Colori
+            const colors = [
+                '#627eea', // ETH blue
+                '#f3ba2f', // BNB yellow
+                '#8247e5', // Polygon purple
+                '#3fb950', // Green
+                '#58a6ff', // Accent blue
+                '#f85149', // Red
+                '#8b949e', // Gray for "Altri"
+            ];
+            
+            // Distruggi grafico esistente
+            if (portfolioChart) {
+                portfolioChart.destroy();
+            }
+            
+            // Se non ci sono dati
+            if (chartData.length === 0) {
+                ctx.getContext('2d').clearRect(0, 0, ctx.width, ctx.height);
+                return;
+            }
+            
+            // Crea nuovo grafico
+            portfolioChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: chartData.map(h => h.coin),
+                    datasets: [{
+                        data: chartData.map(h => h.valueEUR),
+                        backgroundColor: colors.slice(0, chartData.length),
+                        borderColor: '#1c2128',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                color: '#e6edf3',
+                                padding: 12,
+                                font: { size: 12 },
+                                generateLabels: function(chart) {
+                                    const data = chart.data;
+                                    return data.labels.map((label, i) => {
+                                        const value = data.datasets[0].data[i];
+                                        const pct = totalValue > 0 ? ((value / totalValue) * 100).toFixed(1) : 0;
+                                        return {
+                                            text: `${label} (${pct}%)`,
+                                            fillStyle: colors[i],
+                                            strokeStyle: colors[i],
+                                            lineWidth: 0,
+                                            hidden: false,
+                                            index: i
+                                        };
+                                    });
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw;
+                                    const pct = totalValue > 0 ? ((value / totalValue) * 100).toFixed(1) : 0;
+                                    return `€${formatEUR(value)} (${pct}%)`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '60%'
+                }
+            });
+        }
+        
+        function updateTopHoldings(holdings, totalValue) {
+            const container = document.getElementById('topHoldingsList');
+            
+            if (holdings.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state" style="padding:20px;">
+                        <p class="text-secondary">Nessun asset trovato</p>
+                        <p class="text-secondary" style="font-size:11px;">Aggiungi un wallet e scansiona</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Mostra top 5
+            const top5 = holdings.slice(0, 5);
+            
+            let html = '';
+            for (const holding of top5) {
+                const pct = totalValue > 0 ? ((holding.valueEUR / totalValue) * 100).toFixed(1) : 0;
+                
+                html += `
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <div style="width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px;">
+                                ${holding.coin.slice(0,3)}
+                            </div>
+                            <div>
+                                <div style="font-weight:500;">${holding.coin}</div>
+                                <div class="text-secondary" style="font-size:11px;">${formatCrypto(holding.amount)}</div>
+                            </div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-weight:600;color:var(--green);">€${formatEUR(holding.valueEUR)}</div>
+                            <div class="text-secondary" style="font-size:11px;">${pct}%</div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
         }
         
         function updateWalletList() {
@@ -900,7 +1361,7 @@
                 const lastSync = wallet.lastSync ? formatDateTime(wallet.lastSync) : 'Mai';
                 
                 html += `
-                    <div class="wallet-item">
+                    <div class="wallet-item" style="cursor:pointer;" onclick="openWalletDetail('${wallet.address}')">
                         <div class="wallet-info">
                             <div class="wallet-icon" style="background:${chainInfo.color}20;color:${chainInfo.color}">
                                 ${wallet.type === 'evm' ? '🔷' : '🌐'}
@@ -911,7 +1372,7 @@
                                 <div class="text-secondary" style="font-size:11px;">Ultimo sync: ${lastSync}</div>
                             </div>
                         </div>
-                        <div class="flex gap-8">
+                        <div class="flex gap-8" onclick="event.stopPropagation();">
                             <button class="btn btn-secondary" onclick="scanWallet('${wallet.address}')">🔄 Scan</button>
                             <button class="btn btn-danger" onclick="removeWallet('${wallet.address}')">🗑️</button>
                         </div>
@@ -922,7 +1383,7 @@
             container.innerHTML = html;
         }
         
-        function updateTransactionTable() {
+        async function updateTransactionTable() {
             const transactions = Database.getTransactions();
             const tbody = document.getElementById('txTableBody');
             
@@ -942,6 +1403,12 @@
             // Mostra solo le prime 100
             const toShow = transactions.slice(0, 100);
             
+            // Raccogli tutti i coin unici per fetch prezzi
+            const uniqueCoins = [...new Set(toShow.map(tx => tx.coinIn || tx.coinOut).filter(Boolean))];
+            if (uniqueCoins.length > 0) {
+                await PriceService.fetchCurrentPrices(uniqueCoins);
+            }
+            
             let html = '';
             for (const tx of toShow) {
                 const typeColors = {
@@ -952,13 +1419,24 @@
                     'staking': 'text-secondary'
                 };
                 
+                // Calcola valore EUR (usa prezzo corrente come approssimazione)
+                let valueEUR = tx.valueEUR || 0;
+                if (valueEUR === 0) {
+                    const coin = tx.coinIn || tx.coinOut;
+                    const amount = tx.amountIn || tx.amountOut || 0;
+                    if (coin && amount > 0) {
+                        const price = PriceService.getPrice(coin, 'eur');
+                        valueEUR = amount * price;
+                    }
+                }
+                
                 html += `
                     <tr>
                         <td>${formatDate(tx.timestamp)}</td>
                         <td class="${typeColors[tx.type] || ''}">${tx.type}</td>
                         <td>${tx.coinIn ? `+${formatCrypto(tx.amountIn)} ${tx.coinIn}` : '-'}</td>
                         <td>${tx.coinOut ? `-${formatCrypto(tx.amountOut)} ${tx.coinOut}` : '-'}</td>
-                        <td>€${formatEUR(tx.valueEUR || 0)}</td>
+                        <td>€${formatEUR(valueEUR)}</td>
                         <td class="text-secondary">${tx.source}</td>
                     </tr>
                 `;
@@ -1134,14 +1612,226 @@
             const year = parseInt(document.getElementById('taxYear').value);
             log(`📋 Generazione report fiscale ${year}...`);
             
-            // TODO: Implementare calcolo fiscale
-            document.getElementById('taxReportContent').innerHTML = `
-                <div class="stat-card">
-                    <div class="label">Anno Fiscale</div>
-                    <div class="value">${year}</div>
+            const container = document.getElementById('taxReportContent');
+            container.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <span>Scaricamento prezzi storici 1/1 e 31/12/${year}...</span>
                 </div>
-                <p class="text-secondary">Report fiscale in sviluppo...</p>
             `;
+            
+            try {
+                const state = Database.getState();
+                
+                // Aggrega balance per coin
+                const holdings = {};
+                for (const [key, balance] of Object.entries(state.balances)) {
+                    const coin = balance.coin;
+                    if (!holdings[coin]) holdings[coin] = 0;
+                    holdings[coin] += balance.amount;
+                }
+                
+                // Lista coin con balance > 0
+                const coins = Object.keys(holdings).filter(c => holdings[c] > 0);
+                
+                if (coins.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="icon">📋</div>
+                            <p>Nessun asset trovato</p>
+                            <p class="text-secondary">Aggiungi wallet e scansiona per generare il report</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                log(`📊 Scaricamento prezzi per ${coins.length} coin...`);
+                
+                // Fetch prezzi 1/1 e 31/12
+                const prices = await PriceService.fetchYearPricesForTax(coins, year);
+                
+                // Calcola valori
+                let valoreInizio = 0;
+                let valoreFine = 0;
+                const dettagli = [];
+                
+                for (const coin of coins) {
+                    const amount = holdings[coin];
+                    const priceJan1 = prices.jan1[coin] || 0;
+                    const priceDec31 = prices.dec31[coin] || 0;
+                    const valueJan1 = amount * priceJan1;
+                    const valueDec31 = amount * priceDec31;
+                    
+                    valoreInizio += valueJan1;
+                    valoreFine += valueDec31;
+                    
+                    if (valueDec31 > 1) { // Solo se valore > 1€
+                        dettagli.push({
+                            coin,
+                            amount,
+                            priceJan1,
+                            priceDec31,
+                            valueJan1,
+                            valueDec31,
+                            variazione: priceDec31 > 0 && priceJan1 > 0 ? ((priceDec31 - priceJan1) / priceJan1 * 100) : 0
+                        });
+                    }
+                }
+                
+                // Ordina per valore 31/12
+                dettagli.sort((a, b) => b.valueDec31 - a.valueDec31);
+                
+                // Calcola IVAFE (0.2% sul valore medio)
+                const valoreMediaAnnuo = (valoreInizio + valoreFine) / 2;
+                const ivafe = valoreMediaAnnuo * 0.002;
+                
+                // Render report
+                let html = `
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="label">📅 Valore 01/01/${year}</div>
+                            <div class="value">€${formatEUR(valoreInizio)}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">📅 Valore 31/12/${year}</div>
+                            <div class="value" style="color:${valoreFine >= valoreInizio ? 'var(--green)' : 'var(--red)'}">€${formatEUR(valoreFine)}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">📊 Variazione</div>
+                            <div class="value" style="color:${valoreFine >= valoreInizio ? 'var(--green)' : 'var(--red)'}">
+                                ${valoreFine >= valoreInizio ? '+' : ''}${formatEUR(valoreFine - valoreInizio)}
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">💰 IVAFE Stimata (0.2%)</div>
+                            <div class="value text-yellow">€${formatEUR(ivafe)}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="card mt-16">
+                        <div class="card-header">
+                            <div class="card-title">📋 Quadro RW - Dettaglio Asset</div>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Asset</th>
+                                        <th style="text-align:right;">Quantità</th>
+                                        <th style="text-align:right;">Prezzo 01/01</th>
+                                        <th style="text-align:right;">Prezzo 31/12</th>
+                                        <th style="text-align:right;">Valore 31/12</th>
+                                        <th style="text-align:right;">Var. %</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+                
+                for (const d of dettagli) {
+                    const varClass = d.variazione >= 0 ? 'text-green' : 'text-red';
+                    html += `
+                        <tr>
+                            <td><strong>${d.coin}</strong></td>
+                            <td style="text-align:right;font-family:monospace;">${formatCrypto(d.amount)}</td>
+                            <td style="text-align:right;">€${formatEUR(d.priceJan1)}</td>
+                            <td style="text-align:right;">€${formatEUR(d.priceDec31)}</td>
+                            <td style="text-align:right;font-weight:600;">€${formatEUR(d.valueDec31)}</td>
+                            <td style="text-align:right;" class="${varClass}">${d.variazione >= 0 ? '+' : ''}${d.variazione.toFixed(1)}%</td>
+                        </tr>
+                    `;
+                }
+                
+                html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="card mt-16" style="background:var(--bg-secondary);">
+                        <div class="card-title mb-8">ℹ️ Note</div>
+                        <ul class="text-secondary" style="font-size:13px;line-height:1.8;padding-left:20px;">
+                            <li><strong>Quadro RW:</strong> Obbligatorio se il valore complessivo supera €15.000 in qualsiasi momento dell'anno</li>
+                            <li><strong>IVAFE:</strong> 0.2% sul valore medio annuo (proporzionata ai giorni di detenzione)</li>
+                            <li><strong>Plusvalenze:</strong> Tassate al 26% (Quadro RT) - richiede calcolo LIFO non ancora implementato</li>
+                            <li>I prezzi sono recuperati da CoinGecko. Verifica sempre con il tuo commercialista.</li>
+                        </ul>
+                    </div>
+                `;
+                
+                container.innerHTML = html;
+                log(`✅ Report fiscale ${year} completato`);
+                
+            } catch (error) {
+                Logger.error('TaxReport', 'Errore generazione', error);
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">❌</div>
+                        <p>Errore durante la generazione del report</p>
+                        <p class="text-secondary">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Variabile per salvare ultimo report generato
+        let lastTaxReportData = null;
+        
+        async function exportTaxReport() {
+            const year = document.getElementById('taxYear').value;
+            const state = Database.getState();
+            
+            // Aggrega balance
+            const holdings = {};
+            for (const [key, balance] of Object.entries(state.balances)) {
+                const coin = balance.coin;
+                if (!holdings[coin]) holdings[coin] = 0;
+                holdings[coin] += balance.amount;
+            }
+            
+            const coins = Object.keys(holdings).filter(c => holdings[c] > 0);
+            
+            if (coins.length === 0) {
+                alert('Nessun asset da esportare');
+                return;
+            }
+            
+            log(`📤 Esportazione CSV report ${year}...`);
+            
+            // Fetch prezzi se necessario
+            const prices = await PriceService.fetchYearPricesForTax(coins, parseInt(year));
+            
+            // Crea CSV
+            let csv = 'Asset,Quantità,Prezzo 01/01,Valore 01/01,Prezzo 31/12,Valore 31/12,Variazione %\n';
+            
+            let totJan1 = 0, totDec31 = 0;
+            
+            for (const coin of coins) {
+                const amount = holdings[coin];
+                const priceJan1 = prices.jan1[coin] || 0;
+                const priceDec31 = prices.dec31[coin] || 0;
+                const valueJan1 = amount * priceJan1;
+                const valueDec31 = amount * priceDec31;
+                const variazione = priceJan1 > 0 ? ((priceDec31 - priceJan1) / priceJan1 * 100).toFixed(2) : 0;
+                
+                totJan1 += valueJan1;
+                totDec31 += valueDec31;
+                
+                csv += `${coin},${amount},${priceJan1.toFixed(4)},${valueJan1.toFixed(2)},${priceDec31.toFixed(4)},${valueDec31.toFixed(2)},${variazione}\n`;
+            }
+            
+            // Riga totale
+            csv += `TOTALE,-,-,${totJan1.toFixed(2)},-,${totDec31.toFixed(2)},${((totDec31-totJan1)/totJan1*100).toFixed(2)}\n`;
+            csv += `IVAFE (0.2%),-,-,-,-,${((totJan1+totDec31)/2*0.002).toFixed(2)},-\n`;
+            
+            // Download
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `QuadroRW_${year}.csv`;
+            a.click();
+            
+            log(`✅ CSV esportato: QuadroRW_${year}.csv`);
         }
         
         // ═══════════════════════════════════════════════════════════

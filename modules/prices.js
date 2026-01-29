@@ -196,6 +196,120 @@ const PriceService = (function() {
     }
     
     // ═══════════════════════════════════════════════════════════
+    // FETCH PREZZI 31/12 PER TUTTI GLI ANNI (Batch per RW)
+    // ═══════════════════════════════════════════════════════════
+    
+    async function fetchYearEndPrices(coins, years) {
+        // coins = ['BTC', 'ETH', ...], years = [2022, 2023, 2024]
+        Logger.info('PriceService', `Fetching prezzi 31/12 per ${coins.length} coin, anni: ${years.join(', ')}`);
+        
+        const results = {};
+        let fetched = 0;
+        let cached = 0;
+        
+        for (const year of years) {
+            const date = `${year}-12-31`;
+            results[year] = {};
+            
+            for (const coin of coins) {
+                const cacheKey = `${coin.toUpperCase()}_${date}`;
+                
+                // Check cache
+                if (AppState.historicalPrices[cacheKey]) {
+                    results[year][coin] = AppState.historicalPrices[cacheKey];
+                    cached++;
+                    continue;
+                }
+                
+                // Fetch da CoinGecko
+                const price = await fetchHistoricalPrice(coin, date);
+                results[year][coin] = price;
+                fetched++;
+                
+                // Rate limit: CoinGecko free = 10-30 req/min
+                if (fetched % 5 === 0) {
+                    Logger.info('PriceService', `Scaricati ${fetched} prezzi storici...`);
+                    await sleep(12000); // 12 sec ogni 5 richieste
+                }
+            }
+        }
+        
+        Logger.success('PriceService', `Prezzi 31/12: ${fetched} scaricati, ${cached} da cache`);
+        return results;
+    }
+    
+    // ═══════════════════════════════════════════════════════════
+    // FETCH PREZZI 1/1 E 31/12 PER UN ANNO (per singolo report)
+    // ═══════════════════════════════════════════════════════════
+    
+    async function fetchYearPricesForTax(coins, year) {
+        Logger.info('PriceService', `Fetching prezzi fiscali ${year} per ${coins.length} coin`);
+        
+        const results = {
+            jan1: {},   // Prezzi 1 gennaio
+            dec31: {}   // Prezzi 31 dicembre
+        };
+        
+        const jan1Date = `${year}-01-01`;
+        const dec31Date = `${year}-12-31`;
+        
+        for (const coin of coins) {
+            // Prezzo 1 gennaio
+            const jan1Key = `${coin.toUpperCase()}_${jan1Date}`;
+            if (AppState.historicalPrices[jan1Key]) {
+                results.jan1[coin] = AppState.historicalPrices[jan1Key];
+            } else {
+                results.jan1[coin] = await fetchHistoricalPrice(coin, jan1Date);
+                await sleep(6500); // Rate limit
+            }
+            
+            // Prezzo 31 dicembre
+            const dec31Key = `${coin.toUpperCase()}_${dec31Date}`;
+            if (AppState.historicalPrices[dec31Key]) {
+                results.dec31[coin] = AppState.historicalPrices[dec31Key];
+            } else {
+                results.dec31[coin] = await fetchHistoricalPrice(coin, dec31Date);
+                await sleep(6500); // Rate limit
+            }
+        }
+        
+        Logger.success('PriceService', `Prezzi fiscali ${year} completati`);
+        return results;
+    }
+    
+    // ═══════════════════════════════════════════════════════════
+    // CALCOLA VALORE PORTFOLIO A DATA SPECIFICA
+    // ═══════════════════════════════════════════════════════════
+    
+    async function calculatePortfolioValueAtDate(balances, date) {
+        // balances = { 'BTC': 0.5, 'ETH': 2.0, ... }
+        // date = '2024-12-31'
+        
+        let totalEUR = 0;
+        const details = [];
+        
+        for (const [coin, amount] of Object.entries(balances)) {
+            if (amount <= 0) continue;
+            
+            const price = await fetchHistoricalPrice(coin, date);
+            const value = amount * price;
+            totalEUR += value;
+            
+            details.push({
+                coin,
+                amount,
+                priceEUR: price,
+                valueEUR: value
+            });
+            
+            // Rate limit
+            await sleep(6500);
+        }
+        
+        return { totalEUR, details };
+    }
+    
+    // ═══════════════════════════════════════════════════════════
     // CONVERTI VALORE
     // ═══════════════════════════════════════════════════════════
     
@@ -260,6 +374,9 @@ const PriceService = (function() {
         fetchHistoricalPricesBatch,
         getJanuary1Price,
         getDecember31Price,
+        fetchYearEndPrices,
+        fetchYearPricesForTax,
+        calculatePortfolioValueAtDate,
         convertToEUR,
         convertToUSD,
         calculatePortfolioValue
