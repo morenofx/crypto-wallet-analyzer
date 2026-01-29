@@ -968,7 +968,7 @@
             let result;
             
             if (wallet.type === 'evm') {
-                result = await WalletEVM.fullScan(wallet.address, ['eth', 'bsc', 'polygon', 'arbitrum', 'base', 'pulse']);
+                result = await WalletEVM.fullScan(wallet.address, ['eth', 'bsc', 'polygon', 'arbitrum', 'optimism', 'base', 'avalanche', 'fantom', 'cronos', 'pulse', 'blackfort']);
             } else if (wallet.type === 'cosmos') {
                 result = await WalletCosmos.fullScan(wallet.address);
             }
