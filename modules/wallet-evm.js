@@ -68,116 +68,226 @@ const WalletEVM = (function() {
     }
     
     // ═══════════════════════════════════════════════════════════
+    // ETHERSCAN V2 API (fallback per tutte le chain EVM)
+    // ═══════════════════════════════════════════════════════════
+    
+    const CHAIN_IDS = {
+        'eth': 1,
+        'bsc': 56,
+        'polygon': 137,
+        'arbitrum': 42161,
+        'base': 8453,
+        'avalanche': 43114,
+        'fantom': 250,
+        'cronos': 25
+    };
+    
+    // Scan con Etherscan V2 (fallback quando Moralis fallisce)
+    async function scanWithEtherscanV2(address, chainKey) {
+        const state = Database.getState();
+        const etherscanKey = state.apiKeys?.etherscan;
+        
+        if (!etherscanKey) {
+            Logger.warn('WalletEVM', 'Etherscan API key mancante per fallback');
+            return [];
+        }
+        
+        const chainId = CHAIN_IDS[chainKey];
+        if (!chainId) return [];
+        
+        const balances = [];
+        const addrLower = address.toLowerCase();
+        
+        try {
+            // Token transfers per calcolare balance
+            const url = `https://api.etherscan.io/v2/api?chainid=${chainId}&module=account&action=tokentx&address=${address}&startblock=0&endblock=99999999&sort=asc&apikey=${etherscanKey}`;
+            
+            Logger.info('WalletEVM', `Etherscan V2 fallback: ${chainKey}`);
+            const resp = await fetch(url);
+            const data = await resp.json();
+            
+            if (data.status === '1' && data.result) {
+                // Calcola balance per ogni token dalle transazioni
+                const tokenBalances = {};
+                
+                for (const tx of data.result) {
+                    const contract = tx.contractAddress.toLowerCase();
+                    
+                    if (!tokenBalances[contract]) {
+                        tokenBalances[contract] = {
+                            symbol: tx.tokenSymbol,
+                            name: tx.tokenName,
+                            decimals: parseInt(tx.tokenDecimal) || 18,
+                            balance: 0n
+                        };
+                    }
+                    
+                    const value = BigInt(tx.value || '0');
+                    
+                    if (tx.to.toLowerCase() === addrLower) {
+                        tokenBalances[contract].balance += value;
+                    }
+                    if (tx.from.toLowerCase() === addrLower) {
+                        tokenBalances[contract].balance -= value;
+                    }
+                }
+                
+                // Converti in balances
+                for (const [contract, token] of Object.entries(tokenBalances)) {
+                    if (token.balance <= 0n) continue;
+                    if (isSpamToken(token.name, token.symbol)) continue;
+                    
+                    const bal = Number(token.balance) / Math.pow(10, token.decimals);
+                    
+                    balances.push(createBalance({
+                        coin: token.symbol || 'UNKNOWN',
+                        name: token.name || token.symbol || 'Unknown',
+                        amount: bal,
+                        source: `wallet_${addrLower}`,
+                        chain: chainKey,
+                        contractAddress: contract
+                    }));
+                }
+                
+                Logger.success('WalletEVM', `Etherscan V2: ${balances.length} token trovati su ${chainKey}`);
+            }
+        } catch (error) {
+            Logger.error('WalletEVM', `Etherscan V2 error: ${error.message}`);
+        }
+        
+        return balances;
+    }
+    
+    // ═══════════════════════════════════════════════════════════
     // SCAN WALLET - TOKEN BALANCES
     // ═══════════════════════════════════════════════════════════
     
     async function scanTokens(address, chains = ['eth', 'bsc', 'polygon']) {
         const moralisKeys = Database.getMoralisKeys();
+        const state = Database.getState();
+        const hasEtherscan = !!state.apiKeys?.etherscan;
         
-        if (!moralisKeys || moralisKeys.length === 0) {
-            Logger.warn('WalletEVM', 'API Keys Moralis mancanti');
-            return { success: false, error: 'Inserisci almeno una API Key Moralis nelle impostazioni' };
+        // Permetti scan anche senza Moralis se c'è Etherscan
+        if ((!moralisKeys || moralisKeys.length === 0) && !hasEtherscan) {
+            Logger.warn('WalletEVM', 'API Keys mancanti (Moralis o Etherscan)');
+            return { success: false, error: 'Inserisci almeno una API Key (Moralis o Etherscan) nelle impostazioni' };
         }
         
         const allBalances = [];
         
         for (const chainKey of chains) {
+            // Skip PulseChain - gestito separatamente
+            if (chainKey === 'pulse') continue;
+            
             const chainId = MORALIS_CHAINS[chainKey];
-            if (!chainId) continue;
             
             try {
                 Logger.info('WalletEVM', `Scanning ${chainKey} per ${address.slice(0,8)}...`);
                 
-                // Prova con rotazione API keys
-                let nativeData = null;
-                let lastError = null;
+                let scanSuccess = false;
                 
-                for (let attempt = 0; attempt < moralisKeys.length; attempt++) {
-                    const apiKey = Database.getNextMoralisKey();
-                    if (!apiKey) break;
+                // 1. Prova Moralis (se disponibile)
+                if (chainId && moralisKeys && moralisKeys.length > 0) {
+                    // Prova con rotazione API keys
+                    let nativeData = null;
+                    let lastError = null;
                     
-                    try {
-                        // Native balance
-                        const nativeUrl = `${MORALIS_BASE}/${address}/balance?chain=${chainId}`;
-                        const nativeResp = await fetch(nativeUrl, {
-                            headers: { 'X-API-Key': apiKey }
-                        });
+                    for (let attempt = 0; attempt < moralisKeys.length; attempt++) {
+                        const apiKey = Database.getNextMoralisKey();
+                        if (!apiKey) break;
                         
-                        if (nativeResp.ok) {
-                            nativeData = await nativeResp.json();
-                            break; // Successo!
-                        } else if (nativeResp.status === 429) {
-                            Logger.warn('WalletEVM', `Rate limit su key ${attempt + 1}, provo la prossima...`);
-                            continue;
-                        } else {
-                            lastError = `HTTP ${nativeResp.status}`;
+                        try {
+                            // Native balance
+                            const nativeUrl = `${MORALIS_BASE}/${address}/balance?chain=${chainId}`;
+                            const nativeResp = await fetch(nativeUrl, {
+                                headers: { 'X-API-Key': apiKey }
+                            });
+                            
+                            if (nativeResp.ok) {
+                                nativeData = await nativeResp.json();
+                                break; // Successo!
+                            } else if (nativeResp.status === 429) {
+                                Logger.warn('WalletEVM', `Rate limit su key ${attempt + 1}, provo la prossima...`);
+                                continue;
+                            } else {
+                                lastError = `HTTP ${nativeResp.status}`;
+                            }
+                        } catch (e) {
+                            lastError = e.message;
                         }
-                    } catch (e) {
-                        lastError = e.message;
                     }
-                }
-                
-                if (nativeData) {
-                    const chain = CHAINS[chainKey];
-                    const balance = parseFloat(nativeData.balance) / 1e18;
                     
-                    if (balance > 0.0001) {
-                        allBalances.push(createBalance({
-                            coin: chain.symbol,
-                            amount: balance,
-                            source: `wallet_${address.toLowerCase()}`,
-                            chain: chainKey
-                        }));
-                    }
-                }
-                
-                // Token balances (con rotazione)
-                let tokensData = null;
-                
-                for (let attempt = 0; attempt < moralisKeys.length; attempt++) {
-                    const apiKey = Database.getNextMoralisKey();
-                    if (!apiKey) break;
-                    
-                    try {
-                        const tokenUrl = `${MORALIS_BASE}/${address}/erc20?chain=${chainId}`;
-                        const tokenResp = await fetch(tokenUrl, {
-                            headers: { 'X-API-Key': apiKey }
-                        });
+                    if (nativeData) {
+                        const chain = CHAINS[chainKey];
+                        const balance = parseFloat(nativeData.balance) / 1e18;
                         
-                        if (tokenResp.ok) {
-                            tokensData = await tokenResp.json();
-                            break;
-                        } else if (tokenResp.status === 429) {
-                            continue;
-                        }
-                    } catch (e) {
-                        // Retry
-                    }
-                }
-                
-                if (tokensData) {
-                    for (const token of tokensData) {
-                        const decimals = parseInt(token.decimals) || 18;
-                        const balance = parseFloat(token.balance) / Math.pow(10, decimals);
-                        
-                        // Filtra spam/scam durante scan (come v5.2)
-                        if (isSpamToken(token.name, token.symbol)) {
-                            Logger.info('WalletEVM', `Filtrato spam: ${token.symbol}`);
-                            continue;
-                        }
-                        
-                        if (balance > 0) {
+                        if (balance > 0.0001) {
                             allBalances.push(createBalance({
-                                coin: token.symbol || 'UNKNOWN',
-                                name: token.name || token.symbol || 'Unknown',
+                                coin: chain.symbol,
                                 amount: balance,
                                 source: `wallet_${address.toLowerCase()}`,
-                                chain: chainKey,
-                                logo: token.logo || token.thumbnail || null,
-                                contractAddress: token.token_address || null
+                                chain: chainKey
                             }));
                         }
+                        scanSuccess = true;
                     }
+                    
+                    // Token balances (con rotazione)
+                    let tokensData = null;
+                    
+                    for (let attempt = 0; attempt < moralisKeys.length; attempt++) {
+                        const apiKey = Database.getNextMoralisKey();
+                        if (!apiKey) break;
+                        
+                        try {
+                            const tokenUrl = `${MORALIS_BASE}/${address}/erc20?chain=${chainId}`;
+                            const tokenResp = await fetch(tokenUrl, {
+                                headers: { 'X-API-Key': apiKey }
+                            });
+                            
+                            if (tokenResp.ok) {
+                                tokensData = await tokenResp.json();
+                                break;
+                            } else if (tokenResp.status === 429) {
+                                continue;
+                            }
+                        } catch (e) {
+                            // Retry
+                        }
+                    }
+                    
+                    if (tokensData && tokensData.length > 0) {
+                        for (const token of tokensData) {
+                            const decimals = parseInt(token.decimals) || 18;
+                            const balance = parseFloat(token.balance) / Math.pow(10, decimals);
+                            
+                            // Filtra spam/scam durante scan (come v5.2)
+                            if (isSpamToken(token.name, token.symbol)) {
+                                Logger.info('WalletEVM', `Filtrato spam: ${token.symbol}`);
+                                continue;
+                            }
+                            
+                            if (balance > 0) {
+                                allBalances.push(createBalance({
+                                    coin: token.symbol || 'UNKNOWN',
+                                    name: token.name || token.symbol || 'Unknown',
+                                    amount: balance,
+                                    source: `wallet_${address.toLowerCase()}`,
+                                    chain: chainKey,
+                                    logo: token.logo || token.thumbnail || null,
+                                    contractAddress: token.token_address || null
+                                }));
+                            }
+                        }
+                        scanSuccess = true;
+                    }
+                }
+                
+                // 2. Fallback a Etherscan V2 se Moralis non ha funzionato
+                if (!scanSuccess && hasEtherscan) {
+                    Logger.info('WalletEVM', `Moralis fallito, provo Etherscan V2 per ${chainKey}...`);
+                    const etherscanBalances = await scanWithEtherscanV2(address, chainKey);
+                    allBalances.push(...etherscanBalances);
                 }
                 
                 // Rate limiting tra chain
