@@ -205,29 +205,120 @@ const EXCHANGES = {
 // ═══════════════════════════════════════════════════════════════
 
 const COINGECKO_IDS = {
+    // Major coins
     'BTC': 'bitcoin',
     'ETH': 'ethereum',
     'BNB': 'binancecoin',
     'SOL': 'solana',
+    'XRP': 'ripple',
+    'ADA': 'cardano',
+    'AVAX': 'avalanche-2',
+    'DOT': 'polkadot',
     'MATIC': 'matic-network',
-    'ATOM': 'cosmos',
-    'OSMO': 'osmosis',
-    'LUNC': 'terra-luna',
-    'USTC': 'terrausd',
+    'POL': 'matic-network',
+    'LINK': 'chainlink',
+    'LTC': 'litecoin',
+    'NEAR': 'near',
+    'APT': 'aptos',
+    'SUI': 'sui',
+    'TON': 'the-open-network',
+    'TRX': 'tron',
+    'XLM': 'stellar',
+    'ALGO': 'algorand',
+    'VET': 'vechain',
+    'FIL': 'filecoin',
+    'HBAR': 'hedera-hashgraph',
+    
+    // Layer 2 / Scaling
+    'ARB': 'arbitrum',
+    'OP': 'optimism',
+    'IMX': 'immutable-x',
+    'MANTA': 'manta-network',
+    
+    // DeFi
+    'UNI': 'uniswap',
+    'AAVE': 'aave',
+    'MKR': 'maker',
+    'CRV': 'curve-dao-token',
+    'COMP': 'compound-governance-token',
+    'SNX': 'havven',
+    'SUSHI': 'sushi',
+    '1INCH': '1inch',
+    'CAKE': 'pancakeswap-token',
+    'LDO': 'lido-dao',
+    
+    // Meme coins
+    'DOGE': 'dogecoin',
+    'SHIB': 'shiba-inu',
+    'PEPE': 'pepe',
+    'FLOKI': 'floki',
+    'BONK': 'bonk',
+    'WIF': 'dogwifcoin',
+    'BONE': 'bone-shibaswap',
+    'LEASH': 'doge-killer',
+    
+    // Stablecoins
     'USDT': 'tether',
     'USDC': 'usd-coin',
     'DAI': 'dai',
-    'SHIB': 'shiba-inu',
-    'DOGE': 'dogecoin',
-    'XRP': 'ripple',
-    'ADA': 'cardano',
-    'DOT': 'polkadot',
-    'AVAX': 'avalanche-2',
-    'LINK': 'chainlink',
-    'UNI': 'uniswap',
+    'BUSD': 'binance-usd',
+    'TUSD': 'true-usd',
+    'FRAX': 'frax',
+    'USDD': 'usdd',
+    'FDUSD': 'first-digital-usd',
+    
+    // Exchange tokens
     'CRO': 'crypto-com-chain',
+    'FTT': 'ftx-token',
+    'OKB': 'okb',
+    'KCS': 'kucoin-shares',
+    'GT': 'gatechain-token',
+    'BGB': 'bitget-token',
+    
+    // Cosmos ecosystem
+    'ATOM': 'cosmos',
+    'OSMO': 'osmosis',
+    'INJ': 'injective-protocol',
+    'SEI': 'sei-network',
+    'TIA': 'celestia',
+    
+    // Terra / Luna
+    'LUNC': 'terra-luna',
+    'LUNA': 'terra-luna-2',
+    'USTC': 'terrausd',
+    
+    // PulseChain
     'PLS': 'pulsechain',
-    'HEX': 'hex'
+    'HEX': 'hex',
+    'PLSX': 'pulsex',
+    'INC': 'incentive',
+    
+    // Gaming / Metaverse
+    'AXS': 'axie-infinity',
+    'SAND': 'the-sandbox',
+    'MANA': 'decentraland',
+    'ENJ': 'enjincoin',
+    'GALA': 'gala',
+    'IMX': 'immutable-x',
+    
+    // Wrapped
+    'WETH': 'weth',
+    'WBTC': 'wrapped-bitcoin',
+    'WBNB': 'wbnb',
+    'WPLS': 'wrapped-pls',
+    
+    // Other popular
+    'FTM': 'fantom',
+    'EGLD': 'elrond-erd-2',
+    'FLOW': 'flow',
+    'XTZ': 'tezos',
+    'EOS': 'eos',
+    'NEO': 'neo',
+    'KAVA': 'kava',
+    'ROSE': 'oasis-network',
+    'ZIL': 'zilliqa',
+    'ONE': 'harmony',
+    'CELO': 'celo'
 };
 
 // ═══════════════════════════════════════════════════════════════

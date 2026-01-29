@@ -89,14 +89,89 @@ const PriceService = (function() {
     // ═══════════════════════════════════════════════════════════
     
     function getPrice(coin, currency = 'eur') {
-        const cached = AppState.prices[coin.toUpperCase()];
+        const upper = coin.toUpperCase();
+        const cached = AppState.prices[upper];
         
         if (cached && Date.now() - cached.lastUpdate < CACHE_DURATION) {
             return cached[currency] || 0;
         }
         
+        // Fallback per stablecoins
+        if (['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FDUSD', 'FRAX'].includes(upper)) {
+            return currency === 'eur' ? 0.92 : 1.0; // Approssimazione EUR/USD
+        }
+        
         // Prezzo non in cache, ritorna 0 (verrà aggiornato al prossimo fetch)
         return cached?.[currency] || 0;
+    }
+    
+    // ═══════════════════════════════════════════════════════════
+    // DEXSCREENER API (per token senza CoinGecko ID)
+    // ═══════════════════════════════════════════════════════════
+    
+    async function fetchTokenPriceFromDex(contractAddress, chain = 'pulsechain') {
+        if (!contractAddress) return null;
+        
+        try {
+            const url = `https://api.dexscreener.com/latest/dex/tokens/${contractAddress}`;
+            Logger.info('PriceService', `DexScreener: ${contractAddress.slice(0,10)}...`);
+            
+            const response = await fetch(url);
+            if (!response.ok) return null;
+            
+            const data = await response.json();
+            
+            if (data.pairs?.length) {
+                // Filtra per chain e ordina per liquidità
+                const pair = data.pairs
+                    .filter(p => p.chainId === chain)
+                    .sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0))[0];
+                
+                if (pair) {
+                    return {
+                        priceUsd: parseFloat(pair.priceUsd) || 0,
+                        priceEur: (parseFloat(pair.priceUsd) || 0) * 0.92, // Conversione approssimata
+                        logo: pair.info?.imageUrl || null,
+                        name: pair.baseToken?.name || null
+                    };
+                }
+            }
+        } catch (error) {
+            Logger.warn('PriceService', `DexScreener error: ${error.message}`);
+        }
+        
+        return null;
+    }
+    
+    // Fetch prezzo per token con contract address
+    async function fetchTokenPrice(symbol, contractAddress, chain = 'pulsechain') {
+        const upper = symbol.toUpperCase();
+        
+        // 1. Prima prova CoinGecko
+        const cgId = COINGECKO_IDS[upper];
+        if (cgId) {
+            await fetchCurrentPrices([symbol]);
+            const cached = AppState.prices[upper];
+            if (cached?.eur > 0) {
+                return { priceEur: cached.eur, priceUsd: cached.usd };
+            }
+        }
+        
+        // 2. Fallback a DexScreener
+        if (contractAddress) {
+            const dexPrice = await fetchTokenPriceFromDex(contractAddress, chain);
+            if (dexPrice && dexPrice.priceUsd > 0) {
+                // Salva in cache
+                AppState.prices[upper] = {
+                    eur: dexPrice.priceEur,
+                    usd: dexPrice.priceUsd,
+                    lastUpdate: Date.now()
+                };
+                return dexPrice;
+            }
+        }
+        
+        return null;
     }
     
     // ═══════════════════════════════════════════════════════════
@@ -379,7 +454,10 @@ const PriceService = (function() {
         calculatePortfolioValueAtDate,
         convertToEUR,
         convertToUSD,
-        calculatePortfolioValue
+        calculatePortfolioValue,
+        // Nuove funzioni v6.1
+        fetchTokenPriceFromDex,
+        fetchTokenPrice
     };
     
 })();

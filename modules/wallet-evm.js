@@ -39,6 +39,35 @@ const WalletEVM = (function() {
     };
     
     // ═══════════════════════════════════════════════════════════
+    // FILTRO SPAM/SCAM TOKEN (come v5.2)
+    // ═══════════════════════════════════════════════════════════
+    
+    const SPAM_PATTERNS = [
+        'visit', 'claim', 'reward', '.com', '.org', '.io', '.xyz', '.net',
+        'airdrop', 'bonus', 'free', 'gift', 'http', 'www', '$', '#',
+        'giveaway', '100x', '1000x', 'elon', 'trump'
+    ];
+    
+    function isSpamToken(name, symbol) {
+        const n = (name || '').toLowerCase();
+        const s = (symbol || '').toLowerCase();
+        
+        // Pattern spam
+        for (const pattern of SPAM_PATTERNS) {
+            if (n.includes(pattern) || s.includes(pattern)) {
+                return true;
+            }
+        }
+        
+        // Nome troppo lungo (> 40 char) = spam
+        if ((name || '').length > 40) {
+            return true;
+        }
+        
+        return false;
+    }
+    
+    // ═══════════════════════════════════════════════════════════
     // SCAN WALLET - TOKEN BALANCES
     // ═══════════════════════════════════════════════════════════
     
@@ -130,6 +159,12 @@ const WalletEVM = (function() {
                     for (const token of tokensData) {
                         const decimals = parseInt(token.decimals) || 18;
                         const balance = parseFloat(token.balance) / Math.pow(10, decimals);
+                        
+                        // Filtra spam/scam durante scan (come v5.2)
+                        if (isSpamToken(token.name, token.symbol)) {
+                            Logger.info('WalletEVM', `Filtrato spam: ${token.symbol}`);
+                            continue;
+                        }
                         
                         if (balance > 0) {
                             allBalances.push(createBalance({
@@ -396,6 +431,12 @@ const WalletEVM = (function() {
                     for (const token of tokenData.result) {
                         const decimals = parseInt(token.decimals) || 18;
                         const balance = parseFloat(token.balance) / Math.pow(10, decimals);
+                        
+                        // Filtra spam/scam durante scan
+                        if (isSpamToken(token.name, token.symbol)) {
+                            Logger.info('WalletEVM', `Filtrato spam PulseChain: ${token.symbol}`);
+                            continue;
+                        }
                         
                         if (balance > 0) {
                             balances.push(createBalance({

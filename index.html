@@ -1541,6 +1541,26 @@
                 await PriceService.fetchCurrentPrices(coins);
             }
             
+            // Per token senza prezzo CoinGecko, prova DexScreener
+            for (const [key, balance] of Object.entries(state.balances)) {
+                const coin = balance.coin;
+                if (!aggregated[coin]) continue;
+                
+                const price = PriceService.getPrice(coin, 'eur');
+                if (price === 0 && balance.contractAddress) {
+                    // Prova DexScreener
+                    const chain = balance.chain === 'pulse' ? 'pulsechain' : balance.chain;
+                    try {
+                        const dexPrice = await PriceService.fetchTokenPriceFromDex(balance.contractAddress, chain);
+                        if (dexPrice && dexPrice.priceEur > 0) {
+                            Logger.info('Dashboard', `DexScreener: ${coin} = €${dexPrice.priceEur.toFixed(6)}`);
+                        }
+                    } catch (e) {
+                        // Ignora errori DexScreener
+                    }
+                }
+            }
+            
             // Calcola valori e filtra scam con valore anomalo
             let validAssets = 0;
             for (const coin of coins) {
