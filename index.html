@@ -1090,14 +1090,16 @@
             'giveaway', 'elon', 'trump', '100x', '1000x', 'safemoon'
         ];
         
-        // Token legittimi (mai filtrati)
+        // Token legittimi (mai filtrati automaticamente)
         const LEGITIMATE_TOKENS = [
             'BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'AVAX', 'DOT', 'LINK', 'MATIC', 'POL',
             'LTC', 'ATOM', 'UNI', 'AAVE', 'MKR', 'SHIB', 'DOGE', 'PEPE', 'FLOKI',
-            'USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FRAX',
-            'PLS', 'PLSX', 'HEX', 'INC', 'LUNC', 'USTC', 'OSMO',
+            'USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FRAX', 'USDD', 'FDUSD',
+            'PLS', 'PLSX', 'HEX', 'INC', 'LUNC', 'USTC', 'OSMO', 'LUNA',
             'WETH', 'WBTC', 'WBNB', 'WPLS',
-            'CRO', 'FTM', 'ARB', 'OP', 'NEAR', 'APT', 'SUI', 'TON', 'TRX'
+            'CRO', 'FTM', 'ARB', 'OP', 'NEAR', 'APT', 'SUI', 'TON', 'TRX',
+            'CAKE', 'OKB', 'BXN', 'BGB', 'KCS', 'GT', 'INJ', 'SEI', 'TIA',
+            'SAND', 'MANA', 'AXS', 'GALA', 'ENJ', 'IMX'
         ];
         
         function isScamToken(name, amount = 0, price = 0) {
@@ -1120,6 +1122,18 @@
             
             // Nome troppo lungo (> 40 caratteri) = spam (come v5.2)
             if (name.length > 40) {
+                return true;
+            }
+            
+            // 🆕 Token con prezzo €0 e quantità significativa = probabilmente spam/airdrop
+            if (price === 0 && amount > 100) {
+                console.log(`⚠️ Token nascosto (prezzo €0): ${name} - ${amount} unità`);
+                return true;
+            }
+            
+            // 🆕 Token con milioni di unità e valore basso = sospetto
+            if (amount > 1000000 && price * amount < 10) {
+                console.log(`⚠️ Token nascosto (troppi token, poco valore): ${name} - ${amount} unità`);
                 return true;
             }
             
@@ -1366,6 +1380,13 @@
                     const value = bal.amount * price;
                     const iconHtml = getTokenIcon(bal, chainInfo.color);
                     
+                    // Link all'explorer per contract address
+                    let contractLink = '';
+                    if (bal.contractAddress) {
+                        const explorerUrl = chainInfo.explorer || 'https://etherscan.io';
+                        contractLink = `<a href="${explorerUrl}/token/${bal.contractAddress}" target="_blank" class="text-secondary" style="font-size:9px;text-decoration:none;opacity:0.6;" title="${bal.contractAddress}">${bal.contractAddress.slice(0,6)}...${bal.contractAddress.slice(-4)}</a>`;
+                    }
+                    
                     html += `
                         <tr style="border-bottom:1px solid var(--border);">
                             <td style="padding:12px;">
@@ -1373,7 +1394,8 @@
                                     ${iconHtml}
                                     <div>
                                         <div style="font-weight:500;">${bal.coin}</div>
-                                        ${bal.name && bal.name !== bal.coin ? `<div class="text-secondary" style="font-size:10px;">${bal.name.slice(0,20)}</div>` : ''}
+                                        ${bal.name && bal.name !== bal.coin ? `<div class="text-secondary" style="font-size:10px;">${bal.name.slice(0,25)}</div>` : ''}
+                                        ${contractLink}
                                     </div>
                                 </div>
                             </td>
