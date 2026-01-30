@@ -568,6 +568,223 @@
         .chain-selector-item.selected[data-chain="cronos"] .chain-check { background: #002d74; }
         .chain-selector-item.selected[data-chain="pulse"] .chain-check { background: #00ff00; color: #000; }
         .chain-selector-item.selected[data-chain="blackfort"] .chain-check { background: #00d4ff; color: #000; }
+        /* ═══════════════════════════════════════════════════════════
+           CHAIN DROPDOWN MULTI-SELECT (COMPATTO)
+           ═══════════════════════════════════════════════════════════ */
+        .chain-dropdown-container {
+            position: relative;
+            width: 100%;
+        }
+        
+        .chain-dropdown-trigger {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .chain-dropdown-trigger:hover {
+            border-color: var(--accent);
+        }
+        
+        .chain-dropdown-trigger.open {
+            border-color: var(--accent);
+            border-radius: 10px 10px 0 0;
+        }
+        
+        .chain-dropdown-selected {
+            font-size: 14px;
+        }
+        
+        .chain-dropdown-selected .placeholder {
+            color: var(--text-secondary);
+        }
+        
+        .chain-dropdown-arrow {
+            color: var(--text-secondary);
+            font-size: 10px;
+            transition: transform 0.2s;
+        }
+        
+        .chain-dropdown-trigger.open .chain-dropdown-arrow {
+            transform: rotate(180deg);
+        }
+        
+        .chain-dropdown-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--bg-card);
+            border: 2px solid var(--accent);
+            border-top: none;
+            border-radius: 0 0 10px 10px;
+            max-height: 350px;
+            overflow-y: auto;
+            z-index: 100;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        }
+        
+        .chain-dropdown-menu.open {
+            display: block;
+        }
+        
+        .chain-dropdown-actions {
+            display: flex;
+            gap: 8px;
+            padding: 10px;
+            background: var(--bg-secondary);
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        
+        .chain-action-btn {
+            flex: 1;
+            padding: 8px 10px;
+            border: none;
+            border-radius: 6px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .chain-action-btn:hover {
+            background: var(--border);
+        }
+        
+        .chain-action-btn.primary {
+            background: var(--accent);
+            color: #000;
+        }
+        
+        .chain-dropdown-divider {
+            height: 1px;
+            background: var(--border);
+        }
+        
+        .chain-section-label {
+            padding: 8px 12px 4px;
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: var(--bg-secondary);
+        }
+        
+        .chain-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        
+        .chain-dropdown-item:hover {
+            background: var(--bg-secondary);
+        }
+        
+        .chain-dropdown-item.selected {
+            background: rgba(99, 102, 241, 0.1);
+        }
+        
+        .chain-icon-small {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+        
+        .chain-info-compact {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .chain-info-compact .chain-name {
+            font-size: 13px;
+            font-weight: 500;
+        }
+        
+        .chain-info-compact .chain-symbol {
+            font-size: 10px;
+            color: var(--text-secondary);
+            background: var(--bg-primary);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        
+        .chain-dropdown-item .chain-checkbox {
+            width: 18px;
+            height: 18px;
+            border: 2px solid var(--border);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            color: transparent;
+            transition: all 0.2s;
+        }
+        
+        .chain-dropdown-item.selected .chain-checkbox {
+            background: var(--green);
+            border-color: var(--green);
+            color: #000;
+        }
+        
+        /* Selected Chain Tags */
+        .selected-chain-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        
+        .chain-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .chain-tag .tag-remove {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--text-secondary);
+            color: var(--bg-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .chain-tag .tag-remove:hover {
+            background: var(--red);
+        }
     </style>
 </head>
 <body>
@@ -736,23 +953,56 @@
                     </p>
                 </div>
                 
-                <!-- Chain Selector -->
+                <!-- Chain Selector - Dropdown Multi-Select -->
                 <div class="card">
                     <div class="card-header">
                         <div class="card-title">⛓️ Chain da Scansionare</div>
-                        <div class="flex gap-8">
-                            <button class="btn btn-secondary" onclick="selectAllChains()" style="padding:6px 12px;font-size:12px;">✅ Tutte</button>
-                            <button class="btn btn-secondary" onclick="selectNoChains()" style="padding:6px 12px;font-size:12px;">❌ Nessuna</button>
-                            <button class="btn btn-secondary" onclick="selectMainChains()" style="padding:6px 12px;font-size:12px;">⭐ Principali</button>
+                    </div>
+                    
+                    <!-- Dropdown Container -->
+                    <div class="chain-dropdown-container">
+                        <div class="chain-dropdown-trigger" onclick="toggleChainDropdown()">
+                            <div class="chain-dropdown-selected" id="chainDropdownSelected">
+                                <span class="placeholder">Seleziona chain...</span>
+                            </div>
+                            <div class="chain-dropdown-arrow">▼</div>
+                        </div>
+                        
+                        <div class="chain-dropdown-menu" id="chainDropdownMenu">
+                            <!-- Quick Actions -->
+                            <div class="chain-dropdown-actions">
+                                <button onclick="selectAllChains()" class="chain-action-btn">✅ Tutte</button>
+                                <button onclick="selectNoChains()" class="chain-action-btn">❌ Nessuna</button>
+                                <button onclick="selectMainChains()" class="chain-action-btn primary">⭐ Principali</button>
+                            </div>
+                            
+                            <!-- Divider -->
+                            <div class="chain-dropdown-divider"></div>
+                            
+                            <!-- EVM Chains Section -->
+                            <div class="chain-section-label">🔷 EVM Chains</div>
+                            <div id="evmChainsList"></div>
+                            
+                            <!-- Divider -->
+                            <div class="chain-dropdown-divider"></div>
+                            
+                            <!-- Cosmos Chains Section -->
+                            <div class="chain-section-label">🌌 Cosmos Ecosystem</div>
+                            <div id="cosmosChainsList"></div>
+                            
+                            <!-- Divider -->
+                            <div class="chain-dropdown-divider"></div>
+                            
+                            <!-- Other Chains Section -->
+                            <div class="chain-section-label">🔗 Other Chains</div>
+                            <div id="otherChainsList"></div>
                         </div>
                     </div>
-                    <p class="text-secondary mb-12" style="font-size:12px;">
-                        💡 Seleziona solo le chain che usi realmente per evitare token scam e velocizzare lo scan
-                    </p>
-                    <div id="chainSelector" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));gap:8px;">
-                        <!-- Popolato da JS -->
-                    </div>
-                    <div class="mt-12 text-secondary" style="font-size:11px;">
+                    
+                    <!-- Selected Tags -->
+                    <div id="selectedChainTags" class="selected-chain-tags mt-12"></div>
+                    
+                    <div class="mt-8 text-secondary" style="font-size:11px;">
                         <span id="selectedChainsCount">0</span> chain selezionate
                     </div>
                 </div>
@@ -1061,120 +1311,174 @@
         }
         
         // ═══════════════════════════════════════════════════════════
-        // CHAIN SELECTOR
+        // CHAIN SELECTOR - DROPDOWN COMPATTO
         // ═══════════════════════════════════════════════════════════
         
-        // Icone SVG professionali per ogni chain
-        const CHAIN_ICONS = {
-            eth: `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 32C24.8366 32 32 24.8366 32 16C32 7.16344 24.8366 0 16 0C7.16344 0 0 7.16344 0 16C0 24.8366 7.16344 32 16 32Z" fill="#627EEA"/><path d="M16.498 4V12.87L23.995 16.22L16.498 4Z" fill="white" fill-opacity="0.6"/><path d="M16.498 4L9 16.22L16.498 12.87V4Z" fill="white"/><path d="M16.498 21.968V27.995L24 17.616L16.498 21.968Z" fill="white" fill-opacity="0.6"/><path d="M16.498 27.995V21.967L9 17.616L16.498 27.995Z" fill="white"/><path d="M16.498 20.573L23.995 16.22L16.498 12.872V20.573Z" fill="white" fill-opacity="0.2"/><path d="M9 16.22L16.498 20.573V12.872L9 16.22Z" fill="white" fill-opacity="0.6"/></svg>`,
-            bsc: `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#F3BA2F"/><path d="M12.116 14.404L16 10.52l3.886 3.886 2.26-2.26L16 6l-6.144 6.144 2.26 2.26zM6 16l2.26-2.26L10.52 16l-2.26 2.26L6 16zm6.116 1.596L16 21.48l3.886-3.886 2.26 2.259L16 26l-6.144-6.144-.003-.003 2.263-2.257zM21.48 16l2.26-2.26L26 16l-2.26 2.26L21.48 16zm-3.188-.002h.002L16 13.706 14.294 15.4l-.002.002-.2.2-.29.29-.002.002.002.002L16 18.292l2.293-2.293.001-.001h-.002z" fill="#fff"/></svg>`,
-            polygon: `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#8247E5"/><path d="M21.092 12.693c-.369-.215-.848-.215-1.254 0l-2.879 1.654-1.955 1.078-2.879 1.653c-.369.216-.848.216-1.254 0l-2.288-1.294c-.369-.215-.627-.61-.627-1.042V12.19c0-.431.221-.826.627-1.042l2.25-1.258c.37-.216.85-.216 1.256 0l2.25 1.258c.37.216.628.611.628 1.042v1.654l1.955-1.115v-1.653a1.16 1.16 0 00-.627-1.042l-4.17-2.372c-.369-.216-.848-.216-1.254 0l-4.244 2.372A1.16 1.16 0 006 11.076v4.78c0 .432.221.827.627 1.043l4.244 2.372c.369.215.849.215 1.254 0l2.879-1.618 1.955-1.114 2.879-1.617c.369-.216.848-.216 1.254 0l2.251 1.258c.37.215.627.61.627 1.042v2.552c0 .431-.22.826-.627 1.042l-2.25 1.294c-.37.216-.85.216-1.255 0l-2.251-1.258c-.37-.216-.628-.611-.628-1.042v-1.654l-1.955 1.115v1.653c0 .431.221.827.627 1.042l4.244 2.372c.369.216.848.216 1.254 0l4.244-2.372c.369-.215.627-.61.627-1.042v-4.78a1.16 1.16 0 00-.627-1.042l-4.28-2.409z" fill="#fff"/></svg>`,
-            arbitrum: `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#2D374B"/><path d="M17.876 15.639l2.106 3.428 3.18-4.857-5.286 1.43zm-1.137 4.545l-4.18-6.768 7.72 11.584h2.854l-6.394-4.816z" fill="#28A0F0"/><path d="M8.864 19.116l2.326 3.884h2.854l-3.54-5.902-1.64 2.018zm7.875-7.7l2.137 3.223 1.43-.387-2.427-3.944-1.14 1.108z" fill="#fff"/><path d="M11.19 23l5.636-8.41L11.19 23zm5.636-8.41L23.162 14.21l-6.336 10.79 2.854-.012-2.854.012z" fill="#96BEDC"/></svg>`,
-            optimism: `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#FF0420"/><path d="M10.904 20.36c-1.108 0-2.028-.308-2.76-.924-.724-.624-1.086-1.472-1.086-2.544 0-.416.056-.868.168-1.356.28-1.224.788-2.18 1.524-2.868.744-.696 1.692-1.044 2.844-1.044 1.1 0 2.012.304 2.736.912.724.6 1.086 1.428 1.086 2.484 0 .432-.056.9-.168 1.404-.272 1.224-.78 2.184-1.524 2.88-.736.704-1.696 1.056-2.88 1.056h.06zm.216-1.8c.552 0 1.02-.224 1.404-.672.392-.448.668-1.1.828-1.956.08-.4.12-.776.12-1.128 0-.52-.116-.924-.348-1.212-.224-.296-.564-.444-1.02-.444-.552 0-1.024.224-1.416.672-.384.448-.66 1.1-.828 1.956-.08.4-.12.772-.12 1.116 0 .528.116.936.348 1.224.24.296.58.444 1.02.444h.012zm8.128 1.632h-2.196l1.632-7.152h3.516c.936 0 1.652.212 2.148.636.504.424.756 1.008.756 1.752 0 .344-.048.7-.144 1.068-.224.896-.64 1.568-1.248 2.016-.608.448-1.392.672-2.352.672h-1.38l-.732 3.008v-2zm1.344-4.536l-.336 1.476h1.116c.368 0 .68-.092.936-.276.256-.184.424-.46.504-.828.032-.144.048-.276.048-.396 0-.24-.076-.42-.228-.54-.144-.128-.368-.192-.672-.192h-1.116l-.252.756z" fill="#fff"/></svg>`,
-            base: `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#0052FF"/><path d="M15.998 26c5.523 0 10-4.477 10-10s-4.477-10-10-10c-5.28 0-9.604 4.094-9.973 9.273h13.07v1.454H6.025C6.394 21.906 10.718 26 15.998 26z" fill="#fff"/></svg>`,
-            avalanche: `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#E84142"/><path d="M20.614 21.5h3.17c.59 0 .882 0 1.063-.1a.87.87 0 00.408-.524c.054-.2-.012-.447-.143-.94l-5.67-14.17c-.14-.526-.21-.789-.347-.895a.87.87 0 00-.545-.196c-.215 0-.45.131-.92.394L11.4 9.242c-.47.263-.705.394-.831.586a.87.87 0 00-.137.593c.027.222.182.447.491.897l5.99 8.702c.248.361.372.542.534.666a1.305 1.305 0 00.622.26c.199.029.415-.007.847-.078l1.698-.368zm-8.982 0H8.216c-.59 0-.885 0-1.065-.1a.87.87 0 01-.408-.524c-.054-.2.012-.447.143-.94l1.796-4.49c.14-.35.21-.526.328-.632a.87.87 0 01.477-.222c.19-.022.398.05.815.194l3.07.998-1.741 5.716z" fill="#fff"/></svg>`,
-            fantom: `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#1969FF"/><path d="M15.203 5.385a1.587 1.587 0 011.594 0l4.656 2.67c.492.282.797.803.797 1.363v5.341c0 .56-.305 1.081-.797 1.363l-4.656 2.67a1.587 1.587 0 01-1.594 0l-4.656-2.67a1.578 1.578 0 01-.797-1.363V9.418c0-.56.305-1.081.797-1.363l4.656-2.67zM9.75 17.11v5.472c0 .56.305 1.081.797 1.363l4.656 2.67c.492.283 1.102.283 1.594 0l4.656-2.67c.492-.282.797-.803.797-1.363V17.11L16.797 19.78a1.587 1.587 0 01-1.594 0L9.75 17.11z" fill="#fff"/></svg>`,
-            cronos: `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#002D74"/><path d="M16 6l8.66 5v10L16 26l-8.66-5V11L16 6z" stroke="#fff" stroke-width="1.5"/><path d="M16 10l4.33 2.5v5L16 20l-4.33-2.5v-5L16 10z" fill="#fff"/></svg>`,
-            pulse: `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#171717"/><path d="M16 6c5.523 0 10 4.477 10 10s-4.477 10-10 10S6 21.523 6 16 10.477 6 16 6z" stroke="#00FF00" stroke-width="2"/><path d="M10 16h3l2-4 2 8 2-6 2 2h3" stroke="#00FF00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
-            blackfort: `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#0A1628"/><path d="M16 7l7 4v10l-7 4-7-4V11l7-4z" stroke="#00D4FF" stroke-width="1.5"/><path d="M16 11l3.5 2v4L16 19l-3.5-2v-4L16 11z" fill="#00D4FF"/><circle cx="16" cy="15" r="2" fill="#0A1628"/></svg>`
-        };
-        
-        // Chain EVM disponibili per Moralis
-        const EVM_CHAINS = {
-            'eth': { name: 'Ethereum', color: '#627eea', symbol: 'ETH' },
-            'bsc': { name: 'BNB Chain', color: '#f3ba2f', symbol: 'BNB' },
-            'polygon': { name: 'Polygon', color: '#8247e5', symbol: 'MATIC' },
-            'arbitrum': { name: 'Arbitrum', color: '#28a0f0', symbol: 'ARB' },
-            'optimism': { name: 'Optimism', color: '#ff0420', symbol: 'OP' },
-            'base': { name: 'Base', color: '#0052ff', symbol: 'ETH' },
-            'avalanche': { name: 'Avalanche', color: '#e84142', symbol: 'AVAX' },
-            'fantom': { name: 'Fantom', color: '#1969ff', symbol: 'FTM' },
-            'cronos': { name: 'Cronos', color: '#002d74', symbol: 'CRO' },
-            'pulse': { name: 'PulseChain', color: '#00ff00', symbol: 'PLS' },
-            'blackfort': { name: 'BlackFort', color: '#00d4ff', symbol: 'BXN' }
+        // Tutte le chain supportate (EVM + Cosmos + Solana)
+        const ALL_CHAINS = {
+            // === EVM CHAINS ===
+            'eth': { name: 'Ethereum', symbol: 'ETH', color: '#627eea', type: 'evm', icon: '⟠' },
+            'bsc': { name: 'BNB Chain', symbol: 'BNB', color: '#f3ba2f', type: 'evm', icon: '🔶' },
+            'polygon': { name: 'Polygon', symbol: 'MATIC', color: '#8247e5', type: 'evm', icon: '🟣' },
+            'arbitrum': { name: 'Arbitrum', symbol: 'ARB', color: '#28a0f0', type: 'evm', icon: '🔵' },
+            'optimism': { name: 'Optimism', symbol: 'OP', color: '#ff0420', type: 'evm', icon: '🔴' },
+            'base': { name: 'Base', symbol: 'ETH', color: '#0052ff', type: 'evm', icon: '🔷' },
+            'avalanche': { name: 'Avalanche', symbol: 'AVAX', color: '#e84142', type: 'evm', icon: '🔺' },
+            'fantom': { name: 'Fantom', symbol: 'FTM', color: '#1969ff', type: 'evm', icon: '👻' },
+            'cronos': { name: 'Cronos', symbol: 'CRO', color: '#002d74', type: 'evm', icon: '🦎' },
+            'pulse': { name: 'PulseChain', symbol: 'PLS', color: '#00ff00', type: 'evm', icon: '💚' },
+            'blackfort': { name: 'BlackFort', symbol: 'BXN', color: '#00d4ff', type: 'evm', icon: '🏰' },
+            // === COSMOS CHAINS ===
+            'atom': { name: 'Cosmos Hub', symbol: 'ATOM', color: '#2E3148', type: 'cosmos', icon: '⚛️' },
+            'osmo': { name: 'Osmosis', symbol: 'OSMO', color: '#750BBB', type: 'cosmos', icon: '🧪' },
+            'terra': { name: 'Terra Classic', symbol: 'LUNC', color: '#172852', type: 'cosmos', icon: '🌙' },
+            'luna': { name: 'Terra 2.0', symbol: 'LUNA', color: '#172852', type: 'cosmos', icon: '🌕' },
+            // === SOLANA ===
+            'sol': { name: 'Solana', symbol: 'SOL', color: '#9945FF', type: 'solana', icon: '◎' },
+            // === OTHER ===
+            'top': { name: 'TOP Network', symbol: 'TOP', color: '#00A3FF', type: 'other', icon: '🔝' }
         };
         
         // Chain principali (default)
         const MAIN_CHAINS = ['eth', 'bsc', 'polygon', 'arbitrum', 'base'];
         
+        // Stato dropdown
+        let chainDropdownOpen = false;
+        
         function initChainSelector() {
-            const container = document.getElementById('chainSelector');
-            if (!container) return;
-            
             // Carica selezione salvata o usa default
             const saved = localStorage.getItem('cryptofolio_selectedChains');
             const selectedChains = saved ? JSON.parse(saved) : MAIN_CHAINS;
             AppState.selectedChains = selectedChains;
             
-            let html = '';
-            for (const [key, chain] of Object.entries(EVM_CHAINS)) {
-                const isChecked = selectedChains.includes(key);
-                const iconSvg = CHAIN_ICONS[key] || '';
-                html += `
-                    <label class="chain-selector-item ${isChecked ? 'selected' : ''}" data-chain="${key}">
-                        <input type="checkbox" 
-                               id="chain_${key}" 
-                               value="${key}" 
-                               ${isChecked ? 'checked' : ''} 
-                               onchange="toggleChain('${key}')"
-                               style="display:none;">
-                        <div class="chain-icon">${iconSvg}</div>
-                        <div class="chain-info">
+            renderChainDropdown();
+            renderSelectedTags();
+            updateSelectedChainsCount();
+        }
+        
+        function renderChainDropdown() {
+            const evmList = document.getElementById('evmChainsList');
+            const cosmosList = document.getElementById('cosmosChainsList');
+            const otherList = document.getElementById('otherChainsList');
+            
+            if (!evmList) return;
+            
+            let evmHtml = '';
+            let cosmosHtml = '';
+            let otherHtml = '';
+            
+            for (const [key, chain] of Object.entries(ALL_CHAINS)) {
+                const isSelected = AppState.selectedChains.includes(key);
+                const itemHtml = `
+                    <div class="chain-dropdown-item ${isSelected ? 'selected' : ''}" onclick="toggleChainSelect('${key}')">
+                        <div class="chain-icon-small" style="background:${chain.color};">${chain.icon}</div>
+                        <div class="chain-info-compact">
                             <span class="chain-name">${chain.name}</span>
                             <span class="chain-symbol">${chain.symbol}</span>
                         </div>
-                        <div class="chain-check">${isChecked ? '✓' : ''}</div>
-                    </label>
+                        <div class="chain-checkbox">${isSelected ? '✓' : ''}</div>
+                    </div>
                 `;
+                
+                if (chain.type === 'evm') evmHtml += itemHtml;
+                else if (chain.type === 'cosmos') cosmosHtml += itemHtml;
+                else otherHtml += itemHtml;
             }
             
-            container.innerHTML = html;
-            updateSelectedChainsCount();
+            evmList.innerHTML = evmHtml;
+            cosmosList.innerHTML = cosmosHtml;
+            otherList.innerHTML = otherHtml;
         }
         
-        function toggleChain(chainKey) {
-            const checkbox = document.getElementById(`chain_${chainKey}`);
-            const chain = EVM_CHAINS[chainKey];
-            const label = document.querySelector(`.chain-selector-item[data-chain="${chainKey}"]`);
+        function renderSelectedTags() {
+            const container = document.getElementById('selectedChainTags');
+            if (!container) return;
             
-            if (checkbox.checked) {
-                if (!AppState.selectedChains.includes(chainKey)) {
-                    AppState.selectedChains.push(chainKey);
-                }
-                label.classList.add('selected');
-                label.querySelector('.chain-check').textContent = '✓';
-            } else {
-                AppState.selectedChains = AppState.selectedChains.filter(c => c !== chainKey);
-                label.classList.remove('selected');
-                label.querySelector('.chain-check').textContent = '';
+            if (AppState.selectedChains.length === 0) {
+                container.innerHTML = '<span class="text-secondary" style="font-size:12px;">Nessuna chain selezionata</span>';
+                return;
             }
             
-            // Salva in localStorage
+            let html = '';
+            for (const key of AppState.selectedChains) {
+                const chain = ALL_CHAINS[key];
+                if (!chain) continue;
+                html += `
+                    <span class="chain-tag" style="border-color:${chain.color}40;background:${chain.color}15;">
+                        <span style="font-size:14px;">${chain.icon}</span>
+                        <span>${chain.symbol}</span>
+                        <span class="tag-remove" onclick="removeChain('${key}')">✕</span>
+                    </span>
+                `;
+            }
+            container.innerHTML = html;
+        }
+        
+        function toggleChainDropdown() {
+            chainDropdownOpen = !chainDropdownOpen;
+            const trigger = document.querySelector('.chain-dropdown-trigger');
+            const menu = document.getElementById('chainDropdownMenu');
+            
+            if (chainDropdownOpen) {
+                trigger.classList.add('open');
+                menu.classList.add('open');
+            } else {
+                trigger.classList.remove('open');
+                menu.classList.remove('open');
+            }
+        }
+        
+        function toggleChainSelect(chainKey) {
+            const index = AppState.selectedChains.indexOf(chainKey);
+            
+            if (index > -1) {
+                AppState.selectedChains.splice(index, 1);
+            } else {
+                AppState.selectedChains.push(chainKey);
+            }
+            
             localStorage.setItem('cryptofolio_selectedChains', JSON.stringify(AppState.selectedChains));
+            renderChainDropdown();
+            renderSelectedTags();
             updateSelectedChainsCount();
             
-            log(`⛓️ Chain ${chainKey}: ${checkbox.checked ? 'attivata' : 'disattivata'}`);
+            const chain = ALL_CHAINS[chainKey];
+            log(`⛓️ ${chain.name}: ${index > -1 ? 'rimossa' : 'aggiunta'}`);
+        }
+        
+        function removeChain(chainKey) {
+            AppState.selectedChains = AppState.selectedChains.filter(c => c !== chainKey);
+            localStorage.setItem('cryptofolio_selectedChains', JSON.stringify(AppState.selectedChains));
+            renderChainDropdown();
+            renderSelectedTags();
+            updateSelectedChainsCount();
         }
         
         function selectAllChains() {
-            AppState.selectedChains = Object.keys(EVM_CHAINS);
+            AppState.selectedChains = Object.keys(ALL_CHAINS);
             localStorage.setItem('cryptofolio_selectedChains', JSON.stringify(AppState.selectedChains));
-            initChainSelector();
+            renderChainDropdown();
+            renderSelectedTags();
+            updateSelectedChainsCount();
             log('✅ Tutte le chain selezionate');
         }
         
         function selectNoChains() {
             AppState.selectedChains = [];
             localStorage.setItem('cryptofolio_selectedChains', JSON.stringify(AppState.selectedChains));
-            initChainSelector();
+            renderChainDropdown();
+            renderSelectedTags();
+            updateSelectedChainsCount();
             log('❌ Nessuna chain selezionata');
         }
         
         function selectMainChains() {
             AppState.selectedChains = [...MAIN_CHAINS];
             localStorage.setItem('cryptofolio_selectedChains', JSON.stringify(AppState.selectedChains));
-            initChainSelector();
-            log('⭐ Chain principali selezionate: ' + MAIN_CHAINS.join(', '));
+            renderChainDropdown();
+            renderSelectedTags();
+            updateSelectedChainsCount();
+            log('⭐ Chain principali: ' + MAIN_CHAINS.join(', '));
         }
         
         function updateSelectedChainsCount() {
@@ -1182,10 +1486,33 @@
             if (countEl) {
                 countEl.textContent = AppState.selectedChains.length;
             }
+            
+            // Aggiorna anche placeholder dropdown
+            const placeholder = document.querySelector('.chain-dropdown-selected');
+            if (placeholder) {
+                if (AppState.selectedChains.length === 0) {
+                    placeholder.innerHTML = '<span class="placeholder">Seleziona chain...</span>';
+                } else {
+                    placeholder.innerHTML = `<span>${AppState.selectedChains.length} chain selezionate</span>`;
+                }
+            }
         }
         
         function getSelectedChains() {
             return AppState.selectedChains || MAIN_CHAINS;
+        }
+        
+        // Chiudi dropdown cliccando fuori
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.chain-dropdown-container') && chainDropdownOpen) {
+                toggleChainDropdown();
+            }
+        });
+        
+        // Per compatibilità con EVM_CHAINS usato altrove
+        const EVM_CHAINS = {};
+        for (const [k, v] of Object.entries(ALL_CHAINS)) {
+            if (v.type === 'evm') EVM_CHAINS[k] = v;
         }
         
         // ═══════════════════════════════════════════════════════════
@@ -2018,7 +2345,7 @@
                         ${filtered.length} token su ${chainOrder.length} chain${hiddenCount > 0 ? ` (${hiddenCount} nascosti)` : ''}
                     </span>
                     <div class="flex gap-8">
-                        ${blacklist.length > 0 ? `<button class="btn btn-secondary" onclick="showBlacklistModal()" style="padding:6px 12px;font-size:12px;color:var(--text-primary);">📋 Blacklist (${blacklist.length})</button>` : ''}
+                        ${tokenBlacklist.length > 0 ? `<button class="btn btn-secondary" onclick="showBlacklistModal()" style="padding:6px 12px;font-size:12px;color:var(--text-primary);">📋 Blacklist (${tokenBlacklist.length})</button>` : ''}
                         <button class="btn btn-secondary" id="scamFilterBtn" onclick="toggleScamFilter()" style="padding:6px 12px;font-size:12px;color:var(--text-primary);">
                             ${showScamTokens ? '👁️ Mostra Tutti' : '🔒 Nascondi Scam'}
                         </button>
