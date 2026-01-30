@@ -418,6 +418,156 @@
         .log-entry:last-child {
             border-bottom: none;
         }
+        
+        /* ═══════════════════════════════════════════════════════════
+           BLACKLIST / HIDE TOKEN (come v5.2)
+           ═══════════════════════════════════════════════════════════ */
+        .hide-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            opacity: 0.4;
+            transition: all 0.2s;
+        }
+        
+        .hide-btn:hover {
+            background: var(--red);
+            color: white;
+            opacity: 1;
+        }
+        
+        .blacklist-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 10px;
+            background: var(--bg-primary);
+            border-radius: 6px;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }
+        
+        .btn-restore {
+            background: var(--green);
+            color: #000;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 10px;
+            font-weight: 600;
+        }
+        
+        .btn-restore:hover {
+            opacity: 0.8;
+        }
+        
+        /* ═══════════════════════════════════════════════════════════
+           CHAIN SELECTOR (Professionale con icone SVG)
+           ═══════════════════════════════════════════════════════════ */
+        .chain-selector-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        
+        .chain-selector-item:hover {
+            background: var(--bg-card);
+            border-color: var(--text-secondary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
+        .chain-selector-item.selected {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(99, 102, 241, 0.05));
+            border-color: var(--accent);
+        }
+        
+        .chain-selector-item.selected[data-chain="eth"] { border-color: #627eea; background: linear-gradient(135deg, rgba(98, 126, 234, 0.2), rgba(98, 126, 234, 0.05)); }
+        .chain-selector-item.selected[data-chain="bsc"] { border-color: #f3ba2f; background: linear-gradient(135deg, rgba(243, 186, 47, 0.2), rgba(243, 186, 47, 0.05)); }
+        .chain-selector-item.selected[data-chain="polygon"] { border-color: #8247e5; background: linear-gradient(135deg, rgba(130, 71, 229, 0.2), rgba(130, 71, 229, 0.05)); }
+        .chain-selector-item.selected[data-chain="arbitrum"] { border-color: #28a0f0; background: linear-gradient(135deg, rgba(40, 160, 240, 0.2), rgba(40, 160, 240, 0.05)); }
+        .chain-selector-item.selected[data-chain="optimism"] { border-color: #ff0420; background: linear-gradient(135deg, rgba(255, 4, 32, 0.2), rgba(255, 4, 32, 0.05)); }
+        .chain-selector-item.selected[data-chain="base"] { border-color: #0052ff; background: linear-gradient(135deg, rgba(0, 82, 255, 0.2), rgba(0, 82, 255, 0.05)); }
+        .chain-selector-item.selected[data-chain="avalanche"] { border-color: #e84142; background: linear-gradient(135deg, rgba(232, 65, 66, 0.2), rgba(232, 65, 66, 0.05)); }
+        .chain-selector-item.selected[data-chain="fantom"] { border-color: #1969ff; background: linear-gradient(135deg, rgba(25, 105, 255, 0.2), rgba(25, 105, 255, 0.05)); }
+        .chain-selector-item.selected[data-chain="cronos"] { border-color: #002d74; background: linear-gradient(135deg, rgba(0, 45, 116, 0.3), rgba(0, 45, 116, 0.1)); }
+        .chain-selector-item.selected[data-chain="pulse"] { border-color: #00ff00; background: linear-gradient(135deg, rgba(0, 255, 0, 0.15), rgba(0, 255, 0, 0.03)); }
+        .chain-selector-item.selected[data-chain="blackfort"] { border-color: #00d4ff; background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(0, 212, 255, 0.05)); }
+        
+        .chain-icon {
+            width: 36px;
+            height: 36px;
+            flex-shrink: 0;
+        }
+        
+        .chain-icon svg {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+        }
+        
+        .chain-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        
+        .chain-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .chain-symbol {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .chain-check {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--bg-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--green);
+            transition: all 0.2s;
+        }
+        
+        .chain-selector-item.selected .chain-check {
+            background: var(--green);
+            color: #000;
+        }
+        
+        .chain-selector-item.selected[data-chain="eth"] .chain-check { background: #627eea; }
+        .chain-selector-item.selected[data-chain="bsc"] .chain-check { background: #f3ba2f; color: #000; }
+        .chain-selector-item.selected[data-chain="polygon"] .chain-check { background: #8247e5; }
+        .chain-selector-item.selected[data-chain="arbitrum"] .chain-check { background: #28a0f0; }
+        .chain-selector-item.selected[data-chain="optimism"] .chain-check { background: #ff0420; }
+        .chain-selector-item.selected[data-chain="base"] .chain-check { background: #0052ff; }
+        .chain-selector-item.selected[data-chain="avalanche"] .chain-check { background: #e84142; }
+        .chain-selector-item.selected[data-chain="fantom"] .chain-check { background: #1969ff; }
+        .chain-selector-item.selected[data-chain="cronos"] .chain-check { background: #002d74; }
+        .chain-selector-item.selected[data-chain="pulse"] .chain-check { background: #00ff00; color: #000; }
+        .chain-selector-item.selected[data-chain="blackfort"] .chain-check { background: #00d4ff; color: #000; }
     </style>
 </head>
 <body>
@@ -455,6 +605,25 @@
             <div class="nav-item" onclick="showView('settings')">
                 <span class="icon">⚙️</span>
                 <span>Impostazioni</span>
+            </div>
+            
+            <div style="border-top:1px solid var(--border);margin:16px 0;"></div>
+            
+            <div class="nav-item" onclick="toggleBlacklist()">
+                <span class="icon">🚫</span>
+                <span>Token Nascosti</span>
+                <span id="blacklistCount" style="background:var(--red);color:white;padding:2px 8px;border-radius:10px;font-size:11px;margin-left:auto;">0</span>
+            </div>
+            
+            <!-- Pannello Token Nascosti -->
+            <div id="blacklistPanel" style="display:none;padding:12px;background:var(--bg-card);margin:8px;border-radius:8px;border:1px solid var(--border);">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <span style="font-size:13px;font-weight:600;">🚫 Nascosti</span>
+                    <button class="btn btn-secondary" onclick="clearBlacklist()" style="padding:4px 8px;font-size:10px;">🗑️ Svuota</button>
+                </div>
+                <div id="blacklistContent">
+                    <p class="text-secondary" style="font-size:12px;">Nessun token nascosto</p>
+                </div>
             </div>
         </nav>
         
@@ -884,6 +1053,7 @@
             updateWalletList();
             await updateTransactionTable();
             updateDebugInfo();
+            updateBlacklistPanel();  // Badge token nascosti
             
             log('✅ Inizializzazione completata');
             document.getElementById('syncStatus').textContent = 'Pronto';
@@ -894,19 +1064,34 @@
         // CHAIN SELECTOR
         // ═══════════════════════════════════════════════════════════
         
+        // Icone SVG professionali per ogni chain
+        const CHAIN_ICONS = {
+            eth: `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 32C24.8366 32 32 24.8366 32 16C32 7.16344 24.8366 0 16 0C7.16344 0 0 7.16344 0 16C0 24.8366 7.16344 32 16 32Z" fill="#627EEA"/><path d="M16.498 4V12.87L23.995 16.22L16.498 4Z" fill="white" fill-opacity="0.6"/><path d="M16.498 4L9 16.22L16.498 12.87V4Z" fill="white"/><path d="M16.498 21.968V27.995L24 17.616L16.498 21.968Z" fill="white" fill-opacity="0.6"/><path d="M16.498 27.995V21.967L9 17.616L16.498 27.995Z" fill="white"/><path d="M16.498 20.573L23.995 16.22L16.498 12.872V20.573Z" fill="white" fill-opacity="0.2"/><path d="M9 16.22L16.498 20.573V12.872L9 16.22Z" fill="white" fill-opacity="0.6"/></svg>`,
+            bsc: `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#F3BA2F"/><path d="M12.116 14.404L16 10.52l3.886 3.886 2.26-2.26L16 6l-6.144 6.144 2.26 2.26zM6 16l2.26-2.26L10.52 16l-2.26 2.26L6 16zm6.116 1.596L16 21.48l3.886-3.886 2.26 2.259L16 26l-6.144-6.144-.003-.003 2.263-2.257zM21.48 16l2.26-2.26L26 16l-2.26 2.26L21.48 16zm-3.188-.002h.002L16 13.706 14.294 15.4l-.002.002-.2.2-.29.29-.002.002.002.002L16 18.292l2.293-2.293.001-.001h-.002z" fill="#fff"/></svg>`,
+            polygon: `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#8247E5"/><path d="M21.092 12.693c-.369-.215-.848-.215-1.254 0l-2.879 1.654-1.955 1.078-2.879 1.653c-.369.216-.848.216-1.254 0l-2.288-1.294c-.369-.215-.627-.61-.627-1.042V12.19c0-.431.221-.826.627-1.042l2.25-1.258c.37-.216.85-.216 1.256 0l2.25 1.258c.37.216.628.611.628 1.042v1.654l1.955-1.115v-1.653a1.16 1.16 0 00-.627-1.042l-4.17-2.372c-.369-.216-.848-.216-1.254 0l-4.244 2.372A1.16 1.16 0 006 11.076v4.78c0 .432.221.827.627 1.043l4.244 2.372c.369.215.849.215 1.254 0l2.879-1.618 1.955-1.114 2.879-1.617c.369-.216.848-.216 1.254 0l2.251 1.258c.37.215.627.61.627 1.042v2.552c0 .431-.22.826-.627 1.042l-2.25 1.294c-.37.216-.85.216-1.255 0l-2.251-1.258c-.37-.216-.628-.611-.628-1.042v-1.654l-1.955 1.115v1.653c0 .431.221.827.627 1.042l4.244 2.372c.369.216.848.216 1.254 0l4.244-2.372c.369-.215.627-.61.627-1.042v-4.78a1.16 1.16 0 00-.627-1.042l-4.28-2.409z" fill="#fff"/></svg>`,
+            arbitrum: `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#2D374B"/><path d="M17.876 15.639l2.106 3.428 3.18-4.857-5.286 1.43zm-1.137 4.545l-4.18-6.768 7.72 11.584h2.854l-6.394-4.816z" fill="#28A0F0"/><path d="M8.864 19.116l2.326 3.884h2.854l-3.54-5.902-1.64 2.018zm7.875-7.7l2.137 3.223 1.43-.387-2.427-3.944-1.14 1.108z" fill="#fff"/><path d="M11.19 23l5.636-8.41L11.19 23zm5.636-8.41L23.162 14.21l-6.336 10.79 2.854-.012-2.854.012z" fill="#96BEDC"/></svg>`,
+            optimism: `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#FF0420"/><path d="M10.904 20.36c-1.108 0-2.028-.308-2.76-.924-.724-.624-1.086-1.472-1.086-2.544 0-.416.056-.868.168-1.356.28-1.224.788-2.18 1.524-2.868.744-.696 1.692-1.044 2.844-1.044 1.1 0 2.012.304 2.736.912.724.6 1.086 1.428 1.086 2.484 0 .432-.056.9-.168 1.404-.272 1.224-.78 2.184-1.524 2.88-.736.704-1.696 1.056-2.88 1.056h.06zm.216-1.8c.552 0 1.02-.224 1.404-.672.392-.448.668-1.1.828-1.956.08-.4.12-.776.12-1.128 0-.52-.116-.924-.348-1.212-.224-.296-.564-.444-1.02-.444-.552 0-1.024.224-1.416.672-.384.448-.66 1.1-.828 1.956-.08.4-.12.772-.12 1.116 0 .528.116.936.348 1.224.24.296.58.444 1.02.444h.012zm8.128 1.632h-2.196l1.632-7.152h3.516c.936 0 1.652.212 2.148.636.504.424.756 1.008.756 1.752 0 .344-.048.7-.144 1.068-.224.896-.64 1.568-1.248 2.016-.608.448-1.392.672-2.352.672h-1.38l-.732 3.008v-2zm1.344-4.536l-.336 1.476h1.116c.368 0 .68-.092.936-.276.256-.184.424-.46.504-.828.032-.144.048-.276.048-.396 0-.24-.076-.42-.228-.54-.144-.128-.368-.192-.672-.192h-1.116l-.252.756z" fill="#fff"/></svg>`,
+            base: `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#0052FF"/><path d="M15.998 26c5.523 0 10-4.477 10-10s-4.477-10-10-10c-5.28 0-9.604 4.094-9.973 9.273h13.07v1.454H6.025C6.394 21.906 10.718 26 15.998 26z" fill="#fff"/></svg>`,
+            avalanche: `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#E84142"/><path d="M20.614 21.5h3.17c.59 0 .882 0 1.063-.1a.87.87 0 00.408-.524c.054-.2-.012-.447-.143-.94l-5.67-14.17c-.14-.526-.21-.789-.347-.895a.87.87 0 00-.545-.196c-.215 0-.45.131-.92.394L11.4 9.242c-.47.263-.705.394-.831.586a.87.87 0 00-.137.593c.027.222.182.447.491.897l5.99 8.702c.248.361.372.542.534.666a1.305 1.305 0 00.622.26c.199.029.415-.007.847-.078l1.698-.368zm-8.982 0H8.216c-.59 0-.885 0-1.065-.1a.87.87 0 01-.408-.524c-.054-.2.012-.447.143-.94l1.796-4.49c.14-.35.21-.526.328-.632a.87.87 0 01.477-.222c.19-.022.398.05.815.194l3.07.998-1.741 5.716z" fill="#fff"/></svg>`,
+            fantom: `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#1969FF"/><path d="M15.203 5.385a1.587 1.587 0 011.594 0l4.656 2.67c.492.282.797.803.797 1.363v5.341c0 .56-.305 1.081-.797 1.363l-4.656 2.67a1.587 1.587 0 01-1.594 0l-4.656-2.67a1.578 1.578 0 01-.797-1.363V9.418c0-.56.305-1.081.797-1.363l4.656-2.67zM9.75 17.11v5.472c0 .56.305 1.081.797 1.363l4.656 2.67c.492.283 1.102.283 1.594 0l4.656-2.67c.492-.282.797-.803.797-1.363V17.11L16.797 19.78a1.587 1.587 0 01-1.594 0L9.75 17.11z" fill="#fff"/></svg>`,
+            cronos: `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#002D74"/><path d="M16 6l8.66 5v10L16 26l-8.66-5V11L16 6z" stroke="#fff" stroke-width="1.5"/><path d="M16 10l4.33 2.5v5L16 20l-4.33-2.5v-5L16 10z" fill="#fff"/></svg>`,
+            pulse: `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#171717"/><path d="M16 6c5.523 0 10 4.477 10 10s-4.477 10-10 10S6 21.523 6 16 10.477 6 16 6z" stroke="#00FF00" stroke-width="2"/><path d="M10 16h3l2-4 2 8 2-6 2 2h3" stroke="#00FF00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+            blackfort: `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="16" fill="#0A1628"/><path d="M16 7l7 4v10l-7 4-7-4V11l7-4z" stroke="#00D4FF" stroke-width="1.5"/><path d="M16 11l3.5 2v4L16 19l-3.5-2v-4L16 11z" fill="#00D4FF"/><circle cx="16" cy="15" r="2" fill="#0A1628"/></svg>`
+        };
+        
         // Chain EVM disponibili per Moralis
         const EVM_CHAINS = {
-            'eth': { name: 'Ethereum', color: '#627eea', icon: '⟠' },
-            'bsc': { name: 'BSC', color: '#f3ba2f', icon: '🔶' },
-            'polygon': { name: 'Polygon', color: '#8247e5', icon: '🟣' },
-            'arbitrum': { name: 'Arbitrum', color: '#28a0f0', icon: '🔵' },
-            'optimism': { name: 'Optimism', color: '#ff0420', icon: '🔴' },
-            'base': { name: 'Base', color: '#0052ff', icon: '🔷' },
-            'avalanche': { name: 'Avalanche', color: '#e84142', icon: '🔺' },
-            'fantom': { name: 'Fantom', color: '#1969ff', icon: '👻' },
-            'cronos': { name: 'Cronos', color: '#002d74', icon: '🦎' },
-            'pulse': { name: 'PulseChain', color: '#00ff00', icon: '💚' },
-            'blackfort': { name: 'BlackFort', color: '#00d4ff', icon: '🏰' }
+            'eth': { name: 'Ethereum', color: '#627eea', symbol: 'ETH' },
+            'bsc': { name: 'BNB Chain', color: '#f3ba2f', symbol: 'BNB' },
+            'polygon': { name: 'Polygon', color: '#8247e5', symbol: 'MATIC' },
+            'arbitrum': { name: 'Arbitrum', color: '#28a0f0', symbol: 'ARB' },
+            'optimism': { name: 'Optimism', color: '#ff0420', symbol: 'OP' },
+            'base': { name: 'Base', color: '#0052ff', symbol: 'ETH' },
+            'avalanche': { name: 'Avalanche', color: '#e84142', symbol: 'AVAX' },
+            'fantom': { name: 'Fantom', color: '#1969ff', symbol: 'FTM' },
+            'cronos': { name: 'Cronos', color: '#002d74', symbol: 'CRO' },
+            'pulse': { name: 'PulseChain', color: '#00ff00', symbol: 'PLS' },
+            'blackfort': { name: 'BlackFort', color: '#00d4ff', symbol: 'BXN' }
         };
         
         // Chain principali (default)
@@ -924,16 +1109,21 @@
             let html = '';
             for (const [key, chain] of Object.entries(EVM_CHAINS)) {
                 const isChecked = selectedChains.includes(key);
+                const iconSvg = CHAIN_ICONS[key] || '';
                 html += `
-                    <label class="chain-checkbox" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:${isChecked ? chain.color + '20' : 'var(--bg-secondary)'};border:1px solid ${isChecked ? chain.color : 'var(--border)'};border-radius:8px;cursor:pointer;transition:all 0.2s;">
+                    <label class="chain-selector-item ${isChecked ? 'selected' : ''}" data-chain="${key}">
                         <input type="checkbox" 
                                id="chain_${key}" 
                                value="${key}" 
                                ${isChecked ? 'checked' : ''} 
                                onchange="toggleChain('${key}')"
-                               style="width:16px;height:16px;accent-color:${chain.color};">
-                        <span style="font-size:16px;">${chain.icon}</span>
-                        <span style="font-size:13px;font-weight:${isChecked ? '600' : '400'};color:${isChecked ? chain.color : 'var(--text-primary)'};">${chain.name}</span>
+                               style="display:none;">
+                        <div class="chain-icon">${iconSvg}</div>
+                        <div class="chain-info">
+                            <span class="chain-name">${chain.name}</span>
+                            <span class="chain-symbol">${chain.symbol}</span>
+                        </div>
+                        <div class="chain-check">${isChecked ? '✓' : ''}</div>
                     </label>
                 `;
             }
@@ -945,22 +1135,18 @@
         function toggleChain(chainKey) {
             const checkbox = document.getElementById(`chain_${chainKey}`);
             const chain = EVM_CHAINS[chainKey];
-            const label = checkbox.closest('.chain-checkbox');
+            const label = document.querySelector(`.chain-selector-item[data-chain="${chainKey}"]`);
             
             if (checkbox.checked) {
                 if (!AppState.selectedChains.includes(chainKey)) {
                     AppState.selectedChains.push(chainKey);
                 }
-                label.style.background = chain.color + '20';
-                label.style.borderColor = chain.color;
-                label.querySelector('span:last-child').style.color = chain.color;
-                label.querySelector('span:last-child').style.fontWeight = '600';
+                label.classList.add('selected');
+                label.querySelector('.chain-check').textContent = '✓';
             } else {
                 AppState.selectedChains = AppState.selectedChains.filter(c => c !== chainKey);
-                label.style.background = 'var(--bg-secondary)';
-                label.style.borderColor = 'var(--border)';
-                label.querySelector('span:last-child').style.color = 'var(--text-primary)';
-                label.querySelector('span:last-child').style.fontWeight = '400';
+                label.classList.remove('selected');
+                label.querySelector('.chain-check').textContent = '';
             }
             
             // Salva in localStorage
@@ -1260,7 +1446,6 @@
             if (!currentWalletAddress) return;
             
             const state = Database.getState();
-            const blacklist = getBlacklist();
             
             // Trova token di questo wallet (esclusi blacklist)
             const walletBalances = [];
@@ -1275,20 +1460,15 @@
                 
                 if (!isMatch) continue;
                 
-                // ⚠️ IMPORTANTE: Filtra token in blacklist
-                if (blacklist.includes(balance.coin.toLowerCase())) {
+                // ⚠️ Blacklist basata su CONTRACT ADDRESS (come v5.2)
+                const contractAddr = balance.contractAddress || `native-${balance.chain}`;
+                if (isBlacklisted(contractAddr)) {
                     console.log(`  ❌ Escluso (blacklist): ${balance.coin}`);
                     continue;
                 }
                 
-                // Filtra anche per contract address in blacklist
-                if (balance.contractAddress && blacklist.includes(balance.contractAddress.toLowerCase())) {
-                    console.log(`  ❌ Escluso (blacklist contract): ${balance.coin}`);
-                    continue;
-                }
-                
-                // Filtra pattern scam
-                if (isScamToken(balance.coin, 0, 0)) {
+                // Filtra pattern scam (come v5.2)
+                if (isScamToken(balance.name, balance.coin)) {
                     console.log(`  ❌ Escluso (scam pattern): ${balance.coin}`);
                     continue;
                 }
@@ -1331,197 +1511,176 @@
             renderWalletTransactions(walletTx);
         }
         
-        // Lista token scam/spam da filtrare (MOLTO ESPANSA)
+        // Lista token scam/spam da filtrare (LOGICA v5.2 - SEMPLICE ED EFFICACE)
         const SCAM_PATTERNS = [
-            // URL e domini
-            'visit', 'claim', '.com', '.org', '.xyz', '.net', '.io', '.co', '.me', '.app',
-            'http', 'https', 'www', '://',
-            // Parole chiave scam
-            'airdrop', 'bonus', 'free', 'gift', 'reward', 'giveaway', 'winner', 'won',
-            'double', 'triple', '100x', '1000x', '10000x', 'moon', 'pump',
-            // Personaggi famosi (spesso usati per scam)
-            'elon', 'musk', 'trump', 'biden', 'obama', 'zuck', 'bezos', 'gates',
-            // Pattern specifici scam
-            'voucher', 'coupon', 'redeem', 'activate', 'unlock', 'verify',
-            'congratulation', 'selected', 'eligible', 'qualified',
-            // Caratteri sospetti
-            '$', '#', '!', '?', '*', '~', '`', '|', '\\',
-            // Parole sospette
-            'porn', 'xxx', 'adult', 'sex', 'nude', 'nsfw',
-            'casino', 'bet', 'gambling', 'lottery', 'jackpot',
-            'hack', 'exploit', 'bot', 'sniper',
-            // Fake tokens
-            'fake', 'scam', 'rug', 'honeypot', 'honey',
-            // Pattern airdrop spam
-            'drop', 'air drop', 'surprise', 'mystery',
-            // Nomi troppo generici spesso usati per scam
-            'token', 'coin', 'crypto', 'defi', 'nft', 'swap', 'finance',
-            // Social/marketing scam
-            'telegram', 'discord', 'twitter', 'follow', 'join', 'click',
-            // Numeri nel nome (spesso scam)
-            '2.0', '3.0', 'v2', 'v3', 'new', 'old',
-            // Pattern specifici noti
-            'safemoon', 'safestar', 'babydoge', 'minidoge', 'elondoge',
-            'shibainu', 'flokiinu', 'dogelon',
-            // Wrapped fake
-            'wrapped', 'bridged', 'pegged'
+            'visit', 'claim', 'reward', '.com', '.org', '.io', '.xyz', 
+            'airdrop', 'bonus', 'free', 'gift', 'http', '$', '#'
         ];
         
-        // Token legittimi (mai filtrati automaticamente) - ESPANSO
+        // Token legittimi (mai filtrati automaticamente)
         const LEGITIMATE_TOKENS = [
-            // Top 50 per market cap
             'BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'AVAX', 'DOT', 'LINK', 'MATIC', 'POL',
-            'LTC', 'BCH', 'ATOM', 'UNI', 'AAVE', 'MKR', 'SHIB', 'DOGE', 'PEPE', 'FLOKI',
-            'TRX', 'TON', 'XLM', 'XMR', 'ETC', 'HBAR', 'FIL', 'VET', 'ALGO', 'EGLD',
-            // Stablecoins
-            'USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FRAX', 'USDD', 'FDUSD', 'PYUSD', 'GUSD',
-            'USDP', 'LUSD', 'SUSD', 'RAI', 'MIM', 'DOLA', 'CRVUSD', 'GHO',
-            // Terra/Cosmos
+            'LTC', 'ATOM', 'UNI', 'AAVE', 'MKR', 'SHIB', 'DOGE', 'PEPE', 'FLOKI',
+            'USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FRAX', 'USDD', 'FDUSD',
             'PLS', 'PLSX', 'HEX', 'INC', 'LUNC', 'USTC', 'OSMO', 'LUNA',
-            'INJ', 'SEI', 'TIA', 'KAVA', 'RUNE', 'KUJI', 'SCRT',
-            // Wrapped tokens
-            'WETH', 'WBTC', 'WBNB', 'WPLS', 'WMATIC', 'WAVAX', 'WFTM', 'WCRO',
-            'STETH', 'RETH', 'CBETH', 'FRXETH', 'WSTETH',
-            // Layer 2
-            'CRO', 'FTM', 'ARB', 'OP', 'NEAR', 'APT', 'SUI', 'ZK', 'STRK', 'MANTA',
-            'METIS', 'BOBA', 'CELO', 'MOVR', 'GLMR', 'ASTR',
-            // Exchange tokens
-            'CAKE', 'OKB', 'BXN', 'BGB', 'KCS', 'GT', 'CRV', 'BAL', 'GMX', 'DYDX',
-            'JOE', 'SUSHI', 'QUICK', 'VELO', 'AERO',
-            // Gaming/Metaverse
-            'SAND', 'MANA', 'AXS', 'GALA', 'ENJ', 'IMX', 'PRIME', 'GODS', 'ILV', 'YGG',
-            'MAVIA', 'PIXEL', 'RONIN', 'RON', 'SLP', 'MAGIC', 'TREASURE', 'LOOT',
-            // AI tokens
-            'RENDER', 'FET', 'AGIX', 'OCEAN', 'GRT', 'RNDR', 'WLD', 'TAO', 'ARKM', 'AKT',
-            // DeFi blue chips
-            'LDO', 'RPL', 'FXS', 'CVX', 'PENDLE', 'EIGEN', 'ENA', 'ETHFI',
-            'BLUR', 'APE', 'COMP', 'SNX', '1INCH', 'PERP', 'KWENTA',
-            // Altri token comuni
-            'SHIFU', 'BUBBLE', 'CIV', 'STONE', 'ONE', 'ZRX', 'BAT', 'ENS', 'LRC',
-            'STORJ', 'ANKR', 'CHZ', 'AUDIO', 'MASK', 'API3', 'BAND',
-            // Meme legittimi
-            'BONK', 'WIF', 'POPCAT', 'MEW', 'BRETT', 'TOSHI', 'MOCHI', 'NEIRO',
-            'TURBO', 'LADYS', 'WOJAK', 'BITCOIN', 'MEME', 'COQ', 'BOME'
+            'WETH', 'WBTC', 'WBNB', 'WPLS', 'STETH', 'RETH', 'CBETH',
+            'CRO', 'FTM', 'ARB', 'OP', 'NEAR', 'APT', 'SUI', 'TON', 'TRX',
+            'CAKE', 'OKB', 'BXN', 'BGB', 'KCS', 'GT', 'INJ', 'SEI', 'TIA',
+            'SAND', 'MANA', 'AXS', 'GALA', 'ENJ', 'IMX', 'MAVIA', 'PIXEL',
+            'BLUR', 'APE', 'LDO', 'RENDER', 'FET', 'GRT', 'WLD', 'TAO',
+            'BONK', 'WIF', 'BRETT', 'POPCAT', 'NEIRO', 'TURBO', 'PRIME'
         ];
         
-        function isScamToken(name, amount = 0, price = 0) {
-            if (!name) return false;
-            
-            const lower = (name || '').toLowerCase();
-            const upper = (name || '').toUpperCase();
+        // Filtro spam SEMPLICE come v5.2
+        function isScamToken(name, symbol) {
+            const n = (name || '').toLowerCase();
+            const s = (symbol || '').toLowerCase();
             
             // Token legittimi - mai filtrati
-            if (LEGITIMATE_TOKENS.includes(upper)) {
+            if (LEGITIMATE_TOKENS.includes((symbol || '').toUpperCase())) {
                 return false;
             }
             
-            // Check pattern spam nel nome/simbolo
+            // Pattern spam (come v5.2)
             for (const pattern of SCAM_PATTERNS) {
-                if (lower.includes(pattern)) {
-                    console.log(`🚫 Scam pattern "${pattern}" trovato in: ${name}`);
+                if (n.includes(pattern) || s.includes(pattern)) {
                     return true;
                 }
             }
             
-            // Nome troppo lungo (> 30 caratteri) = spam (ridotto da 40)
-            if (name.length > 30) {
-                console.log(`🚫 Nome troppo lungo (${name.length} char): ${name}`);
-                return true;
-            }
-            
-            // Nome troppo corto (1 char) = sospetto
-            if (name.length === 1) {
-                console.log(`🚫 Nome troppo corto: ${name}`);
-                return true;
-            }
-            
-            // Caratteri non ASCII nel nome = molto sospetto
-            if (/[^\x00-\x7F]/.test(name)) {
-                console.log(`🚫 Caratteri non-ASCII in: ${name}`);
-                return true;
-            }
-            
-            // Milioni di unità E prezzo €0 = quasi certamente scam airdrop
-            if (amount > 1000000 && price === 0) {
-                console.log(`🚫 Airdrop scam (${amount.toLocaleString()} unità, €0): ${name}`);
-                return true;
-            }
-            
-            // Miliardi di unità = scam (anche con prezzo)
-            if (amount > 1000000000000) {
-                console.log(`🚫 Quantità assurda (${amount.toLocaleString()}): ${name}`);
+            // Nome troppo lungo (> 40 char) = spam (come v5.2)
+            if ((name || '').length > 40) {
                 return true;
             }
             
             return false;
         }
         
-        // Blacklist personalizzata (salvata in localStorage)
-        function getBlacklist() {
-            const saved = localStorage.getItem('cryptofolio_blacklist');
-            return saved ? JSON.parse(saved) : [];
+        // ═══════════════════════════════════════════════════════════
+        // BLACKLIST (come v5.2 - basata su CONTRACT ADDRESS)
+        // ═══════════════════════════════════════════════════════════
+        
+        // tokenBlacklist = array di contract address
+        // blacklistNames = { contractAddress: symbolName }
+        let tokenBlacklist = JSON.parse(localStorage.getItem('cryptofolio_blacklist') || '[]');
+        let blacklistNames = JSON.parse(localStorage.getItem('cryptofolio_blacklist_names') || '{}');
+        
+        function isBlacklisted(contractAddress) {
+            if (!contractAddress) return false;
+            return tokenBlacklist.includes(contractAddress.toLowerCase());
         }
         
-        function saveBlacklist(list) {
-            localStorage.setItem('cryptofolio_blacklist', JSON.stringify(list));
-        }
-        
-        function addToBlacklist(coin) {
-            const list = getBlacklist();
-            const coinLower = coin.toLowerCase();
-            if (!list.includes(coinLower)) {
-                list.push(coinLower);
-                saveBlacklist(list);
-                log(`🚫 ${coin} aggiunto alla blacklist`);
+        // Nascondi token (come v5.2)
+        function hideToken(contractAddress, symbol) {
+            const lc = (contractAddress || '').toLowerCase();
+            if (!lc) return;
+            
+            if (!tokenBlacklist.includes(lc)) {
+                tokenBlacklist.push(lc);
+                blacklistNames[lc] = symbol || lc.slice(0, 10);
                 
-                // ⚠️ IMPORTANTE: Rimuovi dal database tutti i balance di questo token
+                localStorage.setItem('cryptofolio_blacklist', JSON.stringify(tokenBlacklist));
+                localStorage.setItem('cryptofolio_blacklist_names', JSON.stringify(blacklistNames));
+                
+                log(`🚫 ${symbol || 'Token'} nascosto (${lc.slice(0,10)}...)`);
+                
+                // Rimuovi dal database
                 const state = Database.getState();
                 const keysToRemove = [];
                 
                 for (const [key, balance] of Object.entries(state.balances)) {
-                    if (balance.coin && balance.coin.toLowerCase() === coinLower) {
-                        keysToRemove.push(key);
-                    }
-                    // Controlla anche contract address
-                    if (balance.contractAddress && balance.contractAddress.toLowerCase() === coinLower) {
+                    const balContract = (balance.contractAddress || '').toLowerCase();
+                    if (balContract === lc) {
                         keysToRemove.push(key);
                     }
                 }
                 
-                // Rimuovi dal database
                 for (const key of keysToRemove) {
                     delete state.balances[key];
-                    Logger.info('Blacklist', `Rimosso dal DB: ${key}`);
                 }
                 
                 if (keysToRemove.length > 0) {
                     Database.save();
-                    log(`🗑️ Rimossi ${keysToRemove.length} record dal database`);
                 }
-                
-                // Aggiorna tutte le view
-                updateWalletDetail();
-                updateDashboard();
-                updateTransactionTable();
+            }
+            
+            updateBlacklistPanel();
+            updateWalletDetail();
+            updateDashboard();
+        }
+        
+        // Ripristina token (come v5.2)
+        function restoreToken(contractAddress) {
+            const lc = (contractAddress || '').toLowerCase();
+            tokenBlacklist = tokenBlacklist.filter(x => x !== lc);
+            delete blacklistNames[lc];
+            
+            localStorage.setItem('cryptofolio_blacklist', JSON.stringify(tokenBlacklist));
+            localStorage.setItem('cryptofolio_blacklist_names', JSON.stringify(blacklistNames));
+            
+            log(`✅ Token ripristinato`);
+            
+            updateBlacklistPanel();
+            updateWalletDetail();
+            updateDashboard();
+        }
+        
+        // Svuota blacklist
+        function clearBlacklist() {
+            if (!confirm('Svuotare la lista dei token nascosti?')) return;
+            
+            tokenBlacklist = [];
+            blacklistNames = {};
+            localStorage.removeItem('cryptofolio_blacklist');
+            localStorage.removeItem('cryptofolio_blacklist_names');
+            
+            log('🗑️ Blacklist svuotata');
+            
+            updateBlacklistPanel();
+            updateWalletDetail();
+            updateDashboard();
+        }
+        
+        // Toggle pannello blacklist
+        function toggleBlacklist() {
+            const panel = document.getElementById('blacklistPanel');
+            if (panel) {
+                panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
             }
         }
         
-        function removeFromBlacklist(coin) {
-            let list = getBlacklist();
-            const coinLower = coin.toLowerCase();
-            list = list.filter(c => c !== coinLower);
-            saveBlacklist(list);
-            log(`✅ ${coin} rimosso dalla blacklist`);
-            // Aggiorna tutte le view
-            updateWalletDetail();
-            updateDashboard();
-            updateTransactionTable();
+        // Aggiorna pannello blacklist
+        function updateBlacklistPanel() {
+            const countEl = document.getElementById('blacklistCount');
+            if (countEl) {
+                countEl.textContent = tokenBlacklist.length;
+            }
+            
+            const content = document.getElementById('blacklistContent');
+            if (!content) return;
+            
+            if (tokenBlacklist.length === 0) {
+                content.innerHTML = '<p class="text-secondary" style="padding:12px;">Nessun token nascosto</p>';
+                return;
+            }
+            
+            let html = '';
+            for (const addr of tokenBlacklist) {
+                const name = blacklistNames[addr] || addr.slice(0, 10) + '...';
+                html += `
+                    <div class="blacklist-item">
+                        <span>${name}</span>
+                        <button class="btn-restore" onclick="restoreToken('${addr}')">↩️ Ripristina</button>
+                    </div>
+                `;
+            }
+            content.innerHTML = html;
         }
         
-        function isBlacklisted(coin) {
-            if (!coin) return false;
-            return getBlacklist().includes(coin.toLowerCase());
-        }
+        // Legacy compatibility
+        function getBlacklist() { return tokenBlacklist; }
+        function addToBlacklist(contract, symbol) { hideToken(contract, symbol); }
+        function removeFromBlacklist(contract) { restoreToken(contract); }
         
         // Rimuove TUTTI i token blacklistati dal database
         function cleanupBlacklistedTokens() {
@@ -1782,7 +1941,6 @@
         
         function renderWalletTokens(balances) {
             const container = document.getElementById('walletTokensList');
-            const blacklist = getBlacklist();
             
             // Filtra scam e blacklist se necessario
             let filtered = balances;
@@ -1791,12 +1949,14 @@
             
             if (!showScamTokens) {
                 filtered = balances.filter(bal => {
-                    if (isBlacklisted(bal.coin)) {
+                    // Blacklist basata su CONTRACT ADDRESS (come v5.2)
+                    const contractAddr = bal.contractAddress || `native-${bal.chain}`;
+                    if (isBlacklisted(contractAddr)) {
                         blacklistCount++;
                         return false;
                     }
-                    const price = PriceService.getPrice(bal.coin, 'eur');
-                    if (isScamToken(bal.coin, bal.amount, price)) {
+                    // Filtro spam (come v5.2)
+                    if (isScamToken(bal.name, bal.coin)) {
                         scamCount++;
                         return false;
                     }
@@ -1903,6 +2063,9 @@
                     const value = bal.amount * price;
                     const iconHtml = getTokenIcon(bal, chainInfo.color);
                     
+                    // Contract address (usato per blacklist come v5.2)
+                    const contractAddr = bal.contractAddress || `native-${chain}`;
+                    
                     // Link all'explorer per contract address
                     let contractLink = '';
                     if (bal.contractAddress) {
@@ -1914,6 +2077,7 @@
                         <tr style="border-bottom:1px solid var(--border);">
                             <td style="padding:12px;">
                                 <div class="flex items-center gap-8">
+                                    <button class="hide-btn" onclick="hideToken('${contractAddr}','${bal.coin}')" title="Nascondi token">✕</button>
                                     ${iconHtml}
                                     <div>
                                         <div style="font-weight:500;">${bal.coin}</div>
@@ -1925,9 +2089,6 @@
                             <td style="text-align:right;font-family:monospace;padding:12px;">${formatCrypto(bal.amount)}</td>
                             <td style="text-align:right;padding:12px;color:var(--text-secondary);">€${formatEUR(price)}</td>
                             <td style="text-align:right;font-weight:600;color:var(--green);padding:12px;">€${formatEUR(value)}</td>
-                            <td style="text-align:center;padding:12px;width:40px;">
-                                <button onclick="addToBlacklist('${bal.coin}')" title="Aggiungi a blacklist" style="background:none;border:none;cursor:pointer;font-size:14px;opacity:0.4;padding:4px;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4">✕</button>
-                            </td>
                         </tr>
                     `;
                 }

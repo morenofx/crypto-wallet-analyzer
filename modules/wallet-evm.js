@@ -44,85 +44,28 @@ const WalletEVM = (function() {
     };
     
     // ═══════════════════════════════════════════════════════════
-    // FILTRO SPAM/SCAM TOKEN (AGGRESSIVO)
+    // FILTRO SPAM/SCAM TOKEN (LOGICA v5.2 - SEMPLICE ED EFFICACE)
     // ═══════════════════════════════════════════════════════════
     
+    // Pattern spam ESATTI come v5.2 - FUNZIONANTI!
     const SPAM_PATTERNS = [
-        // URL e domini
-        'visit', 'claim', '.com', '.org', '.xyz', '.net', '.io', '.co', '.me', '.app',
-        'http', 'https', 'www', '://',
-        // Parole chiave scam
-        'airdrop', 'bonus', 'free', 'gift', 'reward', 'giveaway', 'winner', 'won',
-        'double', 'triple', '100x', '1000x', '10000x', 'moon', 'pump',
-        // Personaggi famosi
-        'elon', 'musk', 'trump', 'biden', 'obama', 'zuck', 'bezos', 'gates',
-        // Pattern specifici scam
-        'voucher', 'coupon', 'redeem', 'activate', 'unlock', 'verify',
-        'congratulation', 'selected', 'eligible', 'qualified',
-        // Caratteri sospetti
-        '$', '#', '!', '?', '*', '~', '`', '|', '\\',
-        // Parole sospette
-        'porn', 'xxx', 'adult', 'casino', 'bet', 'gambling', 'lottery',
-        'hack', 'exploit', 'bot', 'sniper',
-        // Fake tokens
-        'fake', 'scam', 'rug', 'honeypot', 'honey',
-        // Pattern airdrop spam
-        'drop', 'surprise', 'mystery',
-        // Social/marketing scam
-        'telegram', 'discord', 'twitter', 'follow', 'join', 'click',
-        // Pattern noti
-        'safemoon', 'safestar', 'babydoge', 'minidoge', 'elondoge'
-    ];
-    
-    // Token LEGITTIMI - mai filtrati
-    const LEGIT_TOKENS = [
-        'BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'AVAX', 'DOT', 'LINK', 'MATIC', 'POL',
-        'LTC', 'ATOM', 'UNI', 'AAVE', 'MKR', 'SHIB', 'DOGE', 'PEPE', 'FLOKI',
-        'USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FRAX', 'USDD', 'FDUSD',
-        'PLS', 'PLSX', 'HEX', 'INC', 'LUNC', 'USTC', 'OSMO', 'LUNA',
-        'WETH', 'WBTC', 'WBNB', 'WPLS', 'STETH', 'RETH', 'CBETH',
-        'CRO', 'FTM', 'ARB', 'OP', 'NEAR', 'APT', 'SUI', 'TON', 'TRX',
-        'CAKE', 'OKB', 'BXN', 'BGB', 'KCS', 'GT', 'INJ', 'SEI', 'TIA',
-        'SAND', 'MANA', 'AXS', 'GALA', 'ENJ', 'IMX', 'MAVIA', 'PIXEL',
-        'BLUR', 'APE', 'LDO', 'RENDER', 'FET', 'GRT', 'WLD', 'TAO',
-        'BONK', 'WIF', 'BRETT', 'POPCAT', 'MEW', 'NEIRO', 'TURBO'
+        'visit', 'claim', 'reward', '.com', '.org', '.io', '.xyz', 
+        'airdrop', 'bonus', 'free', 'gift', 'http', '$', '#'
     ];
     
     function isSpamToken(name, symbol) {
         const n = (name || '').toLowerCase();
-        const s = (symbol || '').toUpperCase();
+        const s = (symbol || '').toLowerCase();
         
-        // Token legittimi - MAI filtrati
-        if (LEGIT_TOKENS.includes(s)) {
-            return false;
-        }
-        
-        // Pattern spam
-        for (const pattern of SPAM_PATTERNS) {
-            if (n.includes(pattern)) {
-                Logger.info('WalletEVM', `🚫 Scam pattern "${pattern}": ${name}`);
+        // Pattern spam (come v5.2)
+        for (const p of SPAM_PATTERNS) {
+            if (n.includes(p) || s.includes(p)) {
                 return true;
             }
         }
         
-        // Nome troppo lungo (> 30 char) = spam
-        if ((name || '').length > 30) {
-            Logger.info('WalletEVM', `🚫 Nome troppo lungo (${name.length}): ${name}`);
-            return true;
-        }
-        
-        // Nome troppo corto (1 char)
-        if ((name || '').length === 1) {
-            return true;
-        }
-        
-        // Caratteri non-ASCII
-        if (/[^\x00-\x7F]/.test(name || '')) {
-            Logger.info('WalletEVM', `🚫 Caratteri non-ASCII: ${name}`);
-            return true;
-        }
-        
-        return false;
+        // Nome troppo lungo (> 40 char) = spam (come v5.2)
+        return (name || '').length > 40;
     }
     
     // ═══════════════════════════════════════════════════════════
