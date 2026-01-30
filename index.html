@@ -1295,6 +1295,7 @@
     <script src="modules/wallet-evm.js"></script>
     <script src="modules/wallet-cosmos.js"></script>
     <script src="modules/wallet-solana.js"></script>
+    <script src="modules/token-validator.js"></script>
     
     <!-- ═══════════════════════════════════════════════════════════════
          APP MAIN
@@ -1879,52 +1880,58 @@
             renderWalletTransactions(walletTx);
         }
         
-        // Lista token scam/spam da filtrare (LOGICA v5.2 - SEMPLICE ED EFFICACE)
-        const SCAM_PATTERNS = [
-            'visit', 'claim', 'reward', '.com', '.org', '.io', '.xyz', 
-            'airdrop', 'bonus', 'free', 'gift', 'http', '$', '#'
-        ];
+        // ═══════════════════════════════════════════════════════════
+        // FILTRO SPAM/SCAM - Usa TokenValidator se disponibile
+        // ═══════════════════════════════════════════════════════════
         
-        // Token legittimi (mai filtrati automaticamente)
-        const LEGITIMATE_TOKENS = [
-            'BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'AVAX', 'DOT', 'LINK', 'MATIC', 'POL',
-            'LTC', 'ATOM', 'UNI', 'AAVE', 'MKR', 'SHIB', 'DOGE', 'PEPE', 'FLOKI',
-            'USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FRAX', 'USDD', 'FDUSD',
-            'PLS', 'PLSX', 'HEX', 'INC', 'LUNC', 'USTC', 'OSMO', 'LUNA',
-            'WETH', 'WBTC', 'WBNB', 'WPLS', 'STETH', 'RETH', 'CBETH',
-            'CRO', 'FTM', 'ARB', 'OP', 'NEAR', 'APT', 'SUI', 'TON', 'TRX',
-            'CAKE', 'OKB', 'BXN', 'BGB', 'KCS', 'GT', 'INJ', 'SEI', 'TIA',
-            'SAND', 'MANA', 'AXS', 'GALA', 'ENJ', 'IMX', 'MAVIA', 'PIXEL',
-            'BLUR', 'APE', 'LDO', 'RENDER', 'FET', 'GRT', 'WLD', 'TAO',
-            'BONK', 'WIF', 'BRETT', 'POPCAT', 'NEIRO', 'TURBO', 'PRIME'
-        ];
-        
-        // Filtro spam SEMPLICE come v5.2
+        /**
+         * Check se token è spam/scam
+         * Usa il modulo TokenValidator avanzato se disponibile
+         */
         function isScamToken(name, symbol) {
-            // Converti in stringa se non lo è
+            // Usa TokenValidator se disponibile
+            if (typeof TokenValidator !== 'undefined') {
+                const result = TokenValidator.quickCheck(name, symbol);
+                return result.isSpam;
+            }
+            
+            // Fallback: logica semplice v5.2
             const nameStr = String(name || '');
             const symStr = String(symbol || '');
-            
             const n = nameStr.toLowerCase();
             const s = symStr.toLowerCase();
             
-            // Token legittimi - mai filtrati
-            if (LEGITIMATE_TOKENS.includes(symStr.toUpperCase())) {
-                return false;
+            // Whitelist base
+            const WHITELIST = ['BTC','ETH','BNB','SOL','USDT','USDC','DAI','PLS','HEX','BXN'];
+            if (WHITELIST.includes(symStr.toUpperCase())) return false;
+            
+            // Pattern spam
+            const PATTERNS = ['visit','claim','reward','.com','.org','.io','airdrop','free','http','$','#'];
+            for (const p of PATTERNS) {
+                if (n.includes(p) || s.includes(p)) return true;
             }
             
-            // Pattern spam (come v5.2)
-            for (const pattern of SCAM_PATTERNS) {
-                if (n.includes(pattern) || s.includes(pattern)) {
-                    return true;
-                }
+            return nameStr.length > 40;
+        }
+        
+        /**
+         * Validazione completa token (con prezzo/valore)
+         */
+        function validateToken(token) {
+            if (typeof TokenValidator !== 'undefined') {
+                return TokenValidator.validate(token);
             }
-            
-            // Nome troppo lungo (> 40 char) = spam (come v5.2)
-            if (nameStr.length > 40) {
-                return true;
+            // Fallback
+            return { isValid: !isScamToken(token.name, token.symbol), isSpam: false };
+        }
+        
+        /**
+         * Check se token è in whitelist
+         */
+        function isWhitelistedToken(symbol) {
+            if (typeof TokenValidator !== 'undefined') {
+                return TokenValidator.isWhitelisted(symbol);
             }
-            
             return false;
         }
         

@@ -47,24 +47,29 @@ const WalletEVM = (function() {
     // FILTRO SPAM/SCAM TOKEN (LOGICA v5.2 - SEMPLICE ED EFFICACE)
     // ═══════════════════════════════════════════════════════════
     
-    // Pattern spam ESATTI come v5.2 - FUNZIONANTI!
-    const SPAM_PATTERNS = [
-        'visit', 'claim', 'reward', '.com', '.org', '.io', '.xyz', 
-        'airdrop', 'bonus', 'free', 'gift', 'http', '$', '#'
-    ];
-    
+    /**
+     * Check spam usando TokenValidator se disponibile
+     */
     function isSpamToken(name, symbol) {
-        const n = (name || '').toLowerCase();
-        const s = (symbol || '').toLowerCase();
-        
-        // Pattern spam (come v5.2)
-        for (const p of SPAM_PATTERNS) {
-            if (n.includes(p) || s.includes(p)) {
-                return true;
-            }
+        // Usa TokenValidator se disponibile (modulo avanzato)
+        if (typeof TokenValidator !== 'undefined') {
+            const result = TokenValidator.quickCheck(name, symbol);
+            return result.isSpam;
         }
         
-        // Nome troppo lungo (> 40 char) = spam (come v5.2)
+        // Fallback: pattern semplici v5.2
+        const n = String(name || '').toLowerCase();
+        const s = String(symbol || '').toLowerCase();
+        
+        const SPAM_PATTERNS = [
+            'visit', 'claim', 'reward', '.com', '.org', '.io', '.xyz', 
+            'airdrop', 'bonus', 'free', 'gift', 'http', '$', '#'
+        ];
+        
+        for (const p of SPAM_PATTERNS) {
+            if (n.includes(p) || s.includes(p)) return true;
+        }
+        
         return (name || '').length > 40;
     }
     
