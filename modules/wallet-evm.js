@@ -269,7 +269,8 @@ const WalletEVM = (function() {
                                 continue;
                             }
                             
-                            if (balance > 0) {
+                            // Filtra balance troppo piccoli (< 0.0000001) - dust
+                            if (balance > 0.0000001) {
                                 allBalances.push(createBalance({
                                     coin: token.symbol || 'UNKNOWN',
                                     name: token.name || token.symbol || 'Unknown',
