@@ -1059,11 +1059,12 @@
                     </div>
                 </div>
                 
-                <!-- Stats -->
+                <!-- Stats con Toggle Valuta -->
                 <div class="stats-grid">
                     <div class="stat-card">
                         <div class="label">💰 Valore Totale</div>
-                        <div class="value" id="detailTotalValue">€0,00</div>
+                        <div class="value" id="detailTotalValue">$0.00</div>
+                        <div class="text-secondary" style="font-size:12px;margin-top:4px;" id="detailTotalValueAlt">€0,00</div>
                     </div>
                     <div class="stat-card">
                         <div class="label">🪙 Token</div>
@@ -1072,6 +1073,11 @@
                     <div class="stat-card">
                         <div class="label">📜 Transazioni</div>
                         <div class="value" id="detailTxCount">0</div>
+                    </div>
+                    <div class="stat-card" style="cursor:pointer;" onclick="toggleCurrency()">
+                        <div class="label">💱 Valuta</div>
+                        <div class="value" id="currencyToggle">🇺🇸 USD</div>
+                        <div class="text-secondary" style="font-size:10px;">Clicca per cambiare</div>
                     </div>
                 </div>
                 
@@ -1857,18 +1863,29 @@
                        txSource.includes(addrLower);
             });
             
-            // Calcola totale
-            let totalValue = 0;
+            // Calcola totale in entrambe le valute
+            let totalUSD = 0;
+            let totalEUR = 0;
             for (const bal of walletBalances) {
-                const price = PriceService.getPrice(bal.coin, 'eur');
-                bal.valueEUR = bal.amount * price;
-                totalValue += bal.valueEUR;
+                const priceUSD = PriceService.getPrice(bal.coin, 'usd');
+                const priceEUR = PriceService.getPrice(bal.coin, 'eur');
+                bal.valueUSD = bal.amount * priceUSD;
+                bal.valueEUR = bal.amount * priceEUR;
+                totalUSD += bal.valueUSD;
+                totalEUR += bal.valueEUR;
             }
             
-            // Aggiorna stats
-            document.getElementById('detailTotalValue').textContent = '€' + formatEUR(totalValue);
+            // Aggiorna stats con valuta selezionata + conversione
+            const mainValue = selectedCurrency === 'usd' ? totalUSD : totalEUR;
+            const altValue = selectedCurrency === 'usd' ? totalEUR : totalUSD;
+            
+            document.getElementById('detailTotalValue').textContent = formatValue(mainValue);
+            document.getElementById('detailTotalValueAlt').textContent = formatValue(altValue, getAltCurrency());
             document.getElementById('detailTokenCount').textContent = walletBalances.length;
             document.getElementById('detailTxCount').textContent = walletTx.length;
+            
+            // Aggiorna toggle valuta
+            updateCurrencyUI();
             
             // Render token list
             renderWalletTokens(walletBalances);
@@ -2076,6 +2093,56 @@
             updateWalletDetail();
             updateDashboard();
             updateTransactionTable();
+        }
+        
+        // ═══════════════════════════════════════════════════════════
+        // ⭐ SISTEMA MULTI-VALUTA USD/EUR
+        // ═══════════════════════════════════════════════════════════
+        
+        let selectedCurrency = localStorage.getItem('cryptofolio_currency') || 'usd';
+        const EUR_USD_RATE = 1.08; // Tasso approssimativo EUR/USD
+        
+        function toggleCurrency() {
+            selectedCurrency = selectedCurrency === 'usd' ? 'eur' : 'usd';
+            localStorage.setItem('cryptofolio_currency', selectedCurrency);
+            
+            updateCurrencyUI();
+            updateWalletDetail();
+            updateDashboard();
+        }
+        
+        function updateCurrencyUI() {
+            const toggle = document.getElementById('currencyToggle');
+            if (toggle) {
+                toggle.innerHTML = selectedCurrency === 'usd' ? '🇺🇸 USD' : '🇪🇺 EUR';
+            }
+        }
+        
+        function formatValue(value, currency = null) {
+            const curr = currency || selectedCurrency;
+            if (curr === 'usd') {
+                return '$' + new Intl.NumberFormat('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                }).format(value);
+            } else {
+                return '€' + new Intl.NumberFormat('it-IT', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                }).format(value);
+            }
+        }
+        
+        function convertCurrency(value, fromCurrency) {
+            if (fromCurrency === 'usd') {
+                return value / EUR_USD_RATE; // USD to EUR
+            } else {
+                return value * EUR_USD_RATE; // EUR to USD
+            }
+        }
+        
+        function getAltCurrency() {
+            return selectedCurrency === 'usd' ? 'eur' : 'usd';
         }
         
         // ═══════════════════════════════════════════════════════════
@@ -2539,11 +2606,26 @@
         };
         
         function getTokenIcon(bal, chainColor) {
-            const coinUpper = (bal.coin || '').toUpperCase();
+            const coinUpper = (bal.coin || '').toUpperCase().trim();
+            const coinClean = coinUpper.replace(/[^A-Z0-9]/g, ''); // Rimuove caratteri speciali
             
             // 1. PRIMA TOKEN_ICONS hardcoded (più affidabili!)
+            // Prova match esatto
             if (TOKEN_ICONS[coinUpper]) {
                 return `<img src="${TOKEN_ICONS[coinUpper]}" style="width:32px;height:32px;border-radius:50%;" onerror="this.outerHTML='<div style=\\'width:32px;height:32px;border-radius:50%;background:${chainColor}30;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;\\'>${coinUpper.slice(0,3)}</div>'">`;
+            }
+            
+            // Prova match pulito (senza caratteri speciali)
+            if (TOKEN_ICONS[coinClean]) {
+                return `<img src="${TOKEN_ICONS[coinClean]}" style="width:32px;height:32px;border-radius:50%;" onerror="this.outerHTML='<div style=\\'width:32px;height:32px;border-radius:50%;background:${chainColor}30;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;\\'>${coinUpper.slice(0,3)}</div>'">`;
+            }
+            
+            // Prova match con nome token (per casi come "PancakeSwap Token" -> CAKE)
+            const nameUpper = (bal.name || '').toUpperCase();
+            for (const [symbol, url] of Object.entries(TOKEN_ICONS)) {
+                if (nameUpper.includes(symbol) || symbol.includes(coinClean)) {
+                    return `<img src="${url}" style="width:32px;height:32px;border-radius:50%;" onerror="this.outerHTML='<div style=\\'width:32px;height:32px;border-radius:50%;background:${chainColor}30;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;\\'>${coinUpper.slice(0,3)}</div>'">`;
+                }
             }
             
             // 2. Logo da API (Moralis) - può essere inaffidabile
@@ -2693,16 +2775,16 @@
                 const tokens = byChain[chain];
                 const chainInfo = CHAINS[chain] || { name: chain.toUpperCase(), color: '#888', symbol: '?' };
                 
-                // Calcola totale chain
+                // Calcola totale chain nella valuta selezionata
                 let chainTotal = 0;
                 for (const t of tokens) {
-                    chainTotal += t.amount * PriceService.getPrice(t.coin, 'eur');
+                    chainTotal += t.amount * PriceService.getPrice(t.coin, selectedCurrency);
                 }
                 
                 // Ordina token per valore
                 tokens.sort((a, b) => {
-                    const valA = a.amount * PriceService.getPrice(a.coin, 'eur');
-                    const valB = b.amount * PriceService.getPrice(b.coin, 'eur');
+                    const valA = a.amount * PriceService.getPrice(a.coin, selectedCurrency);
+                    const valB = b.amount * PriceService.getPrice(b.coin, selectedCurrency);
                     return valB - valA;
                 });
                 
@@ -2714,14 +2796,14 @@
                                 <span style="font-weight:600;">${chainInfo.name}</span>
                                 <span class="text-secondary" style="font-size:12px;">(${tokens.length} token)</span>
                             </div>
-                            <span style="font-weight:600;color:var(--green);">€${formatEUR(chainTotal)}</span>
+                            <span style="font-weight:600;color:var(--green);">${formatValue(chainTotal)}</span>
                         </div>
                         <table style="width:100%;background:var(--bg-secondary);border-radius:0 0 8px 8px;">
                             <tbody>
                 `;
                 
                 for (const bal of tokens) {
-                    const price = PriceService.getPrice(bal.coin, 'eur');
+                    const price = PriceService.getPrice(bal.coin, selectedCurrency);
                     const value = bal.amount * price;
                     const iconHtml = getTokenIcon(bal, chainInfo.color);
                     
@@ -2769,8 +2851,8 @@
                                 </div>
                             </td>
                             <td style="text-align:right;font-family:monospace;padding:12px;">${formatCrypto(bal.amount)}</td>
-                            <td style="text-align:right;padding:12px;color:var(--text-secondary);">€${formatEUR(price)}</td>
-                            <td style="text-align:right;font-weight:600;color:var(--green);padding:12px;">€${formatEUR(value)}</td>
+                            <td style="text-align:right;padding:12px;color:var(--text-secondary);">${formatValue(price)}</td>
+                            <td style="text-align:right;font-weight:600;color:var(--green);padding:12px;">${formatValue(value)}</td>
                         </tr>
                     `;
                 }
