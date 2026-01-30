@@ -601,13 +601,19 @@
                         </div>
                     </div>
                     
-                    <!-- Pulsante Reset -->
+                    <!-- Pulsanti Reset -->
                     <div class="mt-16 pt-16" style="border-top:1px solid var(--border);">
+                        <div class="flex gap-8" style="margin-bottom:12px;">
+                            <button class="btn" onclick="resetKeepApiKeys()" style="flex:1;background:var(--yellow);color:#000;">
+                                🔄 Reset Pulito (mantieni API Keys)
+                            </button>
+                        </div>
                         <button class="btn btn-danger" onclick="clearAllData()" style="width:100%;">
-                            🗑️ Cancella Tutti i Dati Locali
+                            🗑️ Cancella TUTTO (incluse API Keys)
                         </button>
                         <p class="text-secondary mt-8" style="font-size:11px;text-align:center;">
-                            Rimuove wallet, balance e transazioni dalla memoria locale
+                            Reset Pulito: rimuove dati ma mantiene le API keys configurate<br>
+                            Cancella TUTTO: rimuove anche le API keys
                         </p>
                     </div>
                 </div>
@@ -1112,6 +1118,59 @@
             }
         }
         
+        // Reset pulito mantenendo SOLO le API Keys
+        function resetKeepApiKeys() {
+            if (confirm('🔄 RESET PULITO\n\nQuesto cancellerà:\n✗ Wallet\n✗ Balance\n✗ Transazioni\n✗ Exchange\n✗ Blacklist\n\n✓ Le API Keys verranno MANTENUTE!\n\nContinuare?')) {
+                const state = Database.getState();
+                
+                // Salva le API keys
+                const savedApiKeys = JSON.parse(JSON.stringify(state.apiKeys));
+                const savedChains = JSON.parse(JSON.stringify(AppState.selectedChains || []));
+                
+                log('💾 Salvate API Keys: Moralis x' + (savedApiKeys.moralis?.length || 0) + ', Etherscan: ' + (savedApiKeys.etherscan ? '✓' : '✗'));
+                
+                // Cancella tutto
+                AppState.wallets = [];
+                AppState.balances = {};
+                AppState.transactions = [];
+                AppState.exchanges = {};
+                AppState.prices = {};
+                AppState.historicalPrices = {};
+                
+                // Ripristina API keys
+                AppState.apiKeys = savedApiKeys;
+                
+                // Salva su Firebase
+                Database.saveNow();
+                
+                // Pulisci localStorage (tranne chain selector)
+                localStorage.removeItem('cryptofolio_blacklist');
+                localStorage.removeItem('cryptofolio_v6_backup');
+                
+                // Ripristina chain selection
+                if (savedChains.length > 0) {
+                    localStorage.setItem('cryptofolio_selectedChains', JSON.stringify(savedChains));
+                }
+                
+                // Aggiorna UI
+                updateWalletList();
+                updateDashboard();
+                updateTransactionTable();
+                updateDebugInfo();
+                
+                log('✅ RESET PULITO completato!');
+                log('💾 API Keys mantenute: Moralis x' + (savedApiKeys.moralis?.length || 0));
+                
+                alert('✅ Reset Pulito completato!\n\n' +
+                      '✗ Wallet: 0\n' +
+                      '✗ Balance: 0\n' +
+                      '✗ Transazioni: 0\n\n' +
+                      '✓ API Keys mantenute:\n' +
+                      '  - Moralis: ' + (savedApiKeys.moralis?.length || 0) + ' keys\n' +
+                      '  - Etherscan: ' + (savedApiKeys.etherscan ? 'Sì' : 'No'));
+            }
+        }
+        
         async function scanWallet(address) {
             const wallets = Database.getWallets();
             const wallet = wallets.find(w => w.address.toLowerCase() === address.toLowerCase());
@@ -1272,28 +1331,77 @@
             renderWalletTransactions(walletTx);
         }
         
-        // Lista token scam/spam da filtrare (come v5.2)
+        // Lista token scam/spam da filtrare (MOLTO ESPANSA)
         const SCAM_PATTERNS = [
-            'visit', 'claim', 'reward', '.com', '.org', '.xyz', '.net',
-            'airdrop', 'bonus', 'free', 'gift', 'http', 'www', '$', '#',
-            'giveaway', 'elon', 'trump', '100x', '1000x', 'safemoon'
+            // URL e domini
+            'visit', 'claim', '.com', '.org', '.xyz', '.net', '.io', '.co', '.me', '.app',
+            'http', 'https', 'www', '://',
+            // Parole chiave scam
+            'airdrop', 'bonus', 'free', 'gift', 'reward', 'giveaway', 'winner', 'won',
+            'double', 'triple', '100x', '1000x', '10000x', 'moon', 'pump',
+            // Personaggi famosi (spesso usati per scam)
+            'elon', 'musk', 'trump', 'biden', 'obama', 'zuck', 'bezos', 'gates',
+            // Pattern specifici scam
+            'voucher', 'coupon', 'redeem', 'activate', 'unlock', 'verify',
+            'congratulation', 'selected', 'eligible', 'qualified',
+            // Caratteri sospetti
+            '$', '#', '!', '?', '*', '~', '`', '|', '\\',
+            // Parole sospette
+            'porn', 'xxx', 'adult', 'sex', 'nude', 'nsfw',
+            'casino', 'bet', 'gambling', 'lottery', 'jackpot',
+            'hack', 'exploit', 'bot', 'sniper',
+            // Fake tokens
+            'fake', 'scam', 'rug', 'honeypot', 'honey',
+            // Pattern airdrop spam
+            'drop', 'air drop', 'surprise', 'mystery',
+            // Nomi troppo generici spesso usati per scam
+            'token', 'coin', 'crypto', 'defi', 'nft', 'swap', 'finance',
+            // Social/marketing scam
+            'telegram', 'discord', 'twitter', 'follow', 'join', 'click',
+            // Numeri nel nome (spesso scam)
+            '2.0', '3.0', 'v2', 'v3', 'new', 'old',
+            // Pattern specifici noti
+            'safemoon', 'safestar', 'babydoge', 'minidoge', 'elondoge',
+            'shibainu', 'flokiinu', 'dogelon',
+            // Wrapped fake
+            'wrapped', 'bridged', 'pegged'
         ];
         
-        // Token legittimi (mai filtrati automaticamente)
+        // Token legittimi (mai filtrati automaticamente) - ESPANSO
         const LEGITIMATE_TOKENS = [
+            // Top 50 per market cap
             'BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'AVAX', 'DOT', 'LINK', 'MATIC', 'POL',
-            'LTC', 'ATOM', 'UNI', 'AAVE', 'MKR', 'SHIB', 'DOGE', 'PEPE', 'FLOKI',
-            'USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FRAX', 'USDD', 'FDUSD',
+            'LTC', 'BCH', 'ATOM', 'UNI', 'AAVE', 'MKR', 'SHIB', 'DOGE', 'PEPE', 'FLOKI',
+            'TRX', 'TON', 'XLM', 'XMR', 'ETC', 'HBAR', 'FIL', 'VET', 'ALGO', 'EGLD',
+            // Stablecoins
+            'USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FRAX', 'USDD', 'FDUSD', 'PYUSD', 'GUSD',
+            'USDP', 'LUSD', 'SUSD', 'RAI', 'MIM', 'DOLA', 'CRVUSD', 'GHO',
+            // Terra/Cosmos
             'PLS', 'PLSX', 'HEX', 'INC', 'LUNC', 'USTC', 'OSMO', 'LUNA',
-            'WETH', 'WBTC', 'WBNB', 'WPLS',
-            'CRO', 'FTM', 'ARB', 'OP', 'NEAR', 'APT', 'SUI', 'TON', 'TRX',
-            'CAKE', 'OKB', 'BXN', 'BGB', 'KCS', 'GT', 'INJ', 'SEI', 'TIA',
-            'SAND', 'MANA', 'AXS', 'GALA', 'ENJ', 'IMX',
+            'INJ', 'SEI', 'TIA', 'KAVA', 'RUNE', 'KUJI', 'SCRT',
+            // Wrapped tokens
+            'WETH', 'WBTC', 'WBNB', 'WPLS', 'WMATIC', 'WAVAX', 'WFTM', 'WCRO',
+            'STETH', 'RETH', 'CBETH', 'FRXETH', 'WSTETH',
+            // Layer 2
+            'CRO', 'FTM', 'ARB', 'OP', 'NEAR', 'APT', 'SUI', 'ZK', 'STRK', 'MANTA',
+            'METIS', 'BOBA', 'CELO', 'MOVR', 'GLMR', 'ASTR',
+            // Exchange tokens
+            'CAKE', 'OKB', 'BXN', 'BGB', 'KCS', 'GT', 'CRV', 'BAL', 'GMX', 'DYDX',
+            'JOE', 'SUSHI', 'QUICK', 'VELO', 'AERO',
             // Gaming/Metaverse
-            'MAVIA', 'PIXEL', 'PRIME', 'GODS', 'ILV', 'YGG', 'RONIN', 'RON',
+            'SAND', 'MANA', 'AXS', 'GALA', 'ENJ', 'IMX', 'PRIME', 'GODS', 'ILV', 'YGG',
+            'MAVIA', 'PIXEL', 'RONIN', 'RON', 'SLP', 'MAGIC', 'TREASURE', 'LOOT',
+            // AI tokens
+            'RENDER', 'FET', 'AGIX', 'OCEAN', 'GRT', 'RNDR', 'WLD', 'TAO', 'ARKM', 'AKT',
+            // DeFi blue chips
+            'LDO', 'RPL', 'FXS', 'CVX', 'PENDLE', 'EIGEN', 'ENA', 'ETHFI',
+            'BLUR', 'APE', 'COMP', 'SNX', '1INCH', 'PERP', 'KWENTA',
             // Altri token comuni
-            'SHIFU', 'BUBBLE', 'CIV', 'STONE', 'ONE', 'BLUR', 'APE', 'LDO',
-            'RENDER', 'FET', 'AGIX', 'OCEAN', 'GRT', 'RNDR', 'WLD', 'TAO'
+            'SHIFU', 'BUBBLE', 'CIV', 'STONE', 'ONE', 'ZRX', 'BAT', 'ENS', 'LRC',
+            'STORJ', 'ANKR', 'CHZ', 'AUDIO', 'MASK', 'API3', 'BAND',
+            // Meme legittimi
+            'BONK', 'WIF', 'POPCAT', 'MEW', 'BRETT', 'TOSHI', 'MOCHI', 'NEIRO',
+            'TURBO', 'LADYS', 'WOJAK', 'BITCOIN', 'MEME', 'COQ', 'BOME'
         ];
         
         function isScamToken(name, amount = 0, price = 0) {
@@ -1307,28 +1415,42 @@
                 return false;
             }
             
-            // Check pattern spam nel nome/simbolo (come v5.2)
+            // Check pattern spam nel nome/simbolo
             for (const pattern of SCAM_PATTERNS) {
                 if (lower.includes(pattern)) {
+                    console.log(`🚫 Scam pattern "${pattern}" trovato in: ${name}`);
                     return true;
                 }
             }
             
-            // Nome troppo lungo (> 40 caratteri) = spam (come v5.2)
-            if (name.length > 40) {
+            // Nome troppo lungo (> 30 caratteri) = spam (ridotto da 40)
+            if (name.length > 30) {
+                console.log(`🚫 Nome troppo lungo (${name.length} char): ${name}`);
                 return true;
             }
             
-            // RIMOSSO: filtro prezzo €0 (troppo aggressivo, nasconde token legittimi)
-            // I token senza prezzo CoinGecko possono essere legittimi!
+            // Nome troppo corto (1 char) = sospetto
+            if (name.length === 1) {
+                console.log(`🚫 Nome troppo corto: ${name}`);
+                return true;
+            }
             
-            // Solo nascondere token con pattern MOLTO sospetti:
-            // - Milioni di unità E prezzo €0 E nome non riconosciuto
-            if (amount > 10000000 && price === 0) {
-                // Potrebbe essere airdrop spam, ma non filtrare automaticamente
-                // L'utente può aggiungerlo alla blacklist manualmente
-                console.log(`⚠️ Token sospetto (molte unità, no prezzo): ${name} - ${amount.toLocaleString()} unità`);
-                // return true; // DISABILITATO - lascia decidere all'utente
+            // Caratteri non ASCII nel nome = molto sospetto
+            if (/[^\x00-\x7F]/.test(name)) {
+                console.log(`🚫 Caratteri non-ASCII in: ${name}`);
+                return true;
+            }
+            
+            // Milioni di unità E prezzo €0 = quasi certamente scam airdrop
+            if (amount > 1000000 && price === 0) {
+                console.log(`🚫 Airdrop scam (${amount.toLocaleString()} unità, €0): ${name}`);
+                return true;
+            }
+            
+            // Miliardi di unità = scam (anche con prezzo)
+            if (amount > 1000000000000) {
+                console.log(`🚫 Quantità assurda (${amount.toLocaleString()}): ${name}`);
+                return true;
             }
             
             return false;
@@ -1448,89 +1570,198 @@
             updateWalletDetail();
         }
         
-        // Mappa icone token conosciute (fallback)
+        // Mappa icone token conosciute (fallback) - ESPANSA
         const TOKEN_ICONS = {
-            // Major coins
+            // === MAJOR COINS ===
             'ETH': 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
             'WETH': 'https://assets.coingecko.com/coins/images/2518/small/weth.png',
             'BTC': 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',
             'WBTC': 'https://assets.coingecko.com/coins/images/7598/small/wrapped_bitcoin_wbtc.png',
             'BNB': 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',
+            'WBNB': 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',
+            'SOL': 'https://assets.coingecko.com/coins/images/4128/small/solana.png',
+            'XRP': 'https://assets.coingecko.com/coins/images/44/small/xrp-symbol-white-128.png',
+            'ADA': 'https://assets.coingecko.com/coins/images/975/small/cardano.png',
+            'AVAX': 'https://assets.coingecko.com/coins/images/12559/small/Avalanche_Circle_RedWhite_Trans.png',
+            'WAVAX': 'https://assets.coingecko.com/coins/images/12559/small/Avalanche_Circle_RedWhite_Trans.png',
+            'DOT': 'https://assets.coingecko.com/coins/images/12171/small/polkadot.png',
             'MATIC': 'https://assets.coingecko.com/coins/images/4713/small/matic-token-icon.png',
             'POL': 'https://assets.coingecko.com/coins/images/4713/small/matic-token-icon.png',
-            'SOL': 'https://assets.coingecko.com/coins/images/4128/small/solana.png',
-            'AVAX': 'https://assets.coingecko.com/coins/images/12559/small/Avalanche_Circle_RedWhite_Trans.png',
-            'FTM': 'https://assets.coingecko.com/coins/images/4001/small/Fantom_round.png',
-            'ARB': 'https://assets.coingecko.com/coins/images/16547/small/photo_2023-03-29_21.47.00.jpeg',
-            'OP': 'https://assets.coingecko.com/coins/images/25244/small/Optimism.png',
-            'CRO': 'https://assets.coingecko.com/coins/images/7310/small/cro_token_logo.png',
-            // Stablecoins
+            'WMATIC': 'https://assets.coingecko.com/coins/images/4713/small/matic-token-icon.png',
+            'LINK': 'https://assets.coingecko.com/coins/images/877/small/chainlink-new-logo.png',
+            'LTC': 'https://assets.coingecko.com/coins/images/2/small/litecoin.png',
+            'BCH': 'https://assets.coingecko.com/coins/images/780/small/bitcoin-cash-circle.png',
+            'XLM': 'https://assets.coingecko.com/coins/images/100/small/Stellar_symbol_black_RGB.png',
+            'XMR': 'https://assets.coingecko.com/coins/images/69/small/monero_logo.png',
+            'ETC': 'https://assets.coingecko.com/coins/images/453/small/ethereum-classic-logo.png',
+            'FIL': 'https://assets.coingecko.com/coins/images/12817/small/filecoin.png',
+            'VET': 'https://assets.coingecko.com/coins/images/1167/small/VET_Token_Icon.png',
+            'ALGO': 'https://assets.coingecko.com/coins/images/4380/small/download.png',
+            'HBAR': 'https://assets.coingecko.com/coins/images/3688/small/hbar.png',
+            'EGLD': 'https://assets.coingecko.com/coins/images/12335/small/egld-token-logo.png',
+            'NEAR': 'https://assets.coingecko.com/coins/images/10365/small/near.jpg',
+            'APT': 'https://assets.coingecko.com/coins/images/26455/small/aptos_round.png',
+            'SUI': 'https://assets.coingecko.com/coins/images/26375/small/sui_asset.jpeg',
+            'TRX': 'https://assets.coingecko.com/coins/images/1094/small/tron-logo.png',
+            'TON': 'https://assets.coingecko.com/coins/images/17980/small/ton_symbol.png',
+            
+            // === STABLECOINS ===
             'USDT': 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
             'USDC': 'https://assets.coingecko.com/coins/images/6319/small/usdc.png',
             'DAI': 'https://assets.coingecko.com/coins/images/9956/small/Badge_Dai.png',
             'BUSD': 'https://assets.coingecko.com/coins/images/9576/small/BUSD.png',
             'TUSD': 'https://assets.coingecko.com/coins/images/3449/small/tusd.png',
             'FRAX': 'https://assets.coingecko.com/coins/images/13422/small/FRAX_icon.png',
-            // DeFi
-            'LINK': 'https://assets.coingecko.com/coins/images/877/small/chainlink-new-logo.png',
+            'FDUSD': 'https://assets.coingecko.com/coins/images/31079/small/firstdigitalusd.jpeg',
+            'PYUSD': 'https://assets.coingecko.com/coins/images/31212/small/PYUSD_Logo_%282%29.png',
+            'GUSD': 'https://assets.coingecko.com/coins/images/5992/small/gemini-dollar-gusd.png',
+            'LUSD': 'https://assets.coingecko.com/coins/images/14666/small/Group_3.png',
+            'CRVUSD': 'https://assets.coingecko.com/coins/images/30118/small/crvusd.jpeg',
+            'GHO': 'https://assets.coingecko.com/coins/images/30663/small/gho-token-logo.png',
+            
+            // === LAYER 2 / SCALING ===
+            'ARB': 'https://assets.coingecko.com/coins/images/16547/small/photo_2023-03-29_21.47.00.jpeg',
+            'OP': 'https://assets.coingecko.com/coins/images/25244/small/Optimism.png',
+            'FTM': 'https://assets.coingecko.com/coins/images/4001/small/Fantom_round.png',
+            'WFTM': 'https://assets.coingecko.com/coins/images/4001/small/Fantom_round.png',
+            'CRO': 'https://assets.coingecko.com/coins/images/7310/small/cro_token_logo.png',
+            'WCRO': 'https://assets.coingecko.com/coins/images/7310/small/cro_token_logo.png',
+            'METIS': 'https://assets.coingecko.com/coins/images/15595/small/metis.PNG',
+            'CELO': 'https://assets.coingecko.com/coins/images/11090/small/InjsNVl.png',
+            'GLMR': 'https://assets.coingecko.com/coins/images/22459/small/glmr.png',
+            'MOVR': 'https://assets.coingecko.com/coins/images/17984/small/9285.png',
+            'ZK': 'https://assets.coingecko.com/coins/images/38043/small/ZKTokenBlack.png',
+            'STRK': 'https://assets.coingecko.com/coins/images/26433/small/starknet.png',
+            'MANTA': 'https://assets.coingecko.com/coins/images/34289/small/manta.png',
+            'IMX': 'https://assets.coingecko.com/coins/images/17233/small/immutableX-symbol-BLK-RGB.png',
+            
+            // === DEFI ===
             'UNI': 'https://assets.coingecko.com/coins/images/12504/small/uniswap-uni.png',
             'AAVE': 'https://assets.coingecko.com/coins/images/12645/small/AAVE.png',
             'MKR': 'https://assets.coingecko.com/coins/images/1364/small/Mark_Maker.png',
             'COMP': 'https://assets.coingecko.com/coins/images/10775/small/COMP.png',
             'CRV': 'https://assets.coingecko.com/coins/images/12124/small/Curve.png',
+            'CVX': 'https://assets.coingecko.com/coins/images/15585/small/convex.png',
             'SNX': 'https://assets.coingecko.com/coins/images/3406/small/SNX.png',
             'SUSHI': 'https://assets.coingecko.com/coins/images/12271/small/512x512_Logo_no_chop.png',
             '1INCH': 'https://assets.coingecko.com/coins/images/13469/small/1inch-token.png',
             'CAKE': 'https://assets.coingecko.com/coins/images/12632/small/pancakeswap-cake-logo.png',
-            // Meme coins
+            'LDO': 'https://assets.coingecko.com/coins/images/13573/small/Lido_DAO.png',
+            'RPL': 'https://assets.coingecko.com/coins/images/2090/small/rocket_pool_%28RPL%29.png',
+            'FXS': 'https://assets.coingecko.com/coins/images/13423/small/Frax_Shares_icon.png',
+            'PENDLE': 'https://assets.coingecko.com/coins/images/15069/small/Pendle_Logo_Normal-03.png',
+            'GMX': 'https://assets.coingecko.com/coins/images/18323/small/arbritrum_gmx.png',
+            'DYDX': 'https://assets.coingecko.com/coins/images/17500/small/hjnIm9bV.jpg',
+            'BAL': 'https://assets.coingecko.com/coins/images/11683/small/Balancer.png',
+            'ZRX': 'https://assets.coingecko.com/coins/images/863/small/0x.png',
+            'LRC': 'https://assets.coingecko.com/coins/images/913/small/LRC.png',
+            'ENS': 'https://assets.coingecko.com/coins/images/19785/small/acatxTm8_400x400.jpg',
+            'EIGEN': 'https://assets.coingecko.com/coins/images/37441/small/eigen.jpeg',
+            'ENA': 'https://assets.coingecko.com/coins/images/36530/small/ethena.png',
+            'ETHFI': 'https://assets.coingecko.com/coins/images/35958/small/etherfi.jpeg',
+            
+            // === LIQUID STAKING ===
+            'STETH': 'https://assets.coingecko.com/coins/images/13442/small/steth_logo.png',
+            'WSTETH': 'https://assets.coingecko.com/coins/images/18834/small/wstETH.png',
+            'RETH': 'https://assets.coingecko.com/coins/images/20764/small/reth.png',
+            'CBETH': 'https://assets.coingecko.com/coins/images/27008/small/cbeth.png',
+            'FRXETH': 'https://assets.coingecko.com/coins/images/28284/small/frxETH_icon.png',
+            
+            // === MEME COINS ===
             'SHIB': 'https://assets.coingecko.com/coins/images/11939/small/shiba.png',
             'DOGE': 'https://assets.coingecko.com/coins/images/5/small/dogecoin.png',
             'PEPE': 'https://assets.coingecko.com/coins/images/29850/small/pepe-token.jpeg',
             'FLOKI': 'https://assets.coingecko.com/coins/images/16746/small/PNG_image.png',
+            'BONK': 'https://assets.coingecko.com/coins/images/28600/small/bonk.jpg',
+            'WIF': 'https://assets.coingecko.com/coins/images/33566/small/dogwifhat.jpg',
             'BONE': 'https://assets.coingecko.com/coins/images/16916/small/bone_icon.png',
             'LEASH': 'https://assets.coingecko.com/coins/images/15802/small/LEASH.png',
-            // PulseChain
+            'TURBO': 'https://assets.coingecko.com/coins/images/30117/small/turbo.png',
+            'MEME': 'https://assets.coingecko.com/coins/images/32528/small/memecoin_%281%29.png',
+            'BRETT': 'https://assets.coingecko.com/coins/images/35529/small/1000050750.png',
+            'POPCAT': 'https://assets.coingecko.com/coins/images/36455/small/popcat.jpeg',
+            'MEW': 'https://assets.coingecko.com/coins/images/36436/small/MEW.png',
+            'NEIRO': 'https://assets.coingecko.com/coins/images/39720/small/NEIRO.png',
+            
+            // === COSMOS ECOSYSTEM ===
+            'ATOM': 'https://assets.coingecko.com/coins/images/1481/small/cosmos_hub.png',
+            'OSMO': 'https://assets.coingecko.com/coins/images/16724/small/osmo.png',
+            'INJ': 'https://assets.coingecko.com/coins/images/12882/small/Secondary_Symbol.png',
+            'SEI': 'https://assets.coingecko.com/coins/images/28205/small/Sei_Logo_-_Transparent.png',
+            'TIA': 'https://assets.coingecko.com/coins/images/31967/small/tia.jpg',
+            'KAVA': 'https://assets.coingecko.com/coins/images/9761/small/kava.png',
+            'RUNE': 'https://assets.coingecko.com/coins/images/6595/small/Rune200x200.png',
+            'KUJI': 'https://assets.coingecko.com/coins/images/20685/small/kuji-200x200.png',
+            
+            // === TERRA/LUNA ===
+            'LUNC': 'https://assets.coingecko.com/coins/images/8284/small/01_LunasLogo_color.png',
+            'LUNA': 'https://assets.coingecko.com/coins/images/25767/small/01_Luna_color.png',
+            'USTC': 'https://assets.coingecko.com/coins/images/12681/small/UST.png',
+            
+            // === PULSECHAIN ===
             'PLS': 'https://tokens.app.pulsex.com/images/tokens/0xA1077a294dDE1B09bB078844df40758a5D0f9a27.png',
+            'WPLS': 'https://tokens.app.pulsex.com/images/tokens/0xA1077a294dDE1B09bB078844df40758a5D0f9a27.png',
             'PLSX': 'https://tokens.app.pulsex.com/images/tokens/0x95B303987A60C71504D99Aa1b13B4DA07b0790ab.png',
             'HEX': 'https://tokens.app.pulsex.com/images/tokens/0x2b591e99afE9f32eAA6214f7B7629768c40Eeb39.png',
             'INC': 'https://tokens.app.pulsex.com/images/tokens/0x2fa878Ab3F87CC1C9737Fc071108F904c0B0C95d.png',
-            // Cosmos
-            'ATOM': 'https://assets.coingecko.com/coins/images/1481/small/cosmos_hub.png',
-            'OSMO': 'https://assets.coingecko.com/coins/images/16724/small/osmo.png',
-            'LUNC': 'https://assets.coingecko.com/coins/images/8284/small/01_LunasLogo_color.png',
-            'USTC': 'https://assets.coingecko.com/coins/images/12681/small/UST.png',
-            // Others
-            'LTC': 'https://assets.coingecko.com/coins/images/2/small/litecoin.png',
-            'XRP': 'https://assets.coingecko.com/coins/images/44/small/xrp-symbol-white-128.png',
-            'ADA': 'https://assets.coingecko.com/coins/images/975/small/cardano.png',
-            'DOT': 'https://assets.coingecko.com/coins/images/12171/small/polkadot.png',
-            'NEAR': 'https://assets.coingecko.com/coins/images/10365/small/near.jpg',
-            'APT': 'https://assets.coingecko.com/coins/images/26455/small/aptos_round.png',
-            'SUI': 'https://assets.coingecko.com/coins/images/26375/small/sui_asset.jpeg',
-            'TRX': 'https://assets.coingecko.com/coins/images/1094/small/tron-logo.png',
-            'TON': 'https://assets.coingecko.com/coins/images/17980/small/ton_symbol.png',
+            
+            // === BLACKFORT ===
             'BXN': 'https://assets.coingecko.com/coins/images/29287/small/bxn.png',
-            // Gaming / Nuovi token
-            'ONE': 'https://assets.coingecko.com/coins/images/4344/small/Y88JAze.png',
-            'MAVIA': 'https://assets.coingecko.com/coins/images/35420/small/mavia.png',
-            'PIXEL': 'https://assets.coingecko.com/coins/images/35338/small/pixel-icon.png',
-            'BLUR': 'https://assets.coingecko.com/coins/images/28453/small/blur.png',
-            'APE': 'https://assets.coingecko.com/coins/images/24383/small/apecoin.jpg',
-            'LDO': 'https://assets.coingecko.com/coins/images/13573/small/Lido_DAO.png',
-            'IMX': 'https://assets.coingecko.com/coins/images/17233/small/immutableX-symbol-BLK-RGB.png',
+            
+            // === GAMING / METAVERSE ===
             'SAND': 'https://assets.coingecko.com/coins/images/12129/small/sandbox_logo.jpg',
             'MANA': 'https://assets.coingecko.com/coins/images/878/small/decentraland-mana.png',
             'AXS': 'https://assets.coingecko.com/coins/images/13029/small/axie_infinity_logo.png',
+            'SLP': 'https://assets.coingecko.com/coins/images/10366/small/SLP.png',
             'GALA': 'https://assets.coingecko.com/coins/images/12493/small/GALA-COINGECKO.png',
             'ENJ': 'https://assets.coingecko.com/coins/images/1102/small/enjin-coin-logo.png',
+            'MAVIA': 'https://assets.coingecko.com/coins/images/35420/small/mavia.png',
+            'PIXEL': 'https://assets.coingecko.com/coins/images/35338/small/pixel-icon.png',
+            'PRIME': 'https://assets.coingecko.com/coins/images/29053/small/PRIMELOGOOO.png',
+            'GODS': 'https://assets.coingecko.com/coins/images/17139/small/10631.png',
+            'ILV': 'https://assets.coingecko.com/coins/images/14468/small/logo-200x200.png',
+            'YGG': 'https://assets.coingecko.com/coins/images/17358/small/le1nzlO6_400x400.jpg',
+            'RON': 'https://assets.coingecko.com/coins/images/20009/small/ronin.jpg',
+            'MAGIC': 'https://assets.coingecko.com/coins/images/18623/small/magic.png',
+            
+            // === AI TOKENS ===
             'RENDER': 'https://assets.coingecko.com/coins/images/11636/small/rndr.png',
+            'RNDR': 'https://assets.coingecko.com/coins/images/11636/small/rndr.png',
             'FET': 'https://assets.coingecko.com/coins/images/5681/small/Fetch.jpg',
+            'AGIX': 'https://assets.coingecko.com/coins/images/2138/small/singularitynet.png',
+            'OCEAN': 'https://assets.coingecko.com/coins/images/3687/small/ocean-protocol-logo.jpg',
             'GRT': 'https://assets.coingecko.com/coins/images/13397/small/Graph_Token.png',
             'WLD': 'https://assets.coingecko.com/coins/images/31069/small/worldcoin.jpeg',
-            // Token specifici (potrebbero non avere icona CoinGecko)
+            'TAO': 'https://assets.coingecko.com/coins/images/28452/small/ARUsPeNQ_400x400.jpeg',
+            'ARKM': 'https://assets.coingecko.com/coins/images/30929/small/Arkham_Logo_CG.png',
+            'AKT': 'https://assets.coingecko.com/coins/images/12785/small/akash-logo.png',
+            
+            // === NFT / MARKETPLACE ===
+            'BLUR': 'https://assets.coingecko.com/coins/images/28453/small/blur.png',
+            'APE': 'https://assets.coingecko.com/coins/images/24383/small/apecoin.jpg',
+            'LOOKS': 'https://assets.coingecko.com/coins/images/22173/small/circle-black-256.png',
+            'X2Y2': 'https://assets.coingecko.com/coins/images/23618/small/logo-square.png',
+            
+            // === EXCHANGE TOKENS ===
+            'OKB': 'https://assets.coingecko.com/coins/images/4463/small/WeChat_Image_20220118095654.png',
+            'BGB': 'https://assets.coingecko.com/coins/images/11681/small/BGB.png',
+            'KCS': 'https://assets.coingecko.com/coins/images/1047/small/sa9z79.png',
+            'GT': 'https://assets.coingecko.com/coins/images/8183/small/gt.png',
+            
+            // === OTHER POPULAR ===
+            'BAT': 'https://assets.coingecko.com/coins/images/677/small/basic-attention-token.png',
+            'CHZ': 'https://assets.coingecko.com/coins/images/8834/small/CHZ_Token_updated.png',
+            'AUDIO': 'https://assets.coingecko.com/coins/images/12913/small/AusijV8A_400x400.png',
+            'MASK': 'https://assets.coingecko.com/coins/images/14051/small/Mask_Network.jpg',
+            'STORJ': 'https://assets.coingecko.com/coins/images/949/small/storj.png',
+            'ANKR': 'https://assets.coingecko.com/coins/images/4324/small/U85xTl2.png',
+            'ONE': 'https://assets.coingecko.com/coins/images/4344/small/Y88JAze.png',
+            
+            // === TOKEN SPECIFICI ===
             'SHIFU': 'https://assets.coingecko.com/coins/images/35165/small/shifu.png',
             'BUBBLE': 'https://assets.coingecko.com/coins/images/33874/small/bubble.png',
             'CIV': 'https://assets.coingecko.com/coins/images/17528/small/civilization.png',
+            'STONE': 'https://assets.coingecko.com/coins/images/34581/small/stone.png',
         };
         
         function getTokenIcon(bal, chainColor) {
