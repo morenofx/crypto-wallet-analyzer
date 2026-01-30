@@ -2109,6 +2109,29 @@
             updateDashboard();
         }
         
+        /**
+         * ⭐ FUNZIONE GLOBALE per check blacklist durante SCAN
+         * Chiamata da wallet-evm.js per evitare di salvare token blacklistati
+         */
+        window.isTokenBlacklisted = function(contractAddress, chain, symbol) {
+            if (!contractAddress) return false;
+            
+            const lc = contractAddress.toLowerCase();
+            
+            // Check diretto per contract address
+            if (tokenBlacklist.includes(lc)) {
+                return true;
+            }
+            
+            // Check per ID univoco (nocontract_chain_symbol)
+            const uniqueId = `nocontract_${chain}_${(symbol || '').toUpperCase()}`.toLowerCase();
+            if (tokenBlacklist.includes(uniqueId)) {
+                return true;
+            }
+            
+            return false;
+        };
+        
         // Svuota blacklist
         function clearBlacklist() {
             if (!confirm('Svuotare la lista dei token nascosti?')) return;
@@ -2264,6 +2287,22 @@
         
         let showOnlyVerified = true;  // DEFAULT: mostra solo token verificati
         let showScamTokens = false;   // Legacy compatibility
+        
+        // ⭐ LAYOUT MODE: 'byChain' (raggruppato) o 'flat' (stile Koinly)
+        let layoutMode = localStorage.getItem('cryptofolio_layout') || 'flat'; // DEFAULT: flat come Koinly
+        
+        function toggleLayoutMode() {
+            layoutMode = layoutMode === 'byChain' ? 'flat' : 'byChain';
+            localStorage.setItem('cryptofolio_layout', layoutMode);
+            
+            const btn = document.getElementById('layoutModeBtn');
+            if (btn) {
+                btn.innerHTML = layoutMode === 'byChain' 
+                    ? '📊 Per Chain' 
+                    : '📋 Lista Unica';
+            }
+            updateWalletDetail();
+        }
         
         function toggleVerifiedFilter() {
             showOnlyVerified = !showOnlyVerified;
@@ -2715,34 +2754,43 @@
         };
         
         function getTokenIcon(bal, chainColor) {
-            const coinUpper = (bal.coin || '').toUpperCase().trim();
+            const coinRaw = bal.coin || '';
+            const coinUpper = coinRaw.toUpperCase().trim();
             const coinClean = coinUpper.replace(/[^A-Z0-9]/g, ''); // Rimuove caratteri speciali
+            const nameRaw = bal.name || '';
+            const nameUpper = nameRaw.toUpperCase();
             
-            // 1. PRIMA TOKEN_ICONS hardcoded (più affidabili!)
-            // Prova match esatto
+            // 1. MATCH DIRETTO nel TOKEN_ICONS
             if (TOKEN_ICONS[coinUpper]) {
                 return `<img src="${TOKEN_ICONS[coinUpper]}" style="width:32px;height:32px;border-radius:50%;" onerror="this.outerHTML='<div style=\\'width:32px;height:32px;border-radius:50%;background:${chainColor}30;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;\\'>${coinUpper.slice(0,3)}</div>'">`;
             }
             
-            // Prova match pulito (senza caratteri speciali)
+            // 2. MATCH PULITO (senza caratteri speciali)
             if (TOKEN_ICONS[coinClean]) {
                 return `<img src="${TOKEN_ICONS[coinClean]}" style="width:32px;height:32px;border-radius:50%;" onerror="this.outerHTML='<div style=\\'width:32px;height:32px;border-radius:50%;background:${chainColor}30;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;\\'>${coinUpper.slice(0,3)}</div>'">`;
             }
             
-            // Prova match con nome token (per casi come "PancakeSwap Token" -> CAKE)
-            const nameUpper = (bal.name || '').toUpperCase();
+            // 3. MATCH CASE-INSENSITIVE (cerca tutte le varianti)
             for (const [symbol, url] of Object.entries(TOKEN_ICONS)) {
-                if (nameUpper.includes(symbol) || symbol.includes(coinClean)) {
+                // Match esatto case-insensitive
+                if (symbol.toUpperCase() === coinUpper || symbol.toUpperCase() === coinClean) {
                     return `<img src="${url}" style="width:32px;height:32px;border-radius:50%;" onerror="this.outerHTML='<div style=\\'width:32px;height:32px;border-radius:50%;background:${chainColor}30;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;\\'>${coinUpper.slice(0,3)}</div>'">`;
                 }
             }
             
-            // 2. Logo da API (Moralis) - può essere inaffidabile
+            // 4. MATCH nel NOME (per casi come "PancakeSwap Token" -> CAKE)
+            for (const [symbol, url] of Object.entries(TOKEN_ICONS)) {
+                if (nameUpper.includes(symbol) || nameUpper.includes(symbol.replace(/[^A-Z]/g, ''))) {
+                    return `<img src="${url}" style="width:32px;height:32px;border-radius:50%;" onerror="this.outerHTML='<div style=\\'width:32px;height:32px;border-radius:50%;background:${chainColor}30;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;\\'>${coinUpper.slice(0,3)}</div>'">`;
+                }
+            }
+            
+            // 5. Logo da API (Moralis) - può essere inaffidabile
             if (bal.logo && bal.logo.startsWith('http')) {
                 return `<img src="${bal.logo}" style="width:32px;height:32px;border-radius:50%;" onerror="this.outerHTML='<div style=\\'width:32px;height:32px;border-radius:50%;background:${chainColor}30;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;\\'>${coinUpper.slice(0,3)}</div>'">`;
             }
             
-            // 3. Fallback con iniziali
+            // 6. Fallback con iniziali
             return `<div style="width:32px;height:32px;border-radius:50%;background:${chainColor}30;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;">${coinUpper.slice(0,3)}</div>`;
         }
         
@@ -2866,7 +2914,10 @@
                     <span class="text-secondary" style="font-size:12px;">
                         ${uniqueTokens.length} token su ${chainOrder.length} chain${hiddenTotal > 0 ? ` (${hiddenTotal} nascosti)` : ''}
                     </span>
-                    <div class="flex gap-8">
+                    <div class="flex gap-8" style="flex-wrap:wrap;">
+                        <button class="btn btn-secondary" id="layoutModeBtn" onclick="toggleLayoutMode()" style="padding:6px 12px;font-size:12px;color:var(--text-primary);" title="Cambia layout visualizzazione">
+                            ${layoutMode === 'byChain' ? '📊 Per Chain' : '📋 Lista Unica'}
+                        </button>
                         <button class="btn btn-secondary" id="goPlusVerifyBtn" onclick="verifyTokensWithGoPlus()" style="padding:6px 12px;font-size:12px;color:var(--text-primary);" title="Verifica token sospetti con GoPlus Security API">
                             🔍 Verifica Sicurezza
                         </button>
@@ -2878,7 +2929,102 @@
                 </div>
             `;
             
-            // Render ogni chain
+            // ═══════════════════════════════════════════════════════════
+            // ⭐ LAYOUT FLAT (stile Koinly) - Tutti i token insieme
+            // ═══════════════════════════════════════════════════════════
+            if (layoutMode === 'flat') {
+                // Ordina tutti i token per valore
+                uniqueTokens.sort((a, b) => {
+                    const valA = a.amount * PriceService.getPrice(a.coin, selectedCurrency);
+                    const valB = b.amount * PriceService.getPrice(b.coin, selectedCurrency);
+                    return valB - valA;
+                });
+                
+                html += `
+                    <table style="width:100%;background:var(--bg-secondary);border-radius:8px;">
+                        <thead>
+                            <tr style="border-bottom:2px solid var(--border);">
+                                <th style="padding:12px;text-align:left;">Token</th>
+                                <th style="padding:12px;text-align:left;">Chain</th>
+                                <th style="padding:12px;text-align:right;">Quantità</th>
+                                <th style="padding:12px;text-align:right;">Prezzo</th>
+                                <th style="padding:12px;text-align:right;">Valore</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                for (const bal of uniqueTokens) {
+                    const chain = bal.chain || 'unknown';
+                    const chainInfo = CHAINS[chain] || { name: chain.toUpperCase(), color: '#888', symbol: '?' };
+                    const price = PriceService.getPrice(bal.coin, selectedCurrency);
+                    const value = bal.amount * price;
+                    const iconHtml = getTokenIcon(bal, chainInfo.color);
+                    
+                    // Badge chain colorato
+                    const chainBadge = `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:12px;background:${chainInfo.color}25;color:${chainInfo.color};font-size:11px;font-weight:600;">
+                        ${chainInfo.name}
+                    </span>`;
+                    
+                    // ID per blacklist
+                    const blacklistId = getTokenBlacklistId(bal);
+                    const isNativeToken = isNativeChainToken(bal);
+                    
+                    // Status badge
+                    let statusBadge = '';
+                    const isInWhitelist = TokenValidator?.isWhitelisted?.(bal.coin) || false;
+                    const hasPrice = price > 0;
+                    const goPlusStatus = getGoPlusStatus(bal.contractAddress, chain);
+                    
+                    if (isNativeToken || isInWhitelist) {
+                        statusBadge = '<span title="Token verificato" style="color:var(--green);font-size:10px;margin-left:4px;">✓</span>';
+                    } else if (goPlusStatus === 'safe') {
+                        statusBadge = '<span title="Verificato GoPlus" style="color:var(--green);font-size:10px;margin-left:4px;">🛡️</span>';
+                    } else if (goPlusStatus === 'scam') {
+                        statusBadge = '<span title="SCAM rilevato!" style="color:var(--red);font-size:10px;margin-left:4px;">⚠️</span>';
+                    } else if (hasPrice) {
+                        statusBadge = '<span title="Ha prezzo" style="color:var(--green);font-size:10px;margin-left:4px;">✓</span>';
+                    } else {
+                        statusBadge = `<button onclick="checkTokenSecurity('${bal.contractAddress}','${chain}','${bal.coin}')" title="Verifica" style="background:none;border:none;cursor:pointer;font-size:10px;color:var(--yellow);margin-left:4px;">🔍</button>`;
+                    }
+                    
+                    // Bottone hide
+                    const hideBtn = isNativeToken 
+                        ? '' 
+                        : `<button class="hide-btn" onclick="hideToken('${blacklistId}','${bal.coin}')" title="Nascondi token">✕</button>`;
+                    
+                    html += `
+                        <tr style="border-bottom:1px solid var(--border);">
+                            <td style="padding:12px;">
+                                <div class="flex items-center gap-8">
+                                    ${hideBtn}
+                                    ${iconHtml}
+                                    <div>
+                                        <div style="font-weight:500;">${bal.coin}${statusBadge}</div>
+                                        ${bal.name && bal.name !== bal.coin ? `<div class="text-secondary" style="font-size:10px;">${bal.name.slice(0,20)}</div>` : ''}
+                                    </div>
+                                </div>
+                            </td>
+                            <td style="padding:12px;">${chainBadge}</td>
+                            <td style="text-align:right;font-family:monospace;padding:12px;">${formatCrypto(bal.amount)}</td>
+                            <td style="text-align:right;padding:12px;color:var(--text-secondary);">${formatValue(price)}</td>
+                            <td style="text-align:right;font-weight:600;color:var(--green);padding:12px;">${formatValue(value)}</td>
+                        </tr>
+                    `;
+                }
+                
+                html += `
+                        </tbody>
+                    </table>
+                `;
+                
+                container.innerHTML = html;
+                return;
+            }
+            
+            // ═══════════════════════════════════════════════════════════
+            // LAYOUT BY CHAIN (raggruppato per blockchain)
+            // ═══════════════════════════════════════════════════════════
             for (const chain of chainOrder) {
                 const tokens = byChain[chain];
                 const chainInfo = CHAINS[chain] || { name: chain.toUpperCase(), color: '#888', symbol: '?' };

@@ -267,6 +267,16 @@ const WalletEVM = (function() {
                         for (const token of tokensData) {
                             const decimals = parseInt(token.decimals) || 18;
                             const balance = parseFloat(token.balance) / Math.pow(10, decimals);
+                            const contractAddress = (token.token_address || '').toLowerCase();
+                            
+                            // ⭐ Check blacklist GLOBALE (definita in index.html)
+                            // Se il token è in blacklist, NON lo aggiungiamo nemmeno
+                            if (typeof window !== 'undefined' && window.isTokenBlacklisted) {
+                                if (window.isTokenBlacklisted(contractAddress, chainKey, token.symbol)) {
+                                    Logger.info('WalletEVM', `Blacklist skip: ${token.symbol} (${contractAddress.slice(0,10)}...)`);
+                                    continue;
+                                }
+                            }
                             
                             // Filtra spam/scam durante scan (come v5.2)
                             if (isSpamToken(token.name, token.symbol)) {
@@ -283,7 +293,7 @@ const WalletEVM = (function() {
                                     source: `wallet_${address.toLowerCase()}`,
                                     chain: chainKey,
                                     logo: token.logo || token.thumbnail || null,
-                                    contractAddress: token.token_address || null
+                                    contractAddress: contractAddress || null
                                 }));
                             }
                         }
