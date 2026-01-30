@@ -1901,11 +1901,15 @@
         
         // Filtro spam SEMPLICE come v5.2
         function isScamToken(name, symbol) {
-            const n = (name || '').toLowerCase();
-            const s = (symbol || '').toLowerCase();
+            // Converti in stringa se non lo è
+            const nameStr = String(name || '');
+            const symStr = String(symbol || '');
+            
+            const n = nameStr.toLowerCase();
+            const s = symStr.toLowerCase();
             
             // Token legittimi - mai filtrati
-            if (LEGITIMATE_TOKENS.includes((symbol || '').toUpperCase())) {
+            if (LEGITIMATE_TOKENS.includes(symStr.toUpperCase())) {
                 return false;
             }
             
@@ -1917,7 +1921,7 @@
             }
             
             // Nome troppo lungo (> 40 char) = spam (come v5.2)
-            if ((name || '').length > 40) {
+            if (nameStr.length > 40) {
                 return true;
             }
             
@@ -2681,8 +2685,8 @@
                 // Filtra token in blacklist manuale
                 if (isBlacklisted(coin)) continue;
                 
-                // Filtra pattern scam ovvi (senza prezzo)
-                if (isScamToken(coin, 0, 0)) continue;
+                // Filtra pattern scam ovvi (usa coin come name e symbol)
+                if (isScamToken(balance.name || coin, coin)) continue;
                 
                 if (!aggregated[coin]) {
                     aggregated[coin] = { coin, amount: 0, valueEUR: 0 };
@@ -2722,8 +2726,8 @@
                 const price = PriceService.getPrice(coin, 'eur');
                 const amount = aggregated[coin].amount;
                 
-                // Filtra token con valore anomalo (probabili scam)
-                if (isScamToken(coin, amount, price)) {
+                // Filtra token scam (usa coin sia come name che symbol)
+                if (isScamToken(coin, coin)) {
                     delete aggregated[coin];
                     continue;
                 }
