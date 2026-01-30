@@ -19,7 +19,12 @@ const PriceService = (function() {
     let isFetching = false;
     
     // ═══════════════════════════════════════════════════════════
-    // PREZZI ATTUALI
+    // ⭐ CACHE IMMAGINI TOKEN (da CoinGecko)
+    // ═══════════════════════════════════════════════════════════
+    const tokenImages = {};
+    
+    // ═══════════════════════════════════════════════════════════
+    // PREZZI ATTUALI (con immagini!)
     // ═══════════════════════════════════════════════════════════
     
     async function fetchCurrentPrices(coins = []) {
@@ -46,8 +51,9 @@ const PriceService = (function() {
                 return AppState.prices;
             }
             
-            const url = `${COINGECKO_BASE}/simple/price?ids=${ids}&vs_currencies=eur,usd`;
-            Logger.info('PriceService', `Fetching prezzi: ${ids}`);
+            // ⭐ Usa endpoint /coins/markets che include anche le immagini!
+            const url = `${COINGECKO_BASE}/coins/markets?vs_currency=eur&ids=${ids}&sparkline=false`;
+            Logger.info('PriceService', `Fetching prezzi + immagini: ${ids.slice(0, 50)}...`);
             
             const response = await fetch(url);
             
@@ -57,21 +63,40 @@ const PriceService = (function() {
             
             const data = await response.json();
             
-            // Aggiorna cache
-            for (const [id, prices] of Object.entries(data)) {
+            // Aggiorna cache prezzi E immagini
+            for (const coin of data) {
                 // Trova il simbolo dal CoinGecko ID
-                const symbol = Object.keys(COINGECKO_IDS).find(k => COINGECKO_IDS[k] === id);
+                const symbol = Object.keys(COINGECKO_IDS).find(k => COINGECKO_IDS[k] === coin.id);
                 if (symbol) {
                     AppState.prices[symbol] = {
-                        eur: prices.eur || 0,
-                        usd: prices.usd || 0,
+                        eur: coin.current_price || 0,
+                        usd: (coin.current_price || 0) * 1.08, // Approssimazione EUR->USD
                         lastUpdate: Date.now()
                     };
+                    
+                    // ⭐ Salva anche l'immagine!
+                    if (coin.image) {
+                        tokenImages[symbol] = coin.image;
+                        tokenImages[symbol.toLowerCase()] = coin.image;
+                    }
+                }
+                
+                // Salva anche per simbolo originale (case-insensitive)
+                const upperSymbol = (coin.symbol || '').toUpperCase();
+                if (upperSymbol && !AppState.prices[upperSymbol]) {
+                    AppState.prices[upperSymbol] = {
+                        eur: coin.current_price || 0,
+                        usd: (coin.current_price || 0) * 1.08,
+                        lastUpdate: Date.now()
+                    };
+                    if (coin.image) {
+                        tokenImages[upperSymbol] = coin.image;
+                    }
                 }
             }
             
             lastFetch = Date.now();
-            Logger.success('PriceService', `Aggiornati ${Object.keys(data).length} prezzi`);
+            Logger.success('PriceService', `Aggiornati ${data.length} prezzi con immagini`);
             
             return AppState.prices;
             
@@ -82,6 +107,15 @@ const PriceService = (function() {
         } finally {
             isFetching = false;
         }
+    }
+    
+    // ═══════════════════════════════════════════════════════════
+    // ⭐ GET TOKEN IMAGE
+    // ═══════════════════════════════════════════════════════════
+    
+    function getTokenImage(symbol) {
+        if (!symbol) return null;
+        return tokenImages[symbol.toUpperCase()] || tokenImages[symbol.toLowerCase()] || null;
     }
     
     // ═══════════════════════════════════════════════════════════
@@ -457,7 +491,9 @@ const PriceService = (function() {
         calculatePortfolioValue,
         // Nuove funzioni v6.1
         fetchTokenPriceFromDex,
-        fetchTokenPrice
+        fetchTokenPrice,
+        // ⭐ v6.5 - Icone token
+        getTokenImage
     };
     
 })();

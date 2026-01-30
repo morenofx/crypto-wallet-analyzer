@@ -2753,45 +2753,153 @@
             'WBXN': 'https://assets.coingecko.com/coins/images/29287/small/bxn.png',
         };
         
+        // ═══════════════════════════════════════════════════════════
+        // ⭐ TRUST WALLET ICON REPOSITORY
+        // Repository ufficiale con icone per quasi tutti i token EVM
+        // ═══════════════════════════════════════════════════════════
+        
+        const TRUST_WALLET_CHAINS = {
+            'eth': 'ethereum',
+            'bsc': 'smartchain',
+            'polygon': 'polygon',
+            'arbitrum': 'arbitrum',
+            'optimism': 'optimism',
+            'base': 'base',
+            'avalanche': 'avalanchec',
+            'fantom': 'fantom',
+            'cronos': 'cronos'
+        };
+        
+        /**
+         * ⭐ Genera URL icona da Trust Wallet repository
+         * @param {string} contractAddress - Indirizzo del contratto (checksum)
+         * @param {string} chain - Chain key (es: 'bsc', 'eth')
+         * @returns {string|null} URL dell'icona o null
+         */
+        function getTrustWalletIconUrl(contractAddress, chain) {
+            if (!contractAddress || !chain) return null;
+            
+            const twChain = TRUST_WALLET_CHAINS[chain];
+            if (!twChain) return null;
+            
+            // Trust Wallet usa indirizzi con checksum (mixed case)
+            // Ma accetta anche lowercase, proviamo entrambi
+            const addr = contractAddress.toLowerCase();
+            
+            // Converti in checksum address (semplificato)
+            const checksumAddr = toChecksumAddress(contractAddress);
+            
+            return `https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/${twChain}/assets/${checksumAddr}/logo.png`;
+        }
+        
+        /**
+         * Converti indirizzo in checksum format (EIP-55)
+         * Semplificato - Trust Wallet accetta anche lowercase
+         */
+        function toChecksumAddress(address) {
+            if (!address) return address;
+            
+            // Se è già checksum (ha lettere maiuscole), ritorna così
+            if (/[A-F]/.test(address)) return address;
+            
+            // Altrimenti ritorna lowercase (Trust Wallet li accetta)
+            return address.toLowerCase();
+        }
+        
+        /**
+         * ⭐ NUOVA FUNZIONE getTokenIcon con Trust Wallet + Fallback multipli
+         */
         function getTokenIcon(bal, chainColor) {
             const coinRaw = bal.coin || '';
             const coinUpper = coinRaw.toUpperCase().trim();
-            const coinClean = coinUpper.replace(/[^A-Z0-9]/g, ''); // Rimuove caratteri speciali
+            const coinClean = coinUpper.replace(/[^A-Z0-9]/g, '');
             const nameRaw = bal.name || '';
             const nameUpper = nameRaw.toUpperCase();
+            const chain = bal.chain || '';
+            const contractAddress = bal.contractAddress || '';
             
-            // 1. MATCH DIRETTO nel TOKEN_ICONS
+            // Genera fallback HTML una volta sola
+            const fallbackHtml = `<div style="width:32px;height:32px;border-radius:50%;background:${chainColor}30;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;">${coinUpper.slice(0,3)}</div>`;
+            const fallbackJs = fallbackHtml.replace(/'/g, "\\'");
+            
+            // Array di URL da provare in ordine di priorità
+            const iconUrls = [];
+            
+            // 1. ⭐ TRUST WALLET (basato su contract address - più affidabile!)
+            if (contractAddress && chain) {
+                const twUrl = getTrustWalletIconUrl(contractAddress, chain);
+                if (twUrl) {
+                    iconUrls.push(twUrl);
+                }
+            }
+            
+            // 2. TOKEN_ICONS hardcoded (per token nativi e comuni)
             if (TOKEN_ICONS[coinUpper]) {
-                return `<img src="${TOKEN_ICONS[coinUpper]}" style="width:32px;height:32px;border-radius:50%;" onerror="this.outerHTML='<div style=\\'width:32px;height:32px;border-radius:50%;background:${chainColor}30;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;\\'>${coinUpper.slice(0,3)}</div>'">`;
+                iconUrls.push(TOKEN_ICONS[coinUpper]);
+            }
+            if (TOKEN_ICONS[coinClean] && TOKEN_ICONS[coinClean] !== TOKEN_ICONS[coinUpper]) {
+                iconUrls.push(TOKEN_ICONS[coinClean]);
             }
             
-            // 2. MATCH PULITO (senza caratteri speciali)
-            if (TOKEN_ICONS[coinClean]) {
-                return `<img src="${TOKEN_ICONS[coinClean]}" style="width:32px;height:32px;border-radius:50%;" onerror="this.outerHTML='<div style=\\'width:32px;height:32px;border-radius:50%;background:${chainColor}30;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;\\'>${coinUpper.slice(0,3)}</div>'">`;
-            }
-            
-            // 3. MATCH CASE-INSENSITIVE (cerca tutte le varianti)
+            // 3. Match case-insensitive in TOKEN_ICONS
             for (const [symbol, url] of Object.entries(TOKEN_ICONS)) {
-                // Match esatto case-insensitive
-                if (symbol.toUpperCase() === coinUpper || symbol.toUpperCase() === coinClean) {
-                    return `<img src="${url}" style="width:32px;height:32px;border-radius:50%;" onerror="this.outerHTML='<div style=\\'width:32px;height:32px;border-radius:50%;background:${chainColor}30;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;\\'>${coinUpper.slice(0,3)}</div>'">`;
+                if (symbol.toUpperCase() === coinUpper && !iconUrls.includes(url)) {
+                    iconUrls.push(url);
+                    break;
                 }
             }
             
-            // 4. MATCH nel NOME (per casi come "PancakeSwap Token" -> CAKE)
+            // 4. Match nel nome (PancakeSwap -> CAKE)
             for (const [symbol, url] of Object.entries(TOKEN_ICONS)) {
-                if (nameUpper.includes(symbol) || nameUpper.includes(symbol.replace(/[^A-Z]/g, ''))) {
-                    return `<img src="${url}" style="width:32px;height:32px;border-radius:50%;" onerror="this.outerHTML='<div style=\\'width:32px;height:32px;border-radius:50%;background:${chainColor}30;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;\\'>${coinUpper.slice(0,3)}</div>'">`;
+                if ((nameUpper.includes(symbol) || nameUpper.includes(symbol.replace(/[^A-Z]/g, ''))) && !iconUrls.includes(url)) {
+                    iconUrls.push(url);
+                    break;
                 }
             }
             
-            // 5. Logo da API (Moralis) - può essere inaffidabile
-            if (bal.logo && bal.logo.startsWith('http')) {
-                return `<img src="${bal.logo}" style="width:32px;height:32px;border-radius:50%;" onerror="this.outerHTML='<div style=\\'width:32px;height:32px;border-radius:50%;background:${chainColor}30;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;\\'>${coinUpper.slice(0,3)}</div>'">`;
+            // 5. Logo da Moralis API
+            if (bal.logo && bal.logo.startsWith('http') && !iconUrls.includes(bal.logo)) {
+                iconUrls.push(bal.logo);
             }
             
-            // 6. Fallback con iniziali
-            return `<div style="width:32px;height:32px;border-radius:50%;background:${chainColor}30;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;">${coinUpper.slice(0,3)}</div>`;
+            // 6. CoinGecko diretto (se abbiamo l'immagine salvata nei prezzi)
+            if (typeof PriceService !== 'undefined' && PriceService.getTokenImage) {
+                const cgImage = PriceService.getTokenImage(coinUpper);
+                if (cgImage && !iconUrls.includes(cgImage)) {
+                    iconUrls.push(cgImage);
+                }
+            }
+            
+            // Se non abbiamo nessun URL, ritorna fallback
+            if (iconUrls.length === 0) {
+                return fallbackHtml;
+            }
+            
+            // Genera img con cascata di fallback
+            // Usa data attribute per tenere traccia degli URL da provare
+            const primaryUrl = iconUrls[0];
+            const fallbackUrls = iconUrls.slice(1);
+            
+            // Crea onerror handler che prova gli URL successivi
+            let onerrorHandler;
+            if (fallbackUrls.length > 0) {
+                onerrorHandler = `
+                    var urls = ${JSON.stringify(fallbackUrls)};
+                    var tryNext = function(img, urls, fallback) {
+                        if (urls.length > 0) {
+                            img.src = urls.shift();
+                            img.onerror = function() { tryNext(img, urls, fallback); };
+                        } else {
+                            img.outerHTML = fallback;
+                        }
+                    };
+                    tryNext(this, urls, '${fallbackJs}');
+                `.replace(/\s+/g, ' ');
+            } else {
+                onerrorHandler = `this.outerHTML='${fallbackJs}'`;
+            }
+            
+            return `<img src="${primaryUrl}" style="width:32px;height:32px;border-radius:50%;" onerror="${onerrorHandler}">`;
         }
         
         function renderWalletTokens(balances) {
