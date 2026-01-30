@@ -1942,7 +1942,7 @@
             return tokenBlacklist.includes(contractAddress.toLowerCase());
         }
         
-        // Nascondi token (come v5.2)
+        // Nascondi token (come v5.2 - SOLO FILTRO UI, non cancella dal DB!)
         function hideToken(contractAddress, symbol) {
             const lc = (contractAddress || '').toLowerCase();
             if (!lc) return;
@@ -1955,27 +1955,9 @@
                 localStorage.setItem('cryptofolio_blacklist_names', JSON.stringify(blacklistNames));
                 
                 log(`🚫 ${symbol || 'Token'} nascosto (${lc.slice(0,10)}...)`);
-                
-                // Rimuovi dal database
-                const state = Database.getState();
-                const keysToRemove = [];
-                
-                for (const [key, balance] of Object.entries(state.balances)) {
-                    const balContract = (balance.contractAddress || '').toLowerCase();
-                    if (balContract === lc) {
-                        keysToRemove.push(key);
-                    }
-                }
-                
-                for (const key of keysToRemove) {
-                    delete state.balances[key];
-                }
-                
-                if (keysToRemove.length > 0) {
-                    Database.save();
-                }
             }
             
+            // Aggiorna UI (NON cancellare dal database!)
             updateBlacklistPanel();
             updateWalletDetail();
             updateDashboard();
@@ -2681,9 +2663,10 @@
             const aggregated = {};
             for (const [key, balance] of Object.entries(state.balances)) {
                 const coin = balance.coin;
+                const contractAddr = balance.contractAddress || `native-${balance.chain}`;
                 
-                // Filtra token in blacklist manuale
-                if (isBlacklisted(coin)) continue;
+                // Filtra token in blacklist manuale (per CONTRACT ADDRESS, come v5.2!)
+                if (isBlacklisted(contractAddr)) continue;
                 
                 // Filtra pattern scam ovvi (usa coin come name e symbol)
                 if (isScamToken(balance.name || coin, coin)) continue;
