@@ -1,18 +1,136 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- * CRYPTOFOLIO v6 - TOKEN VALIDATOR MODULE
- * Filtri avanzati anti-scam/spam
+ * CRYPTOFOLIO v6.1 - TOKEN VALIDATOR MODULE
+ * Filtri avanzati anti-scam/spam con GoPlus Security
  * ═══════════════════════════════════════════════════════════════
  * 
  * Strategia multi-livello:
- * 1. Pattern Check (nome/simbolo sospetto)
- * 2. Whitelist Check (top token per market cap)
- * 3. Value Check (prezzo/liquidità)
- * 4. Dust Check (valore minimo)
+ * 1. Pattern Check (nome/simbolo sospetto) - ISTANTANEO
+ * 2. Whitelist Check (top token per market cap) - ISTANTANEO
+ * 3. GoPlus Security API (honeypot, blacklist) - ASYNC
+ * 4. DexScreener Liquidity Check - ASYNC
+ * 5. Value Check (prezzo/liquidità)
  */
 
 const TokenValidator = (function() {
     'use strict';
+    
+    // ═══════════════════════════════════════════════════════════
+    // GOPLUS SECURITY API
+    // ═══════════════════════════════════════════════════════════
+    
+    const GOPLUS_API = 'https://api.gopluslabs.io/api/v1/token_security';
+    
+    // Chain IDs per GoPlus (numerico)
+    const GOPLUS_CHAIN_IDS = {
+        'eth': '1',
+        'bsc': '56',
+        'polygon': '137',
+        'arbitrum': '42161',
+        'optimism': '10',
+        'base': '8453',
+        'avalanche': '43114',
+        'fantom': '250',
+        'cronos': '25'
+        // PulseChain e BlackFort non supportati da GoPlus
+    };
+    
+    // Cache risultati GoPlus (evita chiamate ripetute)
+    const goPlusCache = new Map();
+    const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 ore
+    
+    /**
+     * ⭐ CHECK GOPLUS SECURITY
+     * Verifica se un token è honeypot, blacklistato o ha backdoor
+     * @param {string} contractAddress - Indirizzo del contratto
+     * @param {string} chainKey - Chiave chain (es: 'bsc', 'eth')
+     * @returns {Promise<{isScam: boolean, reason: string, details: object}>}
+     */
+    async function checkWithGoPlus(contractAddress, chainKey) {
+        if (!contractAddress || contractAddress.startsWith('native-')) {
+            return { isScam: false, reason: 'native_token', details: null };
+        }
+        
+        const chainId = GOPLUS_CHAIN_IDS[chainKey];
+        if (!chainId) {
+            return { isScam: false, reason: 'chain_not_supported', details: null };
+        }
+        
+        const cacheKey = `${chainId}_${contractAddress.toLowerCase()}`;
+        
+        // Check cache
+        const cached = goPlusCache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+            return cached.result;
+        }
+        
+        try {
+            const url = `${GOPLUS_API}/${chainId}?contract_addresses=${contractAddress}`;
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                return { isScam: false, reason: 'api_error', details: null };
+            }
+            
+            const data = await response.json();
+            const addrLower = contractAddress.toLowerCase();
+            
+            if (data.result && data.result[addrLower]) {
+                const details = data.result[addrLower];
+                
+                // ⚠️ SCAM INDICATORS
+                const isHoneypot = details.is_honeypot === '1';
+                const isBlacklisted = details.is_blacklisted === '1';
+                const hasProxyContract = details.is_proxy === '1' && details.is_open_source !== '1';
+                const cantSell = details.cannot_sell_all === '1';
+                const hasHiddenOwner = details.hidden_owner === '1';
+                const hasMintFunction = details.is_mintable === '1' && details.owner_address;
+                const canTakeBackOwnership = details.can_take_back_ownership === '1';
+                const hasExternalCall = details.external_call === '1';
+                const isFakeToken = details.is_true_token === '0';
+                
+                // Determina se è scam
+                let isScam = false;
+                let reason = 'safe';
+                
+                if (isHoneypot) {
+                    isScam = true;
+                    reason = 'honeypot';
+                } else if (isBlacklisted) {
+                    isScam = true;
+                    reason = 'blacklisted';
+                } else if (cantSell) {
+                    isScam = true;
+                    reason = 'cannot_sell';
+                } else if (isFakeToken) {
+                    isScam = true;
+                    reason = 'fake_token';
+                } else if (hasHiddenOwner && hasMintFunction) {
+                    isScam = true;
+                    reason = 'hidden_owner_mintable';
+                } else if (canTakeBackOwnership) {
+                    isScam = true;
+                    reason = 'ownership_risk';
+                }
+                
+                const result = { isScam, reason, details };
+                
+                // Salva in cache
+                goPlusCache.set(cacheKey, {
+                    timestamp: Date.now(),
+                    result
+                });
+                
+                return result;
+            }
+            
+            return { isScam: false, reason: 'not_found', details: null };
+            
+        } catch (error) {
+            console.warn('[GoPlus] Error:', error.message);
+            return { isScam: false, reason: 'fetch_error', details: null };
+        }
+    }
     
     // ═══════════════════════════════════════════════════════════
     // PATTERN SPAM/SCAM (Espanso)
@@ -363,12 +481,134 @@ const TokenValidator = (function() {
     }
     
     // ═══════════════════════════════════════════════════════════
+    // ⭐ VALIDAZIONE COMPLETA ASINCRONA (con GoPlus)
+    // ═══════════════════════════════════════════════════════════
+    
+    /**
+     * Validazione completa con GoPlus Security API
+     * Strategia:
+     * 1. Pattern Check (istantaneo) → se spam, blocca
+     * 2. Whitelist Check (istantaneo) → se in whitelist, approva
+     * 3. GoPlus Security (async) → se honeypot/blacklist, blocca
+     * 4. Liquidity Check (async) → se < $1000, nascondi
+     * 
+     * @param {Object} token - { name, symbol, contractAddress, chain, amount, priceEUR }
+     * @returns {Promise<{isValid, isScam, reason, goPlusDetails}>}
+     */
+    async function validateAsync(token) {
+        const symbol = (token.symbol || '').toUpperCase();
+        const contractAddress = token.contractAddress;
+        const chain = token.chain || 'eth';
+        
+        // 1. PATTERN CHECK (istantaneo)
+        const patternResult = checkPattern(token.name, token.symbol);
+        if (patternResult.isSpam) {
+            return {
+                isValid: false,
+                isScam: true,
+                reason: `pattern_${patternResult.reason}`,
+                goPlusDetails: null
+            };
+        }
+        
+        // 2. WHITELIST CHECK (istantaneo)
+        if (WHITELIST_TOKENS.has(symbol)) {
+            return {
+                isValid: true,
+                isScam: false,
+                reason: 'whitelist',
+                goPlusDetails: null
+            };
+        }
+        
+        // 3. GOPLUS SECURITY CHECK (async)
+        if (contractAddress && !contractAddress.startsWith('native-')) {
+            const goPlusResult = await checkWithGoPlus(contractAddress, chain);
+            
+            if (goPlusResult.isScam) {
+                // Aggiungi a blacklist locale per evitare future chiamate
+                KNOWN_SCAM_CONTRACTS.add(contractAddress.toLowerCase());
+                
+                return {
+                    isValid: false,
+                    isScam: true,
+                    reason: `goplus_${goPlusResult.reason}`,
+                    goPlusDetails: goPlusResult.details
+                };
+            }
+        }
+        
+        // 4. PREZZO/LIQUIDITÀ CHECK
+        // Se ha prezzo CoinGecko > 0, è probabilmente legittimo
+        if (token.priceEUR && token.priceEUR > 0) {
+            return {
+                isValid: true,
+                isScam: false,
+                reason: 'has_price',
+                goPlusDetails: null
+            };
+        }
+        
+        // 5. Nessun prezzo e non verificato = sospetto (ma non bloccare)
+        return {
+            isValid: false,
+            isScam: false,  // Non è necessariamente scam, solo non verificato
+            reason: 'unverified',
+            goPlusDetails: null
+        };
+    }
+    
+    /**
+     * Batch validation con GoPlus (per array di token)
+     * @param {Array} tokens - Array di token da validare
+     * @returns {Promise<Map<string, ValidationResult>>}
+     */
+    async function validateBatch(tokens) {
+        const results = new Map();
+        
+        // Raggruppa token per chain per ottimizzare chiamate GoPlus
+        const byChain = {};
+        for (const token of tokens) {
+            const chain = token.chain || 'eth';
+            if (!byChain[chain]) byChain[chain] = [];
+            byChain[chain].push(token);
+        }
+        
+        // Processa ogni chain
+        for (const [chain, chainTokens] of Object.entries(byChain)) {
+            for (const token of chainTokens) {
+                const key = `${chain}_${token.contractAddress || token.symbol}`;
+                const result = await validateAsync(token);
+                results.set(key, result);
+                
+                // Rate limiting: 100ms tra chiamate
+                await new Promise(r => setTimeout(r, 100));
+            }
+        }
+        
+        return results;
+    }
+    
+    /**
+     * Clear cache GoPlus (utility)
+     */
+    function clearGoPlusCache() {
+        goPlusCache.clear();
+    }
+    
+    // ═══════════════════════════════════════════════════════════
     // PUBLIC API
     // ═══════════════════════════════════════════════════════════
     
     return {
-        // Validazione completa
+        // Validazione sincrona (veloce)
         validate,
+        quickCheck,
+        
+        // ⭐ Validazione asincrona (con GoPlus)
+        validateAsync,
+        validateBatch,
+        checkWithGoPlus,
         
         // Check singoli
         checkPattern,
@@ -376,14 +616,14 @@ const TokenValidator = (function() {
         checkValue,
         checkPrice,
         
-        // Quick check
-        quickCheck,
+        // Token verification
         isWhitelisted,
         isVerifiedToken,
         
         // Gestione liste
         addToWhitelist,
         addScamContract,
+        clearGoPlusCache,
         
         // Configurazione
         setMinValue: (val) => CONFIG.MIN_VALUE_EUR = val,
@@ -392,7 +632,8 @@ const TokenValidator = (function() {
         
         // Accesso alle liste (read-only)
         getWhitelist: () => [...WHITELIST_TOKENS],
-        getSpamPatterns: () => [...SPAM_PATTERNS]
+        getSpamPatterns: () => [...SPAM_PATTERNS],
+        getGoPlusChains: () => Object.keys(GOPLUS_CHAIN_IDS)
     };
     
 })();

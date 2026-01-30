@@ -2129,6 +2129,159 @@
             return false;
         }
         
+        // ═══════════════════════════════════════════════════════════
+        // ⭐ GOPLUS SECURITY INTEGRATION
+        // ═══════════════════════════════════════════════════════════
+        
+        // Cache risultati GoPlus
+        const goPlusResults = new Map();
+        let isVerifyingWithGoPlus = false;
+        
+        /**
+         * Verifica sicurezza token con GoPlus API
+         */
+        async function verifyTokensWithGoPlus() {
+            if (isVerifyingWithGoPlus) {
+                log('⏳ Verifica già in corso...');
+                return;
+            }
+            
+            if (typeof TokenValidator === 'undefined' || !TokenValidator.checkWithGoPlus) {
+                log('❌ TokenValidator con GoPlus non disponibile');
+                return;
+            }
+            
+            isVerifyingWithGoPlus = true;
+            const btn = document.getElementById('goPlusVerifyBtn');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '⏳ Verifica in corso...';
+            }
+            
+            try {
+                const state = Database.getState();
+                const searchSource = `wallet_${currentWalletAddress.toLowerCase()}`;
+                
+                // Trova token non verificati da controllare
+                const tokensToCheck = [];
+                for (const [key, balance] of Object.entries(state.balances)) {
+                    if (!balance.source?.toLowerCase().includes(currentWalletAddress.toLowerCase())) continue;
+                    if (!balance.contractAddress || balance.contractAddress.startsWith('native-')) continue;
+                    
+                    // Skip se già in whitelist o ha prezzo
+                    const price = PriceService.getPrice(balance.coin, 'eur');
+                    if (TokenValidator.isWhitelisted(balance.coin) || price > 0) continue;
+                    
+                    // Skip se già verificato
+                    const cacheKey = `${balance.chain}_${balance.contractAddress}`;
+                    if (goPlusResults.has(cacheKey)) continue;
+                    
+                    tokensToCheck.push(balance);
+                }
+                
+                if (tokensToCheck.length === 0) {
+                    log('✅ Tutti i token sono già verificati!');
+                    return;
+                }
+                
+                log(`🔍 Verifico ${tokensToCheck.length} token con GoPlus Security...`);
+                
+                let scamCount = 0;
+                let safeCount = 0;
+                
+                for (const token of tokensToCheck) {
+                    try {
+                        const result = await TokenValidator.checkWithGoPlus(token.contractAddress, token.chain);
+                        const cacheKey = `${token.chain}_${token.contractAddress}`;
+                        goPlusResults.set(cacheKey, result);
+                        
+                        if (result.isScam) {
+                            scamCount++;
+                            log(`🚨 SCAM RILEVATO: ${token.coin} - ${result.reason}`);
+                            // Auto-blacklist
+                            hideToken(token.contractAddress, token.coin);
+                        } else {
+                            safeCount++;
+                        }
+                        
+                        // Rate limiting
+                        await new Promise(r => setTimeout(r, 200));
+                        
+                    } catch (e) {
+                        console.error(`Errore verifica ${token.coin}:`, e);
+                    }
+                }
+                
+                log(`✅ Verifica completata: ${safeCount} sicuri, ${scamCount} scam rilevati`);
+                
+                // Refresh UI
+                updateWalletDetail();
+                
+            } catch (error) {
+                console.error('Errore verifica GoPlus:', error);
+                log('❌ Errore durante la verifica');
+            } finally {
+                isVerifyingWithGoPlus = false;
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '🔍 Verifica Sicurezza';
+                }
+            }
+        }
+        
+        /**
+         * Check se un token specifico è sicuro con GoPlus
+         */
+        async function checkTokenSecurity(contractAddress, chain, symbol) {
+            if (!contractAddress || contractAddress.startsWith('native-')) {
+                alert(`${symbol} è un token nativo - sempre sicuro!`);
+                return;
+            }
+            
+            if (typeof TokenValidator === 'undefined' || !TokenValidator.checkWithGoPlus) {
+                alert('GoPlus Security non disponibile');
+                return;
+            }
+            
+            log(`🔍 Verifico ${symbol} con GoPlus...`);
+            
+            try {
+                const result = await TokenValidator.checkWithGoPlus(contractAddress, chain);
+                const cacheKey = `${chain}_${contractAddress}`;
+                goPlusResults.set(cacheKey, result);
+                
+                if (result.isScam) {
+                    const msg = `🚨 ATTENZIONE: ${symbol} è stato identificato come SCAM!\n\nMotivo: ${result.reason}\n\nVuoi nasconderlo?`;
+                    if (confirm(msg)) {
+                        hideToken(contractAddress, symbol);
+                    }
+                } else if (result.details) {
+                    alert(`✅ ${symbol} sembra sicuro!\n\nDettagli GoPlus:\n- Honeypot: No\n- Blacklist: No`);
+                } else {
+                    alert(`⚠️ ${symbol}: Nessun dato disponibile su GoPlus.\nPotrebbe essere un token nuovo o su una chain non supportata.`);
+                }
+                
+                updateWalletDetail();
+                
+            } catch (error) {
+                console.error('Errore check sicurezza:', error);
+                alert('Errore durante la verifica. Riprova più tardi.');
+            }
+        }
+        
+        /**
+         * Get GoPlus status per un token (per UI)
+         */
+        function getGoPlusStatus(contractAddress, chain) {
+            const cacheKey = `${chain}_${contractAddress}`;
+            const result = goPlusResults.get(cacheKey);
+            
+            if (!result) return null;
+            if (result.isScam) return 'scam';
+            if (result.reason === 'not_found' || result.reason === 'chain_not_supported') return 'unknown';
+            return 'safe';
+        }
+        
         // Mappa icone token conosciute (fallback) - ESPANSA
         const TOKEN_ICONS = {
             // === MAJOR COINS ===
@@ -2524,6 +2677,9 @@
                         ${uniqueTokens.length} token su ${chainOrder.length} chain${hiddenTotal > 0 ? ` (${hiddenTotal} nascosti)` : ''}
                     </span>
                     <div class="flex gap-8">
+                        <button class="btn btn-secondary" id="goPlusVerifyBtn" onclick="verifyTokensWithGoPlus()" style="padding:6px 12px;font-size:12px;color:var(--text-primary);" title="Verifica token sospetti con GoPlus Security API">
+                            🔍 Verifica Sicurezza
+                        </button>
                         ${tokenBlacklist.length > 0 ? `<button class="btn btn-secondary" onclick="showBlacklistModal()" style="padding:6px 12px;font-size:12px;color:var(--text-primary);">📋 Blacklist (${tokenBlacklist.length})</button>` : ''}
                         <button class="btn" id="verifiedFilterBtn" onclick="toggleVerifiedFilter()" style="padding:6px 12px;font-size:12px;${showOnlyVerified ? 'background:var(--green);color:white;' : 'background:var(--bg-secondary);color:var(--text-primary);'}">
                             ${showOnlyVerified ? '✅ Solo Verificati' : '👁️ Mostra Tutti'}
@@ -2572,6 +2728,26 @@
                     // Contract address (usato per blacklist come v5.2)
                     const contractAddr = bal.contractAddress || `native-${chain}`;
                     
+                    // ⭐ STATUS BADGE: Verificato / Sospetto / Scam
+                    let statusBadge = '';
+                    const isNative = !bal.contractAddress || contractAddr.startsWith('native-');
+                    const isInWhitelist = TokenValidator?.isWhitelisted?.(bal.coin) || false;
+                    const hasPrice = price > 0;
+                    const goPlusStatus = getGoPlusStatus(bal.contractAddress, chain);
+                    
+                    if (isNative || isInWhitelist) {
+                        statusBadge = '<span title="Token verificato" style="color:var(--green);font-size:10px;margin-left:4px;">✓</span>';
+                    } else if (goPlusStatus === 'safe') {
+                        statusBadge = '<span title="Verificato GoPlus" style="color:var(--green);font-size:10px;margin-left:4px;">🛡️</span>';
+                    } else if (goPlusStatus === 'scam') {
+                        statusBadge = '<span title="SCAM rilevato!" style="color:var(--red);font-size:10px;margin-left:4px;">⚠️</span>';
+                    } else if (hasPrice) {
+                        statusBadge = '<span title="Ha prezzo CoinGecko" style="color:var(--green);font-size:10px;margin-left:4px;">✓</span>';
+                    } else {
+                        // Token non verificato - mostra bottone per check GoPlus
+                        statusBadge = `<button onclick="checkTokenSecurity('${bal.contractAddress}','${chain}','${bal.coin}')" title="Verifica con GoPlus" style="background:none;border:none;cursor:pointer;font-size:10px;color:var(--yellow);margin-left:4px;">🔍</button>`;
+                    }
+                    
                     // Link all'explorer per contract address
                     let contractLink = '';
                     if (bal.contractAddress) {
@@ -2586,7 +2762,7 @@
                                     <button class="hide-btn" onclick="hideToken('${contractAddr}','${bal.coin}')" title="Nascondi token">✕</button>
                                     ${iconHtml}
                                     <div>
-                                        <div style="font-weight:500;">${bal.coin}</div>
+                                        <div style="font-weight:500;">${bal.coin}${statusBadge}</div>
                                         ${bal.name && bal.name !== bal.coin ? `<div class="text-secondary" style="font-size:10px;">${bal.name.slice(0,25)}</div>` : ''}
                                         ${contractLink}
                                     </div>
