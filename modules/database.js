@@ -454,10 +454,17 @@ const Database = (function() {
         return key;
     }
     
+    function getHeliusKey() {
+        return AppState.apiKeys.helius || null;
+    }
+    
     function getApiKey(name) {
         if (name === 'moralis') {
             // Ritorna la prossima key disponibile
             return getNextMoralisKey();
+        }
+        if (name === 'helius') {
+            return getHeliusKey();
         }
         return AppState.apiKeys[name] || '';
     }
@@ -505,6 +512,7 @@ const Database = (function() {
         removeMoralisKey,
         getMoralisKeys,
         getNextMoralisKey,
+        getHeliusKey,
         
         // Utilities
         clearAllData,

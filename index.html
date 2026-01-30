@@ -1243,6 +1243,23 @@
                     </div>
                 </div>
                 
+                <!-- Helius API (Solana) -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">◎ Helius API Key (Solana)</div>
+                    </div>
+                    
+                    <p class="text-secondary mb-12" style="font-size:12px;">
+                        Per scansionare wallet Solana. Ottieni gratis su <a href="https://dev.helius.xyz/" target="_blank" style="color:var(--accent)">dev.helius.xyz</a> (100k req/mese gratis)
+                    </p>
+                    
+                    <div class="flex gap-8">
+                        <input type="password" id="apiHelius" placeholder="Inserisci API Key Helius">
+                        <button class="btn btn-secondary" onclick="saveApiKey('helius')">Salva</button>
+                    </div>
+                    <div id="heliusStatus" class="mt-8" style="font-size:11px;"></div>
+                </div>
+                
                 <!-- Data Management -->
                 <div class="card">
                     <div class="card-header">
@@ -1277,6 +1294,7 @@
     <script src="modules/prices.js"></script>
     <script src="modules/wallet-evm.js"></script>
     <script src="modules/wallet-cosmos.js"></script>
+    <script src="modules/wallet-solana.js"></script>
     
     <!-- ═══════════════════════════════════════════════════════════════
          APP MAIN
@@ -1582,8 +1600,18 @@
             } else if (address.startsWith('osmo1')) {
                 type = 'cosmos';
                 chain = 'osmo';
+            } else if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) {
+                // Solana address (base58 encoded, 32-44 chars)
+                type = 'solana';
+                chain = 'sol';
+                
+                // Verifica API Key Helius
+                const heliusKey = Database.getState().apiKeys?.helius;
+                if (!heliusKey) {
+                    alert('⚠️ Per scansionare wallet Solana devi configurare l\'API Key Helius!\n\nVai in Impostazioni e aggiungi la chiave gratuita da dev.helius.xyz');
+                }
             } else {
-                alert('Indirizzo non riconosciuto. Supportati: EVM (0x...), Terra (terra1...), Cosmos (cosmos1...), Osmosis (osmo1...)');
+                alert('Indirizzo non riconosciuto.\n\nSupportati:\n• EVM (0x...)\n• Solana (base58)\n• Terra (terra1...)\n• Cosmos (cosmos1...)\n• Osmosis (osmo1...)');
                 return;
             }
             
@@ -1598,7 +1626,7 @@
             };
             
             if (Database.addWallet(wallet)) {
-                log(`✅ Wallet aggiunto: ${name}`);
+                log(`✅ Wallet ${type.toUpperCase()} aggiunto: ${name}`);
                 document.getElementById('walletName').value = '';
                 document.getElementById('walletAddress').value = '';
                 updateWalletList();
@@ -1712,9 +1740,22 @@
             log(`⛓️ Scansione su ${selectedChains.length} chain: ${selectedChains.join(', ')}`);
             
             if (wallet.type === 'evm') {
-                result = await WalletEVM.fullScan(wallet.address, selectedChains);
+                // Filtra solo chain EVM selezionate
+                const evmChains = selectedChains.filter(c => ALL_CHAINS[c]?.type === 'evm');
+                if (evmChains.length > 0) {
+                    result = await WalletEVM.fullScan(wallet.address, evmChains);
+                }
             } else if (wallet.type === 'cosmos') {
                 result = await WalletCosmos.fullScan(wallet.address);
+            } else if (wallet.type === 'solana') {
+                // Scan Solana con Helius
+                if (typeof WalletSolana !== 'undefined') {
+                    log('◎ Scansione Solana con Helius...');
+                    result = await WalletSolana.fullScan(wallet.address);
+                } else {
+                    log('⚠️ Modulo Solana non caricato');
+                    result = { success: false, error: 'Modulo Solana non disponibile' };
+                }
             }
             
             if (result && result.success) {
@@ -2985,6 +3026,13 @@
             // Etherscan
             const etherscan = Database.getState().apiKeys.etherscan;
             if (etherscan) document.getElementById('apiEtherscan').value = etherscan;
+            
+            // Helius (Solana)
+            const helius = Database.getState().apiKeys.helius;
+            if (helius) {
+                document.getElementById('apiHelius').value = helius;
+                document.getElementById('heliusStatus').innerHTML = '<span style="color:var(--green);">✓ Configurata</span>';
+            }
         }
         
         function addMoralisKey() {
@@ -3051,6 +3099,13 @@
                 const value = document.getElementById('apiEtherscan').value.trim();
                 Database.setApiKey('etherscan', value);
                 log(`✅ API Key Etherscan salvata`);
+            } else if (name === 'helius') {
+                const value = document.getElementById('apiHelius').value.trim();
+                Database.setApiKey('helius', value);
+                if (value) {
+                    document.getElementById('heliusStatus').innerHTML = '<span style="color:var(--green);">✓ Configurata</span>';
+                }
+                log(`✅ API Key Helius (Solana) salvata`);
             }
             updateDebugInfo();
         }
