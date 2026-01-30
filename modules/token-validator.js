@@ -63,23 +63,26 @@ const TokenValidator = (function() {
         'FIL', 'ARB', 'OP', 'VET', 'HBAR', 'ALGO', 'ICP', 'GRT', 'FTM', 'AAVE',
         'EOS', 'MKR', 'SAND', 'AXS', 'MANA', 'THETA', 'XTZ', 'EGLD', 'FLOW', 'CHZ',
         'KCS', 'NEO', 'KAVA', 'MINA', 'XDC', 'IOTA', 'ZEC', 'DASH', 'ENJ', 'BAT',
+        'SUI', 'TON', 'BCH', 'ETC', 'XMR', 'RUNE', 'INJ', 'SEI', 'TIA', 'STX',
         
         // === STABLECOINS ===
         'USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'FRAX', 'FDUSD', 'PYUSD', 'GUSD',
         'LUSD', 'CRVUSD', 'GHO', 'USDD', 'UST', 'USTC', 'MAI', 'MIMATIC', 'USDP',
+        'USDE', 'EURC', 'EURS', 'EURT', 'USDJ', 'VAI',
         
         // === WRAPPED TOKENS ===
         'WETH', 'WBTC', 'WBNB', 'WMATIC', 'WAVAX', 'WFTM', 'WCRO', 'WPLS',
-        'STETH', 'RETH', 'CBETH', 'WSTETH', 'FRXETH', 'SFRXETH',
-        'MSOL', 'JITOSOL', 'BSOL', 'STSOL',
+        'STETH', 'RETH', 'CBETH', 'WSTETH', 'FRXETH', 'SFRXETH', 'METH',
+        'MSOL', 'JITOSOL', 'BSOL', 'STSOL', 'WEETH', 'EZETH', 'RSETH',
         
         // === DEFI BLUE CHIPS ===
         'CRV', 'CVX', 'COMP', 'SNX', 'SUSHI', '1INCH', 'CAKE', 'LDO', 'RPL',
         'FXS', 'PENDLE', 'GMX', 'DYDX', 'JOE', 'SPELL', 'YFI', 'BAL', 'LQTY',
+        'RDNT', 'VELO', 'AERO', 'THE', 'MORPHO', 'ENA', 'ETHFI',
         
         // === LAYER 2 / SCALING ===
         'IMX', 'LRC', 'ZK', 'STRK', 'MANTA', 'METIS', 'BOBA', 'CELO', 'GLMR',
-        'MOVR', 'SKL', 'CTSI', 'SYN',
+        'MOVR', 'SKL', 'CTSI', 'SYN', 'ZRO', 'MODE', 'BLAST', 'SCROLL',
         
         // === EXCHANGE TOKENS ===
         'CRO', 'OKB', 'BGB', 'KCS', 'GT', 'HT', 'LEO', 'FTT', 'MX', 'WOO',
@@ -87,36 +90,46 @@ const TokenValidator = (function() {
         // === MEME COINS LEGITTIMI ===
         'PEPE', 'FLOKI', 'BONK', 'WIF', 'BRETT', 'POPCAT', 'NEIRO', 'TURBO',
         'COQ', 'DEGEN', 'TOSHI', 'MEME', 'LADYS', 'MILADY', 'WOJAK',
-        'BABYDOGE', 'ELON', 'KISHU', 'HOGE', 'BONE', 'LEASH',
+        'BABYDOGE', 'ELON', 'KISHU', 'HOGE', 'BONE', 'LEASH', 'MOG', 'SPX',
+        'PORK', 'ANDY', 'PONKE', 'BOME', 'SLERF', 'MEW', 'MYRO',
         
         // === AI / DATA ===
         'FET', 'AGIX', 'OCEAN', 'RNDR', 'RENDER', 'TAO', 'WLD', 'ARKM', 'AKT',
+        'AIOZ', 'PHB', 'NMR', 'CTXC', 'GLM', 'ORAI', 'VIRTUAL', 'AI16Z',
         
         // === GAMING / METAVERSE ===
         'GALA', 'IMX', 'ILV', 'PRIME', 'MAGIC', 'YGG', 'PIXEL', 'MAVIA', 'BEAM',
         'BIGTIME', 'GODS', 'PYR', 'REVV', 'GHST', 'ALICE', 'TLM', 'SUPER',
+        'RON', 'AXS', 'SLP', 'PORTO', 'SANTOS', 'LAZIO', 'CITY', 'PSG',
         
         // === INFRASTRUCTURE ===
         'API3', 'BAND', 'TRB', 'UMA', 'REQ', 'COTI', 'CELR', 'ANKR', 'STORJ',
+        'AR', 'FIO', 'NKN', 'IOTX', 'POKT', 'SSV', 'OETH',
         
         // === PULSECHAIN ===
         'PLS', 'PLSX', 'HEX', 'INC', 'LOAN', 'MINT', 'PHIAT', 'SPARK', 'EHEX',
+        'DAI9', 'USDC9', 'USDT9', 'WETH9',
         
         // === BLACKFORT ===
         'BXN', 'WBXN',
         
         // === COSMOS ECOSYSTEM ===
         'OSMO', 'JUNO', 'SCRT', 'INJ', 'SEI', 'TIA', 'DYM', 'KUJI', 'NTRN',
-        'LUNA', 'LUNC',
+        'LUNA', 'LUNC', 'AKT', 'FET', 'STARS', 'NTRN', 'MARS',
         
         // === SOLANA ECOSYSTEM ===
         'RAY', 'ORCA', 'MNDE', 'SRM', 'STEP', 'SLND', 'TULIP', 'SHDW', 'DUST',
-        'JUP', 'PYTH', 'JTO', 'TENSOR', 'BSOL', 'MSOL',
+        'JUP', 'PYTH', 'JTO', 'TENSOR', 'BSOL', 'MSOL', 'W', 'KMNO', 'JITO',
+        
+        // === BSC POPULAR ===
+        'XVS', 'ALPACA', 'BAKE', 'TWT', 'SFP', 'C98', 'REEF', 'LINA', 'TKO',
+        'BURGER', 'SXP', 'MDX', 'RACA', 'HERO', 'GMT', 'GST', 'HIGH',
         
         // === OTHER POPULAR ===
         'MASK', 'ENS', 'RSS3', 'ID', 'ARB', 'BLUR', 'X2Y2', 'LOOKS', 'RARE',
         'AUDIO', 'JASMY', 'HOT', 'ONE', 'ROSE', 'QTUM', 'ZIL', 'ICX', 'ONT',
-        'WAVES', 'SC', 'DGB', 'RVN', 'FLUX', 'KDA', 'ERG', 'CFX', 'CKB'
+        'WAVES', 'SC', 'DGB', 'RVN', 'FLUX', 'KDA', 'ERG', 'CFX', 'CKB',
+        'APE', 'SHIFU', 'BUBBLE', 'CIV', 'VSN'
     ]);
     
     // ═══════════════════════════════════════════════════════════
@@ -312,6 +325,30 @@ const TokenValidator = (function() {
     }
     
     /**
+     * ⭐ CHECK TOKEN VERIFICATO
+     * Un token è "verificato" se:
+     * 1. È nella whitelist (token conosciuti)
+     * 2. OPPURE ha un prezzo valido > 0 (i token scam non hanno mai prezzo!)
+     * 
+     * @param {string} symbol - Simbolo del token
+     * @param {number} price - Prezzo del token (0 se non disponibile)
+     * @returns {boolean} - true se verificato
+     */
+    function isVerifiedToken(symbol, price = 0) {
+        // 1. Check whitelist
+        if (WHITELIST_TOKENS.has((symbol || '').toUpperCase())) {
+            return true;
+        }
+        
+        // 2. Check se ha prezzo valido (token reali hanno sempre prezzo su CoinGecko)
+        if (price && price > 0) {
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
      * Aggiungi token alla whitelist runtime
      */
     function addToWhitelist(symbol) {
@@ -342,6 +379,7 @@ const TokenValidator = (function() {
         // Quick check
         quickCheck,
         isWhitelisted,
+        isVerifiedToken,
         
         // Gestione liste
         addToWhitelist,

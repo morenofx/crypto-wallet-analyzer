@@ -1816,7 +1816,7 @@
             
             const state = Database.getState();
             
-            // Trova token di questo wallet (esclusi blacklist)
+            // Trova token di questo wallet (solo blacklist esclusi qui)
             const walletBalances = [];
             const searchSource = `wallet_${currentWalletAddress.toLowerCase()}`;
             
@@ -1829,23 +1829,20 @@
                 
                 if (!isMatch) continue;
                 
-                // ⚠️ Blacklist basata su CONTRACT ADDRESS (come v5.2)
+                // ⚠️ Blacklist basata su CONTRACT ADDRESS (filtro manuale utente)
                 const contractAddr = balance.contractAddress || `native-${balance.chain}`;
                 if (isBlacklisted(contractAddr)) {
                     console.log(`  ❌ Escluso (blacklist): ${balance.coin}`);
                     continue;
                 }
                 
-                // Filtra pattern scam (come v5.2)
-                if (isScamToken(balance.name, balance.coin)) {
-                    console.log(`  ❌ Escluso (scam pattern): ${balance.coin}`);
-                    continue;
-                }
+                // ⚠️ NON filtrare scam pattern qui - sarà fatto in renderWalletTokens
+                // così l'utente può scegliere di vedere tutti i token
                 
                 walletBalances.push(balance);
             }
             
-            console.log('✅ Trovati', walletBalances.length, 'token (dopo filtri)');
+            console.log('✅ Trovati', walletBalances.length, 'token (prima dei filtri UI)');
             
             // Ordina per valore
             walletBalances.sort((a, b) => (b.valueEUR || 0) - (a.valueEUR || 0));
@@ -2081,13 +2078,55 @@
             updateTransactionTable();
         }
         
-        // Stato filtro scam
-        let showScamTokens = false;
+        // ═══════════════════════════════════════════════════════════
+        // ⭐ NUOVO FILTRO: SOLO TOKEN VERIFICATI
+        // ═══════════════════════════════════════════════════════════
+        // Un token è VERIFICATO se:
+        // 1. È nella whitelist (token conosciuti)
+        // 2. OPPURE ha un prezzo CoinGecko valido > 0
+        // I token SCAM non hanno MAI prezzo su CoinGecko!
         
-        function toggleScamFilter() {
-            showScamTokens = !showScamTokens;
-            document.getElementById('scamFilterBtn').textContent = showScamTokens ? '👁️ Mostra Tutti' : '🔒 Nascondi Scam';
+        let showOnlyVerified = true;  // DEFAULT: mostra solo token verificati
+        let showScamTokens = false;   // Legacy compatibility
+        
+        function toggleVerifiedFilter() {
+            showOnlyVerified = !showOnlyVerified;
+            showScamTokens = !showOnlyVerified; // Sync legacy
+            
+            const btn = document.getElementById('verifiedFilterBtn');
+            if (btn) {
+                btn.innerHTML = showOnlyVerified 
+                    ? '✅ Solo Verificati' 
+                    : '👁️ Mostra Tutti';
+                btn.style.background = showOnlyVerified ? 'var(--green)' : 'var(--bg-secondary)';
+                btn.style.color = showOnlyVerified ? 'white' : 'var(--text-primary)';
+            }
             updateWalletDetail();
+        }
+        
+        // Legacy compatibility
+        function toggleScamFilter() {
+            toggleVerifiedFilter();
+        }
+        
+        /**
+         * ⭐ Check se un token è VERIFICATO
+         * @param {string} symbol - Simbolo del token
+         * @param {number} price - Prezzo del token
+         * @returns {boolean}
+         */
+        function isTokenVerified(symbol, price = 0) {
+            // Usa TokenValidator se disponibile
+            if (typeof TokenValidator !== 'undefined' && TokenValidator.isVerifiedToken) {
+                return TokenValidator.isVerifiedToken(symbol, price);
+            }
+            
+            // Fallback: check whitelist base + prezzo
+            const WHITELIST = ['BTC','ETH','BNB','SOL','USDT','USDC','DAI','PLS','HEX','BXN','MATIC','AVAX','ARB','OP'];
+            if (WHITELIST.includes((symbol || '').toUpperCase())) return true;
+            if (price && price > 0) return true;
+            
+            return false;
         }
         
         // Mappa icone token conosciute (fallback) - ESPANSA
@@ -2366,48 +2405,77 @@
         function renderWalletTokens(balances) {
             const container = document.getElementById('walletTokensList');
             
-            // Filtra scam e blacklist se necessario
+            // ═══════════════════════════════════════════════════════════
+            // ⭐ NUOVO FILTRO: SOLO TOKEN VERIFICATI
+            // ═══════════════════════════════════════════════════════════
             let filtered = balances;
-            let scamCount = 0;
+            let unverifiedCount = 0;
             let blacklistCount = 0;
+            let scamPatternCount = 0;
             
-            if (!showScamTokens) {
-                filtered = balances.filter(bal => {
-                    // Filtro balance zero o negativo (come v5.2)
-                    if (!bal.amount || bal.amount <= 0) {
-                        return false;
-                    }
-                    
-                    // Blacklist basata su CONTRACT ADDRESS (come v5.2)
-                    const contractAddr = bal.contractAddress || `native-${bal.chain}`;
-                    if (isBlacklisted(contractAddr)) {
-                        blacklistCount++;
-                        return false;
-                    }
-                    
-                    // Filtro spam (come v5.2)
-                    if (isScamToken(bal.name, bal.coin)) {
-                        scamCount++;
-                        return false;
-                    }
-                    
-                    // Filtro valore minimo (< $0.01) - nasconde dust e possibili scam
+            // SEMPRE filtra blacklist e balance zero
+            filtered = balances.filter(bal => {
+                // Filtro balance zero o negativo
+                if (!bal.amount || bal.amount <= 0) {
+                    return false;
+                }
+                
+                // Blacklist basata su CONTRACT ADDRESS (sempre attiva)
+                const contractAddr = bal.contractAddress || `native-${bal.chain}`;
+                if (isBlacklisted(contractAddr)) {
+                    blacklistCount++;
+                    return false;
+                }
+                
+                return true;
+            });
+            
+            // Se showOnlyVerified = true, mostra SOLO token verificati
+            if (showOnlyVerified) {
+                filtered = filtered.filter(bal => {
                     const price = PriceService.getPrice(bal.coin, 'eur');
-                    const value = bal.amount * price;
-                    if (price > 0 && value < 0.01) {
-                        return false; // Nascondi dust tokens
+                    
+                    // Check se è token verificato (whitelist O ha prezzo)
+                    if (isTokenVerified(bal.coin, price)) {
+                        return true;
                     }
                     
+                    // Token NON verificato (no whitelist, no prezzo)
+                    unverifiedCount++;
+                    return false;
+                });
+            } else {
+                // Mostra tutti, ma filtra solo pattern spam ovvi
+                filtered = filtered.filter(bal => {
+                    if (isScamToken(bal.name, bal.coin)) {
+                        scamPatternCount++;
+                        return false;
+                    }
                     return true;
                 });
             }
+            
+            // Filtro dust (valore < €0.01) - sempre attivo per pulizia
+            filtered = filtered.filter(bal => {
+                const price = PriceService.getPrice(bal.coin, 'eur');
+                const value = bal.amount * price;
+                // Se ha prezzo e valore troppo basso, nascondi
+                if (price > 0 && value < 0.01) {
+                    return false;
+                }
+                return true;
+            });
             
             if (filtered.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
                         <div class="icon">🪙</div>
-                        <p>Nessun token trovato</p>
-                        <p class="text-secondary" style="font-size:12px;">Scansiona il wallet per caricare i token</p>
+                        <p>Nessun token verificato trovato</p>
+                        <p class="text-secondary" style="font-size:12px;">
+                            ${unverifiedCount > 0 
+                                ? `${unverifiedCount} token non verificati nascosti. Clicca "Mostra Tutti" per vederli.` 
+                                : 'Scansiona il wallet per caricare i token'}
+                        </p>
                     </div>
                 `;
                 return;
@@ -2449,16 +2517,16 @@
             });
             
             // Header con filtro e info
-            const hiddenCount = scamCount + blacklistCount;
+            const hiddenTotal = unverifiedCount + blacklistCount + scamPatternCount;
             let html = `
                 <div class="flex items-center justify-between mb-16">
                     <span class="text-secondary" style="font-size:12px;">
-                        ${filtered.length} token su ${chainOrder.length} chain${hiddenCount > 0 ? ` (${hiddenCount} nascosti)` : ''}
+                        ${uniqueTokens.length} token su ${chainOrder.length} chain${hiddenTotal > 0 ? ` (${hiddenTotal} nascosti)` : ''}
                     </span>
                     <div class="flex gap-8">
                         ${tokenBlacklist.length > 0 ? `<button class="btn btn-secondary" onclick="showBlacklistModal()" style="padding:6px 12px;font-size:12px;color:var(--text-primary);">📋 Blacklist (${tokenBlacklist.length})</button>` : ''}
-                        <button class="btn btn-secondary" id="scamFilterBtn" onclick="toggleScamFilter()" style="padding:6px 12px;font-size:12px;color:var(--text-primary);">
-                            ${showScamTokens ? '👁️ Mostra Tutti' : '🔒 Nascondi Scam'}
+                        <button class="btn" id="verifiedFilterBtn" onclick="toggleVerifiedFilter()" style="padding:6px 12px;font-size:12px;${showOnlyVerified ? 'background:var(--green);color:white;' : 'background:var(--bg-secondary);color:var(--text-primary);'}">
+                            ${showOnlyVerified ? '✅ Solo Verificati' : '👁️ Mostra Tutti'}
                         </button>
                     </div>
                 </div>
