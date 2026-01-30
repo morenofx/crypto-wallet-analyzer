@@ -1835,9 +1835,8 @@
                 
                 if (!isMatch) continue;
                 
-                // ⚠️ Blacklist basata su CONTRACT ADDRESS (filtro manuale utente)
-                const contractAddr = balance.contractAddress || `native-${balance.chain}`;
-                if (isBlacklisted(contractAddr)) {
+                // ⭐ Blacklist - passa l'oggetto balance per ID univoco
+                if (isBlacklisted(balance)) {
                     console.log(`  ❌ Escluso (blacklist): ${balance.coin}`);
                     continue;
                 }
@@ -1953,29 +1952,139 @@
         // BLACKLIST (come v5.2 - basata su CONTRACT ADDRESS)
         // ═══════════════════════════════════════════════════════════
         
-        // tokenBlacklist = array di contract address
-        // blacklistNames = { contractAddress: symbolName }
+        // tokenBlacklist = array di contract address o ID univoci
+        // blacklistNames = { id: symbolName }
         let tokenBlacklist = JSON.parse(localStorage.getItem('cryptofolio_blacklist') || '[]');
         let blacklistNames = JSON.parse(localStorage.getItem('cryptofolio_blacklist_names') || '{}');
         
-        function isBlacklisted(contractAddress) {
-            if (!contractAddress) return false;
-            return tokenBlacklist.includes(contractAddress.toLowerCase());
+        // ⭐ MIGRAZIONE: Rimuovi ID problematici dalla vecchia blacklist
+        // Gli ID che iniziano con "native-" causavano il bug di nascondere tutta la chain
+        (function migrateBlacklist() {
+            const problematicIds = tokenBlacklist.filter(id => 
+                id && (id.startsWith('native-') || id.match(/^native-[a-z]+$/))
+            );
+            
+            if (problematicIds.length > 0) {
+                console.log('🔧 Migrazione blacklist: rimuovo ID problematici:', problematicIds);
+                tokenBlacklist = tokenBlacklist.filter(id => 
+                    !id || !id.startsWith('native-')
+                );
+                
+                // Rimuovi anche dai nomi
+                for (const id of problematicIds) {
+                    delete blacklistNames[id];
+                }
+                
+                // Salva
+                localStorage.setItem('cryptofolio_blacklist', JSON.stringify(tokenBlacklist));
+                localStorage.setItem('cryptofolio_blacklist_names', JSON.stringify(blacklistNames));
+                console.log('✅ Blacklist migrata. Nuova lista:', tokenBlacklist);
+            }
+        })();
+        
+        /**
+         * ⭐ Genera ID univoco per blacklist
+         * - Token con contract: usa contract address
+         * - Token senza contract: usa chain_symbol (unico)
+         * - Token nativi (ETH, BNB, etc.): NON possono essere nascosti
+         */
+        function getTokenBlacklistId(bal) {
+            if (!bal) return null;
+            
+            const chain = bal.chain || 'unknown';
+            const symbol = (bal.coin || bal.symbol || '').toUpperCase();
+            
+            // Se ha contract address, usalo (è univoco)
+            if (bal.contractAddress && !bal.contractAddress.startsWith('native-')) {
+                return bal.contractAddress.toLowerCase();
+            }
+            
+            // Token senza contract = probabilmente nativo o scam
+            // Usa chain_symbol come ID univoco
+            return `nocontract_${chain}_${symbol}`.toLowerCase();
+        }
+        
+        /**
+         * Check se token è blacklistato
+         * Accetta sia balance object che stringa ID
+         */
+        function isBlacklisted(balanceOrId) {
+            if (!balanceOrId) return false;
+            
+            // Se è una stringa, usala direttamente
+            if (typeof balanceOrId === 'string') {
+                return tokenBlacklist.includes(balanceOrId.toLowerCase());
+            }
+            
+            // Se è un oggetto balance, genera l'ID
+            const id = getTokenBlacklistId(balanceOrId);
+            if (!id) return false;
+            
+            return tokenBlacklist.includes(id);
+        }
+        
+        /**
+         * ⭐ Check se è un token nativo della chain (NON nascondibile)
+         */
+        function isNativeChainToken(bal) {
+            if (!bal) return false;
+            
+            const symbol = (bal.coin || bal.symbol || '').toUpperCase();
+            const chain = bal.chain || '';
+            
+            // Token nativi per chain
+            const NATIVE_TOKENS = {
+                'eth': ['ETH'],
+                'bsc': ['BNB', 'WBNB'],
+                'polygon': ['MATIC', 'POL', 'WMATIC'],
+                'arbitrum': ['ETH'],
+                'optimism': ['ETH'],
+                'base': ['ETH'],
+                'avalanche': ['AVAX', 'WAVAX'],
+                'fantom': ['FTM', 'WFTM'],
+                'cronos': ['CRO', 'WCRO'],
+                'pulse': ['PLS', 'WPLS'],
+                'blackfort': ['BXN', 'WBXN']
+            };
+            
+            const nativeSymbols = NATIVE_TOKENS[chain] || [];
+            return nativeSymbols.includes(symbol) && !bal.contractAddress;
         }
         
         // Nascondi token (come v5.2 - SOLO FILTRO UI, non cancella dal DB!)
-        function hideToken(contractAddress, symbol) {
-            const lc = (contractAddress || '').toLowerCase();
-            if (!lc) return;
+        function hideToken(balanceOrId, symbol) {
+            let id;
             
-            if (!tokenBlacklist.includes(lc)) {
-                tokenBlacklist.push(lc);
-                blacklistNames[lc] = symbol || lc.slice(0, 10);
+            // Se è un oggetto balance
+            if (typeof balanceOrId === 'object') {
+                // Non permettere di nascondere token nativi
+                if (isNativeChainToken(balanceOrId)) {
+                    alert(`⚠️ ${balanceOrId.coin} è il token nativo della chain e non può essere nascosto.`);
+                    return;
+                }
+                id = getTokenBlacklistId(balanceOrId);
+                symbol = symbol || balanceOrId.coin;
+            } else {
+                // È una stringa (vecchio metodo o contract address)
+                id = (balanceOrId || '').toLowerCase();
+                
+                // Blocca se è un ID di token nativo
+                if (id.startsWith('native-')) {
+                    alert(`⚠️ I token nativi della chain non possono essere nascosti.`);
+                    return;
+                }
+            }
+            
+            if (!id) return;
+            
+            if (!tokenBlacklist.includes(id)) {
+                tokenBlacklist.push(id);
+                blacklistNames[id] = symbol || id.slice(0, 15);
                 
                 localStorage.setItem('cryptofolio_blacklist', JSON.stringify(tokenBlacklist));
                 localStorage.setItem('cryptofolio_blacklist_names', JSON.stringify(blacklistNames));
                 
-                log(`🚫 ${symbol || 'Token'} nascosto (${lc.slice(0,10)}...)`);
+                log(`🚫 ${symbol || 'Token'} nascosto`);
             }
             
             // Aggiorna UI (NON cancellare dal database!)
@@ -1985,8 +2094,8 @@
         }
         
         // Ripristina token (come v5.2)
-        function restoreToken(contractAddress) {
-            const lc = (contractAddress || '').toLowerCase();
+        function restoreToken(id) {
+            const lc = (id || '').toLowerCase();
             tokenBlacklist = tokenBlacklist.filter(x => x !== lc);
             delete blacklistNames[lc];
             
@@ -2655,9 +2764,8 @@
                     return false;
                 }
                 
-                // Blacklist basata su CONTRACT ADDRESS (sempre attiva)
-                const contractAddr = bal.contractAddress || `native-${bal.chain}`;
-                if (isBlacklisted(contractAddr)) {
+                // ⭐ Blacklist - passa l'oggetto balance per ID univoco
+                if (isBlacklisted(bal)) {
                     blacklistCount++;
                     return false;
                 }
@@ -2808,16 +2916,22 @@
                     const iconHtml = getTokenIcon(bal, chainInfo.color);
                     
                     // Contract address (usato per blacklist come v5.2)
-                    const contractAddr = bal.contractAddress || `native-${chain}`;
+                    const contractAddr = bal.contractAddress || null;
+                    
+                    // ⭐ Genera ID univoco per blacklist
+                    const blacklistId = getTokenBlacklistId(bal);
+                    
+                    // ⭐ Check se è token nativo (non nascondibile)
+                    const isNativeToken = isNativeChainToken(bal);
                     
                     // ⭐ STATUS BADGE: Verificato / Sospetto / Scam
                     let statusBadge = '';
-                    const isNative = !bal.contractAddress || contractAddr.startsWith('native-');
+                    const isNative = !bal.contractAddress;
                     const isInWhitelist = TokenValidator?.isWhitelisted?.(bal.coin) || false;
                     const hasPrice = price > 0;
                     const goPlusStatus = getGoPlusStatus(bal.contractAddress, chain);
                     
-                    if (isNative || isInWhitelist) {
+                    if (isNativeToken || isInWhitelist) {
                         statusBadge = '<span title="Token verificato" style="color:var(--green);font-size:10px;margin-left:4px;">✓</span>';
                     } else if (goPlusStatus === 'safe') {
                         statusBadge = '<span title="Verificato GoPlus" style="color:var(--green);font-size:10px;margin-left:4px;">🛡️</span>';
@@ -2837,11 +2951,16 @@
                         contractLink = `<a href="${explorerUrl}/token/${bal.contractAddress}" target="_blank" class="text-secondary" style="font-size:9px;text-decoration:none;opacity:0.6;" title="${bal.contractAddress}">${bal.contractAddress.slice(0,6)}...${bal.contractAddress.slice(-4)}</a>`;
                     }
                     
+                    // ⭐ Bottone hide: se token nativo non mostrarlo, altrimenti usa ID univoco
+                    const hideBtn = isNativeToken 
+                        ? '' 
+                        : `<button class="hide-btn" onclick="hideToken('${blacklistId}','${bal.coin}')" title="Nascondi token">✕</button>`;
+                    
                     html += `
                         <tr style="border-bottom:1px solid var(--border);">
                             <td style="padding:12px;">
                                 <div class="flex items-center gap-8">
-                                    <button class="hide-btn" onclick="hideToken('${contractAddr}','${bal.coin}')" title="Nascondi token">✕</button>
+                                    ${hideBtn}
                                     ${iconHtml}
                                     <div>
                                         <div style="font-weight:500;">${bal.coin}${statusBadge}</div>
@@ -2996,10 +3115,9 @@
             const aggregated = {};
             for (const [key, balance] of Object.entries(state.balances)) {
                 const coin = balance.coin;
-                const contractAddr = balance.contractAddress || `native-${balance.chain}`;
                 
-                // Filtra token in blacklist manuale (per CONTRACT ADDRESS, come v5.2!)
-                if (isBlacklisted(contractAddr)) continue;
+                // ⭐ Filtra token in blacklist manuale - passa l'oggetto balance
+                if (isBlacklisted(balance)) continue;
                 
                 // Filtra pattern scam ovvi (usa coin come name e symbol)
                 if (isScamToken(balance.name || coin, coin)) continue;
