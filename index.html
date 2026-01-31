@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v7.11</title>
+<title>CryptoFolio v7.10</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
@@ -19,9 +19,11 @@
 .btn{padding:10px 18px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:500;transition:all .2s}
 .btn-primary{background:var(--blue);color:#fff}.btn-primary:hover{background:#a29bfe}.btn-secondary{background:var(--bg3);color:var(--text);border:1px solid var(--border)}.btn-danger{background:var(--red);color:#fff}.btn-sm{padding:6px 12px;font-size:11px}
 .input{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;width:100%}.input:focus{outline:none;border-color:var(--blue)}
+/* TABELLE CON LAYOUT FISSO */
 .table{width:100%;border-collapse:collapse;table-layout:fixed}
 .table th,.table td{padding:10px 6px;border-bottom:1px solid var(--border);vertical-align:middle;overflow:hidden;text-overflow:ellipsis}
 .table th{text-align:left;color:var(--text2);font-size:10px;text-transform:uppercase;font-weight:500}
+.table tr:hover{background:rgba(255,255,255,.02)}
 .token-cell{display:flex;align-items:center;gap:8px}
 .token-icon{width:28px;height:28px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:9px;overflow:hidden;flex-shrink:0}
 .token-icon img{width:100%;height:100%;object-fit:cover}
@@ -30,6 +32,8 @@
 .chain-tag{display:inline-block;padding:2px 6px;border-radius:4px;font-size:8px;font-weight:500;white-space:nowrap}
 .text-mono{font-family:'SF Mono',Monaco,monospace;font-size:10px}
 .text-right{text-align:right!important}
+.text-center{text-align:center!important}
+/* TOP HOLDINGS - LAYOUT CORRETTO */
 .top-item{display:flex;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);gap:10px}
 .top-item:last-child{border-bottom:none}
 .top-icon{flex-shrink:0}
@@ -46,8 +50,7 @@
 .auth-box{min-height:100vh;display:flex;align-items:center;justify-content:center}.auth-card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:28px;width:100%;max-width:340px}
 .form-group{margin-bottom:14px}.form-label{display:block;margin-bottom:6px;font-size:12px;color:var(--text2)}
 .progress{width:100%;height:6px;background:var(--bg2);border-radius:4px;overflow:hidden}.progress-bar{height:100%;background:linear-gradient(90deg,var(--green),var(--blue));transition:width .3s}
-.scan-box{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px}
-.scan-log{background:var(--bg);border-radius:6px;padding:8px;max-height:120px;overflow-y:auto;font-family:'SF Mono',Monaco,monospace;font-size:10px;margin-top:8px}
+.scan-log{background:var(--bg);border-radius:8px;padding:10px;max-height:150px;overflow-y:auto;font-family:'SF Mono',Monaco,monospace;font-size:10px;margin-top:10px}
 .log-ok{color:var(--green)}.log-err{color:var(--red)}.log-info{color:var(--text2)}.log-warn{color:var(--yellow)}
 .flex{display:flex}.items-center{align-items:center}.justify-between{justify-content:space-between}.gap-4{gap:4px}.gap-8{gap:8px}.gap-12{gap:12px}.mb-12{margin-bottom:12px}.mb-16{margin-bottom:16px}
 .toast{position:fixed;bottom:20px;right:20px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px 16px;z-index:2000;font-size:13px}.toast.success{border-left:4px solid var(--green)}.toast.error{border-left:4px solid var(--red)}
@@ -64,7 +67,7 @@
 <div id="authScreen" class="auth-box">
 <div class="auth-card">
 <div class="logo" style="justify-content:center;margin-bottom:24px;"><div class="logo-icon">💰</div><div class="logo-text">CryptoFolio</div></div>
-<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px;">v7.11 - BigInt Fix</p>
+<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px;">v7.10</p>
 <div class="form-group"><label class="form-label">Email</label><input type="email" id="authEmail" class="input"></div>
 <div class="form-group"><label class="form-label">Password</label><input type="password" id="authPassword" class="input"></div>
 <button onclick="handleLogin()" class="btn btn-primary" style="width:100%;margin-bottom:10px;">🔐 Accedi</button>
@@ -79,11 +82,12 @@
 <div class="nav" data-page="wallets" onclick="showPage('wallets')"><span>👛</span> Wallets</div>
 <div class="nav" data-page="tokens" onclick="showPage('tokens')"><span>🪙</span> Token Manager</div>
 <div class="nav" data-page="settings" onclick="showPage('settings')"><span>⚙️</span> Impostazioni</div>
-<div class="sidebar-footer">v7.11<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px;">🚪 Logout</button></div>
+<div class="sidebar-footer">v7.10<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px;">🚪 Logout</button></div>
 </nav>
 <main class="main">
 <div id="page-dashboard">
 <div class="header"><h1 class="title">Dashboard</h1><div class="flex gap-12"><button onclick="refreshPrices()" class="btn btn-secondary">💰 Prezzi</button><button onclick="toggleCurrency()" class="btn btn-secondary" id="currencyBtn">💶 EUR</button></div></div>
+<div id="scanCard" class="card" style="display:none;"><div class="flex justify-between items-center mb-12"><span>🔍 Scansione...</span><span id="scanPct">0%</span></div><div class="progress"><div class="progress-bar" id="scanBar" style="width:0%"></div></div><div id="scanStatus" style="font-size:12px;color:var(--text2);margin-top:8px;"></div><div class="scan-log" id="scanLog"></div></div>
 <div class="stats">
 <div class="stat"><div class="stat-label">💰 Patrimonio</div><div class="stat-value" id="totalValue">€0</div></div>
 <div class="stat"><div class="stat-label">✅ Verificati</div><div class="stat-value" id="verifiedValue" style="color:var(--blue);">€0</div></div>
@@ -103,13 +107,6 @@
 </div>
 <div id="page-wallets" style="display:none;">
 <div class="header"><h1 class="title">Wallets</h1><button onclick="showAddWallet()" class="btn btn-primary">➕ Aggiungi</button></div>
-<!-- SCAN BOX IN WALLETS PAGE -->
-<div id="walletScanBox" class="scan-box" style="display:none;">
-<div class="flex justify-between items-center mb-12"><span id="walletScanTitle">🔍 Scansione...</span><span id="walletScanPct">0%</span></div>
-<div class="progress"><div class="progress-bar" id="walletScanBar" style="width:0%"></div></div>
-<div id="walletScanStatus" style="font-size:11px;color:var(--text2);margin-top:6px;"></div>
-<div class="scan-log" id="walletScanLog"></div>
-</div>
 <div id="walletList"></div>
 </div>
 <div id="page-wallet-detail" style="display:none;">
@@ -125,7 +122,7 @@
 </div>
 <div id="page-settings" style="display:none;">
 <div class="header"><h1 class="title">Impostazioni</h1></div>
-<div class="card"><div style="font-size:13px;margin-bottom:12px;font-weight:600;">🔑 API Keys Moralis</div><div class="api-grid"><div class="form-group"><label class="form-label">Key 1</label><input id="apiKey1" class="input"></div><div class="form-group"><label class="form-label">Key 2</label><input id="apiKey2" class="input"></div><div class="form-group"><label class="form-label">Key 3</label><input id="apiKey3" class="input"></div><div class="form-group"><label class="form-label">Key 4</label><input id="apiKey4" class="input"></div></div><button onclick="saveApiKeys()" class="btn btn-primary" style="margin-top:8px;">💾 Salva</button></div>
+<div class="card"><div style="font-size:13px;margin-bottom:12px;font-weight:600;">🔑 API Keys Moralis</div><div class="api-grid"><div class="form-group"><label class="form-label">Key 1</label><input id="apiKey1" class="input" placeholder="eyJ..."></div><div class="form-group"><label class="form-label">Key 2</label><input id="apiKey2" class="input" placeholder="eyJ..."></div><div class="form-group"><label class="form-label">Key 3</label><input id="apiKey3" class="input" placeholder="eyJ..."></div><div class="form-group"><label class="form-label">Key 4</label><input id="apiKey4" class="input" placeholder="eyJ..."></div></div><button onclick="saveApiKeys()" class="btn btn-primary" style="margin-top:8px;">💾 Salva</button></div>
 <div class="card"><div class="form-group"><label class="form-label">Valuta</label><select id="setCurrency" class="input" onchange="saveCurrency()"><option value="eur">EUR</option><option value="usd">USD</option></select></div></div>
 <div class="card"><div class="flex gap-8"><button onclick="exportCSV()" class="btn btn-secondary">📤 CSV</button><button onclick="clearAllData()" class="btn btn-danger">🗑️ Reset</button></div></div>
 </div>
@@ -139,6 +136,28 @@
 const SB_URL='https://welnvmqfnceszrvpjoju.supabase.co',SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndlbG52bXFmbmNlc3pydnBqb2p1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODU5NDksImV4cCI6MjA4NTQ2MTk0OX0.XyUPf7r0GvhoxADFPpG1hc6KCQ0gkvSfbYzywl_D-us';
 const DEF_KEYS=['eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjZjYThhZDhkLTEyMTktNDQ0Ny04ZGQ4LWZiZjlmOTlmYzcwYyIsIm9yZ0lkIjoiNDk2ODU3IiwidXNlcklkIjoiNTExMjY4IiwidHlwZUlkIjoiMmY1NzM4MWItYzNmOS00MDA4LTk5OGYtN2ExMmNiYTAzOWI0IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NjkzODIzMzQsImV4cCI6NDkyNTE0MjMzNH0.7cb3HhwH4qmvCYIil3ZWFAYcMD3qEcD3J8J16tAvpbM','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjVlNDJkYTQ5LWFlNmYtNGI2ZC05OTYwLTJkNTUwNGUwZDlmNyIsIm9yZ0lkIjoiNDg3NTI0IiwidXNlcklkIjoiNTAxNTk0IiwidHlwZUlkIjoiY2E1NjEyYzUtMGUzMy00Yzk3LTk1ODktNTA1Yjg4ZmIyNzU1IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NjY2ODczNjMsImV4cCI6NDkyMjQ0NzM2M30.kwUGFKbnzJsALQww3R_UgZO00cDy50Rvf6OmLMTuu9c','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjE0ZDdlNmIxLTkzNTEtNGIwMi1hZGMzLWQ3NjA3MjllNjMxMiIsIm9yZ0lkIjoiNDk2OTIxIiwidXNlcklkIjoiNTExMzM2IiwidHlwZUlkIjoiYTgwMTE2N2QtNGE4MS00ZjVjLThiNGUtMjg0YTlkNzRlOTljIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3Njk0Mjc1ODIsImV4cCI6NDkyNTE4NzU4Mn0.iqQXubNVxU4I_MSjuQolQNKSo4vRHSnGiyiHjvos5eE','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjhlY2U3NzU0LTE0NjUtNGQzMS1iNjRjLTZiNzQ0ZDk3Y2E3ZSIsIm9yZ0lkIjoiNDg3NTI5IiwidXNlcklkIjoiNTAxNTk5IiwidHlwZUlkIjoiYWNiNzFlZjQtZGQ1Ni00NzExLWI1YmQtYjkyNTdmYjgxNDRiIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NjY2OTQ2MDEsImV4cCI6NDkyMjQ1NDYwMX0.3ygKvNrptS9FkNBcmGIO-gSAKGPh9B3h2VeuHdioty8'];
 let KEYS=[...DEF_KEYS],keyIdx=0;
+
+// --- Safe bigint balance helpers (avoid parseFloat overflow) ---
+function toDecimalStr(raw, decimals){
+  try{
+    const x = BigInt(raw || "0");
+    const d = BigInt(decimals || 18);
+    if(d < 0n) return "0";
+    const base = 10n ** d;
+    const intPart = x / base;
+    const fracPart = x % base;
+    const frac = fracPart.toString().padStart(Number(d), "0").replace(/0+$/,"");
+    return frac ? `${intPart}.${frac}` : `${intPart}`;
+  }catch(e){
+    return "0";
+  }
+}
+function toSafeNumber(decimalStr){
+  // Convert to Number only when it's reasonably small; otherwise keep as string-like number
+  const n = Number(decimalStr);
+  if(Number.isFinite(n)) return n;
+  return 0;
+}
 
 const CHAINS={
 eth:{n:'Ethereum',hex:'0x1',c:'#627eea',t:'ETH'},
@@ -155,16 +174,10 @@ linea:{n:'Linea',hex:'0xe708',c:'#61dfff',t:'ETH'},
 gnosis:{n:'Gnosis',hex:'0x64',c:'#04795b',t:'xDAI'}
 };
 
-const VERIFIED=new Set(['ETH','BTC','BNB','USDT','USDC','DAI','WETH','WBTC','WBNB','LINK','UNI','AAVE','MATIC','POL','AVAX','FTM','CRO','WCRO','SHIB','DOGE','PEPE','CAKE','PLS','PLSX','HEX','BONE','BUBBLE','CIV','ONE','MAVIA','WBAI']);
+// CAKE aggiunto sia come "CAKE" che come "Cake" (Moralis a volte usa case diverso)
+const VERIFIED=new Set(['ETH','BTC','BNB','USDT','USDC','DAI','WETH','WBTC','WBNB','LINK','UNI','AAVE','MATIC','POL','AVAX','FTM','CRO','WCRO','SHIB','DOGE','PEPE','CAKE','Cake','PLS','PLSX','HEX','BONE','BUBBLE','CIV','ONE','MAVIA','WBAI']);
+const SPAM_RE=[/\.(com|io|net|org|xyz|finance|swap)$/i,/^(visit|claim|free|bonus|airdrop|reward)/i,/https?:/i,/www\./i];
 const CG_MAP={'ETH':'ethereum','BTC':'bitcoin','BNB':'binancecoin','USDT':'tether','USDC':'usd-coin','WETH':'weth','MATIC':'matic-network','POL':'matic-network','AVAX':'avalanche-2','FTM':'fantom','CRO':'crypto-com-chain','LINK':'chainlink','UNI':'uniswap','AAVE':'aave','ARB':'arbitrum','OP':'optimism','PLS':'pulsechain','HEX':'hex','SHIB':'shiba-inu','DOGE':'dogecoin','PEPE':'pepe','CAKE':'pancakeswap-token','BONE':'bone-shibaswap'};
-
-// SPAM CHECK come v5.2
-function isSpam(name,sym){
-const n=(name||'').toLowerCase(),s=(sym||'').toLowerCase();
-const spam=['visit','claim','reward','.com','.org','.io','.xyz','airdrop','bonus','free','gift','http','$','#'];
-for(const p of spam)if(n.includes(p)||s.includes(p))return true;
-return(name||'').length>40;
-}
 
 const{createClient}=supabase;const db=createClient(SB_URL,SB_KEY);
 let user=null,currency='eur',chart=null,balances=[],prices={},scanning=false,currentWallet=null,scanTargetWallet=null;
@@ -186,35 +199,36 @@ function showPage(p){document.querySelectorAll('[id^="page-"]').forEach(x=>x.sty
 function closeModal(id){document.getElementById(id).style.display='none';}
 
 function getKey(){return KEYS[keyIdx%KEYS.length];}
-function rotateKey(){keyIdx=(keyIdx+1)%KEYS.length;console.log('🔄 Key rotated to',keyIdx+1);}
+function rotateKey(){keyIdx=(keyIdx+1)%KEYS.length;}
 
 async function fetchMoralis(addr,chainKey,retry=0){
 const ch=CHAINS[chainKey];if(!ch)return null;
 try{
 const key=getKey();
-console.log(`📡 [${chainKey}] Fetching with chain=${ch.hex}`);
 const nRes=await fetch(`https://deep-index.moralis.io/api/v2.2/${addr}/balance?chain=${ch.hex}`,{headers:{'X-API-Key':key}});
-if(nRes.status===429||nRes.status===401){rotateKey();if(retry<KEYS.length)return fetchMoralis(addr,chainKey,retry+1);return null;}
-if(!nRes.ok){console.warn(`Balance error: ${nRes.status}`);return null;}
+if(nRes.status===429||nRes.status===401){
+log(`  ⚠️ Moralis native ${nRes.status} (key rotate)`,'log-warn');rotateKey();if(retry<KEYS.length)return fetchMoralis(addr,chainKey,retry+1);return null;}
+if(!nRes.ok)return null;
 const nData=await nRes.json();
-
 const tRes=await fetch(`https://deep-index.moralis.io/api/v2.2/${addr}/erc20?chain=${ch.hex}`,{headers:{'X-API-Key':key}});
-if(tRes.status===429||tRes.status===401){rotateKey();if(retry<KEYS.length)return fetchMoralis(addr,chainKey,retry+1);return null;}
+if(tRes.status===429||tRes.status===401){
+log(`  ⚠️ Moralis erc20 ${tRes.status} (key rotate)`,'log-warn');rotateKey();if(retry<KEYS.length)return fetchMoralis(addr,chainKey,retry+1);return null;}
 const tData=tRes.ok?await tRes.json():[];
-
-console.log(`✅ [${chainKey}] native=${nData.balance}, tokens=${Array.isArray(tData)?tData.length:0}`);
 return{nativeBalance:nData.balance||'0',tokens:Array.isArray(tData)?tData:[]};
-}catch(e){console.error('Moralis error:',e);if(retry<KEYS.length){rotateKey();return fetchMoralis(addr,chainKey,retry+1);}return null;}
+}catch(e){if(retry<KEYS.length){rotateKey();return fetchMoralis(addr,chainKey,retry+1);}return null;}
 }
 
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 
+// STATUS - case insensitive check
 function getStatus(sym,name){
 const u=(sym||'').toUpperCase();
 if(whitelist.has(u))return'verified';
 if(blacklist.has(u))return'spam';
-if(VERIFIED.has(u))return'verified';
-if(isSpam(name,sym))return'spam';
+// Check VERIFIED case insensitive
+for(const v of VERIFIED){if(v.toUpperCase()===u)return'verified';}
+if(SPAM_RE.some(r=>r.test(sym+' '+(name||''))))return'spam';
+if(sym&&sym.length>12)return'spam';
 return'unverified';
 }
 
@@ -230,141 +244,95 @@ function selectAllChains(){selectedChains=new Set(Object.keys(CHAINS));renderCha
 function selectNoChains(){selectedChains.clear();renderChainGrid('modalChainGrid');renderChainGrid('scanChainGrid');}
 
 async function fetchPrices(syms){
-const ids=[...new Set(syms.map(s=>{const u=(s||'').toUpperCase();return CG_MAP[u];}).filter(Boolean))];
+const ids=[...new Set(syms.map(s=>{const u=s.toUpperCase();return CG_MAP[u];}).filter(Boolean))];
 if(!ids.length)return;
 try{const r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids='+ids.join(',')+'&vs_currencies=eur,usd');const d=await r.json();for(const[sym,cg]of Object.entries(CG_MAP)){if(d[cg])prices[sym.toUpperCase()]={eur:d[cg].eur||0,usd:d[cg].usd||0};}}catch(e){}
 }
 async function refreshPrices(){toast('Aggiornamento...');await fetchPrices([...new Set(balances.map(b=>b.symbol))]);await loadDashboard();toast('Prezzi aggiornati!');}
 
-// SCAN - con BigInt come v5.2 e progress in Wallets page
+// SCAN - con debug per CAKE
 async function scanWallet(wallet){
 if(scanning)return;
 if(selectedChains.size===0){toast('Seleziona chain!','error');return;}
 scanning=true;
-
-// Mostra progress in Wallets page
-const scanBox=document.getElementById('walletScanBox');
-scanBox.style.display='block';
-document.getElementById('walletScanLog').innerHTML='';
-document.getElementById('walletScanTitle').textContent=`🔍 ${wallet.name||'Wallet'}`;
-
-const log=(m,cls='log-info')=>{
-const el=document.getElementById('walletScanLog');
-el.innerHTML+=`<div class="${cls}">${m}</div>`;
-el.scrollTop=el.scrollHeight;
-console.log(m);
-};
+document.getElementById('scanCard').style.display='block';
+document.getElementById('scanLog').innerHTML='';
+const log=(m,cls='log-info')=>{const el=document.getElementById('scanLog');el.innerHTML+=`<div class="${cls}">${m}</div>`;el.scrollTop=el.scrollHeight;console.log(m);};
 
 try{
 const results=[];
 const chainKeys=[...selectedChains];
 let done=0;
-log(`👛 ${wallet.address.slice(0,10)}...`);
+log(`👛 ${wallet.name||wallet.address.slice(0,10)}`);
 
 for(const ck of chainKeys){
 const ch=CHAINS[ck];
 const pct=Math.round((done/chainKeys.length)*100);
-document.getElementById('walletScanBar').style.width=pct+'%';
-document.getElementById('walletScanPct').textContent=pct+'%';
-document.getElementById('walletScanStatus').textContent=ch.n;
+document.getElementById('scanBar').style.width=pct+'%';
+document.getElementById('scanPct').textContent=pct+'%';
+document.getElementById('scanStatus').textContent=ch.n;
 
 log(`→ ${ch.n} (${ch.hex})...`);
 const data=await fetchMoralis(wallet.address,ck);
 
 if(data){
-// Native - usa BigInt come v5.2
+// Native
 let nativeBal=0;
-try{
-if(data.nativeBalance&&data.nativeBalance!=='0'){
-nativeBal=Number(BigInt(data.nativeBalance))/1e18;
-}
-}catch(e){log(`  ⚠️ Native parse error`,'log-warn');}
-
+try{nativeBal=parseFloat(data.nativeBalance||'0')/1e18;}catch(e){}
 if(nativeBal>0.00001){
 results.push({user_id:user.id,wallet_id:wallet.id,symbol:ch.t,name:ch.n+' Native',chain:ck,contract_address:null,amount:nativeBal,logo_url:null,is_hidden:false});
 log(`  ✅ ${ch.t}: ${nativeBal.toFixed(6)}`,'log-ok');
 }
 
-// Tokens - usa BigInt come v5.2
+// Tokens - LOG TUTTI per debug
 if(data.tokens?.length>0){
-log(`  📦 ${data.tokens.length} token da Moralis`);
-let added=0,skipped=0;
-for(const token of data.tokens){
-if(!token.symbol){skipped++;continue;}
-
-// Log dettagliato per BSC (per trovare CAKE)
-if(ck==='bsc'){
-console.log(`[BSC] ${token.symbol}: balance=${token.balance}, decimals=${token.decimals}`);
+log(`  📦 ${data.tokens.length} token trovati`,'log-info');
+for(const t of data.tokens){
+if(!t.symbol){log(`  ⚠️ Token senza symbol`,'log-warn');continue;}
+const st=getStatus(t.symbol,t.name);
+// LOG per CAKE debug
+if(t.symbol.toUpperCase().includes('CAKE')){
+log(`  🎂 CAKE trovato! sym=${t.symbol} bal=${t.balance} st=${st}`,'log-warn');
 }
-
-// Check spam/blacklist
-const contract=(token.token_address||'').toLowerCase();
-if(blacklist.has(contract)){skipped++;continue;}
-if(isSpam(token.name,token.symbol)&&!whitelist.has(token.symbol?.toUpperCase())){skipped++;continue;}
-
-// BIGINT parsing come v5.2!
-let bal=0;
-try{
-bal=Number(BigInt(token.balance||'0'))/Math.pow(10,token.decimals||18);
-}catch(e){
-// Fallback per numeri piccoli
-try{bal=parseFloat(token.balance||'0')/Math.pow(10,token.decimals||18);}catch(e2){}
+// Skip spam MA non se in whitelist
+if(st==='spam'){log(`  🚫 Spam: ${t.symbol}`,'log-info');continue;}
+const dec=parseInt(t.decimals)||18;
+const balStr=toDecimalStr(t.balance,dec);
+const bal=toSafeNumber(balStr);
+if(!bal || bal<=0)continue;
+results.push({user_id:user.id,wallet_id:wallet.id,symbol:t.symbol,name:t.name||t.symbol,chain:ck,contract_address:(t.token_address||'').toLowerCase(),amount:bal,logo_url:t.logo||t.thumbnail||null,is_hidden:false});
+log(`  ✅ ${t.symbol}: ${fmtN(bal)}`,'log-ok');
 }
-if(bal<=0){skipped++;continue;}
-
-// Log CAKE specifico
-if(token.symbol?.toUpperCase()==='CAKE'){
-log(`  🎂 CAKE! bal=${bal.toFixed(4)}`,'log-warn');
 }
-
-results.push({
-user_id:user.id,
-wallet_id:wallet.id,
-symbol:token.symbol,
-name:token.name||token.symbol,
-chain:ck,
-contract_address:contract,
-amount:bal,
-logo_url:token.logo||token.thumbnail||null,
-is_hidden:false
-});
-added++;
-}
-log(`  ✅ ${added} salvati, ${skipped} scartati`,'log-ok');
-}
-}else{log(`  ⚠️ Nessun dato`,'log-warn');}
+}else{log(`  ⚠️ No data`,'log-warn');}
 await sleep(150);
 done++;
 }
 
-document.getElementById('walletScanStatus').textContent='Salvataggio...';
-log(`💾 ${results.length} token totali...`);
+document.getElementById('scanStatus').textContent='Salvataggio...';
+log(`💾 ${results.length} token...`);
 
-// DELETE old
 const{error:delErr}=await db.from('balances').delete().eq('wallet_id',wallet.id);
 if(delErr)log(`⚠️ Del: ${delErr.message}`,'log-err');
 
-// INSERT
 if(results.length>0){
 let ok=0;
 for(let i=0;i<results.length;i+=20){
 const batch=results.slice(i,i+20);
 const{error:insErr}=await db.from('balances').insert(batch);
-if(insErr){log(`❌ ${insErr.message}`,'log-err');}
-else{ok+=batch.length;}
+if(insErr){log(`❌ Ins: ${insErr.message}`,'log-err');}
+else{ok+=batch.length;log(`✅ Batch: ${batch.length}`,'log-ok');}
 }
-log(`📊 ${ok}/${results.length} salvati`,'log-ok');
+log(`📊 OK: ${ok}/${results.length}`,'log-ok');
 }
 
 await db.from('wallets').update({last_scan_at:new Date().toISOString()}).eq('id',wallet.id);
-document.getElementById('walletScanBar').style.width='100%';
-document.getElementById('walletScanStatus').textContent='✅ Completato!';
-log(`✅ FATTO!`,'log-ok');
+document.getElementById('scanBar').style.width='100%';
+document.getElementById('scanStatus').textContent='✅ Fatto!';
 toast(`${results.length} token`);
 await loadDashboard();
-await loadWallets();
 }catch(e){log(`❌ ${e.message}`,'log-err');toast(e.message,'error');}
-finally{scanning=false;setTimeout(()=>scanBox.style.display='none',6000);}
+finally{scanning=false;setTimeout(()=>document.getElementById('scanCard').style.display='none',5000);}
 }
 
 function showScanWalletModal(wallet){scanTargetWallet=wallet;document.getElementById('scanWalletName').textContent=`👛 ${wallet.name||wallet.address.slice(0,14)}`;selectedChains=new Set(Object.keys(CHAINS));renderChainGrid('scanChainGrid');document.getElementById('scanWalletModal').style.display='flex';}
@@ -397,6 +365,7 @@ document.getElementById('walletCount').textContent=count||0;
 renderTop();renderChart();renderTokens();
 }
 
+// TOP HOLDINGS - layout corretto
 function renderTop(){
 const vis=balances.filter(b=>!b.is_hidden&&b.amount>0);
 const by={};for(const b of vis){const k=b.symbol;if(!by[k])by[k]={sym:k,eur:0,amt:0,logo:b.logo_url,chain:b.chain};by[k].eur+=b.value_eur||0;by[k].amt+=b.amount;}
@@ -407,7 +376,11 @@ let html='';
 for(const h of sorted){
 const pct=total>0?((h.eur/total)*100).toFixed(0):0;
 const st=getStatus(h.sym,'');
-html+=`<div class="top-item"><div class="top-icon">${icon(h.sym,h.chain,h.logo,26)}</div><div class="top-info"><div class="top-sym">${h.sym} ${st==='verified'?'<span class="badge badge-ok">✓</span>':''}</div><div class="top-amt">${fmtN(h.amt)}</div></div><div class="top-values"><div class="top-val">${fmtC(h.eur)}</div><div class="top-pct">${pct}%</div></div></div>`;
+html+=`<div class="top-item">
+<div class="top-icon">${icon(h.sym,h.chain,h.logo,26)}</div>
+<div class="top-info"><div class="top-sym">${h.sym} ${st==='verified'?'<span class="badge badge-ok">✓</span>':''}</div><div class="top-amt">${fmtN(h.amt)}</div></div>
+<div class="top-values"><div class="top-val">${fmtC(h.eur)}</div><div class="top-pct">${pct}%</div></div>
+</div>`;
 }
 document.getElementById('topHoldings').innerHTML=html;
 }
@@ -441,16 +414,23 @@ html+=`<tr style="${b.is_hidden?'opacity:0.5;':''}"><td><div class="token-cell">
 document.getElementById('tokenList').innerHTML=html+'</tbody></table>';
 }
 
+// TOGGLE HIDE - FIX
 async function toggleHide(id){
-const b=balances.find(x=>x.id===id);if(!b)return;
+const b=balances.find(x=>x.id===id);
+if(!b){console.error('Token not found:',id);return;}
 const newHidden=!b.is_hidden;
+// Update local
 b.is_hidden=newHidden;
+// Update DB
 const{error}=await db.from('balances').update({is_hidden:newHidden}).eq('id',id);
-if(error){toast('Errore!','error');return;}
+if(error){console.error('Update error:',error);toast('Errore!','error');return;}
+// Update localStorage
 const k=b.symbol+'_'+b.chain;
 if(newHidden)hidden.add(k);else hidden.delete(k);
 localStorage.setItem('cf_hid',JSON.stringify([...hidden]));
+// Re-render
 renderTokens();renderTop();renderChart();
+// Update stats
 let totalE=0,hidCount=0;
 for(const x of balances){if(x.amount>0&&!x.is_hidden)totalE+=x.value_eur||0;if(x.is_hidden)hidCount++;}
 document.getElementById('totalValue').textContent=fmtC(totalE);
@@ -506,6 +486,7 @@ html+=`<tr><td><div class="token-cell">${icon(b.symbol,b.chain,b.logo_url,26)}<d
 document.getElementById('wdTokensTab').innerHTML=html+'</tbody></table>';
 }
 
+// TX - LAYOUT FISSO
 async function loadWalletTx(){
 if(!currentWallet)return;toast('Caricamento TX...');document.getElementById('wdTxTab').innerHTML='<p>Caricamento...</p>';
 const allTx=[];const usedChains=new Set(balances.filter(b=>b.wallet_id===currentWallet.id).map(b=>b.chain));
@@ -520,7 +501,7 @@ html+=`<tr><td style="font-size:10px;">${tx.date.toLocaleDateString('it-IT')}</t
 document.getElementById('wdTxTab').innerHTML=html+'</tbody></table>';toast(`${allTx.length} TX`);
 }
 
-// TOKEN MANAGER
+// TOKEN MANAGER - FIX COMPLETO
 function renderTM(){
 const q=(document.getElementById('tmSearch')?.value||'').toLowerCase();
 let fil=balances.filter(b=>b.amount>0);if(q)fil=fil.filter(b=>(b.symbol||'').toLowerCase().includes(q)||(b.name||'').toLowerCase().includes(q));
