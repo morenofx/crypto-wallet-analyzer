@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CryptoFolio v7.3</title>
+    <title>CryptoFolio v7.4</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -65,18 +65,14 @@
         .progress{width:100%;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;}
         .progress-bar{height:100%;background:linear-gradient(90deg,var(--green),var(--blue));transition:width .3s;}
         .scan-log{max-height:120px;overflow-y:auto;font-size:11px;background:var(--bg);padding:8px;border-radius:6px;margin-top:8px;font-family:monospace;}
-        .flex{display:flex;}.items-center{align-items:center;}.justify-between{justify-content:space-between;}.gap-4{gap:4px;}.gap-8{gap:8px;}.gap-12{gap:12px;}.mb-8{margin-bottom:8px;}.mb-12{margin-bottom:12px;}.mb-16{margin-bottom:16px;}.text-right{text-align:right;}.text-sm{font-size:12px;}.font-mono{font-family:monospace;}.truncate{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px;}
-        .spinner{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite;}
-        @keyframes spin{to{transform:rotate(360deg);}}
+        .flex{display:flex;}.items-center{align-items:center;}.justify-between{justify-content:space-between;}.gap-4{gap:4px;}.gap-8{gap:8px;}.gap-12{gap:12px;}.mb-8{margin-bottom:8px;}.mb-12{margin-bottom:12px;}.mb-16{margin-bottom:16px;}.mt-12{margin-top:12px;}.text-right{text-align:right;}.text-sm{font-size:12px;}.font-mono{font-family:monospace;}.truncate{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px;}
         .toast{position:fixed;bottom:20px;right:20px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;z-index:2000;display:flex;align-items:center;gap:8px;}
         .toast.success{border-left:3px solid var(--green);}.toast.error{border-left:3px solid var(--red);}
         .tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border);}
         .tab{padding:8px 16px;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;}
         .tab.active{color:var(--green);border-bottom-color:var(--green);}
-        .security-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;}
-        .security-item{background:var(--bg);padding:8px;border-radius:6px;text-align:center;}
-        .security-item .label{font-size:10px;color:var(--text2);}
-        .security-item .value{font-size:12px;font-weight:600;margin-top:2px;}
+        .api-status{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;}
+        .api-status.ok{background:var(--green);}.api-status.err{background:var(--red);}
         @media(max-width:800px){.sidebar{display:none;}.main{margin-left:0;}.charts{grid-template-columns:1fr;}}
     </style>
 </head>
@@ -84,7 +80,7 @@
 <div id="authScreen" class="auth-box">
     <div class="auth-card">
         <h1 class="auth-title">💰 CryptoFolio</h1>
-        <p class="auth-sub">v7.3 - Moralis + GoPlus Security</p>
+        <p class="auth-sub">v7.4 - API Configurabili</p>
         <div class="form-group"><label class="form-label">Email</label><input type="email" id="authEmail" class="input" placeholder="email@example.com"></div>
         <div class="form-group"><label class="form-label">Password</label><input type="password" id="authPassword" class="input" placeholder="••••••••"></div>
         <button onclick="handleLogin()" class="btn btn-primary" style="width:100%;margin-bottom:10px;">🔐 Accedi</button>
@@ -94,291 +90,608 @@
 </div>
 <div id="appScreen" class="app" style="display:none;">
     <nav class="sidebar">
-        <div class="logo"><h1>💰 CryptoFolio</h1><span>v7.3 Moralis+GoPlus</span></div>
+        <div class="logo"><h1>💰 CryptoFolio</h1><span>v7.4 API Config</span></div>
         <div class="nav active" data-page="dashboard" onclick="showPage('dashboard')">📊 Dashboard</div>
         <div class="nav" data-page="wallets" onclick="showPage('wallets')">👛 Wallets</div>
         <div class="nav" data-page="tokens" onclick="showPage('tokens')">🪙 Token Manager</div>
         <div class="nav" data-page="transactions" onclick="showPage('transactions')">📜 Transazioni</div>
         <div class="nav" data-page="tax" onclick="showPage('tax')">📋 Report Fiscale</div>
         <div class="nav" data-page="settings" onclick="showPage('settings')">⚙️ Impostazioni</div>
-        <div style="position:absolute;bottom:16px;left:16px;right:16px;"><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;font-size:11px;">🚪 Logout</button></div>
+        <div style="position:absolute;bottom:16px;left:16px;right:16px;">
+            <div id="apiIndicator" style="font-size:10px;color:var(--text2);margin-bottom:8px;"></div>
+            <button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;font-size:11px;">🚪 Logout</button>
+        </div>
     </nav>
     <main class="main">
+        <!-- DASHBOARD -->
         <div id="page-dashboard">
             <div class="header"><h1 class="title">Dashboard</h1><div class="flex gap-8"><button onclick="scanAllWallets()" class="btn btn-primary" id="scanBtn">🔍 Scansiona</button><button onclick="refreshPrices()" class="btn btn-secondary">💰 Prezzi</button><button onclick="toggleCurrency()" class="btn btn-secondary" id="currencyBtn">💶 EUR</button></div></div>
-            <div id="scanCard" class="card" style="display:none;"><div class="flex justify-between items-center mb-8"><span>🔍 Scansione in corso...</span><span id="scanPct">0%</span></div><div class="progress"><div class="progress-bar" id="scanBar" style="width:0%"></div></div><div id="scanStatus" class="text-sm" style="color:var(--text2);margin-top:8px;">Inizializzazione...</div><div class="scan-log" id="scanLog"></div></div>
+            <div id="scanCard" class="card" style="display:none;"><div class="flex justify-between items-center mb-8"><span>🔍 Scansione...</span><span id="scanPct">0%</span></div><div class="progress"><div class="progress-bar" id="scanBar" style="width:0%"></div></div><div id="scanStatus" class="text-sm" style="color:var(--text2);margin-top:8px;"></div><div class="scan-log" id="scanLog"></div></div>
             <div class="stats">
-                <div class="stat"><div class="stat-label">💰 Patrimonio Totale</div><div class="stat-value green" id="totalValue">€0</div></div>
-                <div class="stat"><div class="stat-label">✅ Token Verificati</div><div class="stat-value blue" id="verifiedValue">€0</div></div>
+                <div class="stat"><div class="stat-label">💰 Patrimonio</div><div class="stat-value green" id="totalValue">€0</div></div>
+                <div class="stat"><div class="stat-label">✅ Verificati</div><div class="stat-value blue" id="verifiedValue">€0</div></div>
                 <div class="stat"><div class="stat-label">👛 Wallets</div><div class="stat-value" id="walletCount">0</div></div>
                 <div class="stat"><div class="stat-label">🪙 Token</div><div class="stat-value" id="tokenCount">0</div></div>
-                <div class="stat"><div class="stat-label">⛓️ Chain Attive</div><div class="stat-value" id="chainCount">0</div></div>
-                <div class="stat"><div class="stat-label">⚠️ Spam Filtrati</div><div class="stat-value red" id="spamCount">0</div></div>
+                <div class="stat"><div class="stat-label">⛓️ Chain</div><div class="stat-value" id="chainCount">0</div></div>
+                <div class="stat"><div class="stat-label">⚠️ Spam</div><div class="stat-value red" id="spamCount">0</div></div>
             </div>
             <div class="charts">
-                <div class="chart-card"><div class="text-sm mb-8" style="color:var(--text2);">📊 Distribuzione Portfolio</div><div class="chart-wrap"><canvas id="chart"></canvas></div></div>
-                <div class="chart-card"><div class="text-sm mb-8" style="color:var(--text2);">🏆 Top Holdings (Verificati)</div><div id="topHoldings" style="max-height:240px;overflow-y:auto;"></div></div>
+                <div class="chart-card"><div class="text-sm mb-8" style="color:var(--text2);">📊 Distribuzione</div><div class="chart-wrap"><canvas id="chart"></canvas></div></div>
+                <div class="chart-card"><div class="text-sm mb-8" style="color:var(--text2);">🏆 Top Holdings</div><div id="topHoldings" style="max-height:240px;overflow-y:auto;"></div></div>
             </div>
             <div class="card">
-                <div class="flex justify-between items-center mb-16"><div class="text-sm" style="color:var(--text2);">🪙 Token <span id="tokenListCount"></span></div><div class="flex gap-8"><select id="chainFilter" class="input" style="width:130px;" onchange="renderTokens()"><option value="">Tutte le chain</option></select><select id="statusFilter" class="input" style="width:130px;" onchange="renderTokens()"><option value="verified">✅ Verificati</option><option value="all">📋 Tutti</option><option value="unverified">❓ Non verificati</option><option value="spam">⚠️ Spam</option></select><input type="text" id="searchToken" class="input" style="width:120px;" placeholder="🔍 Cerca..." oninput="renderTokens()"></div></div>
+                <div class="flex justify-between items-center mb-16"><div class="text-sm" style="color:var(--text2);">🪙 Token <span id="tokenListCount"></span></div><div class="flex gap-8"><select id="chainFilter" class="input" style="width:130px;" onchange="renderTokens()"><option value="">Tutte</option></select><select id="statusFilter" class="input" style="width:130px;" onchange="renderTokens()"><option value="verified">✅ Verificati</option><option value="all">📋 Tutti</option><option value="unverified">❓ Non verificati</option><option value="spam">⚠️ Spam</option></select></div></div>
                 <div id="tokenList" style="max-height:400px;overflow-y:auto;"></div>
             </div>
         </div>
+        <!-- WALLETS -->
         <div id="page-wallets" style="display:none;">
-            <div class="header"><h1 class="title">Wallets</h1><button onclick="showAddWallet()" class="btn btn-primary">➕ Aggiungi Wallet</button></div>
+            <div class="header"><h1 class="title">Wallets</h1><button onclick="showAddWallet()" class="btn btn-primary">➕ Aggiungi</button></div>
             <div id="walletList"></div>
         </div>
+        <!-- WALLET DETAIL -->
         <div id="page-wallet-detail" style="display:none;">
-            <div class="header"><div class="flex items-center gap-8"><button onclick="showPage('wallets')" class="btn btn-secondary btn-sm">← Indietro</button><h1 class="title" id="wdName">Wallet</h1></div><button onclick="scanSingleWallet()" class="btn btn-primary btn-sm">🔍 Scansiona</button></div>
+            <div class="header"><div class="flex items-center gap-8"><button onclick="showPage('wallets')" class="btn btn-secondary btn-sm">← Indietro</button><h1 class="title" id="wdName">Wallet</h1></div><button onclick="loadWalletTx()" class="btn btn-primary btn-sm">📜 Carica TX</button></div>
             <div class="card mb-16"><div class="flex justify-between items-center"><div><div style="font-size:11px;color:var(--text2);">Indirizzo</div><code id="wdAddr" style="font-size:11px;"></code></div><div class="text-right"><div style="font-size:24px;font-weight:600;color:var(--green);" id="wdValue">€0</div><div style="font-size:12px;color:var(--text2);"><span id="wdTokens">0</span> token · <span id="wdChains">0</span> chain</div></div></div></div>
             <div class="tabs"><div class="tab active" onclick="showWalletTab('tokens')">🪙 Token</div><div class="tab" onclick="showWalletTab('tx')">📜 Transazioni</div></div>
             <div class="card" id="wdTokensTab" style="max-height:500px;overflow-y:auto;"></div>
             <div class="card" id="wdTxTab" style="display:none;max-height:500px;overflow-y:auto;"></div>
         </div>
+        <!-- TOKEN MANAGER -->
         <div id="page-tokens" style="display:none;">
-            <div class="header"><h1 class="title">Token Manager</h1><div class="flex gap-8"><button onclick="showWhitelist()" class="btn btn-secondary">✅ Whitelist</button><button onclick="showBlacklist()" class="btn btn-secondary">🚫 Blacklist</button><button onclick="runSecurityCheck()" class="btn btn-warning">🛡️ Security Check</button></div></div>
-            <div class="stats mb-16"><div class="stat"><div class="stat-label">✅ Verificati</div><div class="stat-value green" id="tmV">0</div></div><div class="stat"><div class="stat-label">❓ Non verificati</div><div class="stat-value" id="tmU">0</div></div><div class="stat"><div class="stat-label">⚠️ Spam</div><div class="stat-value red" id="tmS">0</div></div><div class="stat"><div class="stat-label">🛡️ Controllati GoPlus</div><div class="stat-value blue" id="tmG">0</div></div></div>
-            <div class="card"><div class="mb-16"><input type="text" id="tmSearch" class="input" placeholder="🔍 Cerca token..." oninput="renderTM()"></div><div id="tmList" style="max-height:500px;overflow-y:auto;"></div></div>
+            <div class="header"><h1 class="title">Token Manager</h1><div class="flex gap-8"><button onclick="showWhitelist()" class="btn btn-secondary">✅ Whitelist</button><button onclick="showBlacklist()" class="btn btn-secondary">🚫 Blacklist</button></div></div>
+            <div class="card"><div class="mb-16"><input type="text" id="tmSearch" class="input" placeholder="🔍 Cerca..." oninput="renderTM()"></div><div id="tmList" style="max-height:500px;overflow-y:auto;"></div></div>
         </div>
+        <!-- TRANSACTIONS -->
         <div id="page-transactions" style="display:none;">
-            <div class="header"><h1 class="title">Transazioni</h1><div class="flex gap-8"><select id="txChain" class="input" style="width:130px;" onchange="loadTx()"><option value="">Tutte le chain</option></select><select id="txYear" class="input" style="width:100px;" onchange="loadTx()"><option value="">Tutti</option><option value="2025">2025</option><option value="2024">2024</option><option value="2023">2023</option></select></div></div>
-            <div class="card"><div id="txCount" class="text-sm mb-12" style="color:var(--text2);"></div><div id="txList" style="max-height:600px;overflow-y:auto;"></div></div>
+            <div class="header"><h1 class="title">Transazioni</h1></div>
+            <div class="card"><div id="txList" style="max-height:600px;overflow-y:auto;"></div></div>
         </div>
+        <!-- TAX -->
         <div id="page-tax" style="display:none;">
-            <div class="header"><h1 class="title">Report Fiscale 🇮🇹</h1><select id="taxYear" class="input" style="width:100px;" onchange="loadTax()"><option value="2024">2024</option><option value="2023">2023</option><option value="2022">2022</option></select></div>
-            <div class="stats"><div class="stat"><div class="stat-label">💵 Ricavi</div><div class="stat-value" id="taxProceeds">€0</div></div><div class="stat"><div class="stat-label">📦 Costi</div><div class="stat-value" id="taxCost">€0</div></div><div class="stat"><div class="stat-label">📈 Plusvalenze</div><div class="stat-value green" id="taxGains">€0</div></div><div class="stat"><div class="stat-label">📉 Minusvalenze</div><div class="stat-value red" id="taxLosses">€0</div></div></div>
-            <div class="card"><div class="text-sm mb-12" style="color:var(--text2);">🇮🇹 Quadro RW - Giacenza Media Annuale</div><div class="stats"><div class="stat"><div class="stat-label">1° Gennaio</div><div id="gJan" style="font-size:16px;font-weight:600;">€0</div></div><div class="stat"><div class="stat-label">31 Dicembre</div><div id="gDec" style="font-size:16px;font-weight:600;">€0</div></div><div class="stat"><div class="stat-label">Giacenza Media</div><div id="gMedia" style="font-size:16px;font-weight:600;">€0</div></div><div class="stat"><div class="stat-label">Soglia €51.645,69</div><div id="gSoglia" style="font-size:16px;font-weight:600;">-</div></div></div></div>
+            <div class="header"><h1 class="title">Report Fiscale 🇮🇹</h1><select id="taxYear" class="input" style="width:100px;" onchange="loadTax()"><option value="2024">2024</option><option value="2023">2023</option></select></div>
+            <div class="stats"><div class="stat"><div class="stat-label">📈 Plusvalenze</div><div class="stat-value green" id="taxGains">€0</div></div><div class="stat"><div class="stat-label">📉 Minusvalenze</div><div class="stat-value red" id="taxLosses">€0</div></div><div class="stat"><div class="stat-label">🇮🇹 Giacenza Media</div><div class="stat-value" id="giacenza">€0</div></div></div>
         </div>
+        <!-- SETTINGS -->
         <div id="page-settings" style="display:none;">
             <div class="header"><h1 class="title">Impostazioni</h1></div>
-            <div class="card"><div class="text-sm mb-12" style="color:var(--text2);">👤 Profilo</div><div class="form-group"><label class="form-label">Email</label><input id="setEmail" class="input" disabled></div><div class="form-group"><label class="form-label">Valuta Preferita</label><select id="setCurrency" class="input" onchange="saveSettings()"><option value="eur">EUR (€)</option><option value="usd">USD ($)</option></select></div><div class="form-group"><label class="form-label">Metodo Calcolo Fiscale</label><select id="setTaxMethod" class="input" onchange="saveSettings()"><option value="lifo">LIFO (Last In First Out)</option><option value="fifo">FIFO (First In First Out)</option></select></div></div>
-            <div class="card"><div class="text-sm mb-12" style="color:var(--text2);">🔧 Azioni</div><div class="flex gap-8" style="flex-wrap:wrap;"><button onclick="exportCSV()" class="btn btn-secondary">📤 Export CSV</button><button onclick="clearCache()" class="btn btn-secondary">🗑️ Pulisci Cache</button><button onclick="runSecurityCheck()" class="btn btn-warning">🛡️ Security Check Completo</button></div></div>
-            <div class="card"><div class="text-sm mb-8" style="color:var(--text2);">📊 Info API</div><div id="apiInfo" style="font-size:11px;color:var(--text2);"></div></div>
+            <div class="card">
+                <div class="text-sm mb-12" style="color:var(--text2);font-weight:600;">🔑 API Keys</div>
+                <p class="text-sm mb-12" style="color:var(--text2);">Inserisci le tue API key per abilitare le funzionalità. Le chiavi vengono salvate localmente nel browser.</p>
+                <div class="form-group">
+                    <label class="form-label">Moralis API Key 1</label>
+                    <input id="apiKey1" class="input" placeholder="eyJhbGc..." oninput="saveApiKeys()">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Moralis API Key 2 (opzionale)</label>
+                    <input id="apiKey2" class="input" placeholder="eyJhbGc..." oninput="saveApiKeys()">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Moralis API Key 3 (opzionale)</label>
+                    <input id="apiKey3" class="input" placeholder="eyJhbGc..." oninput="saveApiKeys()">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Moralis API Key 4 (opzionale)</label>
+                    <input id="apiKey4" class="input" placeholder="eyJhbGc..." oninput="saveApiKeys()">
+                </div>
+                <button onclick="testApiKeys()" class="btn btn-primary mt-12">🧪 Testa API</button>
+                <div id="apiTestResult" class="mt-12"></div>
+            </div>
+            <div class="card">
+                <div class="text-sm mb-12" style="color:var(--text2);font-weight:600;">👤 Preferenze</div>
+                <div class="form-group"><label class="form-label">Valuta</label><select id="setCurrency" class="input" onchange="saveSettings()"><option value="eur">EUR (€)</option><option value="usd">USD ($)</option></select></div>
+            </div>
+            <div class="card">
+                <div class="text-sm mb-12" style="color:var(--text2);font-weight:600;">🔧 Azioni</div>
+                <div class="flex gap-8" style="flex-wrap:wrap;"><button onclick="exportCSV()" class="btn btn-secondary">📤 Export CSV</button><button onclick="clearAllData()" class="btn btn-danger">🗑️ Reset Dati</button></div>
+            </div>
         </div>
     </main>
 </div>
-<div id="addWalletModal" class="modal-bg" style="display:none;"><div class="modal"><div class="modal-head"><h2 class="modal-title">➕ Aggiungi Wallet</h2><button class="modal-close" onclick="closeModal('addWalletModal')">&times;</button></div><div class="form-group"><label class="form-label">Nome (opzionale)</label><input id="wName" class="input" placeholder="Es: MetaMask Principale"></div><div class="form-group"><label class="form-label">Indirizzo Wallet</label><input id="wAddr" class="input" placeholder="0x..."></div><div class="form-group"><label class="form-label">Tipo</label><select id="wType" class="input"><option value="evm">EVM (Ethereum, BSC, Polygon...)</option><option value="solana">Solana</option></select></div><div class="flex gap-8" style="margin-top:16px;"><button onclick="closeModal('addWalletModal')" class="btn btn-secondary" style="flex:1;">Annulla</button><button onclick="addWallet()" class="btn btn-primary" style="flex:1;">➕ Aggiungi</button></div></div></div>
-<div id="wlModal" class="modal-bg" style="display:none;"><div class="modal"><div class="modal-head"><h2 class="modal-title">✅ Whitelist Token</h2><button class="modal-close" onclick="closeModal('wlModal')">&times;</button></div><p class="text-sm mb-12" style="color:var(--text2);">Token sempre mostrati come verificati</p><div id="wlContent" style="max-height:300px;overflow-y:auto;"></div><div class="flex gap-8" style="margin-top:16px;"><input id="wlAdd" class="input" placeholder="SYMBOL (es: CAKE)"><button onclick="addWL()" class="btn btn-primary">➕</button></div></div></div>
-<div id="blModal" class="modal-bg" style="display:none;"><div class="modal"><div class="modal-head"><h2 class="modal-title">🚫 Blacklist Token</h2><button class="modal-close" onclick="closeModal('blModal')">&times;</button></div><p class="text-sm mb-12" style="color:var(--text2);">Token sempre nascosti</p><div id="blContent" style="max-height:300px;overflow-y:auto;"></div><div class="flex gap-8" style="margin-top:16px;"><input id="blAdd" class="input" placeholder="SYMBOL"><button onclick="addBL()" class="btn btn-danger">➕</button></div></div></div>
-<div id="tokenModal" class="modal-bg" style="display:none;"><div class="modal"><div class="modal-head"><h2 class="modal-title" id="tmTitle">Token</h2><button class="modal-close" onclick="closeModal('tokenModal')">&times;</button></div><div id="tmContent"></div></div></div>
+<!-- MODALS -->
+<div id="addWalletModal" class="modal-bg" style="display:none;"><div class="modal"><div class="modal-head"><h2 class="modal-title">➕ Aggiungi Wallet</h2><button class="modal-close" onclick="closeModal('addWalletModal')">&times;</button></div><div class="form-group"><label class="form-label">Nome</label><input id="wName" class="input" placeholder="MetaMask"></div><div class="form-group"><label class="form-label">Indirizzo</label><input id="wAddr" class="input" placeholder="0x..."></div><div class="flex gap-8 mt-12"><button onclick="closeModal('addWalletModal')" class="btn btn-secondary" style="flex:1;">Annulla</button><button onclick="addWallet()" class="btn btn-primary" style="flex:1;">Aggiungi</button></div></div></div>
+<div id="wlModal" class="modal-bg" style="display:none;"><div class="modal"><div class="modal-head"><h2 class="modal-title">✅ Whitelist</h2><button class="modal-close" onclick="closeModal('wlModal')">&times;</button></div><div id="wlContent" style="max-height:300px;overflow-y:auto;"></div><div class="flex gap-8 mt-12"><input id="wlAdd" class="input" placeholder="SYMBOL"><button onclick="addWL()" class="btn btn-primary">➕</button></div></div></div>
+<div id="blModal" class="modal-bg" style="display:none;"><div class="modal"><div class="modal-head"><h2 class="modal-title">🚫 Blacklist</h2><button class="modal-close" onclick="closeModal('blModal')">&times;</button></div><div id="blContent" style="max-height:300px;overflow-y:auto;"></div><div class="flex gap-8 mt-12"><input id="blAdd" class="input" placeholder="SYMBOL"><button onclick="addBL()" class="btn btn-danger">➕</button></div></div></div>
 <script>
 const SUPABASE_URL='https://welnvmqfnceszrvpjoju.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndlbG52bXFmbmNlc3pydnBqb2p1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODU5NDksImV4cCI6MjA4NTQ2MTk0OX0.XyUPf7r0GvhoxADFPpG1hc6KCQ0gkvSfbYzywl_D-us';
-const MORALIS_KEYS=['eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjZjYThhZDhkLTEyMTktNDQ0Ny04ZGQ4LWZiZjlmOTlmYzcwYyIsIm9yZ0lkIjoiNDk2ODU3IiwidXNlcklkIjoiNTExMjY4IiwidHlwZUlkIjoiMmY1NzM4MWItYzNmOS00MDA4LTk5OGYtN2ExMmNiYTAzOWI0IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NjkzODIzMzQsImV4cCI6NDkyNTE0MjMzNH0.7cb3HhwH4qmvCYIil3ZWFAYcMD3qEcD3J8J16tAvpbM','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjVlNDJkYTQ5LWFlNmYtNGI2ZC05OTYwLTJkNTUwNGUwZDlmNyIsIm9yZ0lkIjoiNDg3NTI0IiwidXNlcklkIjoiNTAxNTk0IiwidHlwZUlkIjoiY2E1NjEyYzUtMGUzMy00Yzk3LTk1ODktNTA1Yjg4ZmIyNzU1IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NjY2ODczNjMsImV4cCI6NDkyMjQ0NzM2M30.kwUGFKbnzJsALQww3R_UgZO00cDy50Rvf6OmLMTuu9c','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjE0ZDdlNmIxLTkzNTEtNGIwMi1hZGMzLWQ3NjA3MjllNjMxMiIsIm9yZ0lkIjoiNDk2OTIxIiwidXNlcklkIjoiNTExMzM2IiwidHlwZUlkIjoiYTgwMTE2N2QtNGE4MS00ZjVjLThiNGUtMjg0YTlkNzRlOTljIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3Njk0Mjc1ODIsImV4cCI6NDkyNTE4NzU4Mn0.iqQXubNVxU4I_MSjuQolQNKSo4vRHSnGiyiHjvos5eE','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjhlY2U3NzU0LTE0NjUtNGQzMS1iNjRjLTZiNzQ0ZDk3Y2E3ZSIsIm9yZ0lkIjoiNDg3NTI5IiwidXNlcklkIjoiNTAxNTk5IiwidHlwZUlkIjoiYWNiNzFlZjQtZGQ1Ni00NzExLWI1YmQtYjkyNTdmYjgxNDRiIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NjY2OTQ2MDEsImV4cCI6NDkyMjQ1NDYwMX0.3ygKvNrptS9FkNBcmGIO-gSAKGPh9B3h2VeuHdioty8'];
-let mIdx=0,apiCalls=0;
 
-// ALL MORALIS SUPPORTED CHAINS
+// DEFAULT API KEYS (can be overridden in settings)
+const DEFAULT_KEYS=['eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjZjYThhZDhkLTEyMTktNDQ0Ny04ZGQ4LWZiZjlmOTlmYzcwYyIsIm9yZ0lkIjoiNDk2ODU3IiwidXNlcklkIjoiNTExMjY4IiwidHlwZUlkIjoiMmY1NzM4MWItYzNmOS00MDA4LTk5OGYtN2ExMmNiYTAzOWI0IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NjkzODIzMzQsImV4cCI6NDkyNTE0MjMzNH0.7cb3HhwH4qmvCYIil3ZWFAYcMD3qEcD3J8J16tAvpbM','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjVlNDJkYTQ5LWFlNmYtNGI2ZC05OTYwLTJkNTUwNGUwZDlmNyIsIm9yZ0lkIjoiNDg3NTI0IiwidXNlcklkIjoiNTAxNTk0IiwidHlwZUlkIjoiY2E1NjEyYzUtMGUzMy00Yzk3LTk1ODktNTA1Yjg4ZmIyNzU1IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NjY2ODczNjMsImV4cCI6NDkyMjQ0NzM2M30.kwUGFKbnzJsALQww3R_UgZO00cDy50Rvf6OmLMTuu9c','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjE0ZDdlNmIxLTkzNTEtNGIwMi1hZGMzLWQ3NjA3MjllNjMxMiIsIm9yZ0lkIjoiNDk2OTIxIiwidXNlcklkIjoiNTExMzM2IiwidHlwZUlkIjoiYTgwMTE2N2QtNGE4MS00ZjVjLThiNGUtMjg0YTlkNzRlOTljIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3Njk0Mjc1ODIsImV4cCI6NDkyNTE4NzU4Mn0.iqQXubNVxU4I_MSjuQolQNKSo4vRHSnGiyiHjvos5eE','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjhlY2U3NzU0LTE0NjUtNGQzMS1iNjRjLTZiNzQ0ZDk3Y2E3ZSIsIm9yZ0lkIjoiNDg3NTI5IiwidXNlcklkIjoiNTAxNTk5IiwidHlwZUlkIjoiYWNiNzFlZjQtZGQ1Ni00NzExLWI1YmQtYjkyNTdmYjgxNDRiIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NjY2OTQ2MDEsImV4cCI6NDkyMjQ1NDYwMX0.3ygKvNrptS9FkNBcmGIO-gSAKGPh9B3h2VeuHdioty8'];
+
+let MORALIS_KEYS=[...DEFAULT_KEYS];
+let mIdx=0;
+
+// MORALIS SUPPORTED CHAINS (verified working)
 const CHAINS={
-    eth:{name:'Ethereum',m:'eth',c:'#627eea',n:'ETH',tw:'ethereum',gp:'1'},
-    bsc:{name:'BNB Chain',m:'bsc',c:'#f3ba2f',n:'BNB',tw:'smartchain',gp:'56'},
-    polygon:{name:'Polygon',m:'polygon',c:'#8247e5',n:'POL',tw:'polygon',gp:'137'},
-    arbitrum:{name:'Arbitrum',m:'arbitrum',c:'#28a0f0',n:'ETH',tw:'arbitrum',gp:'42161'},
-    optimism:{name:'Optimism',m:'optimism',c:'#ff0420',n:'ETH',tw:'optimism',gp:'10'},
-    base:{name:'Base',m:'base',c:'#0052ff',n:'ETH',tw:'base',gp:'8453'},
-    avalanche:{name:'Avalanche',m:'avalanche',c:'#e84142',n:'AVAX',tw:'avalanchec',gp:'43114'},
-    fantom:{name:'Fantom',m:'fantom',c:'#1969ff',n:'FTM',tw:'fantom',gp:'250'},
-    cronos:{name:'Cronos',m:'cronos',c:'#002d74',n:'CRO',tw:'cronos',gp:'25'},
-    pulsechain:{name:'PulseChain',m:'pulsechain',c:'#00ff00',n:'PLS',tw:null,gp:'369'},
-    linea:{name:'Linea',m:'linea',c:'#61dfff',n:'ETH',tw:'linea',gp:'59144'},
-    gnosis:{name:'Gnosis',m:'gnosis',c:'#04795b',n:'xDAI',tw:'xdai',gp:'100'},
-    moonbeam:{name:'Moonbeam',m:'moonbeam',c:'#53cbc8',n:'GLMR',tw:'moonbeam',gp:'1284'},
-    moonriver:{name:'Moonriver',m:'moonriver',c:'#f2b705',n:'MOVR',tw:'moonriver',gp:'1285'}
+    eth:{name:'Ethereum',m:'eth',c:'#627eea',n:'ETH',tw:'ethereum'},
+    bsc:{name:'BNB Chain',m:'bsc',c:'#f3ba2f',n:'BNB',tw:'smartchain'},
+    polygon:{name:'Polygon',m:'polygon',c:'#8247e5',n:'POL',tw:'polygon'},
+    arbitrum:{name:'Arbitrum',m:'arbitrum',c:'#28a0f0',n:'ETH',tw:'arbitrum'},
+    optimism:{name:'Optimism',m:'optimism',c:'#ff0420',n:'ETH',tw:'optimism'},
+    base:{name:'Base',m:'base',c:'#0052ff',n:'ETH',tw:'base'},
+    avalanche:{name:'Avalanche',m:'avalanche',c:'#e84142',n:'AVAX',tw:'avalanchec'},
+    fantom:{name:'Fantom',m:'fantom',c:'#1969ff',n:'FTM',tw:'fantom'},
+    cronos:{name:'Cronos',m:'cronos',c:'#002d74',n:'CRO',tw:'cronos'},
+    pulsechain:{name:'PulseChain',m:'pulsechain',c:'#00ff00',n:'PLS',tw:null},
+    linea:{name:'Linea',m:'linea',c:'#61dfff',n:'ETH',tw:'linea'},
+    gnosis:{name:'Gnosis',m:'gnosis',c:'#04795b',n:'xDAI',tw:'xdai'}
 };
 
-// VERIFIED TOKENS (known legit)
-const VERIFIED=new Set(['ETH','BTC','BNB','USDT','USDC','DAI','BUSD','TUSD','FRAX','WETH','WBTC','WBNB','LINK','UNI','AAVE','COMP','MKR','SNX','CRV','SUSHI','YFI','1INCH','BAL','MATIC','POL','AVAX','FTM','CRO','SOL','ATOM','DOT','ADA','XRP','LTC','SHIB','DOGE','PEPE','FLOKI','APE','SAND','MANA','AXS','GALA','GMT','LDO','RPL','STETH','CBETH','RETH','ARB','OP','GMX','RDNT','MAGIC','GNS','STG','PENDLE','JOE','CAKE','XVS','ALPACA','BSW','PLS','PLSX','HEX','INC','LOAN','GLMR','MOVR','XDAI','WPLS']);
-
-// SPAM PATTERNS
-const SPAM_RE=[/\.(com|io|net|org|xyz|finance|swap)$/i,/^(visit|claim|free|bonus|airdrop|reward)/i,/https?:/i,/www\./i,/voucher/i,/\$[A-Z]+\s/];
-
-// COINGECKO MAPPING
-const CG_MAP={'ETH':'ethereum','BTC':'bitcoin','BNB':'binancecoin','USDT':'tether','USDC':'usd-coin','WETH':'weth','WBTC':'wrapped-bitcoin','DAI':'dai','SOL':'solana','AVAX':'avalanche-2','MATIC':'matic-network','POL':'matic-network','FTM':'fantom','CRO':'crypto-com-chain','LINK':'chainlink','UNI':'uniswap','AAVE':'aave','ARB':'arbitrum','OP':'optimism','PLS':'pulsechain','HEX':'hex','GLMR':'moonbeam','MOVR':'moonriver','SHIB':'shiba-inu','DOGE':'dogecoin','PEPE':'pepe','XDAI':'xdai','CAKE':'pancakeswap-token','WPLS':'wrapped-pulse','PLSX':'pulsex','INC':'inc-token'};
+const VERIFIED=new Set(['ETH','BTC','BNB','USDT','USDC','DAI','BUSD','WETH','WBTC','WBNB','LINK','UNI','AAVE','COMP','MKR','SNX','CRV','SUSHI','YFI','1INCH','MATIC','POL','AVAX','FTM','CRO','SOL','ATOM','DOT','ADA','XRP','SHIB','DOGE','PEPE','FLOKI','APE','SAND','MANA','AXS','GALA','LDO','RPL','STETH','ARB','OP','GMX','RDNT','MAGIC','CAKE','PLS','PLSX','HEX','INC','LOAN','XDAI','WPLS']);
+const SPAM_RE=[/\.(com|io|net|org|xyz|finance|swap)$/i,/^(visit|claim|free|bonus|airdrop|reward)/i,/https?:/i,/www\./i];
+const CG_MAP={'ETH':'ethereum','BTC':'bitcoin','BNB':'binancecoin','USDT':'tether','USDC':'usd-coin','WETH':'weth','WBTC':'wrapped-bitcoin','DAI':'dai','AVAX':'avalanche-2','MATIC':'matic-network','POL':'matic-network','FTM':'fantom','CRO':'crypto-com-chain','LINK':'chainlink','UNI':'uniswap','AAVE':'aave','ARB':'arbitrum','OP':'optimism','PLS':'pulsechain','HEX':'hex','SHIB':'shiba-inu','DOGE':'dogecoin','PEPE':'pepe','XDAI':'xdai','CAKE':'pancakeswap-token'};
 
 const{createClient}=supabase;const db=createClient(SUPABASE_URL,SUPABASE_KEY);
-let user=null,profile=null,currency='eur',chart=null,balances=[],prices={},securityCache={},scanning=false,currentWalletId=null;
+let user=null,profile=null,currency='eur',chart=null,balances=[],prices={},scanning=false,currentWalletId=null,currentWallet=null;
 let whitelist=new Set(JSON.parse(localStorage.getItem('cf_wl')||'[]'));
 let blacklist=new Set(JSON.parse(localStorage.getItem('cf_bl')||'[]'));
 let hidden=new Set(JSON.parse(localStorage.getItem('cf_hid')||'[]'));
 
+// Load saved API keys
+function loadApiKeys(){
+    const saved=JSON.parse(localStorage.getItem('cf_apikeys')||'[]');
+    if(saved.length>0){MORALIS_KEYS=saved.filter(k=>k&&k.length>20);}
+    if(MORALIS_KEYS.length===0)MORALIS_KEYS=[...DEFAULT_KEYS];
+    updateApiIndicator();
+}
+function saveApiKeys(){
+    const keys=[
+        document.getElementById('apiKey1').value.trim(),
+        document.getElementById('apiKey2').value.trim(),
+        document.getElementById('apiKey3').value.trim(),
+        document.getElementById('apiKey4').value.trim()
+    ].filter(k=>k.length>20);
+    if(keys.length>0){
+        MORALIS_KEYS=keys;
+        localStorage.setItem('cf_apikeys',JSON.stringify(keys));
+    }else{
+        MORALIS_KEYS=[...DEFAULT_KEYS];
+        localStorage.removeItem('cf_apikeys');
+    }
+    updateApiIndicator();
+}
+function updateApiIndicator(){
+    document.getElementById('apiIndicator').innerHTML='<span class="api-status ok"></span>API: '+MORALIS_KEYS.length+' keys';
+}
+async function testApiKeys(){
+    const res=document.getElementById('apiTestResult');
+    res.innerHTML='<div class="text-sm" style="color:var(--text2);">Testing...</div>';
+    let working=0;
+    for(let i=0;i<MORALIS_KEYS.length;i++){
+        try{
+            const r=await fetch('https://deep-index.moralis.io/api/v2.2/0x0000000000000000000000000000000000000000/balance?chain=eth',{headers:{'X-API-Key':MORALIS_KEYS[i]}});
+            if(r.ok||r.status===400)working++;
+        }catch(e){}
+    }
+    res.innerHTML='<div class="text-sm" style="color:var(--'+(working>0?'green':'red')+');">'+working+'/'+MORALIS_KEYS.length+' API funzionanti</div>';
+}
+
 // AUTH
-async function checkAuth(){const{data:{session}}=await db.auth.getSession();if(session){user=session.user;await loadProfile();showApp();}else{showAuth();}}
+async function checkAuth(){loadApiKeys();const{data:{session}}=await db.auth.getSession();if(session){user=session.user;await loadProfile();showApp();}else{showAuth();}}
 async function handleLogin(){const e=document.getElementById('authEmail').value,p=document.getElementById('authPassword').value;const{data,error}=await db.auth.signInWithPassword({email:e,password:p});if(error){document.getElementById('authError').textContent=error.message;return;}user=data.user;await loadProfile();showApp();}
-async function handleSignup(){const e=document.getElementById('authEmail').value,p=document.getElementById('authPassword').value;if(p.length<6){document.getElementById('authError').textContent='Password min 6 caratteri';return;}const{data,error}=await db.auth.signUp({email:e,password:p});if(error){document.getElementById('authError').textContent=error.message;return;}await db.from('user_profiles').insert({id:data.user.id,email:e,preferred_currency:'eur',tax_method:'lifo'});user=data.user;await loadProfile();showApp();toast('Account creato!');}
+async function handleSignup(){const e=document.getElementById('authEmail').value,p=document.getElementById('authPassword').value;if(p.length<6){document.getElementById('authError').textContent='Password min 6 caratteri';return;}const{data,error}=await db.auth.signUp({email:e,password:p});if(error){document.getElementById('authError').textContent=error.message;return;}await db.from('user_profiles').insert({id:data.user.id,email:e,preferred_currency:'eur'});user=data.user;await loadProfile();showApp();toast('Account creato!');}
 async function handleLogout(){await db.auth.signOut();user=null;showAuth();}
 async function loadProfile(){const{data}=await db.from('user_profiles').select('*').eq('id',user.id).single();if(data){profile=data;currency=data.preferred_currency||'eur';}}
 function showAuth(){document.getElementById('authScreen').style.display='flex';document.getElementById('appScreen').style.display='none';}
 function showApp(){document.getElementById('authScreen').style.display='none';document.getElementById('appScreen').style.display='flex';loadDashboard();}
-function showPage(p){document.querySelectorAll('[id^="page-"]').forEach(x=>x.style.display='none');const el=document.getElementById('page-'+p);if(el)el.style.display='block';document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));document.querySelector('[data-page="'+p+'"]')?.classList.add('active');if(p==='dashboard')loadDashboard();else if(p==='wallets')loadWallets();else if(p==='tokens')loadTM();else if(p==='transactions')loadTx();else if(p==='tax')loadTax();else if(p==='settings')loadSettings();}
+function showPage(p){document.querySelectorAll('[id^="page-"]').forEach(x=>x.style.display='none');document.getElementById('page-'+p).style.display='block';document.querySelectorAll('.nav').forEach(x=>x.classList.remove('active'));document.querySelector('[data-page="'+p+'"]')?.classList.add('active');if(p==='dashboard')loadDashboard();else if(p==='wallets')loadWallets();else if(p==='tokens')renderTM();else if(p==='transactions')loadTx();else if(p==='tax')loadTax();else if(p==='settings')loadSettings();}
 function closeModal(id){document.getElementById(id).style.display='none';}
 
-// MORALIS API
-async function moralis(ep,params={}){const qs=new URLSearchParams(params).toString();const url='https://deep-index.moralis.io/api/v2.2/'+ep+(qs?'?'+qs:'');for(let i=0;i<MORALIS_KEYS.length;i++){const k=(mIdx+i)%MORALIS_KEYS.length;try{const r=await fetch(url,{headers:{'X-API-Key':MORALIS_KEYS[k],'Accept':'application/json'}});apiCalls++;if(r.status===429){mIdx=(k+1)%MORALIS_KEYS.length;continue;}if(r.status===400)return null;if(!r.ok)throw new Error('HTTP '+r.status);mIdx=k;return await r.json();}catch(e){console.log('API err',k);}}return null;}
+// MORALIS API with better error handling
+async function moralis(ep,params={}){
+    const qs=new URLSearchParams(params).toString();
+    const url='https://deep-index.moralis.io/api/v2.2/'+ep+(qs?'?'+qs:'');
+    for(let i=0;i<MORALIS_KEYS.length;i++){
+        const k=(mIdx+i)%MORALIS_KEYS.length;
+        try{
+            const r=await fetch(url,{headers:{'X-API-Key':MORALIS_KEYS[k],'Accept':'application/json'}});
+            if(r.status===429){mIdx=(k+1)%MORALIS_KEYS.length;await sleep(500);continue;}
+            if(r.status===400||r.status===404)return null;
+            if(!r.ok)continue;
+            mIdx=k;
+            return await r.json();
+        }catch(e){console.log('API err',k,e.message);}
+    }
+    return null;
+}
 
-// GOPLUS SECURITY
-async function checkGoPlus(addr,chain){if(!addr)return null;const ch=CHAINS[chain];if(!ch||!ch.gp)return null;const key=ch.gp+'_'+addr.toLowerCase();if(securityCache[key])return securityCache[key];try{const r=await fetch('https://api.gopluslabs.io/api/v1/token_security/'+ch.gp+'?contract_addresses='+addr);const d=await r.json();if(d.result&&d.result[addr.toLowerCase()]){const x=d.result[addr.toLowerCase()];const sec={honeypot:x.is_honeypot==='1',blacklisted:x.is_blacklisted==='1',ownerChange:x.can_take_back_ownership==='1',hiddenOwner:x.hidden_owner==='1',openSource:x.is_open_source==='1',buyTax:parseFloat(x.buy_tax)||0,sellTax:parseFloat(x.sell_tax)||0,holders:parseInt(x.holder_count)||0};let risk=0;if(sec.honeypot)risk+=100;if(sec.blacklisted)risk+=50;if(sec.ownerChange)risk+=30;if(sec.hiddenOwner)risk+=20;if(sec.buyTax>0.1)risk+=20;if(sec.sellTax>0.1)risk+=30;if(!sec.openSource)risk+=10;sec.risk=risk;sec.level=risk>=50?'danger':risk>=20?'warning':'safe';securityCache[key]=sec;return sec;}}catch(e){}return null;}
-
-// TOKEN STATUS
-function getStatus(sym,name){const u=(sym||'').toUpperCase();if(whitelist.has(u))return'verified';if(blacklist.has(u))return'spam';if(VERIFIED.has(u))return'verified';const t=sym+' '+(name||'');if(SPAM_RE.some(r=>r.test(t)))return'spam';if(sym&&sym.length>12)return'spam';return'unverified';}
-
-// ICONS
+function getStatus(sym,name){const u=(sym||'').toUpperCase();if(whitelist.has(u))return'verified';if(blacklist.has(u))return'spam';if(VERIFIED.has(u))return'verified';if(SPAM_RE.some(r=>r.test(sym+' '+(name||''))))return'spam';if(sym&&sym.length>12)return'spam';return'unverified';}
 function getIcon(sym,chain,addr,logo){if(logo)return logo;const ch=CHAINS[chain];if(addr&&ch&&ch.tw)return'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/'+ch.tw+'/assets/'+addr+'/logo.png';return null;}
 function renderIcon(sym,chain,addr,logo,sz=28){const url=getIcon(sym,chain,addr,logo);const ch=CHAINS[chain]||{c:'#888'};if(url)return'<div class="token-icon" style="width:'+sz+'px;height:'+sz+'px;"><img src="'+url+'" onerror="this.parentElement.innerHTML=\''+sym.slice(0,2)+'\';this.parentElement.style.background=\''+ch.c+'30\';this.parentElement.style.color=\''+ch.c+'\';"></div>';return'<div class="token-icon" style="width:'+sz+'px;height:'+sz+'px;background:'+ch.c+'30;color:'+ch.c+';">'+sym.slice(0,2)+'</div>';}
 
-// PRICES
-async function fetchPrices(syms){const ids=[...new Set(syms.map(s=>CG_MAP[s.toUpperCase()]).filter(Boolean))];if(!ids.length)return;try{const r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids='+ids.join(',')+'&vs_currencies=eur,usd');const d=await r.json();for(const[sym,cg]of Object.entries(CG_MAP)){if(d[cg])prices[sym]={eur:d[cg].eur||0,usd:d[cg].usd||0};}}catch(e){console.error('CG error',e);}}
-async function refreshPrices(){toast('Aggiornamento prezzi...');const syms=[...new Set(balances.map(b=>b.symbol))];prices={};await fetchPrices(syms);for(const b of balances){const p=prices[b.symbol.toUpperCase()];if(p){await db.from('balances').update({price_eur:p.eur,price_usd:p.usd}).eq('id',b.id);b.price_eur=p.eur;b.price_usd=p.usd;b.value_eur=b.amount*p.eur;b.value_usd=b.amount*p.usd;}}loadDashboard();toast('Prezzi aggiornati!');}
+async function fetchPrices(syms){const ids=[...new Set(syms.map(s=>CG_MAP[s.toUpperCase()]).filter(Boolean))];if(!ids.length)return;try{const r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids='+ids.join(',')+'&vs_currencies=eur,usd');const d=await r.json();for(const[sym,cg]of Object.entries(CG_MAP)){if(d[cg])prices[sym]={eur:d[cg].eur||0,usd:d[cg].usd||0};}}catch(e){}}
+async function refreshPrices(){toast('Aggiornamento...');const syms=[...new Set(balances.map(b=>b.symbol))];await fetchPrices(syms);for(const b of balances){const p=prices[b.symbol.toUpperCase()];if(p){await db.from('balances').update({price_eur:p.eur,price_usd:p.usd}).eq('id',b.id);b.price_eur=p.eur;b.price_usd=p.usd;b.value_eur=b.amount*p.eur;b.value_usd=b.amount*p.usd;}}loadDashboard();toast('Prezzi aggiornati!');}
 
-// SCAN ALL WALLETS
-async function scanAllWallets(){if(scanning)return;scanning=true;document.getElementById('scanBtn').disabled=true;document.getElementById('scanCard').style.display='block';document.getElementById('scanLog').innerHTML='';apiCalls=0;
-const log=(m,t='')=>{const el=document.getElementById('scanLog');el.innerHTML+='<div style="color:'+(t==='ok'?'var(--green)':t==='err'?'var(--red)':'var(--text2)')+'">'+m+'</div>';el.scrollTop=el.scrollHeight;};
-try{const{data:wallets}=await db.from('wallets').select('*').eq('user_id',user.id);if(!wallets||!wallets.length){toast('Aggiungi un wallet prima','error');scanning=false;document.getElementById('scanBtn').disabled=false;document.getElementById('scanCard').style.display='none';return;}
-const all=[];const chainKeys=Object.keys(CHAINS);let done=0;const total=wallets.length*chainKeys.length;
-for(const w of wallets){log('👛 Wallet: '+(w.name||w.address.slice(0,10)+'...'));if(w.wallet_type!=='evm'){log('  ⏭️ Tipo '+w.wallet_type+' non supportato','err');done+=chainKeys.length;continue;}
-for(const ck of chainKeys){const ch=CHAINS[ck];const pct=Math.round((done/total)*100);document.getElementById('scanBar').style.width=pct+'%';document.getElementById('scanPct').textContent=pct+'%';document.getElementById('scanStatus').textContent=ch.name+'...';
-try{
-// Native balance
-const nd=await moralis(w.address+'/balance',{chain:ch.m});if(nd&&nd.balance&&nd.balance!=='0'){const amt=parseFloat(nd.balance)/1e18;if(amt>0.00001){const st=getStatus(ch.n,ch.name);all.push({user_id:user.id,wallet_id:w.id,symbol:ch.n,name:ch.name+' Native',chain:ck,contract_address:null,amount:amt,logo_url:null,is_hidden:hidden.has(ch.n+'_'+ck),is_spam:st==='spam'});log('  ✅ '+ch.n+': '+amt.toFixed(6),'ok');}}
-// ERC20 tokens
-const td=await moralis(w.address+'/erc20',{chain:ch.m});if(td&&Array.isArray(td)){for(const t of td){const dec=parseInt(t.decimals)||18;const amt=parseFloat(t.balance)/Math.pow(10,dec);if(amt>0&&t.symbol){const st=getStatus(t.symbol,t.name);const hid=hidden.has(t.symbol+'_'+ck)||blacklist.has(t.symbol.toUpperCase());all.push({user_id:user.id,wallet_id:w.id,symbol:t.symbol,name:t.name||t.symbol,chain:ck,contract_address:t.token_address,amount:amt,logo_url:t.logo||t.thumbnail,is_hidden:hid,is_spam:st==='spam'});if(st==='verified')log('  ✅ '+t.symbol+': '+amt.toFixed(4),'ok');else if(st==='spam')log('  ⚠️ '+t.symbol+' (spam)','err');}}}
-await sleep(100);}catch(e){log('  ❌ '+ch.name+': '+e.message,'err');}done++;}}
-document.getElementById('scanStatus').textContent='Caricamento prezzi...';document.getElementById('scanBar').style.width='85%';
-await fetchPrices([...new Set(all.map(b=>b.symbol))]);
-for(const b of all){const p=prices[b.symbol.toUpperCase()];b.price_eur=p?.eur||0;b.price_usd=p?.usd||0;}
-document.getElementById('scanStatus').textContent='Salvataggio database...';document.getElementById('scanBar').style.width='95%';
-await db.from('balances').delete().eq('user_id',user.id);
-if(all.length){for(let i=0;i<all.length;i+=50){const batch=all.slice(i,i+50);const{error}=await db.from('balances').insert(batch);if(error)console.error('Insert err:',error);}}
-for(const w of wallets){await db.from('wallets').update({last_scan_at:new Date().toISOString(),scan_status:'completed'}).eq('id',w.id);}
-document.getElementById('scanBar').style.width='100%';document.getElementById('scanStatus').textContent='✅ Scansione completata!';
-const v=all.filter(b=>getStatus(b.symbol,b.name)==='verified').length;const s=all.filter(b=>getStatus(b.symbol,b.name)==='spam').length;
-log('');log('✅ Totale: '+all.length+' token','ok');log('✓ Verificati: '+v,'ok');log('⚠️ Spam: '+s,'err');log('📡 API calls: '+apiCalls);
-toast('Trovati '+all.length+' token ('+v+' verificati)');
-await loadDashboard();
-}catch(e){console.error(e);toast('Errore: '+e.message,'error');}finally{scanning=false;document.getElementById('scanBtn').disabled=false;setTimeout(()=>{document.getElementById('scanCard').style.display='none';},4000);}}
-async function scanSingleWallet(){await scanAllWallets();}
+// SCAN
+async function scanAllWallets(){
+    if(scanning)return;scanning=true;
+    document.getElementById('scanBtn').disabled=true;
+    document.getElementById('scanCard').style.display='block';
+    document.getElementById('scanLog').innerHTML='';
+    const log=(m,t='')=>{const el=document.getElementById('scanLog');el.innerHTML+='<div style="color:'+(t==='ok'?'var(--green)':t==='err'?'var(--red)':'var(--text2)')+'">'+m+'</div>';el.scrollTop=el.scrollHeight;};
+    
+    try{
+        const{data:wallets}=await db.from('wallets').select('*').eq('user_id',user.id);
+        if(!wallets||!wallets.length){toast('Aggiungi un wallet','error');scanning=false;document.getElementById('scanBtn').disabled=false;document.getElementById('scanCard').style.display='none';return;}
+        
+        const all=[];const chainKeys=Object.keys(CHAINS);let done=0;const total=wallets.length*chainKeys.length;
+        
+        for(const w of wallets){
+            log('👛 '+(w.name||w.address.slice(0,10)+'...'));
+            if(w.wallet_type!=='evm'){log('  ⏭️ Tipo non supportato');done+=chainKeys.length;continue;}
+            
+            for(const ck of chainKeys){
+                const ch=CHAINS[ck];
+                const pct=Math.round((done/total)*100);
+                document.getElementById('scanBar').style.width=pct+'%';
+                document.getElementById('scanPct').textContent=pct+'%';
+                document.getElementById('scanStatus').textContent=ch.name+'...';
+                
+                try{
+                    // Native
+                    const nd=await moralis(w.address+'/balance',{chain:ch.m});
+                    if(nd&&nd.balance&&nd.balance!=='0'){
+                        const amt=parseFloat(nd.balance)/1e18;
+                        if(amt>0.00001){
+                            all.push({user_id:user.id,wallet_id:w.id,symbol:ch.n,name:ch.name,chain:ck,contract_address:null,amount:amt,logo_url:null,is_hidden:hidden.has(ch.n+'_'+ck),is_spam:false});
+                            log('  ✅ '+ch.n+': '+amt.toFixed(6),'ok');
+                        }
+                    }
+                    // ERC20
+                    const td=await moralis(w.address+'/erc20',{chain:ch.m});
+                    if(td&&Array.isArray(td)){
+                        for(const t of td){
+                            const dec=parseInt(t.decimals)||18;
+                            const amt=parseFloat(t.balance)/Math.pow(10,dec);
+                            if(amt>0&&t.symbol){
+                                const st=getStatus(t.symbol,t.name);
+                                const isSpam=st==='spam';
+                                const hid=hidden.has(t.symbol+'_'+ck)||blacklist.has(t.symbol.toUpperCase());
+                                all.push({user_id:user.id,wallet_id:w.id,symbol:t.symbol,name:t.name||t.symbol,chain:ck,contract_address:t.token_address,amount:amt,logo_url:t.logo||t.thumbnail,is_hidden:hid,is_spam:isSpam});
+                                if(!isSpam)log('  ✅ '+t.symbol+': '+amt.toFixed(4),'ok');
+                            }
+                        }
+                    }
+                    await sleep(100);
+                }catch(e){log('  ⚠️ '+ch.name+' skip');}
+                done++;
+            }
+        }
+        
+        document.getElementById('scanStatus').textContent='Prezzi...';
+        document.getElementById('scanBar').style.width='90%';
+        await fetchPrices([...new Set(all.map(b=>b.symbol))]);
+        for(const b of all){const p=prices[b.symbol.toUpperCase()];b.price_eur=p?.eur||0;b.price_usd=p?.usd||0;}
+        
+        document.getElementById('scanStatus').textContent='Salvataggio...';
+        document.getElementById('scanBar').style.width='95%';
+        await db.from('balances').delete().eq('user_id',user.id);
+        if(all.length){for(let i=0;i<all.length;i+=50){await db.from('balances').insert(all.slice(i,i+50));}}
+        for(const w of wallets){await db.from('wallets').update({last_scan_at:new Date().toISOString()}).eq('id',w.id);}
+        
+        document.getElementById('scanBar').style.width='100%';
+        document.getElementById('scanStatus').textContent='✅ Completato!';
+        log('');log('✅ '+all.length+' token trovati','ok');
+        toast('Scan completato: '+all.length+' token');
+        await loadDashboard();
+    }catch(e){console.error(e);toast('Errore: '+e.message,'error');}
+    finally{scanning=false;document.getElementById('scanBtn').disabled=false;setTimeout(()=>{document.getElementById('scanCard').style.display='none';},3000);}
+}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 
 // DASHBOARD
-async function loadDashboard(){const{data}=await db.from('balances').select('*').eq('user_id',user.id);balances=data||[];
-// Populate chain filter
-const used=new Set(balances.map(b=>b.chain));const cf=document.getElementById('chainFilter');const tcf=document.getElementById('txChain');cf.innerHTML='<option value="">Tutte le chain</option>';if(tcf)tcf.innerHTML='<option value="">Tutte le chain</option>';for(const[k,ch]of Object.entries(CHAINS)){if(used.has(k)){cf.innerHTML+='<option value="'+k+'">'+ch.name+'</option>';if(tcf)tcf.innerHTML+='<option value="'+k+'">'+ch.name+'</option>';}}
-// Calculate stats
-let totalE=0,totalU=0,verE=0,verU=0,spam=0;const toks=new Set(),chs=new Set();
-for(const b of balances){if(b.amount>0&&!b.is_hidden){totalE+=b.value_eur||0;totalU+=b.value_usd||0;toks.add(b.symbol);chs.add(b.chain);const st=getStatus(b.symbol,b.name);if(st==='verified'){verE+=b.value_eur||0;verU+=b.value_usd||0;}if(st==='spam'||b.is_spam)spam++;}}
-document.getElementById('totalValue').textContent=fmtC(currency==='eur'?totalE:totalU);
-document.getElementById('verifiedValue').textContent=fmtC(currency==='eur'?verE:verU);
-document.getElementById('tokenCount').textContent=toks.size;
-document.getElementById('chainCount').textContent=chs.size;
-document.getElementById('spamCount').textContent=spam;
-const{count}=await db.from('wallets').select('*',{count:'exact',head:true}).eq('user_id',user.id);
-document.getElementById('walletCount').textContent=count||0;
-renderTop();renderChart();renderTokens();}
+async function loadDashboard(){
+    const{data}=await db.from('balances').select('*').eq('user_id',user.id);
+    balances=data||[];
+    
+    const used=new Set(balances.map(b=>b.chain));
+    const cf=document.getElementById('chainFilter');
+    cf.innerHTML='<option value="">Tutte</option>';
+    for(const[k,ch]of Object.entries(CHAINS)){if(used.has(k))cf.innerHTML+='<option value="'+k+'">'+ch.name+'</option>';}
+    
+    let totalE=0,verE=0,spam=0;const toks=new Set(),chs=new Set();
+    for(const b of balances){
+        if(b.amount>0&&!b.is_hidden){
+            totalE+=b.value_eur||0;
+            toks.add(b.symbol);chs.add(b.chain);
+            const st=getStatus(b.symbol,b.name);
+            if(st==='verified')verE+=b.value_eur||0;
+            if(st==='spam'||b.is_spam)spam++;
+        }
+    }
+    
+    document.getElementById('totalValue').textContent=fmtC(totalE);
+    document.getElementById('verifiedValue').textContent=fmtC(verE);
+    document.getElementById('tokenCount').textContent=toks.size;
+    document.getElementById('chainCount').textContent=chs.size;
+    document.getElementById('spamCount').textContent=spam;
+    const{count}=await db.from('wallets').select('*',{count:'exact',head:true}).eq('user_id',user.id);
+    document.getElementById('walletCount').textContent=count||0;
+    
+    renderTop();renderChart();renderTokens();
+}
 
-function renderTop(){const ver=balances.filter(b=>{const st=getStatus(b.symbol,b.name);return st==='verified'&&!b.is_hidden&&b.amount>0;});
-const by={};for(const b of ver){if(!by[b.symbol])by[b.symbol]={sym:b.symbol,amt:0,eur:0,usd:0,chains:new Set(),logo:b.logo_url};by[b.symbol].amt+=b.amount;by[b.symbol].eur+=b.value_eur||0;by[b.symbol].usd+=b.value_usd||0;by[b.symbol].chains.add(b.chain);if(!by[b.symbol].logo&&b.logo_url)by[b.symbol].logo=b.logo_url;}
-const sorted=Object.values(by).sort((a,b)=>b.eur-a.eur).slice(0,8);
-if(!sorted.length){document.getElementById('topHoldings').innerHTML='<p style="color:var(--text2)">Nessun token verificato. Scansiona i wallet!</p>';return;}
-const total=sorted.reduce((s,h)=>s+(currency==='eur'?h.eur:h.usd),0);
-let html='';for(const h of sorted){const val=currency==='eur'?h.eur:h.usd;const pct=total>0?((val/total)*100).toFixed(1):0;const chain=[...h.chains][0];
-html+='<div class="flex items-center justify-between" style="padding:6px 0;border-bottom:1px solid var(--border);"><div class="flex items-center gap-8">'+renderIcon(h.sym,chain,null,h.logo,26)+'<div><div style="font-weight:600;font-size:12px;">'+h.sym+' <span class="badge badge-ok">✓</span></div><div style="font-size:10px;color:var(--text2);">'+fmtN(h.amt)+' · '+[...h.chains].length+' chain</div></div></div><div class="text-right"><div style="font-weight:600;font-size:13px;">'+fmtC(val)+'</div><div style="font-size:10px;color:var(--text2);">'+pct+'%</div></div></div>';}
-document.getElementById('topHoldings').innerHTML=html;}
+function renderTop(){
+    const ver=balances.filter(b=>getStatus(b.symbol,b.name)==='verified'&&!b.is_hidden&&b.amount>0);
+    const by={};for(const b of ver){if(!by[b.symbol])by[b.symbol]={sym:b.symbol,eur:0,amt:0,logo:b.logo_url,chain:b.chain};by[b.symbol].eur+=b.value_eur||0;by[b.symbol].amt+=b.amount;if(!by[b.symbol].logo&&b.logo_url)by[b.symbol].logo=b.logo_url;}
+    const sorted=Object.values(by).sort((a,b)=>b.eur-a.eur).slice(0,8);
+    if(!sorted.length){document.getElementById('topHoldings').innerHTML='<p style="color:var(--text2)">Nessun token verificato</p>';return;}
+    const total=sorted.reduce((s,h)=>s+h.eur,0);
+    let html='';for(const h of sorted){const pct=total>0?((h.eur/total)*100).toFixed(1):0;
+    html+='<div class="flex items-center justify-between" style="padding:6px 0;border-bottom:1px solid var(--border);"><div class="flex items-center gap-8">'+renderIcon(h.sym,h.chain,null,h.logo,24)+'<div><div style="font-weight:600;font-size:12px;">'+h.sym+'</div><div style="font-size:10px;color:var(--text2);">'+fmtN(h.amt)+'</div></div></div><div class="text-right"><div style="font-weight:600;">'+fmtC(h.eur)+'</div><div style="font-size:10px;color:var(--text2);">'+pct+'%</div></div></div>';}
+    document.getElementById('topHoldings').innerHTML=html;
+}
 
-function renderChart(){const ver=balances.filter(b=>{const st=getStatus(b.symbol,b.name);return st==='verified'&&!b.is_hidden&&b.amount>0;});
-const by={};for(const b of ver){if(!by[b.symbol])by[b.symbol]=0;by[b.symbol]+=(currency==='eur'?b.value_eur:b.value_usd)||0;}
-const sorted=Object.entries(by).sort((a,b)=>b[1]-a[1]).slice(0,8);
-const ctx=document.getElementById('chart');if(chart)chart.destroy();if(!sorted.length){ctx.parentElement.innerHTML='<p style="color:var(--text2);text-align:center;padding-top:80px;">Nessun dato</p>';return;}
-const colors=['#3fb950','#58a6ff','#a371f7','#f85149','#d29922','#8b949e','#238636','#f778ba'];
-chart=new Chart(ctx,{type:'doughnut',data:{labels:sorted.map(s=>s[0]),datasets:[{data:sorted.map(s=>s[1]),backgroundColor:colors,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{color:'#e6edf3',padding:6,font:{size:10}}}}}});}
+function renderChart(){
+    const ver=balances.filter(b=>getStatus(b.symbol,b.name)==='verified'&&!b.is_hidden&&b.amount>0);
+    const by={};for(const b of ver){if(!by[b.symbol])by[b.symbol]=0;by[b.symbol]+=b.value_eur||0;}
+    const sorted=Object.entries(by).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    const ctx=document.getElementById('chart');if(chart)chart.destroy();if(!sorted.length)return;
+    const colors=['#3fb950','#58a6ff','#a371f7','#f85149','#d29922','#8b949e','#238636','#f778ba'];
+    chart=new Chart(ctx,{type:'doughnut',data:{labels:sorted.map(s=>s[0]),datasets:[{data:sorted.map(s=>s[1]),backgroundColor:colors,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{color:'#e6edf3',padding:6,font:{size:10}}}}}});
+}
 
-function renderTokens(){const cf=document.getElementById('chainFilter').value;const sf=document.getElementById('statusFilter').value;const search=(document.getElementById('searchToken').value||'').toLowerCase();
-let fil=balances.filter(b=>b.amount>0);if(cf)fil=fil.filter(b=>b.chain===cf);if(search)fil=fil.filter(b=>b.symbol.toLowerCase().includes(search)||(b.name||'').toLowerCase().includes(search));
-fil=fil.map(b=>({...b,st:getStatus(b.symbol,b.name)}));
-if(sf==='verified')fil=fil.filter(b=>b.st==='verified');else if(sf==='unverified')fil=fil.filter(b=>b.st==='unverified');else if(sf==='spam')fil=fil.filter(b=>b.st==='spam');
-if(sf!=='spam')fil=fil.filter(b=>!b.is_hidden);
-fil.sort((a,b)=>(b.value_eur||0)-(a.value_eur||0));
-document.getElementById('tokenListCount').textContent='('+fil.length+')';
-if(!fil.length){document.getElementById('tokenList').innerHTML='<p style="color:var(--text2)">Nessun token trovato</p>';return;}
-let html='<table class="table"><thead><tr><th></th><th>Token</th><th>Chain</th><th class="text-right">Quantità</th><th class="text-right">Valore</th><th>Status</th><th></th></tr></thead><tbody>';
-for(const b of fil.slice(0,100)){const val=currency==='eur'?b.value_eur:b.value_usd;const ch=CHAINS[b.chain]||{name:b.chain,c:'#888'};
-let badge='';if(b.st==='verified')badge='<span class="badge badge-ok">✓ Verificato</span>';else if(b.st==='spam')badge='<span class="badge badge-bad">⚠️ Spam</span>';else badge='<span class="badge badge-unk">? Non verificato</span>';
-html+='<tr><td>'+renderIcon(b.symbol,b.chain,b.contract_address,b.logo_url,26)+'</td><td><div style="font-weight:600;font-size:12px;">'+b.symbol+'</div><div class="truncate" style="font-size:10px;color:var(--text2);">'+(b.name||'')+'</div></td><td><span class="chain" style="background:'+ch.c+'25;color:'+ch.c+';">'+ch.name+'</span></td><td class="text-right font-mono" style="font-size:11px;">'+fmtN(b.amount)+'</td><td class="text-right" style="font-weight:600;color:var(--green);font-size:12px;">'+(val>0?fmtC(val):'-')+'</td><td>'+badge+'</td><td><div class="flex gap-4"><button class="btn btn-sm btn-secondary" onclick="showTokenDetail(\''+b.id+'\')" title="Dettagli">ℹ️</button><button class="btn btn-sm btn-secondary" onclick="toggleHide(\''+b.id+'\')" title="'+(b.is_hidden?'Mostra':'Nascondi')+'">'+(b.is_hidden?'👁️':'✕')+'</button></div></td></tr>';}
-document.getElementById('tokenList').innerHTML=html+'</tbody></table>';}
+function renderTokens(){
+    const cf=document.getElementById('chainFilter').value;
+    const sf=document.getElementById('statusFilter').value;
+    let fil=balances.filter(b=>b.amount>0);
+    if(cf)fil=fil.filter(b=>b.chain===cf);
+    fil=fil.map(b=>({...b,st:getStatus(b.symbol,b.name)}));
+    if(sf==='verified')fil=fil.filter(b=>b.st==='verified');
+    else if(sf==='unverified')fil=fil.filter(b=>b.st==='unverified');
+    else if(sf==='spam')fil=fil.filter(b=>b.st==='spam'||b.is_spam);
+    if(sf!=='spam'&&sf!=='all')fil=fil.filter(b=>!b.is_hidden&&!b.is_spam);
+    fil.sort((a,b)=>(b.value_eur||0)-(a.value_eur||0));
+    
+    document.getElementById('tokenListCount').textContent='('+fil.length+')';
+    if(!fil.length){document.getElementById('tokenList').innerHTML='<p style="color:var(--text2)">Nessun token</p>';return;}
+    
+    let html='<table class="table"><thead><tr><th></th><th>Token</th><th>Chain</th><th class="text-right">Quantità</th><th class="text-right">Valore</th><th>Status</th><th></th></tr></thead><tbody>';
+    for(const b of fil.slice(0,100)){
+        const val=b.value_eur||0;const ch=CHAINS[b.chain]||{name:b.chain,c:'#888'};
+        let badge=b.st==='verified'?'<span class="badge badge-ok">✓</span>':b.st==='spam'?'<span class="badge badge-bad">⚠️</span>':'<span class="badge badge-unk">?</span>';
+        html+='<tr style="'+(b.is_hidden?'opacity:0.4;':'')+'"><td>'+renderIcon(b.symbol,b.chain,b.contract_address,b.logo_url,24)+'</td><td><div style="font-weight:600;font-size:12px;">'+b.symbol+'</div><div class="truncate" style="font-size:10px;color:var(--text2);">'+(b.name||'')+'</div></td><td><span class="chain" style="background:'+ch.c+'25;color:'+ch.c+';">'+ch.name+'</span></td><td class="text-right font-mono" style="font-size:11px;">'+fmtN(b.amount)+'</td><td class="text-right" style="font-weight:600;color:var(--green);">'+(val>0?fmtC(val):'-')+'</td><td>'+badge+'</td><td><button class="btn btn-sm btn-secondary" onclick="hideToken(\''+b.id+'\')" title="Nascondi">'+(b.is_hidden?'👁️':'✕')+'</button></td></tr>';
+    }
+    document.getElementById('tokenList').innerHTML=html+'</tbody></table>';
+}
 
-async function toggleHide(id){const b=balances.find(x=>x.id===id);if(!b)return;const k=b.symbol+'_'+b.chain;if(hidden.has(k))hidden.delete(k);else hidden.add(k);localStorage.setItem('cf_hid',JSON.stringify([...hidden]));await db.from('balances').update({is_hidden:hidden.has(k)}).eq('id',id);b.is_hidden=hidden.has(k);renderTokens();renderTop();renderChart();toast(b.is_hidden?'Token nascosto':'Token visibile');}
-
-async function showTokenDetail(id){const b=balances.find(x=>x.id===id);if(!b)return;document.getElementById('tmTitle').textContent=b.symbol+' - '+(b.name||'');
-let html='<div class="flex items-center gap-12 mb-16">'+renderIcon(b.symbol,b.chain,b.contract_address,b.logo_url,48)+'<div><div style="font-size:20px;font-weight:600;">'+fmtC(b.value_eur||0)+'</div><div style="color:var(--text2);">'+fmtN(b.amount)+' '+b.symbol+'</div></div></div>';
-const ch=CHAINS[b.chain]||{name:b.chain,c:'#888'};html+='<div class="mb-12"><span class="chain" style="background:'+ch.c+'25;color:'+ch.c+';">'+ch.name+'</span></div>';
-if(b.contract_address){html+='<div class="mb-16"><div style="font-size:11px;color:var(--text2);">Contract</div><code style="font-size:10px;word-break:break-all;">'+b.contract_address+'</code></div>';}
-// Security check
-html+='<div class="mb-12" style="font-size:12px;font-weight:600;">🛡️ GoPlus Security</div>';
-if(b.contract_address){const sec=securityCache[(CHAINS[b.chain]?.gp||'')+'_'+b.contract_address.toLowerCase()];if(sec){html+='<div class="security-grid"><div class="security-item"><div class="label">Honeypot</div><div class="value '+(sec.honeypot?'red':'green')+'">'+(sec.honeypot?'⚠️ SÌ':'✅ No')+'</div></div><div class="security-item"><div class="label">Open Source</div><div class="value '+(sec.openSource?'green':'yellow')+'">'+(sec.openSource?'✅ Sì':'⚠️ No')+'</div></div><div class="security-item"><div class="label">Buy Tax</div><div class="value '+(sec.buyTax>0.1?'red':'green')+'">'+(sec.buyTax*100).toFixed(1)+'%</div></div><div class="security-item"><div class="label">Sell Tax</div><div class="value '+(sec.sellTax>0.1?'red':'green')+'">'+(sec.sellTax*100).toFixed(1)+'%</div></div><div class="security-item"><div class="label">Holders</div><div class="value">'+(sec.holders?sec.holders.toLocaleString():'-')+'</div></div><div class="security-item"><div class="label">Risk</div><div class="value '+(sec.level==='danger'?'red':sec.level==='warning'?'yellow':'green')+'">'+sec.risk+'</div></div></div>';}else{html+='<p style="color:var(--text2);font-size:12px;">Non ancora controllato</p><button onclick="checkSingleToken(\''+b.id+'\')" class="btn btn-warning btn-sm" style="margin-top:8px;">🛡️ Controlla ora</button>';}}else{html+='<p style="color:var(--text2);font-size:12px;">Token nativo - nessun contratto</p>';}
-document.getElementById('tmContent').innerHTML=html;document.getElementById('tokenModal').style.display='flex';}
-
-async function checkSingleToken(id){const b=balances.find(x=>x.id===id);if(!b||!b.contract_address)return;toast('Controllo in corso...');const sec=await checkGoPlus(b.contract_address,b.chain);if(sec){toast('Controllo completato!');showTokenDetail(id);}else{toast('Nessun dato disponibile','error');}}
+async function hideToken(id){
+    const b=balances.find(x=>x.id===id);if(!b)return;
+    const k=b.symbol+'_'+b.chain;
+    if(hidden.has(k)){hidden.delete(k);b.is_hidden=false;}
+    else{hidden.add(k);b.is_hidden=true;}
+    localStorage.setItem('cf_hid',JSON.stringify([...hidden]));
+    await db.from('balances').update({is_hidden:b.is_hidden}).eq('id',id);
+    renderTokens();renderTop();renderChart();
+    toast(b.is_hidden?'Token nascosto':'Token visibile');
+}
 
 // WALLETS
-async function loadWallets(){const{data:ws}=await db.from('wallets').select('*').eq('user_id',user.id).order('created_at',{ascending:false});
-if(!ws||!ws.length){document.getElementById('walletList').innerHTML='<div class="card"><p style="color:var(--text2)">Nessun wallet. Clicca "Aggiungi Wallet" per iniziare!</p></div>';return;}
-let html='';for(const w of ws){const wb=balances.filter(b=>b.wallet_id===w.id&&!b.is_hidden);const tot=wb.reduce((s,b)=>s+(currency==='eur'?b.value_eur:b.value_usd)||0,0);const chs=new Set(wb.map(b=>b.chain));const ls=w.last_scan_at?new Date(w.last_scan_at).toLocaleString('it-IT'):'Mai scansionato';
-html+='<div class="card" style="margin-bottom:12px;"><div class="flex justify-between items-center mb-8"><div><h3 style="font-size:15px;margin-bottom:4px;cursor:pointer;" onclick="showWalletDetail(\''+w.id+'\')">'+(w.name||'Wallet')+' →</h3><code style="font-size:10px;color:var(--text2);">'+w.address+'</code></div><div class="text-right"><div style="font-size:20px;font-weight:600;color:var(--green);">'+fmtC(tot)+'</div><div style="font-size:11px;color:var(--text2);">'+wb.length+' token · '+chs.size+' chain</div></div></div><div style="font-size:10px;color:var(--text2);margin-bottom:10px;">Ultimo scan: '+ls+'</div><div class="flex gap-8"><button onclick="showWalletDetail(\''+w.id+'\')" class="btn btn-secondary btn-sm">👁️ Dettagli</button><button onclick="deleteWallet(\''+w.id+'\')" class="btn btn-danger btn-sm">🗑️ Elimina</button></div></div>';}
-document.getElementById('walletList').innerHTML=html;}
+async function loadWallets(){
+    const{data:ws}=await db.from('wallets').select('*').eq('user_id',user.id).order('created_at',{ascending:false});
+    if(!ws||!ws.length){document.getElementById('walletList').innerHTML='<div class="card"><p style="color:var(--text2)">Nessun wallet</p></div>';return;}
+    let html='';
+    for(const w of ws){
+        const wb=balances.filter(b=>b.wallet_id===w.id&&!b.is_hidden);
+        const tot=wb.reduce((s,b)=>s+(b.value_eur||0),0);
+        const chs=new Set(wb.map(b=>b.chain));
+        const ls=w.last_scan_at?new Date(w.last_scan_at).toLocaleString('it-IT'):'Mai';
+        html+='<div class="card" style="margin-bottom:12px;"><div class="flex justify-between items-center mb-8"><div><h3 style="font-size:15px;margin-bottom:4px;cursor:pointer;" onclick="showWalletDetail(\''+w.id+'\')">'+(w.name||'Wallet')+' →</h3><code style="font-size:10px;color:var(--text2);">'+w.address+'</code></div><div class="text-right"><div style="font-size:20px;font-weight:600;color:var(--green);">'+fmtC(tot)+'</div><div style="font-size:11px;color:var(--text2);">'+wb.length+' token · '+chs.size+' chain</div></div></div><div style="font-size:10px;color:var(--text2);margin-bottom:10px;">Scan: '+ls+'</div><div class="flex gap-8"><button onclick="showWalletDetail(\''+w.id+'\')" class="btn btn-secondary btn-sm">👁️ Dettagli</button><button onclick="deleteWallet(\''+w.id+'\')" class="btn btn-danger btn-sm">🗑️</button></div></div>';
+    }
+    document.getElementById('walletList').innerHTML=html;
+}
+
 function showAddWallet(){document.getElementById('addWalletModal').style.display='flex';}
-async function addWallet(){const n=document.getElementById('wName').value.trim();const a=document.getElementById('wAddr').value.trim();const t=document.getElementById('wType').value;if(!a){toast('Inserisci un indirizzo','error');return;}if(!a.startsWith('0x')||a.length!==42){toast('Indirizzo EVM non valido','error');return;}const{error}=await db.from('wallets').insert({user_id:user.id,address:a,name:n||null,wallet_type:t});if(error){toast(error.message,'error');return;}closeModal('addWalletModal');document.getElementById('wName').value='';document.getElementById('wAddr').value='';toast('Wallet aggiunto! Ora scansiona.');loadWallets();}
-async function deleteWallet(id){if(!confirm('Eliminare questo wallet e tutti i suoi dati?'))return;await db.from('balances').delete().eq('wallet_id',id);await db.from('transactions').delete().eq('wallet_id',id);await db.from('wallets').delete().eq('id',id);toast('Wallet eliminato');balances=balances.filter(b=>b.wallet_id!==id);loadWallets();loadDashboard();}
+async function addWallet(){
+    const n=document.getElementById('wName').value.trim();
+    const a=document.getElementById('wAddr').value.trim();
+    if(!a){toast('Inserisci indirizzo','error');return;}
+    if(!a.startsWith('0x')||a.length!==42){toast('Indirizzo non valido','error');return;}
+    const{error}=await db.from('wallets').insert({user_id:user.id,address:a,name:n||null,wallet_type:'evm'});
+    if(error){toast(error.message,'error');return;}
+    closeModal('addWalletModal');
+    document.getElementById('wName').value='';
+    document.getElementById('wAddr').value='';
+    toast('Wallet aggiunto!');
+    loadWallets();
+}
+async function deleteWallet(id){
+    if(!confirm('Eliminare questo wallet?'))return;
+    await db.from('balances').delete().eq('wallet_id',id);
+    await db.from('transactions').delete().eq('wallet_id',id);
+    await db.from('wallets').delete().eq('id',id);
+    toast('Eliminato');
+    balances=balances.filter(b=>b.wallet_id!==id);
+    loadWallets();loadDashboard();
+}
 
 // WALLET DETAIL
-async function showWalletDetail(id){currentWalletId=id;const{data:w}=await db.from('wallets').select('*').eq('id',id).single();if(!w)return;document.getElementById('page-wallets').style.display='none';document.getElementById('page-wallet-detail').style.display='block';document.getElementById('wdName').textContent=w.name||'Wallet';document.getElementById('wdAddr').textContent=w.address;const wb=balances.filter(b=>b.wallet_id===id&&!b.is_hidden);const tot=wb.reduce((s,b)=>s+(currency==='eur'?b.value_eur:b.value_usd)||0,0);const chs=new Set(wb.map(b=>b.chain));document.getElementById('wdValue').textContent=fmtC(tot);document.getElementById('wdTokens').textContent=wb.length;document.getElementById('wdChains').textContent=chs.size;renderWalletTokens(id);}
-function showWalletTab(t){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));event.target.classList.add('active');document.getElementById('wdTokensTab').style.display=t==='tokens'?'block':'none';document.getElementById('wdTxTab').style.display=t==='tx'?'block':'none';if(t==='tx')renderWalletTx(currentWalletId);}
-function renderWalletTokens(id){const wb=balances.filter(b=>b.wallet_id===id&&b.amount>0).sort((a,b)=>(b.value_eur||0)-(a.value_eur||0));if(!wb.length){document.getElementById('wdTokensTab').innerHTML='<p style="color:var(--text2)">Nessun token</p>';return;}
-let html='<table class="table"><thead><tr><th></th><th>Token</th><th>Chain</th><th class="text-right">Quantità</th><th class="text-right">Valore</th><th>Status</th></tr></thead><tbody>';
-for(const b of wb){const val=currency==='eur'?b.value_eur:b.value_usd;const ch=CHAINS[b.chain]||{name:b.chain,c:'#888'};const st=getStatus(b.symbol,b.name);let badge=st==='verified'?'<span class="badge badge-ok">✓</span>':st==='spam'?'<span class="badge badge-bad">⚠️</span>':'<span class="badge badge-unk">?</span>';
-html+='<tr><td>'+renderIcon(b.symbol,b.chain,b.contract_address,b.logo_url,24)+'</td><td style="font-weight:600;font-size:12px;">'+b.symbol+'</td><td><span class="chain" style="background:'+ch.c+'25;color:'+ch.c+';">'+ch.name+'</span></td><td class="text-right font-mono" style="font-size:11px;">'+fmtN(b.amount)+'</td><td class="text-right" style="font-weight:600;color:var(--green);">'+fmtC(val)+'</td><td>'+badge+'</td></tr>';}
-document.getElementById('wdTokensTab').innerHTML=html+'</tbody></table>';}
-async function renderWalletTx(id){const{data:txs}=await db.from('transactions').select('*').eq('wallet_id',id).order('tx_timestamp',{ascending:false}).limit(100);if(!txs||!txs.length){document.getElementById('wdTxTab').innerHTML='<p style="color:var(--text2)">Nessuna transazione registrata</p>';return;}
-let html='<table class="table"><thead><tr><th>Data</th><th>Tipo</th><th>Token</th><th class="text-right">Quantità</th><th>Chain</th></tr></thead><tbody>';
-for(const tx of txs){const d=new Date(tx.tx_timestamp).toLocaleDateString('it-IT');const sym=tx.token_in_symbol||tx.token_out_symbol||'-';const amt=tx.token_in_amount||tx.token_out_amount||0;const isIn=!!tx.token_in_symbol;const ch=CHAINS[tx.chain]||{name:tx.chain,c:'#888'};
-html+='<tr><td style="font-size:11px;">'+d+'</td><td><span class="badge" style="background:'+(isIn?'var(--green)':'var(--red)')+'25;color:'+(isIn?'var(--green)':'var(--red)')+';">'+tx.tx_type+'</span></td><td style="font-weight:600;">'+sym+'</td><td class="text-right font-mono" style="font-size:11px;">'+(isIn?'+':'-')+fmtN(amt)+'</td><td><span class="chain" style="background:'+ch.c+'25;color:'+ch.c+';">'+ch.name+'</span></td></tr>';}
-document.getElementById('wdTxTab').innerHTML=html+'</tbody></table>';}
+async function showWalletDetail(id){
+    currentWalletId=id;
+    const{data:w}=await db.from('wallets').select('*').eq('id',id).single();
+    if(!w)return;
+    currentWallet=w;
+    document.getElementById('page-wallets').style.display='none';
+    document.getElementById('page-wallet-detail').style.display='block';
+    document.getElementById('wdName').textContent=w.name||'Wallet';
+    document.getElementById('wdAddr').textContent=w.address;
+    
+    const wb=balances.filter(b=>b.wallet_id===id&&!b.is_hidden);
+    const tot=wb.reduce((s,b)=>s+(b.value_eur||0),0);
+    const chs=new Set(wb.map(b=>b.chain));
+    document.getElementById('wdValue').textContent=fmtC(tot);
+    document.getElementById('wdTokens').textContent=wb.length;
+    document.getElementById('wdChains').textContent=chs.size;
+    
+    renderWalletTokens(id);
+    document.getElementById('wdTxTab').innerHTML='<p style="color:var(--text2)">Clicca "Carica TX" per scaricare le transazioni dalla blockchain</p>';
+}
+
+function showWalletTab(t){
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('wdTokensTab').style.display=t==='tokens'?'block':'none';
+    document.getElementById('wdTxTab').style.display=t==='tx'?'block':'none';
+}
+
+function renderWalletTokens(id){
+    const wb=balances.filter(b=>b.wallet_id===id&&b.amount>0).sort((a,b)=>(b.value_eur||0)-(a.value_eur||0));
+    if(!wb.length){document.getElementById('wdTokensTab').innerHTML='<p style="color:var(--text2)">Nessun token</p>';return;}
+    let html='<table class="table"><thead><tr><th></th><th>Token</th><th>Chain</th><th class="text-right">Quantità</th><th class="text-right">Valore</th><th></th></tr></thead><tbody>';
+    for(const b of wb){
+        const val=b.value_eur||0;const ch=CHAINS[b.chain]||{name:b.chain,c:'#888'};
+        html+='<tr style="'+(b.is_hidden?'opacity:0.4;':'')+'"><td>'+renderIcon(b.symbol,b.chain,b.contract_address,b.logo_url,24)+'</td><td style="font-weight:600;font-size:12px;">'+b.symbol+'</td><td><span class="chain" style="background:'+ch.c+'25;color:'+ch.c+';">'+ch.name+'</span></td><td class="text-right font-mono" style="font-size:11px;">'+fmtN(b.amount)+'</td><td class="text-right" style="font-weight:600;color:var(--green);">'+fmtC(val)+'</td><td><button class="btn btn-sm btn-secondary" onclick="hideToken(\''+b.id+'\')">✕</button></td></tr>';
+    }
+    document.getElementById('wdTokensTab').innerHTML=html+'</tbody></table>';
+}
+
+// LOAD WALLET TRANSACTIONS FROM BLOCKCHAIN
+async function loadWalletTx(){
+    if(!currentWallet)return;
+    toast('Caricamento transazioni...');
+    document.getElementById('wdTxTab').innerHTML='<p style="color:var(--text2)">Caricamento in corso...</p>';
+    
+    const allTx=[];
+    for(const[ck,ch]of Object.entries(CHAINS)){
+        try{
+            // Native transfers
+            const native=await moralis(currentWallet.address,{chain:ch.m});
+            // ERC20 transfers
+            const erc20=await moralis(currentWallet.address+'/erc20/transfers',{chain:ch.m,limit:50});
+            if(erc20&&erc20.result){
+                for(const tx of erc20.result){
+                    const isIn=tx.to_address?.toLowerCase()===currentWallet.address.toLowerCase();
+                    const dec=parseInt(tx.token_decimals)||18;
+                    const amt=parseFloat(tx.value)/Math.pow(10,dec);
+                    allTx.push({
+                        date:new Date(tx.block_timestamp),
+                        type:isIn?'IN':'OUT',
+                        symbol:tx.token_symbol||'?',
+                        amount:amt,
+                        chain:ck,
+                        hash:tx.transaction_hash
+                    });
+                }
+            }
+            await sleep(100);
+        }catch(e){}
+    }
+    
+    allTx.sort((a,b)=>b.date-a.date);
+    
+    if(!allTx.length){
+        document.getElementById('wdTxTab').innerHTML='<p style="color:var(--text2)">Nessuna transazione trovata</p>';
+        return;
+    }
+    
+    let html='<table class="table"><thead><tr><th>Data</th><th>Tipo</th><th>Token</th><th class="text-right">Quantità</th><th>Chain</th></tr></thead><tbody>';
+    for(const tx of allTx.slice(0,100)){
+        const ch=CHAINS[tx.chain]||{name:tx.chain,c:'#888'};
+        html+='<tr><td style="font-size:11px;">'+tx.date.toLocaleDateString('it-IT')+'</td><td><span class="badge" style="background:'+(tx.type==='IN'?'var(--green)':'var(--red)')+'25;color:'+(tx.type==='IN'?'var(--green)':'var(--red)')+';">'+tx.type+'</span></td><td style="font-weight:600;">'+tx.symbol+'</td><td class="text-right font-mono" style="font-size:11px;">'+(tx.type==='IN'?'+':'-')+fmtN(tx.amount)+'</td><td><span class="chain" style="background:'+ch.c+'25;color:'+ch.c+';">'+ch.name+'</span></td></tr>';
+    }
+    document.getElementById('wdTxTab').innerHTML=html+'</tbody></table>';
+    toast('Caricate '+allTx.length+' transazioni');
+}
 
 // TOKEN MANAGER
-function loadTM(){const v=balances.filter(b=>getStatus(b.symbol,b.name)==='verified').length;const u=balances.filter(b=>getStatus(b.symbol,b.name)==='unverified').length;const s=balances.filter(b=>getStatus(b.symbol,b.name)==='spam').length;const g=Object.keys(securityCache).length;document.getElementById('tmV').textContent=v;document.getElementById('tmU').textContent=u;document.getElementById('tmS').textContent=s;document.getElementById('tmG').textContent=g;renderTM();}
-function renderTM(){const q=document.getElementById('tmSearch').value.toLowerCase();let fil=balances.filter(b=>b.amount>0);if(q)fil=fil.filter(b=>b.symbol.toLowerCase().includes(q)||(b.name||'').toLowerCase().includes(q));fil=fil.map(b=>({...b,st:getStatus(b.symbol,b.name)})).sort((a,b)=>(b.value_eur||0)-(a.value_eur||0));
-if(!fil.length){document.getElementById('tmList').innerHTML='<p style="color:var(--text2)">Nessun token</p>';return;}
-let html='<table class="table"><thead><tr><th></th><th>Token</th><th>Chain</th><th>Status</th><th>Azioni</th></tr></thead><tbody>';
-for(const b of fil.slice(0,100)){const ch=CHAINS[b.chain]||{name:b.chain,c:'#888'};let badge=b.st==='verified'?'<span class="badge badge-ok">Verificato</span>':b.st==='spam'?'<span class="badge badge-bad">Spam</span>':'<span class="badge badge-unk">Non verificato</span>';const isWL=whitelist.has(b.symbol.toUpperCase());const isBL=blacklist.has(b.symbol.toUpperCase());
-html+='<tr style="'+(b.is_hidden?'opacity:0.5;':'')+'"><td>'+renderIcon(b.symbol,b.chain,b.contract_address,b.logo_url,24)+'</td><td><div style="font-weight:600;font-size:12px;">'+b.symbol+'</div><div style="font-size:10px;color:var(--text2);">'+fmtC(b.value_eur||0)+'</div></td><td><span class="chain" style="background:'+ch.c+'25;color:'+ch.c+';">'+ch.name+'</span></td><td>'+badge+'</td><td><div class="flex gap-4"><button class="btn btn-sm '+(isWL?'btn-primary':'btn-secondary')+'" onclick="toggleWL(\''+b.symbol+'\')" title="Whitelist">✅</button><button class="btn btn-sm '+(isBL?'btn-danger':'btn-secondary')+'" onclick="toggleBL(\''+b.symbol+'\')" title="Blacklist">🚫</button><button class="btn btn-sm btn-secondary" onclick="showTokenDetail(\''+b.id+'\')" title="Info">ℹ️</button></div></td></tr>';}
-document.getElementById('tmList').innerHTML=html+'</tbody></table>';}
-function toggleWL(sym){const u=sym.toUpperCase();if(whitelist.has(u))whitelist.delete(u);else{whitelist.add(u);blacklist.delete(u);}localStorage.setItem('cf_wl',JSON.stringify([...whitelist]));localStorage.setItem('cf_bl',JSON.stringify([...blacklist]));renderTM();loadDashboard();toast(whitelist.has(u)?'Aggiunto a whitelist':'Rimosso da whitelist');}
-function toggleBL(sym){const u=sym.toUpperCase();if(blacklist.has(u))blacklist.delete(u);else{blacklist.add(u);whitelist.delete(u);}localStorage.setItem('cf_wl',JSON.stringify([...whitelist]));localStorage.setItem('cf_bl',JSON.stringify([...blacklist]));renderTM();loadDashboard();toast(blacklist.has(u)?'Aggiunto a blacklist':'Rimosso da blacklist');}
-function showWhitelist(){document.getElementById('wlModal').style.display='flex';let html='';for(const s of whitelist){html+='<div class="flex justify-between items-center" style="padding:8px 0;border-bottom:1px solid var(--border);"><span style="font-weight:600;">'+s+'</span><button class="btn btn-sm btn-danger" onclick="removeWL(\''+s+'\')">✕</button></div>';}document.getElementById('wlContent').innerHTML=html||'<p style="color:var(--text2)">Nessun token in whitelist</p>';}
-function showBlacklist(){document.getElementById('blModal').style.display='flex';let html='';for(const s of blacklist){html+='<div class="flex justify-between items-center" style="padding:8px 0;border-bottom:1px solid var(--border);"><span style="font-weight:600;">'+s+'</span><button class="btn btn-sm btn-secondary" onclick="removeBL(\''+s+'\')">✕</button></div>';}document.getElementById('blContent').innerHTML=html||'<p style="color:var(--text2)">Nessun token in blacklist</p>';}
-function addWL(){const s=document.getElementById('wlAdd').value.trim().toUpperCase();if(!s)return;whitelist.add(s);blacklist.delete(s);localStorage.setItem('cf_wl',JSON.stringify([...whitelist]));localStorage.setItem('cf_bl',JSON.stringify([...blacklist]));document.getElementById('wlAdd').value='';showWhitelist();loadDashboard();toast(s+' aggiunto a whitelist');}
-function addBL(){const s=document.getElementById('blAdd').value.trim().toUpperCase();if(!s)return;blacklist.add(s);whitelist.delete(s);localStorage.setItem('cf_wl',JSON.stringify([...whitelist]));localStorage.setItem('cf_bl',JSON.stringify([...blacklist]));document.getElementById('blAdd').value='';showBlacklist();loadDashboard();toast(s+' aggiunto a blacklist');}
+function renderTM(){
+    const q=(document.getElementById('tmSearch')?.value||'').toLowerCase();
+    let fil=balances.filter(b=>b.amount>0);
+    if(q)fil=fil.filter(b=>b.symbol.toLowerCase().includes(q)||(b.name||'').toLowerCase().includes(q));
+    fil=fil.map(b=>({...b,st:getStatus(b.symbol,b.name)})).sort((a,b)=>(b.value_eur||0)-(a.value_eur||0));
+    
+    if(!fil.length){document.getElementById('tmList').innerHTML='<p style="color:var(--text2)">Nessun token</p>';return;}
+    
+    let html='<table class="table"><thead><tr><th></th><th>Token</th><th>Valore</th><th>Status</th><th>Azioni</th></tr></thead><tbody>';
+    for(const b of fil.slice(0,100)){
+        let badge=b.st==='verified'?'<span class="badge badge-ok">✓</span>':b.st==='spam'?'<span class="badge badge-bad">Spam</span>':'<span class="badge badge-unk">?</span>';
+        const isWL=whitelist.has(b.symbol.toUpperCase());
+        const isBL=blacklist.has(b.symbol.toUpperCase());
+        html+='<tr style="'+(b.is_hidden?'opacity:0.4;':'')+'"><td>'+renderIcon(b.symbol,b.chain,b.contract_address,b.logo_url,24)+'</td><td><div style="font-weight:600;font-size:12px;">'+b.symbol+'</div><div style="font-size:10px;color:var(--text2);">'+(b.name||'')+'</div></td><td style="font-weight:600;">'+fmtC(b.value_eur||0)+'</td><td>'+badge+'</td><td><div class="flex gap-4"><button class="btn btn-sm '+(isWL?'btn-primary':'btn-secondary')+'" onclick="toggleWL(\''+b.symbol+'\')">✅</button><button class="btn btn-sm '+(isBL?'btn-danger':'btn-secondary')+'" onclick="toggleBL(\''+b.symbol+'\')">🚫</button><button class="btn btn-sm btn-secondary" onclick="hideToken(\''+b.id+'\')">✕</button></div></td></tr>';
+    }
+    document.getElementById('tmList').innerHTML=html+'</tbody></table>';
+}
+
+function toggleWL(sym){const u=sym.toUpperCase();if(whitelist.has(u))whitelist.delete(u);else{whitelist.add(u);blacklist.delete(u);}localStorage.setItem('cf_wl',JSON.stringify([...whitelist]));localStorage.setItem('cf_bl',JSON.stringify([...blacklist]));renderTM();loadDashboard();toast(whitelist.has(u)?'Whitelist':'Rimosso');}
+function toggleBL(sym){const u=sym.toUpperCase();if(blacklist.has(u))blacklist.delete(u);else{blacklist.add(u);whitelist.delete(u);}localStorage.setItem('cf_wl',JSON.stringify([...whitelist]));localStorage.setItem('cf_bl',JSON.stringify([...blacklist]));renderTM();loadDashboard();toast(blacklist.has(u)?'Blacklist':'Rimosso');}
+function showWhitelist(){document.getElementById('wlModal').style.display='flex';let html='';for(const s of whitelist){html+='<div class="flex justify-between items-center" style="padding:6px 0;border-bottom:1px solid var(--border);"><span>'+s+'</span><button class="btn btn-sm btn-danger" onclick="removeWL(\''+s+'\')">✕</button></div>';}document.getElementById('wlContent').innerHTML=html||'<p style="color:var(--text2)">Vuota</p>';}
+function showBlacklist(){document.getElementById('blModal').style.display='flex';let html='';for(const s of blacklist){html+='<div class="flex justify-between items-center" style="padding:6px 0;border-bottom:1px solid var(--border);"><span>'+s+'</span><button class="btn btn-sm btn-secondary" onclick="removeBL(\''+s+'\')">✕</button></div>';}document.getElementById('blContent').innerHTML=html||'<p style="color:var(--text2)">Vuota</p>';}
+function addWL(){const s=document.getElementById('wlAdd').value.trim().toUpperCase();if(!s)return;whitelist.add(s);blacklist.delete(s);localStorage.setItem('cf_wl',JSON.stringify([...whitelist]));document.getElementById('wlAdd').value='';showWhitelist();loadDashboard();}
+function addBL(){const s=document.getElementById('blAdd').value.trim().toUpperCase();if(!s)return;blacklist.add(s);whitelist.delete(s);localStorage.setItem('cf_bl',JSON.stringify([...blacklist]));document.getElementById('blAdd').value='';showBlacklist();loadDashboard();}
 function removeWL(s){whitelist.delete(s);localStorage.setItem('cf_wl',JSON.stringify([...whitelist]));showWhitelist();loadDashboard();}
 function removeBL(s){blacklist.delete(s);localStorage.setItem('cf_bl',JSON.stringify([...blacklist]));showBlacklist();loadDashboard();}
 
-async function runSecurityCheck(){toast('🛡️ Security check in corso...');let checked=0,risky=0;const toCheck=balances.filter(b=>b.contract_address&&!b.is_spam).slice(0,30);for(const b of toCheck){const sec=await checkGoPlus(b.contract_address,b.chain);if(sec){checked++;if(sec.level==='danger'){risky++;await db.from('balances').update({is_spam:true}).eq('id',b.id);b.is_spam=true;}}await sleep(300);}toast('Controllati '+checked+' token, '+risky+' pericolosi');loadDashboard();loadTM();}
+// TRANSACTIONS PAGE
+async function loadTx(){
+    const{data:txs}=await db.from('transactions').select('*').eq('user_id',user.id).order('tx_timestamp',{ascending:false}).limit(100);
+    if(!txs||!txs.length){document.getElementById('txList').innerHTML='<p style="color:var(--text2)">Nessuna transazione salvata. Vai nei dettagli di un wallet e clicca "Carica TX".</p>';return;}
+    let html='<table class="table"><thead><tr><th>Data</th><th>Tipo</th><th>Token</th><th class="text-right">Quantità</th><th>Chain</th></tr></thead><tbody>';
+    for(const tx of txs){
+        const d=new Date(tx.tx_timestamp).toLocaleDateString('it-IT');
+        const sym=tx.token_in_symbol||tx.token_out_symbol||'-';
+        const amt=tx.token_in_amount||tx.token_out_amount||0;
+        const isIn=!!tx.token_in_symbol;
+        const ch=CHAINS[tx.chain]||{name:tx.chain,c:'#888'};
+        html+='<tr><td style="font-size:11px;">'+d+'</td><td><span class="badge" style="background:'+(isIn?'var(--green)':'var(--red)')+'25;color:'+(isIn?'var(--green)':'var(--red)')+';">'+tx.tx_type+'</span></td><td>'+sym+'</td><td class="text-right font-mono">'+(isIn?'+':'-')+fmtN(amt)+'</td><td><span class="chain" style="background:'+ch.c+'25;color:'+ch.c+';">'+ch.name+'</span></td></tr>';
+    }
+    document.getElementById('txList').innerHTML=html+'</tbody></table>';
+}
 
-// TRANSACTIONS
-async function loadTx(){const chain=document.getElementById('txChain').value;const year=document.getElementById('txYear').value;
-let q=db.from('transactions').select('*').eq('user_id',user.id).order('tx_timestamp',{ascending:false}).limit(200);if(chain)q=q.eq('chain',chain);if(year)q=q.eq('tax_year',parseInt(year));
-const{data:txs}=await q;document.getElementById('txCount').textContent=txs?txs.length+' transazioni':'0 transazioni';
-if(!txs||!txs.length){document.getElementById('txList').innerHTML='<p style="color:var(--text2)">Nessuna transazione registrata</p>';return;}
-let html='<table class="table"><thead><tr><th>Data</th><th>Tipo</th><th>Token In</th><th>Token Out</th><th class="text-right">Valore €</th><th>Chain</th></tr></thead><tbody>';
-for(const tx of txs){const d=new Date(tx.tx_timestamp).toLocaleDateString('it-IT');const ch=CHAINS[tx.chain]||{name:tx.chain,c:'#888'};
-html+='<tr><td style="font-size:11px;">'+d+'</td><td><span class="badge">'+tx.tx_type+'</span></td><td style="color:var(--green);">'+(tx.token_in_symbol?'+'+fmtN(tx.token_in_amount)+' '+tx.token_in_symbol:'-')+'</td><td style="color:var(--red);">'+(tx.token_out_symbol?'-'+fmtN(tx.token_out_amount)+' '+tx.token_out_symbol:'-')+'</td><td class="text-right">'+fmtC(tx.value_eur||0)+'</td><td><span class="chain" style="background:'+ch.c+'25;color:'+ch.c+';">'+ch.name+'</span></td></tr>';}
-document.getElementById('txList').innerHTML=html+'</tbody></table>';}
-
-// TAX REPORT
-async function loadTax(){const y=parseInt(document.getElementById('taxYear').value);
-const{data:s}=await db.rpc('get_tax_summary',{p_user_id:user.id,p_year:y});if(s&&s[0]){document.getElementById('taxProceeds').textContent=fmtC(s[0].total_proceeds_eur||0);document.getElementById('taxCost').textContent=fmtC(s[0].total_cost_basis_eur||0);document.getElementById('taxGains').textContent=fmtC(s[0].total_gains_eur||0);document.getElementById('taxLosses').textContent=fmtC(Math.abs(s[0].total_losses_eur||0));}
-const{data:g}=await db.rpc('calculate_giacenza_media',{p_user_id:user.id,p_year:y});if(g&&g[0]){document.getElementById('gJan').textContent=fmtC(g[0].giacenza_jan1_eur||0);document.getElementById('gDec').textContent=fmtC(g[0].giacenza_dec31_eur||0);document.getElementById('gMedia').textContent=fmtC(g[0].giacenza_media_eur||0);document.getElementById('gSoglia').innerHTML=g[0].soglia_superata?'<span class="red">⚠️ SUPERATA</span>':'<span class="green">✓ Sotto soglia</span>';}}
+// TAX
+async function loadTax(){
+    const y=parseInt(document.getElementById('taxYear').value);
+    const{data:s}=await db.rpc('get_tax_summary',{p_user_id:user.id,p_year:y});
+    if(s&&s[0]){
+        document.getElementById('taxGains').textContent=fmtC(s[0].total_gains_eur||0);
+        document.getElementById('taxLosses').textContent=fmtC(Math.abs(s[0].total_losses_eur||0));
+    }
+    const{data:g}=await db.rpc('calculate_giacenza_media',{p_user_id:user.id,p_year:y});
+    if(g&&g[0]){document.getElementById('giacenza').textContent=fmtC(g[0].giacenza_media_eur||0);}
+}
 
 // SETTINGS
-function loadSettings(){document.getElementById('setEmail').value=user?.email||'';document.getElementById('setCurrency').value=profile?.preferred_currency||'eur';document.getElementById('setTaxMethod').value=profile?.tax_method||'lifo';document.getElementById('apiInfo').innerHTML='Moralis API Key attiva: '+(mIdx+1)+'/4<br>Chiamate sessione: '+apiCalls+'<br>Token in cache security: '+Object.keys(securityCache).length;}
-async function saveSettings(){const c=document.getElementById('setCurrency').value;const t=document.getElementById('setTaxMethod').value;await db.from('user_profiles').update({preferred_currency:c,tax_method:t}).eq('id',user.id);currency=c;toast('Impostazioni salvate!');loadDashboard();}
-function exportCSV(){let csv='Symbol,Name,Chain,Amount,Price EUR,Value EUR,Status\n';for(const b of balances){const st=getStatus(b.symbol,b.name);csv+='"'+b.symbol+'","'+(b.name||'')+'","'+b.chain+'",'+b.amount+','+(b.price_eur||0)+','+(b.value_eur||0)+',"'+st+'"\n';}const blob=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='cryptofolio_'+new Date().toISOString().split('T')[0]+'.csv';a.click();toast('CSV esportato!');}
-function clearCache(){prices={};securityCache={};localStorage.removeItem('cf_prices');toast('Cache pulita!');}
+function loadSettings(){
+    document.getElementById('setCurrency').value=currency;
+    // Load saved API keys into inputs
+    const saved=JSON.parse(localStorage.getItem('cf_apikeys')||'[]');
+    if(saved[0])document.getElementById('apiKey1').value=saved[0];
+    if(saved[1])document.getElementById('apiKey2').value=saved[1];
+    if(saved[2])document.getElementById('apiKey3').value=saved[2];
+    if(saved[3])document.getElementById('apiKey4').value=saved[3];
+}
+async function saveSettings(){
+    const c=document.getElementById('setCurrency').value;
+    await db.from('user_profiles').update({preferred_currency:c}).eq('id',user.id);
+    currency=c;
+    toast('Salvato!');
+    loadDashboard();
+}
+function exportCSV(){
+    let csv='Symbol,Name,Chain,Amount,Price EUR,Value EUR\n';
+    for(const b of balances){
+        csv+='"'+b.symbol+'","'+(b.name||'')+'","'+b.chain+'",'+b.amount+','+(b.price_eur||0)+','+(b.value_eur||0)+'\n';
+    }
+    const blob=new Blob([csv],{type:'text/csv'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='cryptofolio_'+new Date().toISOString().split('T')[0]+'.csv';
+    a.click();
+    toast('CSV esportato!');
+}
+async function clearAllData(){
+    if(!confirm('Eliminare TUTTI i dati? (wallets, token, transazioni)'))return;
+    await db.from('balances').delete().eq('user_id',user.id);
+    await db.from('transactions').delete().eq('user_id',user.id);
+    await db.from('wallets').delete().eq('user_id',user.id);
+    balances=[];
+    localStorage.removeItem('cf_wl');
+    localStorage.removeItem('cf_bl');
+    localStorage.removeItem('cf_hid');
+    whitelist.clear();blacklist.clear();hidden.clear();
+    toast('Dati eliminati');
+    loadDashboard();
+}
 
 // UTILITIES
 function fmtC(v){const n=parseFloat(v)||0;return(currency==='eur'?'€':'$')+n.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2});}
