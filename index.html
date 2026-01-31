@@ -1353,6 +1353,14 @@
             'cronos': { name: 'Cronos', symbol: 'CRO', color: '#002d74', type: 'evm', icon: '🦎' },
             'pulse': { name: 'PulseChain', symbol: 'PLS', color: '#00ff00', type: 'evm', icon: '💚' },
             'blackfort': { name: 'BlackFort', symbol: 'BXN', color: '#00d4ff', type: 'evm', icon: '🏰' },
+            // ⭐ NUOVE CHAIN v6.7
+            'zora': { name: 'Zora', symbol: 'ETH', color: '#5B5BD6', type: 'evm', icon: '🌐' },
+            'scroll': { name: 'Scroll', symbol: 'ETH', color: '#FFEEDA', type: 'evm', icon: '📜' },
+            'zksync': { name: 'zkSync ERA', symbol: 'ETH', color: '#8C8DFC', type: 'evm', icon: '⚡' },
+            'moonbeam': { name: 'Moonbeam', symbol: 'GLMR', color: '#53CBC9', type: 'evm', icon: '🌙' },
+            'dogechain': { name: 'Dogechain', symbol: 'DOGE', color: '#C2A633', type: 'evm', icon: '🐕' },
+            'linea': { name: 'Linea', symbol: 'ETH', color: '#121212', type: 'evm', icon: '➖' },
+            'mantle': { name: 'Mantle', symbol: 'MNT', color: '#000000', type: 'evm', icon: '🏔️' },
             // === COSMOS CHAINS ===
             'atom': { name: 'Cosmos Hub', symbol: 'ATOM', color: '#2E3148', type: 'cosmos', icon: '⚛️' },
             'osmo': { name: 'Osmosis', symbol: 'OSMO', color: '#750BBB', type: 'cosmos', icon: '🧪' },
@@ -1956,6 +1964,7 @@
         // blacklistNames = { id: symbolName }
         let tokenBlacklist = JSON.parse(localStorage.getItem('cryptofolio_blacklist') || '[]');
         let blacklistNames = JSON.parse(localStorage.getItem('cryptofolio_blacklist_names') || '{}');
+        let blacklistChains = JSON.parse(localStorage.getItem('cryptofolio_blacklist_chains') || '{}'); // ⭐ NUOVO: salva chain
         
         // ⭐ MIGRAZIONE: Rimuovi ID problematici dalla vecchia blacklist
         // Gli ID che iniziano con "native-" causavano il bug di nascondere tutta la chain
@@ -1973,11 +1982,13 @@
                 // Rimuovi anche dai nomi
                 for (const id of problematicIds) {
                     delete blacklistNames[id];
+                    delete blacklistChains[id];
                 }
                 
                 // Salva
                 localStorage.setItem('cryptofolio_blacklist', JSON.stringify(tokenBlacklist));
                 localStorage.setItem('cryptofolio_blacklist_names', JSON.stringify(blacklistNames));
+                localStorage.setItem('cryptofolio_blacklist_chains', JSON.stringify(blacklistChains));
                 console.log('✅ Blacklist migrata. Nuova lista:', tokenBlacklist);
             }
         })();
@@ -2052,7 +2063,7 @@
         }
         
         // Nascondi token (come v5.2 - SOLO FILTRO UI, non cancella dal DB!)
-        function hideToken(balanceOrId, symbol) {
+        function hideToken(balanceOrId, symbol, chain) {
             let id;
             
             // Se è un oggetto balance
@@ -2064,6 +2075,7 @@
                 }
                 id = getTokenBlacklistId(balanceOrId);
                 symbol = symbol || balanceOrId.coin;
+                chain = chain || balanceOrId.chain;  // ⭐ Estrai chain
             } else {
                 // È una stringa (vecchio metodo o contract address)
                 id = (balanceOrId || '').toLowerCase();
@@ -2073,6 +2085,14 @@
                     alert(`⚠️ I token nativi della chain non possono essere nascosti.`);
                     return;
                 }
+                
+                // ⭐ Prova a estrarre chain dall'ID se è formato nocontract_chain_symbol
+                if (!chain && id.startsWith('nocontract_')) {
+                    const parts = id.split('_');
+                    if (parts.length >= 2) {
+                        chain = parts[1];
+                    }
+                }
             }
             
             if (!id) return;
@@ -2080,16 +2100,22 @@
             if (!tokenBlacklist.includes(id)) {
                 tokenBlacklist.push(id);
                 blacklistNames[id] = symbol || id.slice(0, 15);
+                if (chain) {
+                    blacklistChains[id] = chain;  // ⭐ Salva chain
+                }
                 
                 localStorage.setItem('cryptofolio_blacklist', JSON.stringify(tokenBlacklist));
                 localStorage.setItem('cryptofolio_blacklist_names', JSON.stringify(blacklistNames));
+                localStorage.setItem('cryptofolio_blacklist_chains', JSON.stringify(blacklistChains));
                 
-                log(`🚫 ${symbol || 'Token'} nascosto`);
+                log(`🚫 ${symbol || 'Token'} nascosto${chain ? ` (${chain})` : ''}`);
             }
             
             // Aggiorna UI (NON cancellare dal database!)
             updateBlacklistPanel();
             updateWalletDetail();
+            updateDashboard();
+        };
             updateDashboard();
         }
         
@@ -2098,9 +2124,11 @@
             const lc = (id || '').toLowerCase();
             tokenBlacklist = tokenBlacklist.filter(x => x !== lc);
             delete blacklistNames[lc];
+            delete blacklistChains[lc];  // ⭐ Rimuovi anche la chain
             
             localStorage.setItem('cryptofolio_blacklist', JSON.stringify(tokenBlacklist));
             localStorage.setItem('cryptofolio_blacklist_names', JSON.stringify(blacklistNames));
+            localStorage.setItem('cryptofolio_blacklist_chains', JSON.stringify(blacklistChains));
             
             log(`✅ Token ripristinato`);
             
@@ -2138,8 +2166,10 @@
             
             tokenBlacklist = [];
             blacklistNames = {};
+            blacklistChains = {};  // ⭐ Svuota anche le chain
             localStorage.removeItem('cryptofolio_blacklist');
             localStorage.removeItem('cryptofolio_blacklist_names');
+            localStorage.removeItem('cryptofolio_blacklist_chains');
             
             log('🗑️ Blacklist svuotata');
             
@@ -2174,9 +2204,17 @@
             let html = '';
             for (const addr of tokenBlacklist) {
                 const name = blacklistNames[addr] || addr.slice(0, 10) + '...';
+                const chain = blacklistChains[addr] || '';
+                const chainInfo = ALL_CHAINS[chain] || null;
+                
+                // ⭐ Badge chain colorato
+                const chainBadge = chainInfo 
+                    ? `<span style="display:inline-block;padding:2px 6px;border-radius:8px;background:${chainInfo.color}30;color:${chainInfo.color};font-size:10px;margin-left:6px;">${chainInfo.name}</span>`
+                    : '';
+                
                 html += `
                     <div class="blacklist-item">
-                        <span>${name}</span>
+                        <span>${name}${chainBadge}</span>
                         <button class="btn-restore" onclick="restoreToken('${addr}')">↩️ Ripristina</button>
                     </div>
                 `;
@@ -2331,6 +2369,12 @@
          * @returns {boolean}
          */
         function isTokenVerified(symbol, price = 0) {
+            const upper = (symbol || '').toUpperCase();
+            
+            // ⭐ PRIMA: check user whitelist (token aggiunti manualmente)
+            const userWhitelist = JSON.parse(localStorage.getItem('cryptofolio_user_whitelist') || '[]');
+            if (userWhitelist.includes(upper)) return true;
+            
             // Usa TokenValidator se disponibile
             if (typeof TokenValidator !== 'undefined' && TokenValidator.isVerifiedToken) {
                 return TokenValidator.isVerifiedToken(symbol, price);
@@ -2338,7 +2382,7 @@
             
             // Fallback: check whitelist base + prezzo
             const WHITELIST = ['BTC','ETH','BNB','SOL','USDT','USDC','DAI','PLS','HEX','BXN','MATIC','AVAX','ARB','OP'];
-            if (WHITELIST.includes((symbol || '').toUpperCase())) return true;
+            if (WHITELIST.includes(upper)) return true;
             if (price && price > 0) return true;
             
             return false;
@@ -2767,7 +2811,14 @@
             'base': 'base',
             'avalanche': 'avalanchec',
             'fantom': 'fantom',
-            'cronos': 'cronos'
+            'cronos': 'cronos',
+            // ⭐ NUOVE CHAIN v6.7
+            'zora': 'zora',
+            'scroll': 'scroll',
+            'zksync': 'zksync',
+            'moonbeam': 'moonbeam',
+            'linea': 'linea',
+            'mantle': 'mantle'
         };
         
         /**
@@ -2913,6 +2964,11 @@
             let blacklistCount = 0;
             let scamPatternCount = 0;
             
+            // ⭐ Array per salvare i token nascosti (per il modal)
+            const hiddenByBlacklist = [];
+            const hiddenByVerification = [];
+            const hiddenByScamPattern = [];
+            
             // SEMPRE filtra blacklist e balance zero
             filtered = balances.filter(bal => {
                 // Filtro balance zero o negativo
@@ -2923,6 +2979,7 @@
                 // ⭐ Blacklist - passa l'oggetto balance per ID univoco
                 if (isBlacklisted(bal)) {
                     blacklistCount++;
+                    hiddenByBlacklist.push(bal);
                     return false;
                 }
                 
@@ -2941,6 +2998,7 @@
                     
                     // Token NON verificato (no whitelist, no prezzo)
                     unverifiedCount++;
+                    hiddenByVerification.push(bal);
                     return false;
                 });
             } else {
@@ -2948,6 +3006,7 @@
                 filtered = filtered.filter(bal => {
                     if (isScamToken(bal.name, bal.coin)) {
                         scamPatternCount++;
+                        hiddenByScamPattern.push(bal);
                         return false;
                     }
                     return true;
@@ -2964,6 +3023,13 @@
                 }
                 return true;
             });
+            
+            // ⭐ Salva i token nascosti globalmente per il modal
+            window._hiddenTokens = {
+                byBlacklist: hiddenByBlacklist,
+                byVerification: hiddenByVerification,
+                byScamPattern: hiddenByScamPattern
+            };
             
             if (filtered.length === 0) {
                 container.innerHTML = `
@@ -3017,10 +3083,19 @@
             
             // Header con filtro e info
             const hiddenTotal = unverifiedCount + blacklistCount + scamPatternCount;
+            
+            // ⭐ Salva i token nascosti per il modal
+            window._hiddenTokensInfo = {
+                unverifiedCount,
+                blacklistCount,
+                scamPatternCount,
+                total: hiddenTotal
+            };
+            
             let html = `
                 <div class="flex items-center justify-between mb-16">
                     <span class="text-secondary" style="font-size:12px;">
-                        ${uniqueTokens.length} token su ${chainOrder.length} chain${hiddenTotal > 0 ? ` (${hiddenTotal} nascosti)` : ''}
+                        ${uniqueTokens.length} token su ${chainOrder.length} chain${hiddenTotal > 0 ? ` <a href="#" onclick="showHiddenTokensModal();return false;" style="color:var(--yellow);text-decoration:underline;">(${hiddenTotal} nascosti)</a>` : ''}
                     </span>
                     <div class="flex gap-8" style="flex-wrap:wrap;">
                         <button class="btn btn-secondary" id="layoutModeBtn" onclick="toggleLayoutMode()" style="padding:6px 12px;font-size:12px;color:var(--text-primary);" title="Cambia layout visualizzazione">
@@ -3096,10 +3171,10 @@
                         statusBadge = `<button onclick="checkTokenSecurity('${bal.contractAddress}','${chain}','${bal.coin}')" title="Verifica" style="background:none;border:none;cursor:pointer;font-size:10px;color:var(--yellow);margin-left:4px;">🔍</button>`;
                     }
                     
-                    // Bottone hide
+                    // Bottone hide - con placeholder per allineamento
                     const hideBtn = isNativeToken 
-                        ? '' 
-                        : `<button class="hide-btn" onclick="hideToken('${blacklistId}','${bal.coin}')" title="Nascondi token">✕</button>`;
+                        ? '<span style="display:inline-block;width:20px;"></span>' 
+                        : `<button class="hide-btn" onclick="hideToken('${blacklistId}','${bal.coin}','${chain}')" title="Nascondi token">✕</button>`;
                     
                     html += `
                         <tr style="border-bottom:1px solid var(--border);">
@@ -3205,10 +3280,10 @@
                         contractLink = `<a href="${explorerUrl}/token/${bal.contractAddress}" target="_blank" class="text-secondary" style="font-size:9px;text-decoration:none;opacity:0.6;" title="${bal.contractAddress}">${bal.contractAddress.slice(0,6)}...${bal.contractAddress.slice(-4)}</a>`;
                     }
                     
-                    // ⭐ Bottone hide: se token nativo non mostrarlo, altrimenti usa ID univoco
+                    // ⭐ Bottone hide: con placeholder per allineamento
                     const hideBtn = isNativeToken 
-                        ? '' 
-                        : `<button class="hide-btn" onclick="hideToken('${blacklistId}','${bal.coin}')" title="Nascondi token">✕</button>`;
+                        ? '<span style="display:inline-block;width:20px;"></span>' 
+                        : `<button class="hide-btn" onclick="hideToken('${blacklistId}','${bal.coin}','${chain}')" title="Nascondi token">✕</button>`;
                     
                     html += `
                         <tr style="border-bottom:1px solid var(--border);">
@@ -3282,6 +3357,182 @@
         function closeBlacklistModal() {
             const modal = document.getElementById('blacklistModal');
             if (modal) modal.remove();
+        }
+        
+        /**
+         * ⭐ Mostra modal con tutti i token nascosti (filtrati, blacklist, spam)
+         * Permette di aggiungerli manualmente alla whitelist
+         */
+        function showHiddenTokensModal() {
+            const hidden = window._hiddenTokens || { byBlacklist: [], byVerification: [], byScamPattern: [] };
+            const info = window._hiddenTokensInfo || { unverifiedCount: 0, blacklistCount: 0, scamPatternCount: 0 };
+            
+            let html = `
+                <div id="hiddenTokensModal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:1000;" onclick="if(event.target.id==='hiddenTokensModal')closeHiddenTokensModal()">
+                    <div class="card" style="width:600px;max-height:85vh;overflow-y:auto;">
+                        <div class="card-header">
+                            <div class="card-title">👁️ Token Nascosti</div>
+                            <button onclick="closeHiddenTokensModal()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--text-secondary);">✕</button>
+                        </div>
+                        <p class="text-secondary mb-16" style="font-size:12px;">
+                            Questi token sono nascosti dai filtri. Puoi aggiungerli manualmente cliccando ✅.
+                        </p>
+            `;
+            
+            // Sezione: Token Non Verificati
+            if (hidden.byVerification && hidden.byVerification.length > 0) {
+                html += `
+                    <div style="margin-bottom:20px;">
+                        <h4 style="color:var(--yellow);margin-bottom:12px;">🔍 Token Non Verificati (${hidden.byVerification.length})</h4>
+                        <p class="text-secondary" style="font-size:11px;margin-bottom:12px;">Nessun prezzo CoinGecko e non in whitelist</p>
+                        <div style="max-height:200px;overflow-y:auto;">
+                `;
+                
+                for (const bal of hidden.byVerification) {
+                    const chain = bal.chain || 'unknown';
+                    const chainInfo = ALL_CHAINS[chain] || { name: chain, color: '#888' };
+                    const chainBadge = `<span style="display:inline-block;padding:2px 6px;border-radius:8px;background:${chainInfo.color}30;color:${chainInfo.color};font-size:10px;">${chainInfo.name}</span>`;
+                    const blacklistId = getTokenBlacklistId(bal);
+                    
+                    html += `
+                        <div class="flex items-center justify-between" style="padding:8px;background:var(--bg-secondary);border-radius:8px;margin-bottom:6px;">
+                            <div class="flex items-center gap-8">
+                                <span style="font-weight:500;">${bal.coin}</span>
+                                ${chainBadge}
+                                <span class="text-secondary" style="font-size:10px;">${formatCrypto(bal.amount)}</span>
+                            </div>
+                            <div class="flex gap-4">
+                                <button onclick="addToUserWhitelist('${bal.coin}');this.disabled=true;this.innerHTML='✅';" class="btn btn-success" style="padding:4px 10px;font-size:11px;">➕ Aggiungi</button>
+                                <button onclick="hideToken('${blacklistId}','${bal.coin}','${chain}');closeHiddenTokensModal();" class="btn btn-danger" style="padding:4px 10px;font-size:11px;">🚫</button>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                html += `</div></div>`;
+            }
+            
+            // Sezione: Token Blacklist
+            if (hidden.byBlacklist && hidden.byBlacklist.length > 0) {
+                html += `
+                    <div style="margin-bottom:20px;">
+                        <h4 style="color:var(--red);margin-bottom:12px;">🚫 Token in Blacklist (${hidden.byBlacklist.length})</h4>
+                        <p class="text-secondary" style="font-size:11px;margin-bottom:12px;">Nascosti manualmente da te</p>
+                        <div style="max-height:150px;overflow-y:auto;">
+                `;
+                
+                for (const bal of hidden.byBlacklist) {
+                    const chain = bal.chain || 'unknown';
+                    const chainInfo = ALL_CHAINS[chain] || { name: chain, color: '#888' };
+                    const chainBadge = `<span style="display:inline-block;padding:2px 6px;border-radius:8px;background:${chainInfo.color}30;color:${chainInfo.color};font-size:10px;">${chainInfo.name}</span>`;
+                    const blacklistId = getTokenBlacklistId(bal);
+                    
+                    html += `
+                        <div class="flex items-center justify-between" style="padding:8px;background:var(--bg-secondary);border-radius:8px;margin-bottom:6px;">
+                            <div class="flex items-center gap-8">
+                                <span style="font-weight:500;">${bal.coin}</span>
+                                ${chainBadge}
+                            </div>
+                            <button onclick="restoreToken('${blacklistId}');closeHiddenTokensModal();" class="btn btn-success" style="padding:4px 10px;font-size:11px;">↩️ Ripristina</button>
+                        </div>
+                    `;
+                }
+                
+                html += `</div></div>`;
+            }
+            
+            // Sezione: Token Spam Pattern
+            if (hidden.byScamPattern && hidden.byScamPattern.length > 0) {
+                html += `
+                    <div style="margin-bottom:20px;">
+                        <h4 style="color:var(--orange);margin-bottom:12px;">⚠️ Pattern Spam (${hidden.byScamPattern.length})</h4>
+                        <p class="text-secondary" style="font-size:11px;margin-bottom:12px;">Filtrati automaticamente per nome sospetto</p>
+                        <div style="max-height:150px;overflow-y:auto;">
+                `;
+                
+                for (const bal of hidden.byScamPattern.slice(0, 20)) { // Max 20
+                    const chain = bal.chain || 'unknown';
+                    const chainInfo = ALL_CHAINS[chain] || { name: chain, color: '#888' };
+                    const chainBadge = `<span style="display:inline-block;padding:2px 6px;border-radius:8px;background:${chainInfo.color}30;color:${chainInfo.color};font-size:10px;">${chainInfo.name}</span>`;
+                    
+                    html += `
+                        <div class="flex items-center justify-between" style="padding:8px;background:var(--bg-secondary);border-radius:8px;margin-bottom:6px;opacity:0.7;">
+                            <div class="flex items-center gap-8">
+                                <span style="font-weight:500;text-decoration:line-through;">${bal.coin}</span>
+                                ${chainBadge}
+                            </div>
+                            <span class="text-secondary" style="font-size:10px;">Auto-filtrato</span>
+                        </div>
+                    `;
+                }
+                
+                if (hidden.byScamPattern.length > 20) {
+                    html += `<p class="text-secondary" style="font-size:11px;text-align:center;">... e altri ${hidden.byScamPattern.length - 20}</p>`;
+                }
+                
+                html += `</div></div>`;
+            }
+            
+            // Se nessun token nascosto
+            if ((!hidden.byVerification || hidden.byVerification.length === 0) &&
+                (!hidden.byBlacklist || hidden.byBlacklist.length === 0) &&
+                (!hidden.byScamPattern || hidden.byScamPattern.length === 0)) {
+                html += `<p class="text-secondary" style="text-align:center;padding:20px;">Nessun token nascosto</p>`;
+            }
+            
+            html += `
+                        <div class="flex gap-8 mt-16">
+                            <button onclick="closeHiddenTokensModal()" class="btn btn-secondary" style="flex:1;">Chiudi</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', html);
+        }
+        
+        function closeHiddenTokensModal() {
+            const modal = document.getElementById('hiddenTokensModal');
+            if (modal) modal.remove();
+        }
+        
+        /**
+         * ⭐ Aggiunge un token alla whitelist utente (localStorage)
+         */
+        function addToUserWhitelist(symbol) {
+            let userWhitelist = JSON.parse(localStorage.getItem('cryptofolio_user_whitelist') || '[]');
+            const upper = (symbol || '').toUpperCase();
+            
+            if (!userWhitelist.includes(upper)) {
+                userWhitelist.push(upper);
+                localStorage.setItem('cryptofolio_user_whitelist', JSON.stringify(userWhitelist));
+                log(`✅ ${upper} aggiunto alla whitelist utente`);
+            }
+            
+            // Aggiorna UI
+            updateWalletDetail();
+        }
+        
+        /**
+         * Rimuove un token dalla whitelist utente
+         */
+        function removeFromUserWhitelist(symbol) {
+            let userWhitelist = JSON.parse(localStorage.getItem('cryptofolio_user_whitelist') || '[]');
+            const upper = (symbol || '').toUpperCase();
+            
+            userWhitelist = userWhitelist.filter(s => s !== upper);
+            localStorage.setItem('cryptofolio_user_whitelist', JSON.stringify(userWhitelist));
+            log(`🗑️ ${upper} rimosso dalla whitelist utente`);
+            
+            updateWalletDetail();
+        }
+        
+        /**
+         * Controlla se un token è nella whitelist utente
+         */
+        function isInUserWhitelist(symbol) {
+            const userWhitelist = JSON.parse(localStorage.getItem('cryptofolio_user_whitelist') || '[]');
+            return userWhitelist.includes((symbol || '').toUpperCase());
         }
         
         function renderWalletTransactions(transactions) {
@@ -3497,9 +3748,11 @@
                         legend: {
                             position: 'right',
                             labels: {
-                                color: '#e6edf3',
+                                color: '#ffffff',  // ⭐ Bianco per la legenda
                                 padding: 12,
-                                font: { size: 12 },
+                                font: { size: 12, weight: '500' },
+                                usePointStyle: true,
+                                pointStyle: 'rectRounded',
                                 generateLabels: function(chart) {
                                     const data = chart.data;
                                     return data.labels.map((label, i) => {
@@ -3509,6 +3762,7 @@
                                             text: `${label} (${pct}%)`,
                                             fillStyle: colors[i],
                                             strokeStyle: colors[i],
+                                            fontColor: '#ffffff',  // ⭐ Bianco esplicito
                                             lineWidth: 0,
                                             hidden: false,
                                             index: i
