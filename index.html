@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v7.9</title>
+<title>CryptoFolio v7.10</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
@@ -19,26 +19,30 @@
 .btn{padding:10px 18px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:500;transition:all .2s}
 .btn-primary{background:var(--blue);color:#fff}.btn-primary:hover{background:#a29bfe}.btn-secondary{background:var(--bg3);color:var(--text);border:1px solid var(--border)}.btn-danger{background:var(--red);color:#fff}.btn-sm{padding:6px 12px;font-size:11px}
 .input{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;width:100%}.input:focus{outline:none;border-color:var(--blue)}
-.table{width:100%;border-collapse:collapse}
-.table th{text-align:left;padding:10px 8px;color:var(--text2);font-size:11px;text-transform:uppercase;border-bottom:1px solid var(--border);font-weight:500}
-.table td{padding:12px 8px;border-bottom:1px solid var(--border);vertical-align:middle}
+/* TABELLE CON LAYOUT FISSO */
+.table{width:100%;border-collapse:collapse;table-layout:fixed}
+.table th,.table td{padding:10px 6px;border-bottom:1px solid var(--border);vertical-align:middle;overflow:hidden;text-overflow:ellipsis}
+.table th{text-align:left;color:var(--text2);font-size:10px;text-transform:uppercase;font-weight:500}
 .table tr:hover{background:rgba(255,255,255,.02)}
-.token-cell{display:flex;align-items:center;gap:10px}
-.token-icon{width:32px;height:32px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:10px;overflow:hidden;flex-shrink:0}
+.token-cell{display:flex;align-items:center;gap:8px}
+.token-icon{width:28px;height:28px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:9px;overflow:hidden;flex-shrink:0}
 .token-icon img{width:100%;height:100%;object-fit:cover}
-.token-info .symbol{font-weight:600;font-size:13px}.token-info .name{font-size:10px;color:var(--text2);margin-top:1px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:9px;font-weight:600}.badge-ok{background:var(--green);color:#000}.badge-bad{background:var(--red);color:#fff}.badge-unk{background:var(--bg2);color:var(--text2)}
-.chain-tag{display:inline-block;padding:3px 8px;border-radius:4px;font-size:9px;font-weight:500}
-.text-mono{font-family:'SF Mono',Monaco,monospace;font-size:11px}
-.text-right{text-align:right}
-/* TOP HOLDINGS - LAYOUT FISSO */
-.top-list{display:flex;flex-direction:column;gap:2px}
-.top-row{display:grid;grid-template-columns:1fr 90px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
-.top-row:last-child{border-bottom:none}
-.top-left{display:flex;align-items:center;gap:10px;overflow:hidden}
-.top-right{text-align:right}
-.top-sym{font-weight:600;font-size:13px;white-space:nowrap}.top-amt{font-size:10px;color:var(--text2)}
-.top-val{font-weight:600;font-size:13px;color:var(--green)}.top-pct{font-size:10px;color:var(--text2)}
+.token-info{min-width:0}.token-info .symbol{font-weight:600;font-size:12px}.token-info .name{font-size:9px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.badge{display:inline-block;padding:2px 5px;border-radius:4px;font-size:8px;font-weight:600}.badge-ok{background:var(--green);color:#000}.badge-bad{background:var(--red);color:#fff}.badge-unk{background:var(--bg2);color:var(--text2)}
+.chain-tag{display:inline-block;padding:2px 6px;border-radius:4px;font-size:8px;font-weight:500;white-space:nowrap}
+.text-mono{font-family:'SF Mono',Monaco,monospace;font-size:10px}
+.text-right{text-align:right!important}
+.text-center{text-align:center!important}
+/* TOP HOLDINGS - LAYOUT CORRETTO */
+.top-item{display:flex;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);gap:10px}
+.top-item:last-child{border-bottom:none}
+.top-icon{flex-shrink:0}
+.top-info{flex:1;min-width:0}
+.top-sym{font-weight:600;font-size:12px;display:flex;align-items:center;gap:4px}
+.top-amt{font-size:9px;color:var(--text2)}
+.top-values{text-align:right;flex-shrink:0;min-width:70px}
+.top-val{font-weight:600;font-size:12px;color:var(--green)}
+.top-pct{font-size:9px;color:var(--text2)}
 .charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}.chart-card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:16px;height:280px}.chart-wrap{height:220px;position:relative}
 .modal-bg{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:1000}
 .modal{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:20px;width:95%;max-width:520px;max-height:85vh;overflow-y:auto}
@@ -46,9 +50,9 @@
 .auth-box{min-height:100vh;display:flex;align-items:center;justify-content:center}.auth-card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:28px;width:100%;max-width:340px}
 .form-group{margin-bottom:14px}.form-label{display:block;margin-bottom:6px;font-size:12px;color:var(--text2)}
 .progress{width:100%;height:6px;background:var(--bg2);border-radius:4px;overflow:hidden}.progress-bar{height:100%;background:linear-gradient(90deg,var(--green),var(--blue));transition:width .3s}
-.scan-log{background:var(--bg);border-radius:8px;padding:10px;max-height:150px;overflow-y:auto;font-family:'SF Mono',Monaco,monospace;font-size:11px;margin-top:10px}
-.log-ok{color:var(--green)}.log-err{color:var(--red)}.log-info{color:var(--text2)}
-.flex{display:flex}.items-center{align-items:center}.justify-between{justify-content:space-between}.gap-8{gap:8px}.gap-12{gap:12px}.mb-12{margin-bottom:12px}.mb-16{margin-bottom:16px}
+.scan-log{background:var(--bg);border-radius:8px;padding:10px;max-height:150px;overflow-y:auto;font-family:'SF Mono',Monaco,monospace;font-size:10px;margin-top:10px}
+.log-ok{color:var(--green)}.log-err{color:var(--red)}.log-info{color:var(--text2)}.log-warn{color:var(--yellow)}
+.flex{display:flex}.items-center{align-items:center}.justify-between{justify-content:space-between}.gap-4{gap:4px}.gap-8{gap:8px}.gap-12{gap:12px}.mb-12{margin-bottom:12px}.mb-16{margin-bottom:16px}
 .toast{position:fixed;bottom:20px;right:20px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px 16px;z-index:2000;font-size:13px}.toast.success{border-left:4px solid var(--green)}.toast.error{border-left:4px solid var(--red)}
 .tabs{display:flex;gap:8px;margin-bottom:16px}.tab{padding:8px 16px;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;font-size:13px}.tab.active{color:var(--green);border-bottom-color:var(--green)}
 .chain-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
@@ -63,7 +67,7 @@
 <div id="authScreen" class="auth-box">
 <div class="auth-card">
 <div class="logo" style="justify-content:center;margin-bottom:24px;"><div class="logo-icon">💰</div><div class="logo-text">CryptoFolio</div></div>
-<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px;">v7.9 - DB Fix</p>
+<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px;">v7.10</p>
 <div class="form-group"><label class="form-label">Email</label><input type="email" id="authEmail" class="input"></div>
 <div class="form-group"><label class="form-label">Password</label><input type="password" id="authPassword" class="input"></div>
 <button onclick="handleLogin()" class="btn btn-primary" style="width:100%;margin-bottom:10px;">🔐 Accedi</button>
@@ -78,7 +82,7 @@
 <div class="nav" data-page="wallets" onclick="showPage('wallets')"><span>👛</span> Wallets</div>
 <div class="nav" data-page="tokens" onclick="showPage('tokens')"><span>🪙</span> Token Manager</div>
 <div class="nav" data-page="settings" onclick="showPage('settings')"><span>⚙️</span> Impostazioni</div>
-<div class="sidebar-footer">v7.9<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px;">🚪 Logout</button></div>
+<div class="sidebar-footer">v7.10<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px;">🚪 Logout</button></div>
 </nav>
 <main class="main">
 <div id="page-dashboard">
@@ -97,7 +101,7 @@
 <div class="chart-card"><div style="font-size:13px;color:var(--text2);margin-bottom:10px;">🏆 Top Holdings</div><div id="topHoldings" style="max-height:220px;overflow-y:auto;"></div></div>
 </div>
 <div class="card">
-<div class="flex justify-between items-center mb-16"><div style="font-size:13px;color:var(--text2);">🪙 Token <span id="tokenListCount"></span></div><div class="flex gap-8"><select id="chainFilter" class="input" style="width:120px;" onchange="renderTokens()"><option value="">Tutte Chain</option></select><select id="statusFilter" class="input" style="width:130px;" onchange="renderTokens()"><option value="all">📋 Tutti</option><option value="verified">✅ Verificati</option><option value="unverified">❓ Non verificati</option><option value="hidden">⚠️ Nascosti</option></select></div></div>
+<div class="flex justify-between items-center mb-16"><div style="font-size:13px;color:var(--text2);">🪙 Token <span id="tokenListCount"></span></div><div class="flex gap-8"><select id="chainFilter" class="input" style="width:110px;" onchange="renderTokens()"><option value="">Tutte</option></select><select id="statusFilter" class="input" style="width:120px;" onchange="renderTokens()"><option value="all">📋 Tutti</option><option value="verified">✅ Verificati</option><option value="unverified">❓ Non verif.</option><option value="hidden">⚠️ Nascosti</option></select></div></div>
 <div id="tokenList" style="max-height:400px;overflow-y:auto;"></div>
 </div>
 </div>
@@ -107,45 +111,25 @@
 </div>
 <div id="page-wallet-detail" style="display:none;">
 <div class="header"><div class="flex items-center gap-12"><button onclick="showPage('wallets')" class="btn btn-secondary btn-sm">←</button><h1 class="title" id="wdName">Wallet</h1></div><button onclick="loadWalletTx()" class="btn btn-secondary btn-sm">📜 TX</button></div>
-<div class="card mb-16"><div class="flex justify-between items-center"><div><div style="font-size:11px;color:var(--text2);">Indirizzo</div><code id="wdAddr" style="font-size:10px;word-break:break-all;"></code></div><div style="text-align:right;"><div style="font-size:24px;font-weight:700;color:var(--green);" id="wdValue">€0</div><div style="font-size:12px;color:var(--text2);"><span id="wdTokens">0</span> token</div></div></div></div>
+<div class="card mb-16"><div class="flex justify-between items-center"><div><div style="font-size:11px;color:var(--text2);">Indirizzo</div><code id="wdAddr" style="font-size:9px;word-break:break-all;"></code></div><div style="text-align:right;"><div style="font-size:22px;font-weight:700;color:var(--green);" id="wdValue">€0</div><div style="font-size:11px;color:var(--text2);"><span id="wdTokens">0</span> token</div></div></div></div>
 <div class="tabs"><div class="tab active" onclick="showWalletTab('tokens')">🪙 Token</div><div class="tab" onclick="showWalletTab('tx')">📜 TX</div></div>
 <div class="card" id="wdTokensTab" style="max-height:400px;overflow-y:auto;"></div>
 <div class="card" id="wdTxTab" style="display:none;max-height:400px;overflow-y:auto;"></div>
 </div>
 <div id="page-tokens" style="display:none;">
-<div class="header"><h1 class="title">Token Manager</h1><div class="flex gap-8"><button onclick="showWhitelist()" class="btn btn-secondary btn-sm">✅ Whitelist</button><button onclick="showBlacklist()" class="btn btn-secondary btn-sm">🚫 Blacklist</button></div></div>
-<div class="card"><div class="mb-16"><input type="text" id="tmSearch" class="input" placeholder="🔍 Cerca token..." oninput="renderTM()"></div><div id="tmList" style="max-height:500px;overflow-y:auto;"></div></div>
+<div class="header"><h1 class="title">Token Manager</h1><div class="flex gap-8"><button onclick="showWhitelist()" class="btn btn-secondary btn-sm">✅ WL</button><button onclick="showBlacklist()" class="btn btn-secondary btn-sm">🚫 BL</button></div></div>
+<div class="card"><div class="mb-16"><input type="text" id="tmSearch" class="input" placeholder="🔍 Cerca..." oninput="renderTM()"></div><div id="tmList" style="max-height:500px;overflow-y:auto;"></div></div>
 </div>
 <div id="page-settings" style="display:none;">
 <div class="header"><h1 class="title">Impostazioni</h1></div>
-<div class="card">
-<div style="font-size:13px;color:var(--text2);margin-bottom:12px;font-weight:600;">🔑 API Keys Moralis</div>
-<div class="api-grid">
-<div class="form-group"><label class="form-label">API Key 1</label><input id="apiKey1" class="input" placeholder="eyJhbGc..."></div>
-<div class="form-group"><label class="form-label">API Key 2</label><input id="apiKey2" class="input" placeholder="eyJhbGc..."></div>
-<div class="form-group"><label class="form-label">API Key 3</label><input id="apiKey3" class="input" placeholder="eyJhbGc..."></div>
-<div class="form-group"><label class="form-label">API Key 4</label><input id="apiKey4" class="input" placeholder="eyJhbGc..."></div>
-</div>
-<button onclick="saveApiKeys()" class="btn btn-primary" style="margin-top:8px;">💾 Salva</button>
-</div>
-<div class="card"><div class="form-group"><label class="form-label">Valuta</label><select id="setCurrency" class="input" onchange="saveCurrency()"><option value="eur">EUR (€)</option><option value="usd">USD ($)</option></select></div></div>
+<div class="card"><div style="font-size:13px;margin-bottom:12px;font-weight:600;">🔑 API Keys Moralis</div><div class="api-grid"><div class="form-group"><label class="form-label">Key 1</label><input id="apiKey1" class="input" placeholder="eyJ..."></div><div class="form-group"><label class="form-label">Key 2</label><input id="apiKey2" class="input" placeholder="eyJ..."></div><div class="form-group"><label class="form-label">Key 3</label><input id="apiKey3" class="input" placeholder="eyJ..."></div><div class="form-group"><label class="form-label">Key 4</label><input id="apiKey4" class="input" placeholder="eyJ..."></div></div><button onclick="saveApiKeys()" class="btn btn-primary" style="margin-top:8px;">💾 Salva</button></div>
+<div class="card"><div class="form-group"><label class="form-label">Valuta</label><select id="setCurrency" class="input" onchange="saveCurrency()"><option value="eur">EUR</option><option value="usd">USD</option></select></div></div>
 <div class="card"><div class="flex gap-8"><button onclick="exportCSV()" class="btn btn-secondary">📤 CSV</button><button onclick="clearAllData()" class="btn btn-danger">🗑️ Reset</button></div></div>
 </div>
 </main>
 </div>
-<div id="addWalletModal" class="modal-bg" style="display:none;"><div class="modal">
-<div class="modal-head"><h2 class="modal-title">➕ Aggiungi Wallet</h2><button class="modal-close" onclick="closeModal('addWalletModal')">&times;</button></div>
-<div class="form-group"><label class="form-label">Nome</label><input id="wName" class="input" placeholder="MetaMask, Ledger..."></div>
-<div class="form-group"><label class="form-label">Indirizzo (0x...)</label><input id="wAddr" class="input" placeholder="0x..."></div>
-<div class="form-group"><label class="form-label">⛓️ Chain</label><div class="flex gap-8 mb-12"><button onclick="selectAllChains()" class="btn btn-sm btn-primary">✅ Tutte</button><button onclick="selectNoChains()" class="btn btn-sm btn-secondary">❌ Nessuna</button></div><div id="modalChainGrid" class="chain-grid"></div></div>
-<div class="flex gap-8" style="margin-top:16px;"><button onclick="closeModal('addWalletModal')" class="btn btn-secondary" style="flex:1;">Annulla</button><button onclick="addWallet()" class="btn btn-primary" style="flex:1;">➕ Aggiungi</button></div>
-</div></div>
-<div id="scanWalletModal" class="modal-bg" style="display:none;"><div class="modal">
-<div class="modal-head"><h2 class="modal-title">🔍 Scansiona</h2><button class="modal-close" onclick="closeModal('scanWalletModal')">&times;</button></div>
-<div style="font-size:13px;margin-bottom:16px;" id="scanWalletName"></div>
-<div class="form-group"><label class="form-label">⛓️ Chain</label><div class="flex gap-8 mb-12"><button onclick="selectAllChains()" class="btn btn-sm btn-primary">✅ Tutte</button><button onclick="selectNoChains()" class="btn btn-sm btn-secondary">❌ Nessuna</button></div><div id="scanChainGrid" class="chain-grid"></div></div>
-<div class="flex gap-8" style="margin-top:16px;"><button onclick="closeModal('scanWalletModal')" class="btn btn-secondary" style="flex:1;">Annulla</button><button onclick="startScanWallet()" class="btn btn-primary" style="flex:1;">🔍 Scansiona</button></div>
-</div></div>
+<div id="addWalletModal" class="modal-bg" style="display:none;"><div class="modal"><div class="modal-head"><h2 class="modal-title">➕ Aggiungi Wallet</h2><button class="modal-close" onclick="closeModal('addWalletModal')">&times;</button></div><div class="form-group"><label class="form-label">Nome</label><input id="wName" class="input" placeholder="MetaMask..."></div><div class="form-group"><label class="form-label">Indirizzo</label><input id="wAddr" class="input" placeholder="0x..."></div><div class="form-group"><label class="form-label">Chain</label><div class="flex gap-8 mb-12"><button onclick="selectAllChains()" class="btn btn-sm btn-primary">✅ Tutte</button><button onclick="selectNoChains()" class="btn btn-sm btn-secondary">❌ Nessuna</button></div><div id="modalChainGrid" class="chain-grid"></div></div><div class="flex gap-8" style="margin-top:16px;"><button onclick="closeModal('addWalletModal')" class="btn btn-secondary" style="flex:1;">Annulla</button><button onclick="addWallet()" class="btn btn-primary" style="flex:1;">➕ Aggiungi</button></div></div></div>
+<div id="scanWalletModal" class="modal-bg" style="display:none;"><div class="modal"><div class="modal-head"><h2 class="modal-title">🔍 Scansiona</h2><button class="modal-close" onclick="closeModal('scanWalletModal')">&times;</button></div><div id="scanWalletName" style="margin-bottom:16px;"></div><div class="form-group"><label class="form-label">Chain</label><div class="flex gap-8 mb-12"><button onclick="selectAllChains()" class="btn btn-sm btn-primary">✅ Tutte</button><button onclick="selectNoChains()" class="btn btn-sm btn-secondary">❌ Nessuna</button></div><div id="scanChainGrid" class="chain-grid"></div></div><div class="flex gap-8" style="margin-top:16px;"><button onclick="closeModal('scanWalletModal')" class="btn btn-secondary" style="flex:1;">Annulla</button><button onclick="startScanWallet()" class="btn btn-primary" style="flex:1;">🔍 Scan</button></div></div></div>
 <div id="wlModal" class="modal-bg" style="display:none;"><div class="modal"><div class="modal-head"><h2 class="modal-title">✅ Whitelist</h2><button class="modal-close" onclick="closeModal('wlModal')">&times;</button></div><div id="wlContent"></div><div class="flex gap-8" style="margin-top:12px;"><input id="wlAdd" class="input" placeholder="SYMBOL"><button onclick="addWL()" class="btn btn-primary btn-sm">➕</button></div></div></div>
 <div id="blModal" class="modal-bg" style="display:none;"><div class="modal"><div class="modal-head"><h2 class="modal-title">🚫 Blacklist</h2><button class="modal-close" onclick="closeModal('blModal')">&times;</button></div><div id="blContent"></div><div class="flex gap-8" style="margin-top:12px;"><input id="blAdd" class="input" placeholder="SYMBOL"><button onclick="addBL()" class="btn btn-danger btn-sm">➕</button></div></div></div>
 <script>
@@ -168,7 +152,8 @@ linea:{n:'Linea',hex:'0xe708',c:'#61dfff',t:'ETH'},
 gnosis:{n:'Gnosis',hex:'0x64',c:'#04795b',t:'xDAI'}
 };
 
-const VERIFIED=new Set(['ETH','BTC','BNB','USDT','USDC','DAI','WETH','WBTC','WBNB','LINK','UNI','AAVE','MATIC','POL','AVAX','FTM','CRO','WCRO','SHIB','DOGE','PEPE','CAKE','PLS','PLSX','HEX','BONE','BUBBLE','CIV','ONE']);
+// CAKE aggiunto sia come "CAKE" che come "Cake" (Moralis a volte usa case diverso)
+const VERIFIED=new Set(['ETH','BTC','BNB','USDT','USDC','DAI','WETH','WBTC','WBNB','LINK','UNI','AAVE','MATIC','POL','AVAX','FTM','CRO','WCRO','SHIB','DOGE','PEPE','CAKE','Cake','PLS','PLSX','HEX','BONE','BUBBLE','CIV','ONE','MAVIA','WBAI']);
 const SPAM_RE=[/\.(com|io|net|org|xyz|finance|swap)$/i,/^(visit|claim|free|bonus|airdrop|reward)/i,/https?:/i,/www\./i];
 const CG_MAP={'ETH':'ethereum','BTC':'bitcoin','BNB':'binancecoin','USDT':'tether','USDC':'usd-coin','WETH':'weth','MATIC':'matic-network','POL':'matic-network','AVAX':'avalanche-2','FTM':'fantom','CRO':'crypto-com-chain','LINK':'chainlink','UNI':'uniswap','AAVE':'aave','ARB':'arbitrum','OP':'optimism','PLS':'pulsechain','HEX':'hex','SHIB':'shiba-inu','DOGE':'dogecoin','PEPE':'pepe','CAKE':'pancakeswap-token','BONE':'bone-shibaswap'};
 
@@ -184,7 +169,7 @@ function updateApiStatus(){document.getElementById('apiStatus').textContent='�
 
 async function checkAuth(){init();const{data:{session}}=await db.auth.getSession();if(session){user=session.user;showApp();}else showAuth();}
 async function handleLogin(){const e=document.getElementById('authEmail').value,p=document.getElementById('authPassword').value;const{data,error}=await db.auth.signInWithPassword({email:e,password:p});if(error){document.getElementById('authError').textContent=error.message;return;}user=data.user;showApp();}
-async function handleSignup(){const e=document.getElementById('authEmail').value,p=document.getElementById('authPassword').value;if(p.length<6){document.getElementById('authError').textContent='Password min 6 caratteri';return;}const{data,error}=await db.auth.signUp({email:e,password:p});if(error){document.getElementById('authError').textContent=error.message;return;}await db.from('user_profiles').insert({id:data.user.id,email:e});user=data.user;showApp();toast('Account creato!');}
+async function handleSignup(){const e=document.getElementById('authEmail').value,p=document.getElementById('authPassword').value;if(p.length<6){document.getElementById('authError').textContent='Min 6 caratteri';return;}const{data,error}=await db.auth.signUp({email:e,password:p});if(error){document.getElementById('authError').textContent=error.message;return;}await db.from('user_profiles').insert({id:data.user.id,email:e});user=data.user;showApp();toast('Account creato!');}
 async function handleLogout(){await db.auth.signOut();user=null;showAuth();}
 function showAuth(){document.getElementById('authScreen').style.display='flex';document.getElementById('appScreen').style.display='none';}
 function showApp(){document.getElementById('authScreen').style.display='none';document.getElementById('appScreen').style.display='flex';loadDashboard();}
@@ -210,8 +195,20 @@ return{nativeBalance:nData.balance||'0',tokens:Array.isArray(tData)?tData:[]};
 }
 
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
-function getStatus(sym,name){const u=(sym||'').toUpperCase();if(whitelist.has(u))return'verified';if(blacklist.has(u))return'spam';if(VERIFIED.has(u))return'verified';if(SPAM_RE.some(r=>r.test(sym+' '+(name||''))))return'spam';if(sym&&sym.length>12)return'spam';return'unverified';}
-function icon(sym,chain,logo,sz=32){const c=CHAINS[chain]?.c||'#888';if(logo)return`<div class="token-icon" style="width:${sz}px;height:${sz}px;"><img src="${logo}" onerror="this.onerror=null;this.parentElement.innerHTML='<span>${(sym||'??').slice(0,2)}</span>';this.parentElement.style.background='${c}30';this.parentElement.style.color='${c}';"></div>`;return`<div class="token-icon" style="width:${sz}px;height:${sz}px;background:${c}30;color:${c};">${(sym||'??').slice(0,2)}</div>`;}
+
+// STATUS - case insensitive check
+function getStatus(sym,name){
+const u=(sym||'').toUpperCase();
+if(whitelist.has(u))return'verified';
+if(blacklist.has(u))return'spam';
+// Check VERIFIED case insensitive
+for(const v of VERIFIED){if(v.toUpperCase()===u)return'verified';}
+if(SPAM_RE.some(r=>r.test(sym+' '+(name||''))))return'spam';
+if(sym&&sym.length>12)return'spam';
+return'unverified';
+}
+
+function icon(sym,chain,logo,sz=28){const c=CHAINS[chain]?.c||'#888';const s=(sym||'??').slice(0,2);if(logo)return`<div class="token-icon" style="width:${sz}px;height:${sz}px;"><img src="${logo}" onerror="this.onerror=null;this.parentElement.innerHTML='<span>${s}</span>';this.parentElement.style.background='${c}30';this.parentElement.style.color='${c}';"></div>`;return`<div class="token-icon" style="width:${sz}px;height:${sz}px;background:${c}30;color:${c};">${s}</div>`;}
 function fmtC(v){const n=parseFloat(v)||0;return(currency==='eur'?'€':'$')+n.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function fmtN(v){const n=parseFloat(v)||0;if(n===0)return'0';if(n<0.0001)return n.toExponential(2);if(n<0.01)return n.toFixed(6);if(n<1)return n.toFixed(4);if(n<1000)return n.toFixed(2);return n.toLocaleString('it-IT',{maximumFractionDigits:2});}
 function toast(msg,type='success'){document.querySelectorAll('.toast').forEach(t=>t.remove());const t=document.createElement('div');t.className='toast '+type;t.innerHTML=(type==='success'?'✅':'❌')+' '+msg;document.body.appendChild(t);setTimeout(()=>t.remove(),4000);}
@@ -222,17 +219,21 @@ function toggleChain(k,el){if(el.checked)selectedChains.add(k);else selectedChai
 function selectAllChains(){selectedChains=new Set(Object.keys(CHAINS));renderChainGrid('modalChainGrid');renderChainGrid('scanChainGrid');}
 function selectNoChains(){selectedChains.clear();renderChainGrid('modalChainGrid');renderChainGrid('scanChainGrid');}
 
-async function fetchPrices(syms){const ids=[...new Set(syms.map(s=>CG_MAP[s.toUpperCase()]).filter(Boolean))];if(!ids.length)return;try{const r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids='+ids.join(',')+'&vs_currencies=eur,usd');const d=await r.json();for(const[sym,cg]of Object.entries(CG_MAP)){if(d[cg])prices[sym]={eur:d[cg].eur||0,usd:d[cg].usd||0};}}catch(e){}}
-async function refreshPrices(){toast('Aggiornamento prezzi...');await fetchPrices([...new Set(balances.map(b=>b.symbol))]);await loadDashboard();toast('Prezzi aggiornati!');}
+async function fetchPrices(syms){
+const ids=[...new Set(syms.map(s=>{const u=s.toUpperCase();return CG_MAP[u];}).filter(Boolean))];
+if(!ids.length)return;
+try{const r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids='+ids.join(',')+'&vs_currencies=eur,usd');const d=await r.json();for(const[sym,cg]of Object.entries(CG_MAP)){if(d[cg])prices[sym.toUpperCase()]={eur:d[cg].eur||0,usd:d[cg].usd||0};}}catch(e){}
+}
+async function refreshPrices(){toast('Aggiornamento...');await fetchPrices([...new Set(balances.map(b=>b.symbol))]);await loadDashboard();toast('Prezzi aggiornati!');}
 
-// SCAN - FIX: NON inserire value_eur/value_usd (colonne computed)
+// SCAN - con debug per CAKE
 async function scanWallet(wallet){
 if(scanning)return;
-if(selectedChains.size===0){toast('Seleziona almeno una chain!','error');return;}
+if(selectedChains.size===0){toast('Seleziona chain!','error');return;}
 scanning=true;
 document.getElementById('scanCard').style.display='block';
 document.getElementById('scanLog').innerHTML='';
-const log=(m,cls='log-info')=>{const el=document.getElementById('scanLog');el.innerHTML+=`<div class="${cls}">${m}</div>`;el.scrollTop=el.scrollHeight;};
+const log=(m,cls='log-info')=>{const el=document.getElementById('scanLog');el.innerHTML+=`<div class="${cls}">${m}</div>`;el.scrollTop=el.scrollHeight;console.log(m);};
 
 try{
 const results=[];
@@ -247,7 +248,7 @@ document.getElementById('scanBar').style.width=pct+'%';
 document.getElementById('scanPct').textContent=pct+'%';
 document.getElementById('scanStatus').textContent=ch.n;
 
-log(`→ ${ch.n}...`);
+log(`→ ${ch.n} (${ch.hex})...`);
 const data=await fetchMoralis(wallet.address,ck);
 
 if(data){
@@ -255,77 +256,56 @@ if(data){
 let nativeBal=0;
 try{nativeBal=parseFloat(data.nativeBalance||'0')/1e18;}catch(e){}
 if(nativeBal>0.00001){
-const st=getStatus(ch.t,'');
-// SOLO campi base - NO value_eur/value_usd
-results.push({
-user_id:user.id,
-wallet_id:wallet.id,
-symbol:ch.t,
-name:ch.n+' Native',
-chain:ck,
-contract_address:null,
-amount:nativeBal,
-logo_url:null,
-is_hidden:st==='spam'
-});
+results.push({user_id:user.id,wallet_id:wallet.id,symbol:ch.t,name:ch.n+' Native',chain:ck,contract_address:null,amount:nativeBal,logo_url:null,is_hidden:false});
 log(`  ✅ ${ch.t}: ${nativeBal.toFixed(6)}`,'log-ok');
 }
 
-// Tokens
+// Tokens - LOG TUTTI per debug
 if(data.tokens?.length>0){
+log(`  📦 ${data.tokens.length} token trovati`,'log-info');
 for(const t of data.tokens){
-if(!t.symbol)continue;
+if(!t.symbol){log(`  ⚠️ Token senza symbol`,'log-warn');continue;}
 const st=getStatus(t.symbol,t.name);
-if(st==='spam'&&!whitelist.has(t.symbol.toUpperCase()))continue;
+// LOG per CAKE debug
+if(t.symbol.toUpperCase().includes('CAKE')){
+log(`  🎂 CAKE trovato! sym=${t.symbol} bal=${t.balance} st=${st}`,'log-warn');
+}
+// Skip spam MA non se in whitelist
+if(st==='spam'){log(`  🚫 Spam: ${t.symbol}`,'log-info');continue;}
 const dec=parseInt(t.decimals)||18;
 let bal=0;
 try{bal=parseFloat(t.balance||'0')/Math.pow(10,dec);}catch(e){continue;}
 if(bal<=0)continue;
-// SOLO campi base - NO value_eur/value_usd
-results.push({
-user_id:user.id,
-wallet_id:wallet.id,
-symbol:t.symbol,
-name:t.name||t.symbol,
-chain:ck,
-contract_address:(t.token_address||'').toLowerCase(),
-amount:bal,
-logo_url:t.logo||t.thumbnail||null,
-is_hidden:st==='spam'
-});
-if(st!=='spam')log(`  ✅ ${t.symbol}: ${fmtN(bal)}`,'log-ok');
+results.push({user_id:user.id,wallet_id:wallet.id,symbol:t.symbol,name:t.name||t.symbol,chain:ck,contract_address:(t.token_address||'').toLowerCase(),amount:bal,logo_url:t.logo||t.thumbnail||null,is_hidden:false});
+log(`  ✅ ${t.symbol}: ${fmtN(bal)}`,'log-ok');
 }
 }
-}
+}else{log(`  ⚠️ No data`,'log-warn');}
 await sleep(150);
 done++;
 }
 
 document.getElementById('scanStatus').textContent='Salvataggio...';
-log(`💾 Salvataggio ${results.length} token...`);
+log(`💾 ${results.length} token...`);
 
-// DELETE old
 const{error:delErr}=await db.from('balances').delete().eq('wallet_id',wallet.id);
-if(delErr)log(`⚠️ Delete: ${delErr.message}`,'log-err');
+if(delErr)log(`⚠️ Del: ${delErr.message}`,'log-err');
 
-// INSERT - senza value_eur/value_usd
 if(results.length>0){
 let ok=0;
 for(let i=0;i<results.length;i+=20){
 const batch=results.slice(i,i+20);
 const{error:insErr}=await db.from('balances').insert(batch);
-if(insErr){log(`❌ Batch ${Math.floor(i/20)+1}: ${insErr.message}`,'log-err');}
-else{ok+=batch.length;log(`✅ Batch ${Math.floor(i/20)+1}: ${batch.length}`,'log-ok');}
+if(insErr){log(`❌ Ins: ${insErr.message}`,'log-err');}
+else{ok+=batch.length;log(`✅ Batch: ${batch.length}`,'log-ok');}
 }
-log(`📊 Inseriti: ${ok}/${results.length}`,'log-ok');
+log(`📊 OK: ${ok}/${results.length}`,'log-ok');
 }
 
 await db.from('wallets').update({last_scan_at:new Date().toISOString()}).eq('id',wallet.id);
-
 document.getElementById('scanBar').style.width='100%';
 document.getElementById('scanStatus').textContent='✅ Fatto!';
-log(`✅ COMPLETATO!`,'log-ok');
-toast(`${results.length} token salvati`);
+toast(`${results.length} token`);
 await loadDashboard();
 }catch(e){log(`❌ ${e.message}`,'log-err');toast(e.message,'error');}
 finally{scanning=false;setTimeout(()=>document.getElementById('scanCard').style.display='none',5000);}
@@ -338,30 +318,17 @@ async function startScanWallet(){closeModal('scanWalletModal');if(scanTargetWall
 async function loadDashboard(){
 const{data}=await db.from('balances').select('*').eq('user_id',user.id);
 balances=data||[];
-
-// Calcola valori localmente usando prices
 await fetchPrices([...new Set(balances.map(b=>b.symbol))]);
-for(const b of balances){
-const p=prices[b.symbol?.toUpperCase()];
-b.price_eur=p?.eur||0;
-b.price_usd=p?.usd||0;
-b.value_eur=(b.amount||0)*(p?.eur||0);
-b.value_usd=(b.amount||0)*(p?.usd||0);
-}
+for(const b of balances){const p=prices[(b.symbol||'').toUpperCase()];b.price_eur=p?.eur||0;b.price_usd=p?.usd||0;b.value_eur=(b.amount||0)*(p?.eur||0);b.value_usd=(b.amount||0)*(p?.usd||0);}
 
 const used=new Set(balances.map(b=>b.chain));
 const cf=document.getElementById('chainFilter');
-cf.innerHTML='<option value="">Tutte Chain</option>';
+cf.innerHTML='<option value="">Tutte</option>';
 for(const[k,ch]of Object.entries(CHAINS)){if(used.has(k))cf.innerHTML+=`<option value="${k}">${ch.n}</option>`;}
 
 let totalE=0,verE=0,hidCount=0;const toks=new Set(),chs=new Set();
 for(const b of balances){
-if(b.amount>0&&!b.is_hidden){
-totalE+=b.value_eur||0;
-toks.add(b.symbol);
-chs.add(b.chain);
-if(getStatus(b.symbol,b.name)==='verified')verE+=b.value_eur||0;
-}
+if(b.amount>0&&!b.is_hidden){totalE+=b.value_eur||0;toks.add(b.symbol);chs.add(b.chain);if(getStatus(b.symbol,b.name)==='verified')verE+=b.value_eur||0;}
 if(b.is_hidden)hidCount++;
 }
 document.getElementById('totalValue').textContent=fmtC(totalE);
@@ -374,19 +341,24 @@ document.getElementById('walletCount').textContent=count||0;
 renderTop();renderChart();renderTokens();
 }
 
+// TOP HOLDINGS - layout corretto
 function renderTop(){
 const vis=balances.filter(b=>!b.is_hidden&&b.amount>0);
 const by={};for(const b of vis){const k=b.symbol;if(!by[k])by[k]={sym:k,eur:0,amt:0,logo:b.logo_url,chain:b.chain};by[k].eur+=b.value_eur||0;by[k].amt+=b.amount;}
 const sorted=Object.values(by).sort((a,b)=>b.eur-a.eur).slice(0,8);
-if(!sorted.length){document.getElementById('topHoldings').innerHTML='<p style="color:var(--text2);font-size:12px;padding:20px;">Nessun token</p>';return;}
+if(!sorted.length){document.getElementById('topHoldings').innerHTML='<p style="color:var(--text2);font-size:11px;padding:16px;">Nessun token</p>';return;}
 const total=sorted.reduce((s,h)=>s+h.eur,0);
-let html='<div class="top-list">';
+let html='';
 for(const h of sorted){
 const pct=total>0?((h.eur/total)*100).toFixed(0):0;
 const st=getStatus(h.sym,'');
-html+=`<div class="top-row"><div class="top-left">${icon(h.sym,h.chain,h.logo,28)}<div><div class="top-sym">${h.sym}${st==='verified'?' <span class="badge badge-ok">✓</span>':''}</div><div class="top-amt">${fmtN(h.amt)}</div></div></div><div class="top-right"><div class="top-val">${fmtC(h.eur)}</div><div class="top-pct">${pct}%</div></div></div>`;
+html+=`<div class="top-item">
+<div class="top-icon">${icon(h.sym,h.chain,h.logo,26)}</div>
+<div class="top-info"><div class="top-sym">${h.sym} ${st==='verified'?'<span class="badge badge-ok">✓</span>':''}</div><div class="top-amt">${fmtN(h.amt)}</div></div>
+<div class="top-values"><div class="top-val">${fmtC(h.eur)}</div><div class="top-pct">${pct}%</div></div>
+</div>`;
 }
-document.getElementById('topHoldings').innerHTML=html+'</div>';
+document.getElementById('topHoldings').innerHTML=html;
 }
 
 function renderChart(){
@@ -395,7 +367,7 @@ const by={};for(const b of vis){if(!by[b.symbol])by[b.symbol]=0;by[b.symbol]+=b.
 const sorted=Object.entries(by).sort((a,b)=>b[1]-a[1]).slice(0,6);
 const ctx=document.getElementById('chart');if(chart)chart.destroy();if(!sorted.length)return;
 const colors=['#00cec9','#6c5ce7','#a29bfe','#ff6b6b','#fdcb6e','#74b9ff'];
-chart=new Chart(ctx,{type:'doughnut',data:{labels:sorted.map(s=>s[0]),datasets:[{data:sorted.map(s=>s[1]),backgroundColor:colors,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{color:'#fff',padding:8,font:{size:11}}}}}});
+chart=new Chart(ctx,{type:'doughnut',data:{labels:sorted.map(s=>s[0]),datasets:[{data:sorted.map(s=>s[1]),backgroundColor:colors,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{color:'#fff',padding:6,font:{size:10}}}}}});
 }
 
 function renderTokens(){
@@ -408,30 +380,38 @@ else if(sf==='hidden')fil=fil.filter(b=>b.is_hidden);
 else fil=fil.filter(b=>!b.is_hidden);
 fil.sort((a,b)=>(b.value_eur||0)-(a.value_eur||0));
 document.getElementById('tokenListCount').textContent=`(${fil.length})`;
-if(!fil.length){document.getElementById('tokenList').innerHTML='<p style="color:var(--text2);font-size:12px;padding:16px;">Nessun token</p>';return;}
-let html='<table class="table"><thead><tr><th style="width:35%">Token</th><th style="width:18%;text-align:right">Quantità</th><th style="width:15%">Chain</th><th style="width:20%;text-align:right">Valore</th><th style="width:12%"></th></tr></thead><tbody>';
+if(!fil.length){document.getElementById('tokenList').innerHTML='<p style="color:var(--text2);font-size:11px;padding:16px;">Nessun token</p>';return;}
+let html='<table class="table"><thead><tr><th style="width:32%">Token</th><th style="width:18%" class="text-right">Quantità</th><th style="width:14%">Chain</th><th style="width:18%" class="text-right">Valore</th><th style="width:18%">Azioni</th></tr></thead><tbody>';
 for(const b of fil.slice(0,100)){
 const ch=CHAINS[b.chain]||{n:b.chain,c:'#888'};
-const badge=b.st==='verified'?'<span class="badge badge-ok">✓</span>':b.st==='spam'?'<span class="badge badge-bad">⚠️</span>':'<span class="badge badge-unk">?</span>';
-html+=`<tr style="${b.is_hidden?'opacity:0.5;':''}"><td><div class="token-cell">${icon(b.symbol,b.chain,b.logo_url,32)}<div class="token-info"><div class="symbol">${b.symbol||'?'}</div><div class="name">${(b.name||'').slice(0,18)}</div></div></div></td><td class="text-mono text-right">${fmtN(b.amount)}</td><td><span class="chain-tag" style="background:${ch.c}25;color:${ch.c};">${ch.n}</span></td><td class="text-right" style="font-weight:600;color:var(--green);">${(b.value_eur||0)>0.01?fmtC(b.value_eur):'-'}</td><td>${badge} <button class="btn btn-sm btn-secondary" onclick="toggleHide('${b.id}')">${b.is_hidden?'👁️':'✕'}</button></td></tr>`;
+const badge=b.st==='verified'?'<span class="badge badge-ok">✓</span>':b.st==='spam'?'<span class="badge badge-bad">⚠</span>':'<span class="badge badge-unk">?</span>';
+html+=`<tr style="${b.is_hidden?'opacity:0.5;':''}"><td><div class="token-cell">${icon(b.symbol,b.chain,b.logo_url,26)}<div class="token-info"><div class="symbol">${b.symbol||'?'} ${badge}</div><div class="name">${(b.name||'').slice(0,16)}</div></div></div></td><td class="text-mono text-right">${fmtN(b.amount)}</td><td><span class="chain-tag" style="background:${ch.c}22;color:${ch.c};">${ch.n}</span></td><td class="text-right" style="font-weight:600;color:var(--green);">${(b.value_eur||0)>0.01?fmtC(b.value_eur):'-'}</td><td><button class="btn btn-sm btn-secondary" onclick="toggleHide('${b.id}')">${b.is_hidden?'👁 Mostra':'✕ Nascondi'}</button></td></tr>`;
 }
 document.getElementById('tokenList').innerHTML=html+'</tbody></table>';
 }
 
+// TOGGLE HIDE - FIX
 async function toggleHide(id){
-const b=balances.find(x=>x.id===id);if(!b)return;
-b.is_hidden=!b.is_hidden;
+const b=balances.find(x=>x.id===id);
+if(!b){console.error('Token not found:',id);return;}
+const newHidden=!b.is_hidden;
+// Update local
+b.is_hidden=newHidden;
+// Update DB
+const{error}=await db.from('balances').update({is_hidden:newHidden}).eq('id',id);
+if(error){console.error('Update error:',error);toast('Errore!','error');return;}
+// Update localStorage
 const k=b.symbol+'_'+b.chain;
-if(b.is_hidden)hidden.add(k);else hidden.delete(k);
+if(newHidden)hidden.add(k);else hidden.delete(k);
 localStorage.setItem('cf_hid',JSON.stringify([...hidden]));
-await db.from('balances').update({is_hidden:b.is_hidden}).eq('id',id);
+// Re-render
 renderTokens();renderTop();renderChart();
-// Ricalcola stats
+// Update stats
 let totalE=0,hidCount=0;
 for(const x of balances){if(x.amount>0&&!x.is_hidden)totalE+=x.value_eur||0;if(x.is_hidden)hidCount++;}
 document.getElementById('totalValue').textContent=fmtC(totalE);
 document.getElementById('spamCount').textContent=hidCount;
-toast(b.is_hidden?'Token nascosto':'Token riattivato');
+toast(newHidden?'Nascosto':'Riattivato');
 }
 
 // WALLETS
@@ -444,7 +424,7 @@ const wb=balances.filter(b=>b.wallet_id===w.id&&!b.is_hidden);
 const tot=wb.reduce((s,b)=>s+(b.value_eur||0),0);
 const chs=new Set(wb.map(b=>b.chain));
 const ls=w.last_scan_at?new Date(w.last_scan_at).toLocaleString('it-IT'):'Mai';
-html+=`<div class="card" style="margin-bottom:12px;"><div class="flex justify-between items-center mb-12"><div><h3 style="font-size:15px;margin-bottom:4px;cursor:pointer;" onclick="showWalletDetail('${w.id}')">${w.name||'Wallet'} →</h3><code style="font-size:10px;color:var(--text2);">${w.address}</code></div><div style="text-align:right;"><div style="font-size:20px;font-weight:700;color:var(--green);">${fmtC(tot)}</div><div style="font-size:11px;color:var(--text2);">${wb.length} token · ${chs.size} chain</div></div></div><div style="font-size:10px;color:var(--text2);margin-bottom:10px;">Scan: ${ls}</div><div class="flex gap-8"><button onclick="showScanWalletModal({id:'${w.id}',name:'${w.name||''}',address:'${w.address}'})" class="btn btn-primary btn-sm">🔍 Scansiona</button><button onclick="showWalletDetail('${w.id}')" class="btn btn-secondary btn-sm">👁️ Dettagli</button><button onclick="deleteWallet('${w.id}')" class="btn btn-danger btn-sm">🗑️</button></div></div>`;
+html+=`<div class="card" style="margin-bottom:12px;"><div class="flex justify-between items-center mb-12"><div><h3 style="font-size:14px;margin-bottom:4px;cursor:pointer;" onclick="showWalletDetail('${w.id}')">${w.name||'Wallet'} →</h3><code style="font-size:9px;color:var(--text2);">${w.address}</code></div><div style="text-align:right;"><div style="font-size:18px;font-weight:700;color:var(--green);">${fmtC(tot)}</div><div style="font-size:10px;color:var(--text2);">${wb.length} token · ${chs.size} chain</div></div></div><div style="font-size:9px;color:var(--text2);margin-bottom:8px;">Scan: ${ls}</div><div class="flex gap-8"><button onclick="showScanWalletModal({id:'${w.id}',name:'${w.name||''}',address:'${w.address}'})" class="btn btn-primary btn-sm">🔍 Scan</button><button onclick="showWalletDetail('${w.id}')" class="btn btn-secondary btn-sm">👁 Dettagli</button><button onclick="deleteWallet('${w.id}')" class="btn btn-danger btn-sm">🗑</button></div></div>`;
 }
 document.getElementById('walletList').innerHTML=html;
 }
@@ -453,13 +433,11 @@ function showAddWallet(){selectedChains=new Set(Object.keys(CHAINS));renderChain
 async function addWallet(){
 const n=document.getElementById('wName').value.trim(),a=document.getElementById('wAddr').value.trim();
 if(!a||!a.startsWith('0x')||a.length!==42){toast('Indirizzo non valido','error');return;}
-if(selectedChains.size===0){toast('Seleziona almeno una chain','error');return;}
+if(selectedChains.size===0){toast('Seleziona chain','error');return;}
 const{data:w,error}=await db.from('wallets').insert({user_id:user.id,address:a,name:n||null,wallet_type:'evm'}).select().single();
 if(error){toast(error.message,'error');return;}
 closeModal('addWalletModal');document.getElementById('wName').value='';document.getElementById('wAddr').value='';
-toast('Wallet aggiunto!');
-await scanWallet(w);
-loadWallets();
+toast('Wallet aggiunto!');await scanWallet(w);loadWallets();
 }
 async function deleteWallet(id){if(!confirm('Eliminare?'))return;await db.from('balances').delete().eq('wallet_id',id);await db.from('wallets').delete().eq('id',id);balances=balances.filter(b=>b.wallet_id!==id);toast('Eliminato');loadWallets();loadDashboard();}
 
@@ -471,17 +449,20 @@ const wb=balances.filter(b=>b.wallet_id===id&&!b.is_hidden);
 document.getElementById('wdValue').textContent=fmtC(wb.reduce((s,b)=>s+(b.value_eur||0),0));
 document.getElementById('wdTokens').textContent=wb.length;
 renderWalletTokens(id);
-document.getElementById('wdTxTab').innerHTML='<p style="color:var(--text2);">Clicca TX</p>';
+document.getElementById('wdTxTab').innerHTML='<p style="color:var(--text2);font-size:11px;">Clicca TX</p>';
 }
 function showWalletTab(t){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));event.target.classList.add('active');document.getElementById('wdTokensTab').style.display=t==='tokens'?'block':'none';document.getElementById('wdTxTab').style.display=t==='tx'?'block':'none';}
+
 function renderWalletTokens(id){
 const wb=balances.filter(b=>b.wallet_id===id&&b.amount>0).sort((a,b)=>(b.value_eur||0)-(a.value_eur||0));
-if(!wb.length){document.getElementById('wdTokensTab').innerHTML='<p style="color:var(--text2);">Nessun token</p>';return;}
-let html='<table class="table"><thead><tr><th>Token</th><th class="text-right">Quantità</th><th>Chain</th><th class="text-right">Valore</th><th></th></tr></thead><tbody>';
+if(!wb.length){document.getElementById('wdTokensTab').innerHTML='<p style="color:var(--text2);font-size:11px;">Nessun token</p>';return;}
+let html='<table class="table"><thead><tr><th style="width:35%">Token</th><th style="width:20%" class="text-right">Quantità</th><th style="width:18%">Chain</th><th style="width:27%" class="text-right">Valore</th></tr></thead><tbody>';
 for(const b of wb){const ch=CHAINS[b.chain]||{n:b.chain,c:'#888'};const st=getStatus(b.symbol,b.name);
-html+=`<tr style="${b.is_hidden?'opacity:0.5;':''}"><td><div class="token-cell">${icon(b.symbol,b.chain,b.logo_url,32)}<div class="token-info"><div class="symbol">${b.symbol}${st==='verified'?' <span class="badge badge-ok">✓</span>':''}</div><div class="name">${(b.name||'').slice(0,18)}</div></div></div></td><td class="text-mono text-right">${fmtN(b.amount)}</td><td><span class="chain-tag" style="background:${ch.c}25;color:${ch.c};">${ch.n}</span></td><td class="text-right" style="font-weight:600;color:var(--green);">${fmtC(b.value_eur||0)}</td><td><button class="btn btn-sm btn-secondary" onclick="toggleHide('${b.id}')">${b.is_hidden?'👁️':'✕'}</button></td></tr>`;}
+html+=`<tr><td><div class="token-cell">${icon(b.symbol,b.chain,b.logo_url,26)}<div class="token-info"><div class="symbol">${b.symbol} ${st==='verified'?'<span class="badge badge-ok">✓</span>':''}</div><div class="name">${(b.name||'').slice(0,16)}</div></div></div></td><td class="text-mono text-right">${fmtN(b.amount)}</td><td><span class="chain-tag" style="background:${ch.c}22;color:${ch.c};">${ch.n}</span></td><td class="text-right" style="font-weight:600;color:var(--green);">${fmtC(b.value_eur||0)}</td></tr>`;}
 document.getElementById('wdTokensTab').innerHTML=html+'</tbody></table>';
 }
+
+// TX - LAYOUT FISSO
 async function loadWalletTx(){
 if(!currentWallet)return;toast('Caricamento TX...');document.getElementById('wdTxTab').innerHTML='<p>Caricamento...</p>';
 const allTx=[];const usedChains=new Set(balances.filter(b=>b.wallet_id===currentWallet.id).map(b=>b.chain));
@@ -489,50 +470,43 @@ for(const ck of usedChains){const ch=CHAINS[ck];if(!ch)continue;
 try{const r=await fetch(`https://deep-index.moralis.io/api/v2.2/${currentWallet.address}/erc20/transfers?chain=${ch.hex}&limit=30`,{headers:{'X-API-Key':getKey()}});if(!r.ok)continue;const data=await r.json();
 if(data.result){for(const tx of data.result){const isIn=tx.to_address?.toLowerCase()===currentWallet.address.toLowerCase();const dec=parseInt(tx.token_decimals)||18;allTx.push({date:new Date(tx.block_timestamp),type:isIn?'IN':'OUT',symbol:tx.token_symbol||'?',amount:parseFloat(tx.value)/Math.pow(10,dec),chain:ck});}}await sleep(100);}catch(e){}}
 allTx.sort((a,b)=>b.date-a.date);
-if(!allTx.length){document.getElementById('wdTxTab').innerHTML='<p style="color:var(--text2);">Nessuna TX</p>';return;}
-let html='<table class="table"><thead><tr><th>Data</th><th>Tipo</th><th>Token</th><th class="text-right">Quantità</th><th>Chain</th></tr></thead><tbody>';
-for(const tx of allTx.slice(0,50)){const ch=CHAINS[tx.chain]||{n:tx.chain,c:'#888'};html+=`<tr><td style="font-size:11px;">${tx.date.toLocaleDateString('it-IT')}</td><td><span class="badge" style="background:${tx.type==='IN'?'var(--green)':'var(--red)'}25;color:${tx.type==='IN'?'var(--green)':'var(--red)'};">${tx.type}</span></td><td style="font-weight:600;">${tx.symbol}</td><td class="text-mono text-right">${tx.type==='IN'?'+':'-'}${fmtN(tx.amount)}</td><td><span class="chain-tag" style="background:${ch.c}25;color:${ch.c};">${ch.n}</span></td></tr>`;}
+if(!allTx.length){document.getElementById('wdTxTab').innerHTML='<p style="color:var(--text2);font-size:11px;">Nessuna TX</p>';return;}
+let html='<table class="table"><thead><tr><th style="width:18%">Data</th><th style="width:12%">Tipo</th><th style="width:25%">Token</th><th style="width:25%" class="text-right">Quantità</th><th style="width:20%">Chain</th></tr></thead><tbody>';
+for(const tx of allTx.slice(0,50)){const ch=CHAINS[tx.chain]||{n:tx.chain,c:'#888'};
+html+=`<tr><td style="font-size:10px;">${tx.date.toLocaleDateString('it-IT')}</td><td><span class="badge" style="background:${tx.type==='IN'?'var(--green)':'var(--red)'}22;color:${tx.type==='IN'?'var(--green)':'var(--red)'};">${tx.type}</span></td><td style="font-weight:600;font-size:11px;">${tx.symbol}</td><td class="text-mono text-right">${tx.type==='IN'?'+':'-'}${fmtN(tx.amount)}</td><td><span class="chain-tag" style="background:${ch.c}22;color:${ch.c};">${ch.n}</span></td></tr>`;}
 document.getElementById('wdTxTab').innerHTML=html+'</tbody></table>';toast(`${allTx.length} TX`);
 }
 
-// TOKEN MANAGER - CON CHAIN TAG
+// TOKEN MANAGER - FIX COMPLETO
 function renderTM(){
 const q=(document.getElementById('tmSearch')?.value||'').toLowerCase();
 let fil=balances.filter(b=>b.amount>0);if(q)fil=fil.filter(b=>(b.symbol||'').toLowerCase().includes(q)||(b.name||'').toLowerCase().includes(q));
 fil=fil.map(b=>({...b,st:getStatus(b.symbol,b.name)})).sort((a,b)=>(b.value_eur||0)-(a.value_eur||0));
-if(!fil.length){document.getElementById('tmList').innerHTML='<p style="color:var(--text2);">Nessun token</p>';return;}
-let html='<table class="table"><thead><tr><th>Token</th><th>Chain</th><th class="text-right">Quantità</th><th class="text-right">Valore</th><th>Status</th><th>Azioni</th></tr></thead><tbody>';
+if(!fil.length){document.getElementById('tmList').innerHTML='<p style="color:var(--text2);font-size:11px;">Nessun token</p>';return;}
+let html='<table class="table"><thead><tr><th style="width:28%">Token</th><th style="width:15%">Chain</th><th style="width:15%" class="text-right">Quantità</th><th style="width:15%" class="text-right">Valore</th><th style="width:27%">Azioni</th></tr></thead><tbody>';
 for(const b of fil.slice(0,100)){
 const ch=CHAINS[b.chain]||{n:b.chain,c:'#888'};
 const isWL=whitelist.has((b.symbol||'').toUpperCase()),isBL=blacklist.has((b.symbol||'').toUpperCase());
-html+=`<tr style="${b.is_hidden?'opacity:0.5;':''}"><td><div class="token-cell">${icon(b.symbol,b.chain,b.logo_url,32)}<div class="token-info"><div class="symbol">${b.symbol||'?'}</div><div class="name">${(b.name||'').slice(0,18)}</div></div></div></td><td><span class="chain-tag" style="background:${ch.c}25;color:${ch.c};">${ch.n}</span></td><td class="text-mono text-right">${fmtN(b.amount)}</td><td class="text-right" style="font-weight:600;">${fmtC(b.value_eur||0)}</td><td>${b.st==='verified'?'<span class="badge badge-ok">✓</span>':b.st==='spam'?'<span class="badge badge-bad">Spam</span>':'<span class="badge badge-unk">?</span>'}</td><td><div class="flex gap-8"><button class="btn btn-sm ${isWL?'btn-primary':'btn-secondary'}" onclick="toggleWL('${b.symbol}')">✅</button><button class="btn btn-sm ${isBL?'btn-danger':'btn-secondary'}" onclick="toggleBL('${b.symbol}')">🚫</button><button class="btn btn-sm btn-secondary" onclick="toggleHide('${b.id}')">${b.is_hidden?'👁️':'✕'}</button></div></td></tr>`;
+const stBadge=b.st==='verified'?'<span class="badge badge-ok">✓</span>':b.st==='spam'?'<span class="badge badge-bad">⚠</span>':'<span class="badge badge-unk">?</span>';
+html+=`<tr style="${b.is_hidden?'opacity:0.5;':''}"><td><div class="token-cell">${icon(b.symbol,b.chain,b.logo_url,24)}<div class="token-info"><div class="symbol">${b.symbol||'?'} ${stBadge}</div><div class="name">${(b.name||'').slice(0,14)}</div></div></div></td><td><span class="chain-tag" style="background:${ch.c}22;color:${ch.c};">${ch.n}</span></td><td class="text-mono text-right">${fmtN(b.amount)}</td><td class="text-right" style="font-weight:500;">${fmtC(b.value_eur||0)}</td><td><div class="flex gap-4"><button class="btn btn-sm ${isWL?'btn-primary':'btn-secondary'}" onclick="toggleWL('${b.symbol}')" title="Whitelist">✅</button><button class="btn btn-sm ${isBL?'btn-danger':'btn-secondary'}" onclick="toggleBL('${b.symbol}')" title="Blacklist">🚫</button><button class="btn btn-sm btn-secondary" onclick="toggleHide('${b.id}')" title="${b.is_hidden?'Mostra':'Nascondi'}">${b.is_hidden?'👁':'✕'}</button></div></td></tr>`;
 }
 document.getElementById('tmList').innerHTML=html+'</tbody></table>';
 }
+
 function toggleWL(sym){const u=(sym||'').toUpperCase();if(!u)return;if(whitelist.has(u))whitelist.delete(u);else{whitelist.add(u);blacklist.delete(u);}localStorage.setItem('cf_wl',JSON.stringify([...whitelist]));localStorage.setItem('cf_bl',JSON.stringify([...blacklist]));renderTM();loadDashboard();toast(whitelist.has(u)?'Whitelist':'Rimosso');}
 function toggleBL(sym){const u=(sym||'').toUpperCase();if(!u)return;if(blacklist.has(u))blacklist.delete(u);else{blacklist.add(u);whitelist.delete(u);}localStorage.setItem('cf_wl',JSON.stringify([...whitelist]));localStorage.setItem('cf_bl',JSON.stringify([...blacklist]));renderTM();loadDashboard();toast(blacklist.has(u)?'Blacklist':'Rimosso');}
-function showWhitelist(){document.getElementById('wlModal').style.display='flex';let html='';for(const s of whitelist){html+=`<div class="flex justify-between items-center" style="padding:8px 0;border-bottom:1px solid var(--border);"><span>${s}</span><button class="btn btn-sm btn-danger" onclick="removeWL('${s}')">✕</button></div>`;}document.getElementById('wlContent').innerHTML=html||'<p style="color:var(--text2);">Vuota</p>';}
-function showBlacklist(){document.getElementById('blModal').style.display='flex';let html='';for(const s of blacklist){html+=`<div class="flex justify-between items-center" style="padding:8px 0;border-bottom:1px solid var(--border);"><span>${s}</span><button class="btn btn-sm btn-secondary" onclick="removeBL('${s}')">✕</button></div>`;}document.getElementById('blContent').innerHTML=html||'<p style="color:var(--text2);">Vuota</p>';}
+function showWhitelist(){document.getElementById('wlModal').style.display='flex';let html='';for(const s of whitelist){html+=`<div class="flex justify-between items-center" style="padding:6px 0;border-bottom:1px solid var(--border);"><span style="font-size:12px;">${s}</span><button class="btn btn-sm btn-danger" onclick="removeWL('${s}')">✕</button></div>`;}document.getElementById('wlContent').innerHTML=html||'<p style="color:var(--text2);font-size:11px;">Vuota</p>';}
+function showBlacklist(){document.getElementById('blModal').style.display='flex';let html='';for(const s of blacklist){html+=`<div class="flex justify-between items-center" style="padding:6px 0;border-bottom:1px solid var(--border);"><span style="font-size:12px;">${s}</span><button class="btn btn-sm btn-secondary" onclick="removeBL('${s}')">✕</button></div>`;}document.getElementById('blContent').innerHTML=html||'<p style="color:var(--text2);font-size:11px;">Vuota</p>';}
 function addWL(){const s=(document.getElementById('wlAdd').value||'').trim().toUpperCase();if(!s)return;whitelist.add(s);blacklist.delete(s);localStorage.setItem('cf_wl',JSON.stringify([...whitelist]));document.getElementById('wlAdd').value='';showWhitelist();loadDashboard();}
 function addBL(){const s=(document.getElementById('blAdd').value||'').trim().toUpperCase();if(!s)return;blacklist.add(s);whitelist.delete(s);localStorage.setItem('cf_bl',JSON.stringify([...blacklist]));document.getElementById('blAdd').value='';showBlacklist();loadDashboard();}
 function removeWL(s){whitelist.delete(s);localStorage.setItem('cf_wl',JSON.stringify([...whitelist]));showWhitelist();loadDashboard();}
 function removeBL(s){blacklist.delete(s);localStorage.setItem('cf_bl',JSON.stringify([...blacklist]));showBlacklist();loadDashboard();}
 
 // SETTINGS
-function loadSettings(){
-document.getElementById('setCurrency').value=currency;
-const saved=JSON.parse(localStorage.getItem('cf_apikeys')||'[]');
-['apiKey1','apiKey2','apiKey3','apiKey4'].forEach((id,i)=>{if(saved[i])document.getElementById(id).value=saved[i];});
-}
-function saveApiKeys(){
-const keys=['apiKey1','apiKey2','apiKey3','apiKey4'].map(id=>document.getElementById(id).value.trim());
-localStorage.setItem('cf_apikeys',JSON.stringify(keys));
-const custom=keys.filter(k=>k&&k.length>20);
-KEYS=custom.length>0?[...custom,...DEF_KEYS]:[...DEF_KEYS];
-updateApiStatus();toast('Salvato!');
-}
-function saveCurrency(){currency=document.getElementById('setCurrency').value;loadDashboard();toast('Valuta salvata');}
-function exportCSV(){let csv='Symbol,Name,Chain,Amount,Value EUR\n';for(const b of balances){csv+=`"${b.symbol}","${b.name||''}","${b.chain}",${b.amount},${b.value_eur||0}\n`;}const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='cryptofolio.csv';a.click();toast('CSV!');}
+function loadSettings(){document.getElementById('setCurrency').value=currency;const saved=JSON.parse(localStorage.getItem('cf_apikeys')||'[]');['apiKey1','apiKey2','apiKey3','apiKey4'].forEach((id,i)=>{if(saved[i])document.getElementById(id).value=saved[i];});}
+function saveApiKeys(){const keys=['apiKey1','apiKey2','apiKey3','apiKey4'].map(id=>document.getElementById(id).value.trim());localStorage.setItem('cf_apikeys',JSON.stringify(keys));const custom=keys.filter(k=>k&&k.length>20);KEYS=custom.length>0?[...custom,...DEF_KEYS]:[...DEF_KEYS];updateApiStatus();toast('Salvato!');}
+function saveCurrency(){currency=document.getElementById('setCurrency').value;loadDashboard();toast('OK');}
+function exportCSV(){let csv='Symbol,Name,Chain,Amount,EUR\n';for(const b of balances){csv+=`"${b.symbol}","${b.name||''}","${b.chain}",${b.amount},${b.value_eur||0}\n`;}const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='cryptofolio.csv';a.click();toast('CSV!');}
 async function clearAllData(){if(!confirm('Eliminare TUTTO?'))return;await db.from('balances').delete().eq('user_id',user.id);await db.from('wallets').delete().eq('user_id',user.id);balances=[];localStorage.clear();whitelist.clear();blacklist.clear();hidden.clear();toast('Reset!');loadDashboard();}
 
 checkAuth();
