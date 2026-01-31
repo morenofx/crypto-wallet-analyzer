@@ -782,11 +782,11 @@
         // ═══════════════════════════════════════════════════════════════
         
         // CREDENZIALI SUPABASE
-        const SUPABASE_URL = 'https://welnvmqfnceszrvpjoju.supabase.co';
+        const SUPABASE_URL = 'https://welnvmqfnceszrvpjoju.db.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndlbG52bXFmbmNlc3pydnBqb2p1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4ODU5NDksImV4cCI6MjA4NTQ2MTk0OX0.XyUPf7r0GvhoxADFPpG1hc6KCQ0gkvSfbYzywl_D-us';
         
         // Inizializza Supabase
-        const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const db = window.db.createClient(SUPABASE_URL, SUPABASE_KEY);
         
         // ═══════════════════════════════════════════════════════════════
         // STATE
@@ -906,7 +906,7 @@
         }
         
         async function loadUserProfile() {
-            const { data } = await supabase
+            const { data } = await db
                 .from('user_profiles')
                 .select('*')
                 .eq('id', currentUser.id)
@@ -973,7 +973,7 @@
             }
             
             // Count wallets
-            const { count } = await supabase
+            const { count } = await db
                 .from('wallets')
                 .select('*', { count: 'exact', head: true })
                 .eq('user_id', currentUser.id);
@@ -1067,7 +1067,7 @@
         }
         
         async function loadTokenList() {
-            const { data: balances } = await supabase
+            const { data: balances } = await db
                 .from('balances')
                 .select('*')
                 .eq('user_id', currentUser.id)
@@ -1142,7 +1142,7 @@
         }
         
         async function toggleTokenHidden(balanceId, hidden) {
-            await supabase
+            await db
                 .from('balances')
                 .update({ is_hidden: hidden })
                 .eq('id', balanceId);
@@ -1162,7 +1162,7 @@
         // ═══════════════════════════════════════════════════════════════
         
         async function loadWallets() {
-            const { data: wallets } = await supabase
+            const { data: wallets } = await db
                 .from('wallets')
                 .select('*')
                 .eq('user_id', currentUser.id)
@@ -1180,14 +1180,14 @@
             let html = '';
             for (const w of wallets) {
                 // Count tokens
-                const { count } = await supabase
+                const { count } = await db
                     .from('balances')
                     .select('*', { count: 'exact', head: true })
                     .eq('wallet_id', w.id)
                     .gt('amount', 0);
                 
                 // Sum value
-                const { data: sumData } = await supabase
+                const { data: sumData } = await db
                     .from('balances')
                     .select('value_eur')
                     .eq('wallet_id', w.id);
@@ -1275,7 +1275,7 @@
             // che usa Moralis/Etherscan per fetch i dati reali
             
             // Per ora simuliamo aggiungendo dati demo
-            const { data: wallet } = await supabase
+            const { data: wallet } = await db
                 .from('wallets')
                 .select('*')
                 .eq('id', walletId)
@@ -1283,7 +1283,7 @@
             
             if (wallet) {
                 // Aggiorna status
-                await supabase
+                await db
                     .from('wallets')
                     .update({ 
                         last_scan_at: new Date().toISOString(),
@@ -1305,7 +1305,7 @@
             const year = document.getElementById('txYearFilter').value || null;
             const type = document.getElementById('txTypeFilter').value || null;
             
-            let query = supabase
+            let query = db
                 .from('transactions')
                 .select('*', { count: 'exact' })
                 .eq('user_id', currentUser.id)
@@ -1436,7 +1436,7 @@
             const newCurrency = document.getElementById('settingsCurrency').value;
             const taxMethod = document.getElementById('settingsTaxMethod').value;
             
-            await supabase
+            await db
                 .from('user_profiles')
                 .update({
                     preferred_currency: newCurrency,
