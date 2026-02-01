@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v7.99</title>
+<title>CryptoFolio v8.00</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -68,7 +68,7 @@
 <aside class="sidebar">
 <div class="logo"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
 <nav><div class="nav active" data-page="dashboard" onclick="showPage('dashboard')">📊 Dashboard</div><div class="nav" data-page="wallets" onclick="showPage('wallets')">👛 Wallets</div><div class="nav" data-page="exchange" onclick="showPage('exchange')">🏦 Exchange</div><div class="nav" data-page="tokens" onclick="showPage('tokens')">🪙 Token</div><div class="nav" data-page="settings" onclick="showPage('settings')">⚙️ Settings</div></nav>
-<div class="sidebar-footer"><span id="appVersion">v7.99</span><br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
+<div class="sidebar-footer"><span id="appVersion">v8.00</span><br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
 </aside>
 <main class="main">
 <div id="page-dashboard">
@@ -147,7 +147,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='7.99';
+const APP_VERSION='8.00';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -366,10 +366,19 @@ var exBalances={};
 exchangeTx.forEach(function(t){
 var txDate=new Date(t.tx_timestamp);
 if(txDate<=endDate){
-// ESCLUDI trasferimenti interni (già riconciliati) e operazioni earn
 var txType=t.tx_type||'';
-if(txType==='internal_transfer')return; // Non contare: è solo un giroconto
-// Le operazioni earn (subscription/redemption) SI contano perché cambiano il saldo spot
+var op=(t.operation||'').toLowerCase();
+// ESCLUDI operazioni INTERNE che non cambiano il patrimonio totale:
+// - internal_transfer: già riconciliati
+// - earn_sub/earn_red: Spot ↔ Earn (trasferimento interno)
+// - transfer: Main ↔ Funding ↔ Margin
+// - Staking/Launchpool subscription/redemption
+if(txType==='internal_transfer')return;
+if(txType==='earn_sub'||txType==='earn_red')return;
+if(txType==='transfer'&&(op.includes('main')||op.includes('funding')||op.includes('margin')))return;
+if(op.includes('subscription')&&(op.includes('earn')||op.includes('staking')||op.includes('launchpool')))return;
+if(op.includes('redemption')&&(op.includes('earn')||op.includes('staking')||op.includes('launchpool')))return;
+if(op.includes('staking purchase')||op.includes('staking redemption'))return;
 var coin=t.coin;
 var amt=parseFloat(t.amount)||0;
 if(!exBalances[coin])exBalances[coin]={amount:0,source:'exchange'};
@@ -809,15 +818,8 @@ if(type==='trade_buy'||op.includes('Buy'))byYear[y].buys++;
 if(type==='trade_sell'||op.includes('Sell')||op.includes('Sold'))byYear[y].sells++;
 }
 
-if(!byExchange[t.exchange])byExchange[t.exchange]={count:0,coins:new Set(),years:new Set(),deposits:0,withdraws:0,depositsCount:0,withdrawsCount:0,rewards:0,buys:0,sells:0,converts:0,internal:0,byYear:{},coinBalances:{}};
+if(!byExchange[t.exchange])byExchange[t.exchange]={count:0,coins:new Set(),years:new Set(),deposits:0,withdraws:0,depositsCount:0,withdrawsCount:0,rewards:0,buys:0,sells:0,converts:0,internal:0,byYear:{}};
 byExchange[t.exchange].count++;byExchange[t.exchange].coins.add(coin);byExchange[t.exchange].years.add(y);
-
-// Calcola saldi coin per anno (cumulativo fino a fine anno)
-if(!byExchange[t.exchange].coinBalances[coin])byExchange[t.exchange].coinBalances[coin]={};
-for(var yy=y;yy<=2026;yy++){
-if(!byExchange[t.exchange].coinBalances[coin][yy])byExchange[t.exchange].coinBalances[coin][yy]=0;
-byExchange[t.exchange].coinBalances[coin][yy]+=amt;
-}
 
 if(isInternal){byExchange[t.exchange].internal++;}
 else{
