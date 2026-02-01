@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v7.94</title>
+<title>CryptoFolio v7.95</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -68,7 +68,7 @@
 <aside class="sidebar">
 <div class="logo"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
 <nav><div class="nav active" data-page="dashboard" onclick="showPage('dashboard')">📊 Dashboard</div><div class="nav" data-page="wallets" onclick="showPage('wallets')">👛 Wallets</div><div class="nav" data-page="exchange" onclick="showPage('exchange')">🏦 Exchange</div><div class="nav" data-page="tokens" onclick="showPage('tokens')">🪙 Token</div><div class="nav" data-page="settings" onclick="showPage('settings')">⚙️ Settings</div></nav>
-<div class="sidebar-footer"><span id="appVersion">v7.94</span><br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
+<div class="sidebar-footer"><span id="appVersion">v7.95</span><br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
 </aside>
 <main class="main">
 <div id="page-dashboard">
@@ -147,7 +147,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='7.94';
+const APP_VERSION='7.95';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -798,15 +798,10 @@ if(byYear[y]){
 byYear[y].tx++;
 if(isInternal){byYear[y].internal++;}
 else{
-// SOLO operazioni REALI contano per i totali €
-// Depositi: solo deposit di FIAT o stablecoin (soldi veri in entrata)
-if(type==='deposit'&&(isFiat||isUsdStable)&&amtEur>0)byYear[y].deposits+=amtEur;
-// Prelievi: solo withdraw di FIAT (soldi veri in uscita)
-if(type==='withdraw'&&isFiat&&amtEur>0)byYear[y].withdraws+=amtEur;
-// Trade buy con EUR/stablecoin = capitale investito
-if(type==='trade_buy'&&amtEur>0&&t.pair&&(t.pair.includes('EUR')||t.pair.includes('USD')))byYear[y].deposits+=amtEur;
-// Trade sell per EUR/stablecoin = capitale disinvestito
-if(type==='trade_sell'&&amtEur>0&&t.pair&&(t.pair.includes('EUR')||t.pair.includes('USD')))byYear[y].withdraws+=amtEur;
+// CAPITALE REALE = Solo depositi/prelievi FIAT (EUR da/verso banca)
+// NON contare i trade - quelli sono movimenti interni all'exchange
+if(type==='deposit'&&coin==='EUR'&&amt>0)byYear[y].deposits+=Math.abs(amt);
+if(type==='withdraw'&&coin==='EUR'&&amt<0)byYear[y].withdraws+=Math.abs(amt);
 }
 // Contatori operazioni (tutti, non solo €)
 if(type==='reward'||op.includes('Interest')||op.includes('Reward')||op.includes('Learning'))byYear[y].rewards++;
@@ -819,10 +814,9 @@ byExchange[t.exchange].count++;byExchange[t.exchange].coins.add(coin);byExchange
 
 if(isInternal){byExchange[t.exchange].internal++;}
 else{
-if(type==='deposit'&&(isFiat||isUsdStable)){byExchange[t.exchange].depositsCount++;if(amtEur>0)byExchange[t.exchange].deposits+=amtEur;}
-if(type==='withdraw'&&isFiat){byExchange[t.exchange].withdrawsCount++;if(amtEur>0)byExchange[t.exchange].withdraws+=amtEur;}
-if(type==='trade_buy'&&amtEur>0&&t.pair&&(t.pair.includes('EUR')||t.pair.includes('USD'))){byExchange[t.exchange].depositsCount++;byExchange[t.exchange].deposits+=amtEur;}
-if(type==='trade_sell'&&amtEur>0&&t.pair&&(t.pair.includes('EUR')||t.pair.includes('USD'))){byExchange[t.exchange].withdrawsCount++;byExchange[t.exchange].withdraws+=amtEur;}
+// Solo EUR reali
+if(type==='deposit'&&coin==='EUR'&&amt>0){byExchange[t.exchange].depositsCount++;byExchange[t.exchange].deposits+=Math.abs(amt);}
+if(type==='withdraw'&&coin==='EUR'&&amt<0){byExchange[t.exchange].withdrawsCount++;byExchange[t.exchange].withdraws+=Math.abs(amt);}
 }
 if(type==='reward'||op.includes('Interest')||op.includes('Reward')||op.includes('Learning'))byExchange[t.exchange].rewards++;
 if(type==='trade_buy'||op.includes('Buy'))byExchange[t.exchange].buys++;
@@ -833,10 +827,8 @@ if(!byExchange[t.exchange].byYear[y])byExchange[t.exchange].byYear[y]={tx:0,depo
 byExchange[t.exchange].byYear[y].tx++;
 if(isInternal){byExchange[t.exchange].byYear[y].internal++;}
 else{
-if(type==='deposit'&&(isFiat||isUsdStable)){byExchange[t.exchange].byYear[y].depositsCount++;if(amtEur>0)byExchange[t.exchange].byYear[y].deposits+=amtEur;}
-if(type==='withdraw'&&isFiat){byExchange[t.exchange].byYear[y].withdrawsCount++;if(amtEur>0)byExchange[t.exchange].byYear[y].withdraws+=amtEur;}
-if(type==='trade_buy'&&amtEur>0&&t.pair&&(t.pair.includes('EUR')||t.pair.includes('USD'))){byExchange[t.exchange].byYear[y].depositsCount++;byExchange[t.exchange].byYear[y].deposits+=amtEur;}
-if(type==='trade_sell'&&amtEur>0&&t.pair&&(t.pair.includes('EUR')||t.pair.includes('USD'))){byExchange[t.exchange].byYear[y].withdrawsCount++;byExchange[t.exchange].byYear[y].withdraws+=amtEur;}
+if(type==='deposit'&&coin==='EUR'&&amt>0){byExchange[t.exchange].byYear[y].depositsCount++;byExchange[t.exchange].byYear[y].deposits+=Math.abs(amt);}
+if(type==='withdraw'&&coin==='EUR'&&amt<0){byExchange[t.exchange].byYear[y].withdrawsCount++;byExchange[t.exchange].byYear[y].withdraws+=Math.abs(amt);}
 }
 if(type==='reward'||op.includes('Interest')||op.includes('Reward')||op.includes('Learning'))byExchange[t.exchange].byYear[y].rewards++;
 if(type==='trade_buy'||op.includes('Buy'))byExchange[t.exchange].byYear[y].buys++;
@@ -845,7 +837,7 @@ if(type==='convert'||op.includes('Convert'))byExchange[t.exchange].byYear[y].con
 for(var y=2021;y<=2026;y++){var el=document.getElementById('exYear'+y);if(el){var d=byYear[y];var html='<div style="font-size:16px;font-weight:700;color:var(--cyan)">'+d.tx+' TX</div>';if(d.deposits>0||d.withdraws>0){html+='<div style="font-size:9px;margin-top:4px"><span style="color:var(--green)">📥'+fmtC(d.deposits).replace('€','')+'</span> <span style="color:var(--red)">📤'+fmtC(d.withdraws).replace('€','')+'</span></div>';}if(d.rewards>0||d.buys>0||d.sells>0){html+='<div style="font-size:9px;margin-top:2px">';if(d.rewards>0)html+='<span style="color:var(--yellow)">🎁'+d.rewards+'</span> ';if(d.buys>0)html+='<span style="color:var(--green)">🛒'+d.buys+'</span> ';if(d.sells>0)html+='<span style="color:var(--red)">💰'+d.sells+'</span>';html+='</div>';}el.innerHTML=html;}}
 var html='';if(Object.keys(byExchange).length===0){html='<div class="card" style="grid-column:1/-1;padding:40px;text-align:center;color:var(--text2)">Nessun exchange. Clicca "Import CSV" per importare dati.</div>';}else{Object.entries(byExchange).forEach(function(e){var ex=e[0];var data=e[1];var color=EX_COLORS[ex]||'#888';var logo=EX_LOGOS[ex]||EX_LOGOS.other;
 html+='<div class="card" style="grid-column:1/-1"><div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;cursor:pointer" onclick="openExchangeDetail(\''+ex+'\')"><div style="width:48px;height:48px;border-radius:12px;background:'+color+'20;display:flex;align-items:center;justify-content:center;overflow:hidden"><img src="'+logo+'" style="width:36px;height:36px;border-radius:8px" onerror="this.style.display=\'none\';var p=this.parentElement;if(p)p.innerHTML=\'🏦\';"></div><div style="flex:1"><div style="font-size:18px;font-weight:700">'+formatExName(ex)+'</div><div style="font-size:12px;color:var(--text2)">'+data.count+' TX totali • '+data.coins.size+' coin</div></div><button onclick="event.stopPropagation();openExchangeDetail(\''+ex+'\')" class="btn btn-sm btn-secondary">Dettagli →</button></div>';
-html+='<div style="overflow-x:auto"><table class="table" style="font-size:12px;margin:0"><thead><tr><th>Anno</th><th class="text-right">TX</th><th class="text-right">💰 Capitale IN</th><th class="text-right">💸 Capitale OUT</th><th class="text-right">🔄 Interni</th><th class="text-right">🎁 Rewards</th><th class="text-right">🛒 Buy</th><th class="text-right">💰 Sell</th></tr></thead><tbody>';
+html+='<div style="overflow-x:auto"><table class="table" style="font-size:12px;margin:0"><thead><tr><th>Anno</th><th class="text-right">TX</th><th class="text-right">💶 Depositati</th><th class="text-right">💶 Prelevati</th><th class="text-right">🔄 Interni</th><th class="text-right">🎁 Rewards</th><th class="text-right">🛒 Buy</th><th class="text-right">💰 Sell</th></tr></thead><tbody>';
 var years=[2021,2022,2023,2024,2025,2026];years.forEach(function(y){if(data.byYear[y]&&data.byYear[y].tx>0){var yd=data.byYear[y];var depStr=yd.deposits>0?fmtC(yd.deposits):'-';var witStr=yd.withdraws>0?fmtC(yd.withdraws):'-';var intStr=yd.internal||0;html+='<tr style="cursor:pointer" onclick="openExchangeDetail(\''+ex+'\');setTimeout(function(){document.getElementById(\'exDetailYear\').value=\''+y+'\';loadExchangeDetail();},100)"><td><strong>'+y+'</strong></td><td class="text-right text-mono">'+yd.tx+'</td><td class="text-right text-mono" style="color:var(--green)">'+depStr+'</td><td class="text-right text-mono" style="color:var(--red)">'+witStr+'</td><td class="text-right text-mono" style="color:var(--text2)">'+intStr+'</td><td class="text-right text-mono" style="color:var(--yellow)">'+yd.rewards+'</td><td class="text-right text-mono" style="color:var(--green)">'+yd.buys+'</td><td class="text-right text-mono" style="color:var(--red)">'+yd.sells+'</td></tr>';}});
 var totDepStr=data.deposits>0?fmtC(data.deposits):'-';var totWitStr=data.withdraws>0?fmtC(data.withdraws):'-';var totIntStr=data.internal||0;
 html+='<tr style="background:var(--bg2);font-weight:700"><td>TOTALE</td><td class="text-right text-mono">'+data.count+'</td><td class="text-right text-mono" style="color:var(--green)">'+totDepStr+'</td><td class="text-right text-mono" style="color:var(--red)">'+totWitStr+'</td><td class="text-right text-mono" style="color:var(--text2)">'+totIntStr+'</td><td class="text-right text-mono" style="color:var(--yellow)">'+data.rewards+'</td><td class="text-right text-mono" style="color:var(--green)">'+data.buys+'</td><td class="text-right text-mono" style="color:var(--red)">'+data.sells+'</td></tr>';
