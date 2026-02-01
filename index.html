@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v7.55</title>
+<title>CryptoFolio v7.56</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -57,7 +57,7 @@
 <div id="authScreen" class="auth-box">
 <div class="auth-card">
 <div class="logo" style="justify-content:center;margin-bottom:20px"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
-<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v7.55 - 17 Chains</p>
+<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v7.56 - 17 Chains</p>
 <div class="form-group"><label class="form-label">Email</label><input id="authEmail" type="email" class="input"></div>
 <div class="form-group"><label class="form-label">Password</label><input id="authPassword" type="password" class="input"></div>
 <div id="authError" style="color:var(--red);font-size:12px;margin-bottom:12px"></div>
@@ -68,7 +68,7 @@
 <aside class="sidebar">
 <div class="logo"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
 <nav><div class="nav active" data-page="dashboard" onclick="showPage('dashboard')">📊 Dashboard</div><div class="nav" data-page="wallets" onclick="showPage('wallets')">👛 Wallets</div><div class="nav" data-page="exchange" onclick="showPage('exchange')">🏦 Exchange</div><div class="nav" data-page="tokens" onclick="showPage('tokens')">🪙 Token</div><div class="nav" data-page="settings" onclick="showPage('settings')">⚙️ Settings</div></nav>
-<div class="sidebar-footer">v7.55<br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
+<div class="sidebar-footer">v7.56<br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
 </aside>
 <main class="main">
 <div id="page-dashboard">
@@ -328,9 +328,12 @@ else if(cols.length>=6){utcTime=cols[1]?.replace(/"/g,'');operation=cols[3]?.rep
 if(!utcTime||!coin)continue;
 var txType='other';if(operation.includes('Deposit')||operation==='Receive')txType='deposit';else if(operation.includes('Withdraw')||operation==='Send')txType='withdraw';else if(operation.includes('Buy')||operation==='Buy')txType='trade_buy';else if(operation.includes('Sell')||operation.includes('Sold')||operation==='Sell')txType='trade_sell';else if(operation.includes('Fee'))txType='fee';else if(operation.includes('Reward')||operation.includes('Interest')||operation.includes('Staking'))txType='reward';else if(operation.includes('Convert'))txType='convert';else if(operation.includes('Transfer'))txType='transfer';
 var timestamp=utcTime.includes('T')?utcTime:utcTime.replace(' ','T')+'Z';if(!timestamp.endsWith('Z')&&!timestamp.includes('+'))timestamp+='Z';
-toInsert.push({user_id:user.id,exchange:exchange,tx_timestamp:timestamp,tax_year:parseInt(utcTime.slice(0,4)),operation:operation,account:account,coin:coin,amount:change,remark:remark,tx_type:txType});}
+var taxYear=parseInt(utcTime.slice(0,4));if(isNaN(taxYear)||taxYear<2010||taxYear>2030)continue;
+if(!coin||coin.length>20)continue;
+if(isNaN(change))change=0;
+toInsert.push({user_id:user.id,exchange:exchange,tx_timestamp:timestamp,tax_year:taxYear,operation:(operation||'Unknown').slice(0,100),account:(account||'Spot').slice(0,50),coin:coin.slice(0,20),amount:change,remark:(remark||'').slice(0,255),tx_type:txType});}
 totalParsed+=toInsert.length;console.log('File',csv.name,'parsed:',toInsert.length,'records');document.getElementById('importStatus').textContent='💾 Salvataggio '+csv.name+' ('+toInsert.length+' TX)...';document.getElementById('importBar').style.width=Math.round(((i+0.5)/csvTexts.length)*100)+'%';
-if(toInsert.length>0){var inserted=0;for(var b=0;b<toInsert.length;b+=100){var batch=toInsert.slice(b,b+100);var res=await db.from('exchange_transactions').upsert(batch,{onConflict:'user_id,exchange,tx_timestamp,coin,amount,operation'});if(res.error){console.error('Upsert error:',res.error);toast('Errore DB: '+res.error.message,'error');}else{inserted+=batch.length;}}totalImported+=inserted;console.log('File',csv.name,'inserted:',inserted);}
+if(toInsert.length>0){var inserted=0;var errors=0;for(var b=0;b<toInsert.length;b+=100){var batch=toInsert.slice(b,b+100);try{var res=await db.from('exchange_transactions').upsert(batch,{onConflict:'user_id,exchange,tx_timestamp,coin,amount,operation'});if(res.error){console.error('Upsert error batch',b,':',res.error.message,res.error.details);errors+=batch.length;}else{inserted+=batch.length;}}catch(e){console.error('Exception batch',b,':',e);errors+=batch.length;}}totalImported+=inserted;console.log('File',csv.name,'inserted:',inserted,'errors:',errors);}
 document.getElementById('importBar').style.width=Math.round(((i+1)/csvTexts.length)*100)+'%';}
 console.log('TOTALE - Parsed:',totalParsed,'Imported:',totalImported);document.getElementById('importBar').style.width='100%';document.getElementById('importStatus').textContent='✅ '+totalImported+' TX importate ('+totalParsed+' parsate)';document.getElementById('importBtn').disabled=false;toast('✅ '+totalImported+' TX importate!');setTimeout(function(){closeModal('importModal');loadExchangeTx();},2000);}
 function parseCSVLine(line){var result=[];var inQuotes=false;var current='';for(var i=0;i<line.length;i++){var c=line[i];if(c==='"'){inQuotes=!inQuotes;}else if(c===','&&!inQuotes){result.push(current);current='';}else{current+=c;}}result.push(current);return result;}
