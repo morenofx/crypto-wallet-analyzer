@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v7.64</title>
+<title>CryptoFolio v7.65</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -57,7 +57,7 @@
 <div id="authScreen" class="auth-box">
 <div class="auth-card">
 <div class="logo" style="justify-content:center;margin-bottom:20px"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
-<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v7.64 - 17 Chains</p>
+<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v7.65 - 17 Chains</p>
 <div class="form-group"><label class="form-label">Email</label><input id="authEmail" type="email" class="input"></div>
 <div class="form-group"><label class="form-label">Password</label><input id="authPassword" type="password" class="input"></div>
 <div id="authError" style="color:var(--red);font-size:12px;margin-bottom:12px"></div>
@@ -68,7 +68,7 @@
 <aside class="sidebar">
 <div class="logo"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
 <nav><div class="nav active" data-page="dashboard" onclick="showPage('dashboard')">📊 Dashboard</div><div class="nav" data-page="wallets" onclick="showPage('wallets')">👛 Wallets</div><div class="nav" data-page="exchange" onclick="showPage('exchange')">🏦 Exchange</div><div class="nav" data-page="tokens" onclick="showPage('tokens')">🪙 Token</div><div class="nav" data-page="settings" onclick="showPage('settings')">⚙️ Settings</div></nav>
-<div class="sidebar-footer">v7.64<br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
+<div class="sidebar-footer">v7.65<br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
 </aside>
 <main class="main">
 <div id="page-dashboard">
@@ -84,7 +84,7 @@
 <div id="page-wallet-detail" style="display:none">
 <div class="header">
 <div class="flex items-center gap-12"><button onclick="showPage('wallets')" class="btn btn-secondary btn-sm">←</button><h1 class="title" id="wdName">Wallet</h1></div>
-<div class="flex gap-8"><button onclick="scanCurrentWallet()" class="btn btn-primary btn-sm">🔍 Scan</button><button onclick="loadWalletTx()" class="btn btn-secondary btn-sm">📜 TX</button></div>
+<div class="flex gap-8"><button onclick="scanCurrentWallet()" class="btn btn-primary btn-sm">🔍 Scan</button><button onclick="loadWalletTx()" class="btn btn-secondary btn-sm">📜 TX</button><button onclick="deleteCurrentWallet()" class="btn btn-sm" style="background:var(--red)20;color:var(--red)">🗑️</button></div>
 </div>
 <div id="wdScanBox" class="scan-box" style="display:none"><div class="flex justify-between items-center mb-12"><span id="wdScanTitle">🔍 Scansione...</span><span id="wdScanPct">0%</span></div><div class="progress"><div class="progress-bar" id="wdScanBar" style="width:0%"></div></div><div id="wdScanStatus" style="font-size:11px;color:var(--text2);margin-top:6px"></div><div class="scan-log" id="wdScanLog"></div></div>
 <div class="card mb-16"><div class="flex justify-between items-center"><div><div style="font-size:11px;color:var(--text2)">Indirizzo</div><code id="wdAddr" style="font-size:9px;word-break:break-all"></code></div><div style="text-align:right"><div style="font-size:22px;font-weight:700;color:var(--green)" id="wdValue">€0</div><div style="font-size:11px;color:var(--text2)"><span id="wdTokens">0</span> token</div></div></div></div>
@@ -251,6 +251,7 @@ async function loadWallets(){var res=await db.from('wallets').select('*').eq('us
 function showAddWallet(){document.getElementById('wName').value='';document.getElementById('wAddr').value='';renderChainGrid('modalChainGrid');document.getElementById('addWalletModal').style.display='flex';}
 async function addWallet(){var name=document.getElementById('wName').value.trim();var addr=document.getElementById('wAddr').value.trim();if(!addr){toast('Inserisci indirizzo','error');return;}var res=await db.from('wallets').insert({user_id:user.id,name:name||'Wallet',address:addr,chains:[...selectedChains]}).select().single();if(res.error){toast(res.error.message,'error');return;}closeModal('addWalletModal');toast('Wallet aggiunto!');await loadWallets();await scanWallet(res.data);}
 async function openWallet(id){var res=await db.from('wallets').select('*').eq('id',id).single();if(!res.data)return;currentWallet=res.data;inWalletDetail=true;document.getElementById('wdName').textContent=currentWallet.name||'Wallet';document.getElementById('wdAddr').textContent=currentWallet.address;selectedChains=new Set(currentWallet.chains||['eth']);renderChainGrid('wdChainGrid');selectedTokenIds.clear();updateBulkBar();var wb=balances.filter(function(b){return b.wallet_id===id&&getStatus(b.symbol,b.name,b.contract_address)!=='spam'&&!b.is_hidden;});document.getElementById('wdValue').textContent=fmtC(wb.reduce(function(s,b){return s+(b.value_eur||0);},0));document.getElementById('wdTokens').textContent=wb.length;renderWalletTokens(id);document.getElementById('wdTxTab').style.display='none';document.getElementById('wdTokensTab').style.display='block';document.querySelectorAll('[id^="page-"]').forEach(function(x){x.style.display='none';});document.getElementById('page-wallet-detail').style.display='block';}
+async function deleteCurrentWallet(){if(!currentWallet)return;if(!confirm('Sicuro di voler eliminare il wallet "'+currentWallet.name+'"?\n\nVerranno eliminati anche tutti i token e le transazioni associate.'))return;try{await db.from('transactions').delete().eq('wallet_id',currentWallet.id);await db.from('balances').delete().eq('wallet_id',currentWallet.id);await db.from('wallets').delete().eq('id',currentWallet.id);balances=balances.filter(function(b){return b.wallet_id!==currentWallet.id;});toast('✅ Wallet eliminato!');currentWallet=null;showPage('wallets');}catch(e){toast('❌ Errore: '+e.message,'error');}}
 async function saveWalletChains(){if(!currentWallet)return;var chains=[...selectedChains];var res=await db.from('wallets').update({chains:chains}).eq('id',currentWallet.id);if(res.error){toast('Errore: '+res.error.message,'error');return;}currentWallet.chains=chains;toast('✅ Chain salvate ('+chains.length+')');document.getElementById('wdChainSection').style.display='none';}
 function renderWalletTokens(id){var wb=balances.filter(function(b){return b.wallet_id===id&&b.amount>0;}).sort(function(a,b){return(b.value_eur||0)-(a.value_eur||0);});var html='<table class="table"><thead><tr><th style="width:5%" class="text-center"><input type="checkbox" class="chk" onchange="toggleSelectAll(this)"></th><th style="width:32%">Token</th><th style="width:16%" class="text-right">Quantità</th><th style="width:15%" class="text-center">Chain</th><th style="width:16%" class="text-right">Valore</th><th style="width:16%" class="text-center"></th></tr></thead><tbody>';wb.forEach(function(b){var st=getStatus(b.symbol,b.name,b.contract_address);var badge=st==='verified'?'<span class="badge badge-ok">✓</span>':st==='spam'?'<span class="badge badge-bad">⚠</span>':'<span class="badge badge-unk">?</span>';var ch=CHAINS[b.chain];var chTag=ch?'<span class="chain-tag" style="background:'+ch.c+'30;color:'+ch.c+'">'+ch.n+'</span>':'';var checked=selectedTokenIds.has(b.id)?'checked':'';html+='<tr><td class="text-center"><input type="checkbox" class="chk" data-id="'+b.id+'" '+checked+' onchange="toggleTokenSelect(\''+b.id+'\')"></td><td><div class="token-cell">'+icon(b.symbol,b.chain,b.logo_url)+'<div class="token-info"><div class="symbol">'+b.symbol+' '+badge+'</div><div class="name">'+(b.name||'')+'</div></div></div></td><td class="text-right text-mono">'+fmtN(b.amount)+'</td><td class="text-center">'+chTag+'</td><td class="text-right">'+fmtC(b.value_eur)+'</td><td class="text-center"><button onclick="event.stopPropagation();deleteToken(\''+b.id+'\')" class="btn btn-sm btn-danger">🗑️</button></td></tr>';});html+='</tbody></table>';document.getElementById('wdTokensTab').innerHTML=html;}
 function toggleSelectAll(el){if(el.checked)selectAllTokens();else deselectAllTokens();}
