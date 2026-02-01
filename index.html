@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v7.91</title>
+<title>CryptoFolio v7.92</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -861,6 +861,63 @@ document.getElementById('importBar').style.width=Math.round(((i+1)/csvTexts.leng
 continue;}}
 // === FINE BINANCE PARSER v2 ===
 
+// === REVOLUT: USA PARSER AVANZATO ===
+if(isRevolut){
+var revolutTxs=parseRevolutAdvanced(csv.text,user.id,exchange);
+if(revolutTxs.length>0){
+var withPrice=revolutTxs.filter(function(t){return t.price_eur;}).length;
+console.log('Revolut v2: '+revolutTxs.length+' TX, '+withPrice+' con prezzo');
+document.getElementById('importStatus').textContent='💾 Salvataggio '+csv.name+' ('+revolutTxs.length+' TX)...';
+var inserted=0;var errors=0;
+for(var b=0;b<revolutTxs.length;b+=100){
+var batch=revolutTxs.slice(b,b+100);
+try{var res=await db.from('exchange_transactions').upsert(batch,{onConflict:'user_id,exchange,tx_timestamp,coin,amount,operation'});
+if(res.error){console.error('Upsert error:',res.error);errors+=batch.length;}else{inserted+=batch.length;}}
+catch(e){console.error('Exception:',e);errors+=batch.length;}}
+totalImported+=inserted;totalParsed+=revolutTxs.length;
+console.log('Revolut inserted:',inserted,'errors:',errors);
+document.getElementById('importBar').style.width=Math.round(((i+1)/csvTexts.length)*100)+'%';
+continue;}}
+// === FINE REVOLUT PARSER ===
+
+// === COINBASE: USA PARSER AVANZATO ===
+if(isCoinbase){
+var coinbaseTxs=parseCoinbaseAdvanced(csv.text,user.id,exchange);
+if(coinbaseTxs.length>0){
+var withPrice=coinbaseTxs.filter(function(t){return t.price_eur;}).length;
+console.log('Coinbase v2: '+coinbaseTxs.length+' TX, '+withPrice+' con prezzo');
+document.getElementById('importStatus').textContent='💾 Salvataggio '+csv.name+' ('+coinbaseTxs.length+' TX)...';
+var inserted=0;var errors=0;
+for(var b=0;b<coinbaseTxs.length;b+=100){
+var batch=coinbaseTxs.slice(b,b+100);
+try{var res=await db.from('exchange_transactions').upsert(batch,{onConflict:'user_id,exchange,tx_timestamp,coin,amount,operation'});
+if(res.error){console.error('Upsert error:',res.error);errors+=batch.length;}else{inserted+=batch.length;}}
+catch(e){console.error('Exception:',e);errors+=batch.length;}}
+totalImported+=inserted;totalParsed+=coinbaseTxs.length;
+console.log('Coinbase inserted:',inserted,'errors:',errors);
+document.getElementById('importBar').style.width=Math.round(((i+1)/csvTexts.length)*100)+'%';
+continue;}}
+// === FINE COINBASE PARSER ===
+
+// === BYBIT: USA PARSER AVANZATO ===
+if(isBybit){
+var bybitTxs=parseBybitAdvanced(csv.text,user.id,exchange);
+if(bybitTxs.length>0){
+var withPrice=bybitTxs.filter(function(t){return t.price_eur;}).length;
+console.log('Bybit v2: '+bybitTxs.length+' TX, '+withPrice+' con prezzo');
+document.getElementById('importStatus').textContent='💾 Salvataggio '+csv.name+' ('+bybitTxs.length+' TX)...';
+var inserted=0;var errors=0;
+for(var b=0;b<bybitTxs.length;b+=100){
+var batch=bybitTxs.slice(b,b+100);
+try{var res=await db.from('exchange_transactions').upsert(batch,{onConflict:'user_id,exchange,tx_timestamp,coin,amount,operation'});
+if(res.error){console.error('Upsert error:',res.error);errors+=batch.length;}else{inserted+=batch.length;}}
+catch(e){console.error('Exception:',e);errors+=batch.length;}}
+totalImported+=inserted;totalParsed+=bybitTxs.length;
+console.log('Bybit inserted:',inserted,'errors:',errors);
+document.getElementById('importBar').style.width=Math.round(((i+1)/csvTexts.length)*100)+'%';
+continue;}}
+// === FINE BYBIT PARSER ===
+
 for(var j=dataStartLine;j<lines.length;j++){var line=lines[j].trim();if(!line)continue;var cols=parseCSVLine(line);
 var utcTime,operation,coin,change,remark='',account='Spot';
 if(isBinance&&cols.length>=6){utcTime=cols[1]?.replace(/"/g,'');operation=cols[3]?.replace(/"/g,'');coin=cols[4]?.replace(/"/g,'');change=parseFloat(cols[5]?.replace(/"/g,'')||0);remark=cols[6]?.replace(/"/g,'')||'';account=cols[2]?.replace(/"/g,'')||'Spot';}
@@ -1042,17 +1099,319 @@ return{user_id:userId,exchange:'binance',tx_timestamp:formatTs(tx.utcTime),tax_y
 
 function classifyOp(op,change){
 var o=op.toLowerCase();
-if(o.includes('deposit')||o.includes('fiat deposit'))return'deposit';
+// EARN/STAKING - SUBSCRIPTION (giroconto interno, non tassabile)
+if(o.includes('subscription')||o.includes('locked staking')||o.includes('pos savings purchase')||o.includes('savings purchase'))return'earn_sub';
+// EARN/STAKING - REDEMPTION (giroconto interno, non tassabile)
+if(o.includes('redemption')||o.includes('pos savings redemption')||o.includes('savings principal'))return'earn_red';
+// DEPOSIT/WITHDRAW esterni
+if(o.includes('fiat deposit')||o.includes('deposit')&&!o.includes('launchpool'))return'deposit';
 if(o.includes('withdraw'))return'withdraw';
+// TRADING
 if(o.includes('buy')||o.includes('purchase'))return'trade_buy';
 if(o.includes('sell')||o.includes('sold'))return'trade_sell';
-if(o.includes('fee'))return'fee';
-if(o.includes('reward')||o.includes('interest')||o.includes('staking')||o.includes('airdrop')||o.includes('distribution')||o.includes('cashback')||o.includes('launchpool')||o.includes('bnb vault'))return'reward';
-if(o.includes('convert')||o.includes('swap'))return'convert';
+// REWARDS (tassabili come reddito)
+if(o.includes('interest')||o.includes('reward')||o.includes('cashback')||o.includes('rebate')||o.includes('referral')||o.includes('commission')||o.includes('distribution'))return'reward';
+if(o.includes('launchpool')||o.includes('bnb vault')||o.includes('staking rewards')||o.includes('eth 2.0 staking rewards'))return'reward';
+if(o.includes('airdrop')||o.includes('token swap'))return'reward';
+// FEE
+if(o.includes('fee')&&!o.includes('referral'))return'fee';
+// CONVERT
+if(o.includes('convert')||o.includes('small assets'))return'convert';
+// TRANSFER INTERNI
 if(o.includes('transfer'))return'transfer';
-if(o.includes('card')||o.includes('payment'))return'payment';
-if(o.includes('subscription')||o.includes('redemption'))return'staking';
+// CARD/PAYMENT
+if(o.includes('card')||o.includes('payment')||o.includes('top up'))return'payment';
+// DEFAULT basato sul segno
 return change>0?'deposit':'withdraw';}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PARSER REVOLUT AVANZATO - Estrae prezzi dal CSV
+// Formato: Symbol,Type,Quantity,Price,Value,Total Fees,Date
+// ═══════════════════════════════════════════════════════════════════════════
+function parseRevolutAdvanced(csvText,userId,exchange){
+var lines=csvText.split('\n').filter(function(l){return l.trim();});
+if(lines.length<2)return[];
+var results=[];
+var mesiIT={gen:'01',feb:'02',mar:'03',apr:'04',mag:'05',giu:'06',lug:'07',ago:'08',set:'09',ott:'10',nov:'11',dic:'12'};
+
+for(var i=1;i<lines.length;i++){
+var cols=parseCSVLine(lines[i]);
+if(cols.length<7)continue;
+
+var coin=cols[0]?.replace(/"/g,'').trim()||'';
+var operation=cols[1]?.replace(/"/g,'').trim()||'';
+var qtyStr=cols[2]?.replace(/"/g,'').trim()||'0';
+var priceStr=cols[3]?.replace(/"/g,'').trim()||'0';
+var valueStr=cols[4]?.replace(/"/g,'').trim()||'0';
+var feeStr=cols[5]?.replace(/"/g,'').trim()||'0';
+var dateStr=cols[6]?.replace(/"/g,'').trim()||'';
+
+// Parsing quantità (formato italiano: 1.234,56)
+var qty=parseFloat(qtyStr.replace(/\./g,'').replace(',','.'))||0;
+var price=parseFloat(priceStr.replace(/\./g,'').replace(',','.'))||0;
+var value=parseFloat(valueStr.replace(/\./g,'').replace(',','.'))||0;
+var fee=parseFloat(feeStr.replace(/\./g,'').replace(',','.'))||0;
+
+// Parsing data italiana: "15 gen 2024, 10:30:45"
+var utcTime='';
+var dm=dateStr.match(/(\d+)\s+(\w+)\s+(\d{4}),?\s+(\d+):(\d+):(\d+)/);
+if(dm){
+var mm=mesiIT[dm[2].toLowerCase()]||'01';
+utcTime=dm[3]+'-'+mm+'-'+dm[1].padStart(2,'0')+'T'+dm[4]+':'+dm[5]+':'+dm[6]+'Z';
+}else{
+utcTime=dateStr.replace(' ','T')+'Z';
+}
+
+if(!utcTime||!coin)continue;
+
+var taxYear=parseInt(utcTime.slice(0,4));
+var opLower=operation.toLowerCase();
+
+// Determina tx_type e segno
+var txType='other';
+var amount=qty;
+if(opLower.includes('vendita')||opLower==='sell'){
+txType='trade_sell';
+amount=-Math.abs(qty);
+}else if(opLower.includes('acquisto')||opLower==='buy'){
+txType='trade_buy';
+amount=Math.abs(qty);
+}else if(opLower.includes('ricezione')||opLower.includes('receive')){
+txType='deposit';
+amount=Math.abs(qty);
+}else if(opLower.includes('invio')||opLower.includes('send')){
+txType='withdraw';
+amount=-Math.abs(qty);
+}
+
+results.push({
+user_id:userId,
+exchange:exchange||'revolut',
+tx_timestamp:utcTime,
+tax_year:taxYear,
+operation:operation,
+account:'Revolut',
+coin:coin,
+amount:amount,
+tx_type:txType,
+pair:coin+'/EUR',
+price_eur:price||null,
+price_usd:price?price/0.92:null,
+value_eur:value||Math.abs(amount*price)||null,
+fee_amount:fee||null,
+fee_coin:'EUR',
+remark:operation,
+needs_price:!price
+});
+}
+console.log('Revolut parsed:',results.length);
+return results;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PARSER COINBASE AVANZATO - Estrae prezzi dal CSV
+// Formato: Timestamp,Transaction Type,Asset,Quantity Transacted,Spot Price Currency,
+//          Spot Price at Transaction,Subtotal,Total (inclusive of fees),Fees,Notes
+// ═══════════════════════════════════════════════════════════════════════════
+function parseCoinbaseAdvanced(csvText,userId,exchange){
+var lines=csvText.split('\n').filter(function(l){return l.trim();});
+if(lines.length<2)return[];
+var results=[];
+
+// Skip header rows (Coinbase ha spesso righe di intestazione multiple)
+var dataStart=0;
+for(var h=0;h<Math.min(10,lines.length);h++){
+if(lines[h].includes('Timestamp')&&lines[h].includes('Transaction Type')){
+dataStart=h+1;break;
+}
+}
+
+for(var i=dataStart;i<lines.length;i++){
+var cols=parseCSVLine(lines[i]);
+if(cols.length<5)continue;
+
+var utcTime=cols[0]?.replace(/"/g,'').trim()||'';
+var operation=cols[1]?.replace(/"/g,'').trim()||'';
+var coin=cols[2]?.replace(/"/g,'').trim()||'';
+var qty=parseFloat(cols[3]?.replace(/"/g,'')||0);
+var spotCurrency=cols[4]?.replace(/"/g,'').trim()||'EUR';
+var spotPrice=parseFloat(cols[5]?.replace(/"/g,'')||0);
+var subtotal=parseFloat(cols[6]?.replace(/"/g,'')||0);
+var total=parseFloat(cols[7]?.replace(/"/g,'')||0);
+var fees=parseFloat(cols[8]?.replace(/"/g,'')||0);
+var notes=cols[9]?.replace(/"/g,'').trim()||'';
+
+if(!utcTime||!coin)continue;
+
+// Formatta timestamp
+var timestamp=utcTime.includes('T')?utcTime:utcTime.replace(' ','T');
+if(!timestamp.includes('Z')&&!timestamp.includes('+'))timestamp+='Z';
+
+var taxYear=parseInt(utcTime.slice(0,4));
+var opLower=operation.toLowerCase();
+
+// Determina tx_type
+var txType='other';
+var amount=qty;
+if(opLower.includes('buy')||opLower.includes('advance trade buy')){
+txType='trade_buy';
+amount=Math.abs(qty);
+}else if(opLower.includes('sell')||opLower.includes('advance trade sell')){
+txType='trade_sell';
+amount=-Math.abs(qty);
+}else if(opLower.includes('receive')||opLower.includes('deposit')){
+txType='deposit';
+amount=Math.abs(qty);
+}else if(opLower.includes('send')||opLower.includes('withdraw')){
+txType='withdraw';
+amount=-Math.abs(qty);
+}else if(opLower.includes('reward')||opLower.includes('interest')||opLower.includes('learning')||opLower.includes('staking')){
+txType='reward';
+amount=Math.abs(qty);
+}else if(opLower.includes('convert')){
+txType='convert';
+}
+
+// Converti a EUR se necessario
+var priceEur=spotPrice;
+var valueEur=total||subtotal;
+if(spotCurrency==='USD'){
+priceEur=spotPrice*0.92;
+valueEur=(total||subtotal)*0.92;
+}
+
+results.push({
+user_id:userId,
+exchange:exchange||'coinbase',
+tx_timestamp:timestamp,
+tax_year:taxYear,
+operation:operation,
+account:'Coinbase',
+coin:coin,
+amount:amount,
+tx_type:txType,
+pair:coin+'/'+spotCurrency,
+price_eur:priceEur||null,
+price_usd:spotCurrency==='USD'?spotPrice:spotPrice/0.92,
+value_eur:valueEur||null,
+fee_amount:fees||null,
+fee_coin:spotCurrency,
+remark:notes||operation,
+needs_price:!priceEur
+});
+}
+console.log('Coinbase parsed:',results.length);
+return results;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PARSER BYBIT AVANZATO - Gestisce tutti i formati Bybit
+// ═══════════════════════════════════════════════════════════════════════════
+function parseBybitAdvanced(csvText,userId,exchange,formatType){
+var lines=csvText.split('\n').filter(function(l){return l.trim();});
+if(lines.length<2)return[];
+var results=[];
+var headerLine=lines[0]||'';
+
+// Detect format
+var isDeposit=headerLine.includes('Date')&&headerLine.includes('Type')&&headerLine.includes('Asset')&&headerLine.includes('Chain');
+var isFund=headerLine.includes('Date & Time')&&headerLine.includes('Coin')&&headerLine.includes('QTY');
+var isUta=headerLine.includes('Currency')&&headerLine.includes('Cash Flow')&&headerLine.includes('Wallet Balance');
+var isSpot=headerLine.includes('Spot Pairs')&&headerLine.includes('Direction')&&headerLine.includes('Filled');
+
+for(var i=1;i<lines.length;i++){
+var cols=parseCSVLine(lines[i]);
+if(cols.length<4)continue;
+
+var utcTime='',coin='',amount=0,operation='',remark='',account='Bybit';
+
+if(isDeposit&&cols.length>=6){
+utcTime=cols[1]?.replace(/"/g,'').trim();
+operation=cols[2]?.replace(/"/g,'').trim();
+coin=cols[3]?.replace(/"/g,'').trim();
+amount=parseFloat(cols[5]?.replace(/"/g,'')||0);
+remark=(cols[4]||'')+' '+(cols[7]||'');
+if(operation==='Withdraw')amount=-Math.abs(amount);
+}
+else if(isFund&&cols.length>=5){
+utcTime=cols[1]?.replace(/"/g,'').trim();
+coin=cols[2]?.replace(/"/g,'').trim();
+amount=parseFloat(cols[3]?.replace(/"/g,'')||0);
+operation=cols[4]?.replace(/"/g,'').trim()||'';
+remark=cols[6]?.replace(/"/g,'')||'';
+account='Bybit Fund';
+}
+else if(isUta&&cols.length>=14){
+utcTime=cols[14]?.replace(/"/g,'').trim();
+coin=cols[1]?.replace(/"/g,'').trim();
+amount=parseFloat(cols[11]?.replace(/"/g,'')||0);
+operation=cols[3]?.replace(/"/g,'').trim()||'';
+remark=cols[13]?.replace(/"/g,'')||'';
+account='Bybit UTA';
+}
+else if(isSpot&&cols.length>=10){
+utcTime=cols[10]?.replace(/"/g,'').trim();
+var pair=cols[1]?.replace(/"/g,'')||'';
+coin=pair.replace(/USDT|USDC|EUR|USD/g,'');
+operation=cols[3]?.replace(/"/g,'')||'';
+amount=parseFloat(cols[6]?.replace(/"/g,'')||0);
+var price=parseFloat(cols[5]?.replace(/"/g,'')||0);
+var total=parseFloat(cols[9]?.replace(/"/g,'')||0);
+if(operation==='SELL')amount=-Math.abs(amount);
+remark='Spot Trade '+pair;
+account='Bybit Spot';
+
+// Per Spot abbiamo il prezzo!
+if(price>0){
+var timestamp=utcTime.includes('T')?utcTime:utcTime.replace(' ','T');
+if(!timestamp.includes('Z')&&!timestamp.includes('+'))timestamp+='Z';
+var taxYear=parseInt(utcTime.slice(0,4));
+var txType=operation==='SELL'?'trade_sell':'trade_buy';
+results.push({
+user_id:userId,
+exchange:exchange||'bybit',
+tx_timestamp:timestamp,
+tax_year:taxYear,
+operation:operation,
+account:account,
+coin:coin,
+amount:amount,
+tx_type:txType,
+pair:pair,
+price_eur:price*0.92,
+price_usd:price,
+value_eur:total*0.92,
+remark:remark,
+needs_price:false
+});
+continue;
+}
+}
+
+if(!utcTime||!coin)continue;
+
+var timestamp=utcTime.includes('T')?utcTime:utcTime.replace(' ','T');
+if(!timestamp.includes('Z')&&!timestamp.includes('+'))timestamp+='Z';
+var taxYear=parseInt(utcTime.slice(0,4));
+var txType=classifyOp(operation,amount);
+
+results.push({
+user_id:userId,
+exchange:exchange||'bybit',
+tx_timestamp:timestamp,
+tax_year:taxYear,
+operation:operation,
+account:account,
+coin:coin,
+amount:amount,
+tx_type:txType,
+remark:remark,
+needs_price:true
+});
+}
+console.log('Bybit parsed:',results.length);
+return results;
+}
 
 function formatTs(utcTime){
 var ts=utcTime.includes('T')?utcTime:utcTime.replace(' ','T');
