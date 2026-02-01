@@ -305,24 +305,191 @@ document.getElementById('earnContent').innerHTML=html;}
 async function resetExchangeData(){var allEx=[];var page=0;var hasMore=true;while(hasMore){var res=await db.from('exchange_transactions').select('exchange').eq('user_id',user.id).range(page*1000,(page+1)*1000-1);var data=res.data||[];data.forEach(function(t){if(t.exchange&&!allEx.includes(t.exchange))allEx.push(t.exchange);});hasMore=data.length===1000;page++;if(page>20)break;}if(allEx.length===0){toast('Nessun dato da cancellare','warning');return;}allEx.sort();var html='<button onclick="confirmReset(\'all\')" class="btn" style="width:100%;background:var(--red)20;color:var(--red);justify-content:flex-start;padding:12px 16px"><span style="margin-right:8px">🗑️</span> Cancella TUTTI gli exchange ('+allEx.length+')</button>';allEx.forEach(function(ex){var logo=EX_LOGOS[ex]||EX_LOGOS.other;var color=EX_COLORS[ex]||'#888';html+='<button onclick="confirmReset(\''+ex+'\')" class="btn btn-secondary" style="width:100%;justify-content:flex-start;padding:12px 16px;border-left:3px solid '+color+'"><img src="'+logo+'" style="width:20px;height:20px;border-radius:4px;margin-right:8px" onerror="this.style.display=\'none\'"><span>'+formatExName(ex)+'</span></button>';});document.getElementById('resetOptions').innerHTML=html;document.getElementById('resetModal').style.display='flex';}
 async function confirmReset(target){if(target==='all'){if(!confirm('⚠️ Sicuro di cancellare TUTTI i dati exchange?'))return;await db.from('exchange_transactions').delete().eq('user_id',user.id);toast('✅ Tutti i dati exchange cancellati!');}else{if(!confirm('Sicuro di cancellare i dati di '+target+'?'))return;await db.from('exchange_transactions').delete().eq('user_id',user.id).eq('exchange',target);toast('✅ Dati '+target+' cancellati!');}closeModal('resetModal');loadExchangeTx();}
 function showApiStatus(msg,type){var el=document.getElementById('apiStatus');el.style.display='block';el.style.background=type==='success'?'var(--green)20':type==='error'?'var(--red)20':type==='warning'?'var(--yellow)20':'var(--blue)20';el.style.color=type==='success'?'var(--green)':type==='error'?'var(--red)':type==='warning'?'var(--yellow)':'var(--blue)';el.innerHTML=msg;}
-var COIN_MAP={BTC:'bitcoin',ETH:'ethereum',BNB:'binancecoin',USDT:'tether',USDC:'usd-coin',XRP:'ripple',ADA:'cardano',DOGE:'dogecoin',SOL:'solana',DOT:'polkadot',MATIC:'matic-network',SHIB:'shiba-inu',LTC:'litecoin',AVAX:'avalanche-2',LINK:'chainlink',ATOM:'cosmos',UNI:'uniswap',LUNA:'terra-luna-2',LUNC:'terra-luna',CAKE:'pancakeswap-token',FTM:'fantom',SAND:'the-sandbox',MANA:'decentraland',AXS:'axie-infinity',AAVE:'aave',CRO:'crypto-com-chain',TRX:'tron',BUSD:'binance-usd',DAI:'dai',PEPE:'pepe',FLOKI:'floki',ARB:'arbitrum',OP:'optimism',APT:'aptos',SUI:'sui',INJ:'injective-protocol',FET:'fetch-ai',NEAR:'near',GRT:'the-graph',RUNE:'thorchain',IMX:'immutable-x',GALA:'gala',ENJ:'enjincoin',CHZ:'chiliz',GMT:'stepn',APE:'apecoin',LRC:'loopring',ALGO:'algorand',VET:'vechain',HBAR:'hedera-hashgraph',XLM:'stellar',XTZ:'tezos',EOS:'eos',NEO:'neo',XMR:'monero',ZEC:'zcash',DASH:'dash',THETA:'theta-token',EGLD:'elrond-erd-2',FLOW:'flow',KCS:'kucoin-shares',ONE:'harmony',HOT:'holotoken',ANKR:'ankr',AUDIO:'audius',BAT:'basic-attention-token',COMP:'compound-governance-token',CRV:'curve-dao-token',SNX:'havven',SUSHI:'sushi',YFI:'yearn-finance','1INCH':'1inch',BAL:'balancer',REN:'republic-protocol',BAND:'band-protocol',STORJ:'storj',OCEAN:'ocean-protocol',FIL:'filecoin',AR:'arweave',STX:'blockstack',CELO:'celo',KAVA:'kava',ROSE:'oasis-network',NOT:'notcoin',TON:'the-open-network',WLD:'worldcoin-wld',JUP:'jupiter-exchange-solana',BONK:'bonk',WIF:'dogwifcoin',ORDI:'ordi',SATS:'sats-ordinals',RATS:'rats-ordinals',SEI:'sei-network',TIA:'celestia',PYTH:'pyth-network',MEME:'memecoin',ACE:'fusionist',AI:'sleepless-ai',XAI:'xai-blockchain',PIXEL:'pixels',PORTAL:'portal-2',STRK:'starknet',ALT:'altlayer',MANTA:'manta-network',DYM:'dymension',BOME:'book-of-meme',ETHFI:'ether-fi',ENA:'ethena',SAGA:'saga-2',REZ:'renzo',IO:'io-net',ZK:'zksync',LISTA:'lista-dao',ZRO:'layerzero',BANANA:'banana-gun',RENDER:'render-token',TAO:'bittensor',FTN:'fasttoken',JASMY:'jasmycoin',CFX:'conflux-token',BLUR:'blur',ID:'space-id',HOOK:'hooked-protocol',HIGH:'highstreet',LEVER:'lever',RDNT:'radiant-capital',MAGIC:'magic',GMX:'gmx',PENDLE:'pendle',SSV:'ssv-network',LDO:'lido-dao',RPL:'rocket-pool',FXS:'frax-share',CVX:'convex-finance',OSMO:'osmosis',SCRT:'secret',JUNO:'juno-network',EVMOS:'evmos',INJ2:'injective-protocol'};
+var COIN_MAP={BTC:'bitcoin',ETH:'ethereum',BNB:'binancecoin',USDT:'tether',USDC:'usd-coin',XRP:'ripple',ADA:'cardano',DOGE:'dogecoin',SOL:'solana',DOT:'polkadot',MATIC:'matic-network',SHIB:'shiba-inu',LTC:'litecoin',AVAX:'avalanche-2',LINK:'chainlink',ATOM:'cosmos',UNI:'uniswap',LUNA:'terra-luna-2',LUNC:'terra-luna',CAKE:'pancakeswap-token',FTM:'fantom',SAND:'the-sandbox',MANA:'decentraland',AXS:'axie-infinity',AAVE:'aave',CRO:'crypto-com-chain',TRX:'tron',BUSD:'binance-usd',DAI:'dai',PEPE:'pepe',FLOKI:'floki',ARB:'arbitrum',OP:'optimism',APT:'aptos',SUI:'sui',INJ:'injective-protocol',FET:'fetch-ai',NEAR:'near',GRT:'the-graph',RUNE:'thorchain',IMX:'immutable-x',GALA:'gala',ENJ:'enjincoin',CHZ:'chiliz',GMT:'stepn',APE:'apecoin',LRC:'loopring',ALGO:'algorand',VET:'vechain',HBAR:'hedera-hashgraph',XLM:'stellar',XTZ:'tezos',EOS:'eos',NEO:'neo',XMR:'monero',ZEC:'zcash',DASH:'dash',THETA:'theta-token',EGLD:'elrond-erd-2',FLOW:'flow',KCS:'kucoin-shares',ONE:'harmony',HOT:'holotoken',ANKR:'ankr',AUDIO:'audius',BAT:'basic-attention-token',COMP:'compound-governance-token',CRV:'curve-dao-token',SNX:'havven',SUSHI:'sushi',YFI:'yearn-finance','1INCH':'1inch',BAL:'balancer',REN:'republic-protocol',BAND:'band-protocol',STORJ:'storj',OCEAN:'ocean-protocol',FIL:'filecoin',AR:'arweave',STX:'blockstack',CELO:'celo',KAVA:'kava',ROSE:'oasis-network',NOT:'notcoin',TON:'the-open-network',WLD:'worldcoin-wld',JUP:'jupiter-exchange-solana',BONK:'bonk',WIF:'dogwifcoin',ORDI:'ordi',SATS:'sats-ordinals',RATS:'rats-ordinals',SEI:'sei-network',TIA:'celestia',PYTH:'pyth-network',MEME:'memecoin',ACE:'fusionist',AI:'sleepless-ai',XAI:'xai-blockchain',PIXEL:'pixels',PORTAL:'portal-2',STRK:'starknet',ALT:'altlayer',MANTA:'manta-network',DYM:'dymension',BOME:'book-of-meme',ETHFI:'ether-fi',ENA:'ethena',SAGA:'saga-2',REZ:'renzo',IO:'io-net',ZK:'zksync',LISTA:'lista-dao',ZRO:'layerzero',BANANA:'banana-gun',RENDER:'render-token',TAO:'bittensor',FTN:'fasttoken',JASMY:'jasmycoin',CFX:'conflux-token',BLUR:'blur',ID:'space-id',HOOK:'hooked-protocol',HIGH:'highstreet',LEVER:'lever',RDNT:'radiant-capital',MAGIC:'magic',GMX:'gmx',PENDLE:'pendle',SSV:'ssv-network',LDO:'lido-dao',RPL:'rocket-pool',FXS:'frax-share',CVX:'convex-finance',OSMO:'osmosis',SCRT:'secret',JUNO:'juno-network',EVMOS:'evmos',INJ2:'injective-protocol',
+// Aggiunte v7.90 da Binance
+NFT:'apenft',KLAY:'klay-token',BTT:'bittorrent',WIN:'winklink',STMX:'storm',LAZIO:'lazio-fan-token',SANTOS:'santos-fc-fan-token',PORTO:'fc-porto',CITY:'manchester-city-fan-token',DAR:'mines-of-dalarnia',VTHO:'vethor-token',QI:'benqi',MC:'merit-circle',VOXEL:'voxies',TVK:'terra-virtua-kolect',GAL:'galxe',HFT:'hashflow',CYBER:'cyberconnect',NTRN:'neutron-3',NFP:'nfprompt',AEVO:'aevo',OMNI:'omni-network',DOGS:'dogs-2',CATI:'catizen',HMSTR:'hamster-kombat',SCR:'scroll'};
 var rwData=[];
-async function calcRW(){document.getElementById('rwModal').style.display='flex';document.getElementById('rwContent').innerHTML='<div style="padding:40px;text-align:center"><div class="spinner"></div><div style="margin-top:12px;color:var(--text2)">Caricamento transazioni...</div></div>';
-var allTx=[];var page=0;var hasMore=true;while(hasMore){var res=await db.from('exchange_transactions').select('*').eq('user_id',user.id).order('tx_timestamp',{ascending:true}).range(page*1000,(page+1)*1000-1);allTx=allTx.concat(res.data||[]);hasMore=(res.data||[]).length===1000;page++;if(page>20)break;}
-console.log('Total TX loaded for RW:',allTx.length);if(allTx.length>0)console.log('Sample TX:',allTx[0],allTx[allTx.length-1]);
+async function calcRW(){document.getElementById('rwModal').style.display='flex';document.getElementById('rwContent').innerHTML='<div style="padding:40px;text-align:center"><div class="spinner"></div><div style="margin-top:12px;color:var(--text2)">Caricamento transazioni exchange...</div></div>';
+
+// 1. CARICA TX EXCHANGE
+var exchangeTx=[];var page=0;var hasMore=true;while(hasMore){var res=await db.from('exchange_transactions').select('*').eq('user_id',user.id).order('tx_timestamp',{ascending:true}).range(page*1000,(page+1)*1000-1);exchangeTx=exchangeTx.concat(res.data||[]);hasMore=(res.data||[]).length===1000;page++;if(page>20)break;}
+console.log('Exchange TX loaded:',exchangeTx.length);
+
+// 2. CARICA SALDI WALLET ON-CHAIN (attuali)
+document.getElementById('rwContent').innerHTML='<div style="padding:40px;text-align:center"><div class="spinner"></div><div style="margin-top:12px;color:var(--text2)">Caricamento saldi wallet...</div></div>';
+var wRes=await db.from('wallets').select('*').eq('user_id',user.id);
+var wallets=wRes.data||[];
+var walletBalances=[];
+if(wallets.length>0){
+var bRes=await db.from('balances').select('*').in('wallet_id',wallets.map(function(w){return w.id;}));
+walletBalances=bRes.data||[];
+}
+console.log('Wallet balances loaded:',walletBalances.length,'from',wallets.length,'wallets');
+
+// 3. CARICA TX WALLET ON-CHAIN (per calcolo storico)
+var walletTx=[];
+if(wallets.length>0){
+var txRes=await db.from('transactions').select('*').in('wallet_id',wallets.map(function(w){return w.id;})).order('tx_timestamp',{ascending:true});
+walletTx=txRes.data||[];
+}
+console.log('Wallet TX loaded:',walletTx.length);
+
 document.getElementById('rwContent').innerHTML='<div style="padding:40px;text-align:center"><div class="spinner"></div><div style="margin-top:12px;color:var(--text2)">Calcolo saldi per anno...</div></div>';
 var years=[2021,2022,2023,2024,2025];var results=[];
-for(var yi=0;yi<years.length;yi++){var year=years[yi];var endDate=new Date(year,11,31,23,59,59);var startDate=new Date(year,0,1,0,0,0);var balances={};allTx.forEach(function(t){var txDate=new Date(t.tx_timestamp);if(txDate<=endDate){var coin=t.coin;var amt=parseFloat(t.amount)||0;if(!balances[coin])balances[coin]=0;balances[coin]+=amt;}});
-var nonZero=Object.entries(balances).filter(function(e){return Math.abs(e[1])>0.000001;});console.log('Year',year,'non-zero balances:',nonZero.length,nonZero.slice(0,10));
-var coinsWithBalance=Object.entries(balances).filter(function(e){return Math.abs(e[1])>0.000001&&!['EUR','USD'].includes(e[0]);});console.log('Year',year,'crypto balances:',coinsWithBalance.length,coinsWithBalance.slice(0,10));results.push({year:year,balances:coinsWithBalance});}
+var currentYear=new Date().getFullYear();
+
+for(var yi=0;yi<years.length;yi++){
+var year=years[yi];
+var endDate=new Date(year,11,31,23,59,59);
+var isCurrentYear=year===currentYear;
+
+// === SALDI EXCHANGE (dalle TX) ===
+var exBalances={};
+exchangeTx.forEach(function(t){
+var txDate=new Date(t.tx_timestamp);
+if(txDate<=endDate){
+var coin=t.coin;
+var amt=parseFloat(t.amount)||0;
+if(!exBalances[coin])exBalances[coin]={amount:0,source:'exchange'};
+exBalances[coin].amount+=amt;
+}});
+
+// === SALDI WALLET (metodo ibrido) ===
+var wBalances={};
+if(isCurrentYear){
+// Per anno corrente: usa saldi ATTUALI
+walletBalances.forEach(function(b){
+var sym=(b.symbol||'').toUpperCase();
+if(!sym||['EUR','USD'].includes(sym))return;
+if(getStatus(b.symbol,b.name,b.contract_address)==='spam')return;
+if(b.is_hidden)return;
+var amt=parseFloat(b.amount)||0;
+if(Math.abs(amt)>0.000001){
+if(!wBalances[sym])wBalances[sym]={amount:0,source:'wallet'};
+wBalances[sym].amount+=amt;
+}});
+}else{
+// Per anni passati: calcola dalle TX wallet
+// Nota: questo funziona solo se le TX sono state sincronizzate
+walletTx.forEach(function(t){
+var txDate=new Date(t.tx_timestamp);
+if(txDate<=endDate){
+var sym=t.token_in_symbol||t.token_out_symbol;
+if(!sym||['EUR','USD'].includes(sym))return;
+var symUp=sym.toUpperCase();
+var amt=0;
+if(t.token_in_symbol&&t.token_in_amount)amt+=parseFloat(t.token_in_amount)||0;
+if(t.token_out_symbol&&t.token_out_amount)amt-=parseFloat(t.token_out_amount)||0;
+if(!wBalances[symUp])wBalances[symUp]={amount:0,source:'wallet'};
+wBalances[symUp].amount+=amt;
+}});
+}
+
+// === UNISCI EXCHANGE + WALLET ===
+var combined={};
+Object.entries(exBalances).forEach(function(e){
+var coin=e[0];var data=e[1];
+if(['EUR','USD'].includes(coin))return;
+if(Math.abs(data.amount)<0.000001)return;
+if(!combined[coin])combined[coin]={exchange:0,wallet:0};
+combined[coin].exchange=data.amount;
+});
+Object.entries(wBalances).forEach(function(e){
+var coin=e[0];var data=e[1];
+if(Math.abs(data.amount)<0.000001)return;
+if(!combined[coin])combined[coin]={exchange:0,wallet:0};
+combined[coin].wallet=data.amount;
+});
+
+var coinsWithBalance=Object.entries(combined).filter(function(e){
+var total=e[1].exchange+e[1].wallet;
+return Math.abs(total)>0.000001;
+}).map(function(e){
+return[e[0],e[1].exchange+e[1].wallet,e[1].exchange,e[1].wallet];
+});
+
+console.log('Year',year,'combined balances:',coinsWithBalance.length);
+results.push({year:year,balances:coinsWithBalance,isCurrentYear:isCurrentYear});
+}
+
+// 4. RECUPERA PREZZI STORICI
 document.getElementById('rwContent').innerHTML='<div style="padding:40px;text-align:center"><div class="spinner"></div><div style="margin-top:12px;color:var(--text2)">Recupero prezzi storici...</div></div>';
-var allCoins=[...new Set(results.flatMap(function(r){return r.balances.map(function(b){return b[0];});}))];var pricesToFetch=[];years.forEach(function(y){allCoins.forEach(function(c){pricesToFetch.push({coin:c,date:y+'-12-31'});});});
-var cachedRes=await db.from('historical_prices').select('*').in('coin',allCoins);var cached={};(cachedRes.data||[]).forEach(function(p){cached[p.coin+'_'+p.date]=p;});
+var allCoins=[...new Set(results.flatMap(function(r){return r.balances.map(function(b){return b[0];});}))];
+var pricesToFetch=[];
+years.forEach(function(y){allCoins.forEach(function(c){pricesToFetch.push({coin:c,date:y+'-12-31'});});});
+var cachedRes=await db.from('historical_prices').select('*').in('coin',allCoins);
+var cached={};(cachedRes.data||[]).forEach(function(p){cached[p.coin+'_'+p.date]=p;});
 var missing=pricesToFetch.filter(function(p){return!cached[p.coin+'_'+p.date];});
-if(missing.length>0){document.getElementById('rwContent').innerHTML='<div style="padding:40px;text-align:center"><div class="spinner"></div><div style="margin-top:12px;color:var(--text2)">Scarico '+missing.length+' prezzi da CoinGecko...</div></div>';var fetched=0;for(var i=0;i<missing.length;i++){var m=missing[i];var cgId=COIN_MAP[m.coin];if(!cgId)continue;try{var dateStr=m.date.split('-');var cgDate=dateStr[2]+'-'+dateStr[1]+'-'+dateStr[0];var url='https://api.coingecko.com/api/v3/coins/'+cgId+'/history?date='+cgDate+'&localization=false';var res=await fetch(url);if(res.ok){var data=await res.json();var eur=data.market_data?.current_price?.eur||0;var usd=data.market_data?.current_price?.usd||0;if(eur>0){await db.from('historical_prices').upsert({coin:m.coin,coin_id:cgId,date:m.date,price_eur:eur,price_usd:usd},{onConflict:'coin,date'});cached[m.coin+'_'+m.date]={price_eur:eur,price_usd:usd};}}fetched++;if(fetched%5===0)document.getElementById('rwContent').innerHTML='<div style="padding:40px;text-align:center"><div class="spinner"></div><div style="margin-top:12px;color:var(--text2)">Prezzi: '+fetched+'/'+missing.length+'</div></div>';await new Promise(function(r){setTimeout(r,1200);});}catch(e){console.log('Price error:',m.coin,e);}}}
-rwData=[];var html='';years.forEach(function(year){var r=results.find(function(x){return x.year===year;});if(!r)return;var rows=[];var totalEur=0;var totalUnpriced=0;r.balances.forEach(function(b){var coin=b[0];var bal=b[1];var priceData=cached[coin+'_'+year+'-12-31'];var price=priceData?parseFloat(priceData.price_eur):0;var value=bal*price;if(Math.abs(bal)>0.000001){totalEur+=value;if(price===0)totalUnpriced++;rows.push({coin:coin,balance:bal,price:price,value:value});}});rows.sort(function(a,b){return Math.abs(b.value)-Math.abs(a.value);});rwData.push({year:year,total:totalEur,rows:rows});html+='<div class="card mb-12"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div style="font-size:14px;font-weight:700">📅 '+year+' - Valore al 31/12</div><div style="font-size:16px;font-weight:700;color:var(--green)">'+fmtC(totalEur)+'</div></div>';if(rows.length===0){html+='<div style="color:var(--text2);font-size:12px">Nessun saldo crypto</div>';}else{if(totalUnpriced>0)html+='<div style="color:var(--yellow);font-size:11px;margin-bottom:8px">⚠️ '+totalUnpriced+' coin senza prezzo</div>';html+='<table class="table" style="font-size:11px"><thead><tr><th>Coin</th><th class="text-right">Saldo</th><th class="text-right">Prezzo €</th><th class="text-right">Valore €</th></tr></thead><tbody>';rows.slice(0,30).forEach(function(row){var priceCol=row.price>0?fmtC(row.price):'<span style="color:var(--yellow)">?</span>';var valueCol=row.price>0?fmtC(row.value):'<span style="color:var(--yellow)">?</span>';html+='<tr><td><strong>'+row.coin+'</strong></td><td class="text-right text-mono">'+fmtN(row.balance)+'</td><td class="text-right text-mono">'+priceCol+'</td><td class="text-right text-mono" style="color:var(--green)">'+valueCol+'</td></tr>';});if(rows.length>30)html+='<tr><td colspan="4" style="text-align:center;color:var(--text2)">...e altri '+(rows.length-30)+' coin</td></tr>';html+='</tbody></table>';}html+='</div>';});
+
+if(missing.length>0){
+document.getElementById('rwContent').innerHTML='<div style="padding:40px;text-align:center"><div class="spinner"></div><div style="margin-top:12px;color:var(--text2)">Scarico '+missing.length+' prezzi da CoinGecko...</div></div>';
+var fetched=0;
+for(var i=0;i<missing.length;i++){
+var m=missing[i];var cgId=COIN_MAP[m.coin];
+if(!cgId)continue;
+try{
+var dateStr=m.date.split('-');
+var cgDate=dateStr[2]+'-'+dateStr[1]+'-'+dateStr[0];
+var url='https://api.coingecko.com/api/v3/coins/'+cgId+'/history?date='+cgDate+'&localization=false';
+var res=await fetch(url);
+if(res.ok){
+var data=await res.json();
+var eur=data.market_data?.current_price?.eur||0;
+var usd=data.market_data?.current_price?.usd||0;
+if(eur>0){
+await db.from('historical_prices').upsert({coin:m.coin,coin_id:cgId,date:m.date,price_eur:eur,price_usd:usd},{onConflict:'coin,date'});
+cached[m.coin+'_'+m.date]={price_eur:eur,price_usd:usd};
+}}
+fetched++;
+if(fetched%5===0)document.getElementById('rwContent').innerHTML='<div style="padding:40px;text-align:center"><div class="spinner"></div><div style="margin-top:12px;color:var(--text2)">Prezzi: '+fetched+'/'+missing.length+'</div></div>';
+await new Promise(function(r){setTimeout(r,1200);});
+}catch(e){console.log('Price error:',m.coin,e);}
+}}
+
+// 5. GENERA HTML RISULTATO
+rwData=[];var html='';
+html+='<div class="card mb-12" style="background:linear-gradient(135deg,rgba(102,126,234,0.1),rgba(118,75,162,0.1))"><div style="font-size:12px;margin-bottom:8px"><strong>📊 Fonti dati Quadro RW</strong></div>';
+html+='<div style="display:flex;gap:16px;font-size:11px"><div><span style="color:var(--cyan)">🏦 Exchange:</span> '+exchangeTx.length+' TX</div>';
+html+='<div><span style="color:var(--purple)">👛 Wallet:</span> '+wallets.length+' wallet, '+walletBalances.length+' saldi</div></div>';
+if(walletTx.length===0&&wallets.length>0)html+='<div style="color:var(--yellow);font-size:10px;margin-top:8px">⚠️ TX wallet non sincronizzate - per anni passati usa "Sync TX" nei wallet</div>';
+html+='</div>';
+
+years.forEach(function(year){
+var r=results.find(function(x){return x.year===year;});
+if(!r)return;
+var rows=[];var totalEur=0;var totalUnpriced=0;
+r.balances.forEach(function(b){
+var coin=b[0];var bal=b[1];var exBal=b[2];var wBal=b[3];
+var priceData=cached[coin+'_'+year+'-12-31'];
+var price=priceData?parseFloat(priceData.price_eur):0;
+var value=bal*price;
+if(Math.abs(bal)>0.000001){
+totalEur+=value;
+if(price===0)totalUnpriced++;
+rows.push({coin:coin,balance:bal,exBalance:exBal,wBalance:wBal,price:price,value:value});
+}});
+rows.sort(function(a,b){return Math.abs(b.value)-Math.abs(a.value);});
+rwData.push({year:year,total:totalEur,rows:rows});
+
+html+='<div class="card mb-12"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div style="font-size:14px;font-weight:700">📅 '+year+' - Valore al 31/12'+(r.isCurrentYear?' <span style="font-size:10px;color:var(--yellow)">(saldi attuali wallet)</span>':'')+'</div><div style="font-size:16px;font-weight:700;color:var(--green)">'+fmtC(totalEur)+'</div></div>';
+if(rows.length===0){html+='<div style="color:var(--text2);font-size:12px">Nessun saldo crypto</div>';}
+else{
+if(totalUnpriced>0)html+='<div style="color:var(--yellow);font-size:11px;margin-bottom:8px">⚠️ '+totalUnpriced+' coin senza prezzo</div>';
+html+='<table class="table" style="font-size:11px"><thead><tr><th>Coin</th><th class="text-right">Saldo Tot</th><th class="text-right" style="color:var(--cyan)">🏦 Ex</th><th class="text-right" style="color:var(--purple)">👛 Wal</th><th class="text-right">Prezzo €</th><th class="text-right">Valore €</th></tr></thead><tbody>';
+rows.slice(0,30).forEach(function(row){
+var priceCol=row.price>0?fmtC(row.price):'<span style="color:var(--yellow)">?</span>';
+var valueCol=row.price>0?fmtC(row.value):'<span style="color:var(--yellow)">?</span>';
+var exCol=row.exBalance?fmtN(row.exBalance):'-';
+var wCol=row.wBalance?fmtN(row.wBalance):'-';
+html+='<tr><td><strong>'+row.coin+'</strong></td><td class="text-right text-mono">'+fmtN(row.balance)+'</td><td class="text-right text-mono" style="color:var(--cyan)">'+exCol+'</td><td class="text-right text-mono" style="color:var(--purple)">'+wCol+'</td><td class="text-right text-mono">'+priceCol+'</td><td class="text-right text-mono" style="color:var(--green)">'+valueCol+'</td></tr>';
+});
+if(rows.length>30)html+='<tr><td colspan="6" style="text-align:center;color:var(--text2)">...e altri '+(rows.length-30)+' coin</td></tr>';
+html+='</tbody></table>';
+}
+html+='</div>';
+});
 document.getElementById('rwContent').innerHTML=html||'<div style="padding:40px;text-align:center;color:var(--text2)">Nessun dato</div>';}
-function exportRW(){if(!rwData.length){toast('Nessun dato da esportare','error');return;}var csv='Anno,Coin,Saldo,Prezzo_EUR,Valore_EUR\n';rwData.forEach(function(y){y.rows.forEach(function(r){csv+=y.year+',"'+r.coin+'",'+r.balance+','+r.price+','+r.value+'\n';});});var blob=new Blob([csv],{type:'text/csv'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='QuadroRW_'+new Date().toISOString().slice(0,10)+'.csv';a.click();toast('✅ CSV esportato!');}
+function exportRW(){if(!rwData.length){toast('Nessun dato da esportare','error');return;}var csv='Anno,Coin,Saldo_Totale,Saldo_Exchange,Saldo_Wallet,Prezzo_EUR,Valore_EUR\n';rwData.forEach(function(y){y.rows.forEach(function(r){csv+=y.year+',"'+r.coin+'",'+r.balance+','+(r.exBalance||0)+','+(r.wBalance||0)+','+r.price+','+r.value+'\n';});});var blob=new Blob([csv],{type:'text/csv'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='QuadroRW_'+new Date().toISOString().slice(0,10)+'.csv';a.click();toast('✅ CSV esportato!');}
 async function testAndSyncApi(){var apiKey=document.getElementById('apiKey2').value.trim();var apiSecret=document.getElementById('apiSecret').value.trim();var exchange=document.getElementById('apiExchange').value;if(!apiKey||!apiSecret){showApiStatus('❌ Inserisci API Key e Secret','error');return;}document.getElementById('apiSyncBtn').disabled=true;document.getElementById('apiSyncBtn').textContent='🔄 Connessione...';showApiStatus('🔄 Connessione a Binance via Edge Function...','info');try{var edgeUrl=SB_URL+'/functions/v1/binance-proxy';var res=await fetch(edgeUrl,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},body:JSON.stringify({apiKey:apiKey,apiSecret:apiSecret,action:'all'})});if(!res.ok){var err=await res.json();throw new Error(err.error||'Errore API');}var data=await res.json();localStorage.setItem('binance_api_key',apiKey);localStorage.setItem('binance_api_secret',apiSecret);showApiStatus('✅ Connesso! Balances: '+data.balances.length+', Deposits: '+data.deposits.length+', Withdraws: '+data.withdraws.length,'success');var allTx=[];data.deposits.forEach(function(d){allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:new Date(d.insertTime).toISOString(),tax_year:new Date(d.insertTime).getFullYear(),operation:'Deposit',account:'Spot',coin:d.coin,amount:parseFloat(d.amount),tx_type:'deposit',remark:d.txId||''});});data.withdraws.forEach(function(w){allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:new Date(w.completeTime||w.applyTime).toISOString(),tax_year:new Date(w.completeTime||w.applyTime).getFullYear(),operation:'Withdraw',account:'Spot',coin:w.coin,amount:-parseFloat(w.amount),tx_type:'withdraw',remark:w.txId||''});});(data.trades||[]).forEach(function(t){var isBuy=t.isBuyer;allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:new Date(t.time).toISOString(),tax_year:new Date(t.time).getFullYear(),operation:isBuy?'Trade Buy':'Trade Sell',account:'Spot',coin:t.symbol.replace('USDT',''),amount:parseFloat(t.qty)*(isBuy?1:-1),tx_type:isBuy?'trade_buy':'trade_sell',remark:'Price: '+t.price});});if(allTx.length>0){showApiStatus('🔄 Salvataggio '+allTx.length+' transazioni...','info');for(var i=0;i<allTx.length;i+=50){var batch=allTx.slice(i,i+50);await db.from('exchange_transactions').upsert(batch,{onConflict:'user_id,exchange,tx_timestamp,coin,amount,operation',ignoreDuplicates:true});}}showApiStatus('✅ Sincronizzati '+allTx.length+' record!','success');toast('✅ '+allTx.length+' TX sincronizzate via API!');setTimeout(function(){closeModal('apiModal');loadExchangeTx();},2000);}catch(e){console.error('API Error:',e);if(e.message.includes('FunctionNotFound')||e.message.includes('404')){showApiStatus('⚠️ Edge Function non deployata.<br><a href="#" onclick="showEdgeFunctionHelp();return false;" style="color:var(--primary)">→ Come deployare</a><br><br>Oppure usa <strong>Import CSV</strong>','warning');}else{showApiStatus('❌ Errore: '+e.message,'error');}}document.getElementById('apiSyncBtn').disabled=false;document.getElementById('apiSyncBtn').textContent='🚀 Connetti e Sincronizza';}
 function showEdgeFunctionHelp(){alert('COME DEPLOYARE LA EDGE FUNCTION:\\n\\n1. Installa Supabase CLI:\\n   npm install -g supabase\\n\\n2. Login:\\n   supabase login\\n\\n3. Link al progetto:\\n   supabase link --project-ref TUO_PROJECT_REF\\n\\n4. Crea la funzione:\\n   supabase functions new binance-proxy\\n\\n5. Copia il file supabase_edge_function_binance.ts\\n\\n6. Deploy:\\n   supabase functions deploy binance-proxy\\n\\nScarica il file dalla chat!');}
 function updateApiHelp(){var ex=document.getElementById('apiExchange').value;var helps={binance:'<strong>📋 Come ottenere le API Binance:</strong><ol style="margin:8px 0 0 16px;padding:0"><li>Vai su <a href="https://www.binance.com/it/my/settings/api-management" target="_blank" style="color:var(--primary)">Binance API Management</a></li><li>Crea una nuova API Key</li><li>Abilita solo "Read" (nessun permesso di trading!)</li><li>Copia API Key e Secret qui sotto</li></ol>',kucoin:'<strong>📋 Come ottenere le API KuCoin:</strong><ol style="margin:8px 0 0 16px;padding:0"><li>Vai su <a href="https://www.kucoin.com/account/api" target="_blank" style="color:var(--primary)">KuCoin API Management</a></li><li>Crea una nuova API</li><li>Imposta permessi "General" e "Trade" in sola lettura</li></ol>',bybit:'<strong>📋 Come ottenere le API Bybit:</strong><ol style="margin:8px 0 0 16px;padding:0"><li>Vai su <a href="https://www.bybit.com/app/user/api-management" target="_blank" style="color:var(--primary)">Bybit API Management</a></li><li>Crea una nuova API Key</li><li>Abilita solo permessi di lettura</li></ol>'};document.getElementById('apiHelp').innerHTML=helps[ex]||helps.binance;}
