@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v7.58</title>
+<title>CryptoFolio v7.59</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -57,7 +57,7 @@
 <div id="authScreen" class="auth-box">
 <div class="auth-card">
 <div class="logo" style="justify-content:center;margin-bottom:20px"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
-<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v7.58 - 17 Chains</p>
+<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v7.59 - 17 Chains</p>
 <div class="form-group"><label class="form-label">Email</label><input id="authEmail" type="email" class="input"></div>
 <div class="form-group"><label class="form-label">Password</label><input id="authPassword" type="password" class="input"></div>
 <div id="authError" style="color:var(--red);font-size:12px;margin-bottom:12px"></div>
@@ -68,7 +68,7 @@
 <aside class="sidebar">
 <div class="logo"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
 <nav><div class="nav active" data-page="dashboard" onclick="showPage('dashboard')">📊 Dashboard</div><div class="nav" data-page="wallets" onclick="showPage('wallets')">👛 Wallets</div><div class="nav" data-page="exchange" onclick="showPage('exchange')">🏦 Exchange</div><div class="nav" data-page="tokens" onclick="showPage('tokens')">🪙 Token</div><div class="nav" data-page="settings" onclick="showPage('settings')">⚙️ Settings</div></nav>
-<div class="sidebar-footer">v7.58<br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
+<div class="sidebar-footer">v7.59<br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
 </aside>
 <main class="main">
 <div id="page-dashboard">
@@ -318,7 +318,10 @@ if(txs.length===0){document.getElementById('exDetailList').innerHTML='<div style
 var typeIcons={deposit:'📥',withdraw:'📤',trade_buy:'🛒',trade_sell:'💰',reward:'🎁',convert:'🔄',fee:'💸',transfer:'↔️',other:'•'};var typeColors={deposit:'var(--green)',withdraw:'var(--red)',trade_buy:'var(--green)',trade_sell:'var(--red)',reward:'var(--yellow)',convert:'var(--blue)',fee:'var(--red)',transfer:'var(--cyan)',other:'var(--text2)'};
 var html='<div style="font-size:11px;color:var(--text2);margin-bottom:8px">Mostrando '+Math.min(txs.length,500)+' di '+txs.length+' TX</div>';
 txs.slice(0,500).forEach(function(t){var d=new Date(t.tx_timestamp);var dateStr=d.toLocaleDateString('it-IT')+' '+d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});var amt=parseFloat(t.amount);var amtStr=formatAmount(amt);var amtColor=amt>=0?'var(--green)':'var(--red)';var icon=typeIcons[t.tx_type]||'•';var opColor=typeColors[t.tx_type]||'var(--text2)';
-html+='<div style="display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);gap:12px">';html+='<div style="width:36px;height:36px;border-radius:8px;background:'+opColor+'20;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">'+icon+'</div>';html+='<div style="flex:1;min-width:0;overflow:hidden"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:600;white-space:nowrap">'+t.coin+'</div><div class="text-mono" style="color:'+amtColor+';font-weight:600;white-space:nowrap">'+amtStr+'</div></div>';html+='<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-top:2px;gap:8px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'+t.operation+'</div><div style="white-space:nowrap;flex-shrink:0">'+dateStr+'</div></div></div></div>';});
+html+='<div style="display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);gap:12px">';
+var coinLower=t.coin.toLowerCase();var iconUrl='https://assets.coincap.io/assets/icons/'+coinLower+'@2x.png';
+html+='<div style="position:relative;width:36px;height:36px;flex-shrink:0"><img src="'+iconUrl+'" style="width:36px;height:36px;border-radius:50%" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'"><div style="display:none;width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff">'+t.coin.slice(0,3)+'</div><div style="position:absolute;bottom:-2px;right:-2px;width:16px;height:16px;border-radius:50%;background:'+opColor+';display:flex;align-items:center;justify-content:center;font-size:9px;border:2px solid var(--bg)">'+icon+'</div></div>';
+html+='<div style="flex:1;min-width:0;overflow:hidden"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:600;white-space:nowrap">'+t.coin+'</div><div class="text-mono" style="color:'+amtColor+';font-weight:600;white-space:nowrap">'+amtStr+'</div></div>';html+='<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-top:2px;gap:8px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'+t.operation+'</div><div style="white-space:nowrap;flex-shrink:0">'+dateStr+'</div></div></div></div>';});
 if(txs.length>500)html+='<div style="padding:20px;text-align:center;color:var(--text2);font-size:11px">...e altre '+(txs.length-500)+' TX. Usa i filtri per affinare.</div>';
 document.getElementById('exDetailList').innerHTML=html;}
 function toggleYearDetail(year){var el=document.getElementById('yearDetail'+year);el.style.display=el.style.display==='none'?'block':'none';}
