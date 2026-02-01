@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v7.89</title>
+<title>CryptoFolio v7.90</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -334,16 +334,23 @@ function formatExName(ex){return EX_NAMES[ex]||ex.replace(/_/g,' ').replace(/\b\
 var STABLES=['EUR','USD','USDT','USDC','BUSD','DAI','TUSD'];
 async function loadExchangeTx(){var allTx=[];var page=0;var pageSize=1000;var hasMore=true;while(hasMore){var res=await db.from('exchange_transactions').select('*').eq('user_id',user.id).range(page*pageSize,(page+1)*pageSize-1);var data=res.data||[];allTx=allTx.concat(data);hasMore=data.length===pageSize;page++;if(page>20)break;}console.log('Loaded TX:',allTx.length,'('+page+' pages)');
 var byYear={2021:{tx:0,deposits:0,withdraws:0,rewards:0,buys:0,sells:0},2022:{tx:0,deposits:0,withdraws:0,rewards:0,buys:0,sells:0},2023:{tx:0,deposits:0,withdraws:0,rewards:0,buys:0,sells:0},2024:{tx:0,deposits:0,withdraws:0,rewards:0,buys:0,sells:0},2025:{tx:0,deposits:0,withdraws:0,rewards:0,buys:0,sells:0},2026:{tx:0,deposits:0,withdraws:0,rewards:0,buys:0,sells:0}};var byExchange={};
-allTx.forEach(function(t){var y=t.tax_year||2021;var amt=parseFloat(t.amount)||0;var op=t.operation||'';var type=t.tx_type||'';var coin=t.coin||'';var remark=(t.remark||'').toLowerCase();var isEur=coin==='EUR';var isUsdStable=['USD','USDT','USDC','BUSD','DAI','TUSD','FDUSD'].includes(coin);var amtEur=isEur?amt:(isUsdStable?amt*0.92:0);var isInternal=remark.includes('trade')||remark.includes('exchange')||remark.includes('swap')||remark.includes('transfer')||remark.includes('account')||remark.includes('margin')||remark.includes('funding')||op.toLowerCase().includes('trade');var isRealDeposit=type==='deposit'&&!isInternal;var isRealWithdraw=type==='withdraw'&&!isInternal;if(byYear[y]){byYear[y].tx++;if(isRealDeposit&&amtEur>0)byYear[y].deposits+=amtEur;if(isRealWithdraw&&(isEur||isUsdStable))byYear[y].withdraws+=Math.abs(amtEur);if(type==='reward'||op.includes('Interest')||op.includes('Reward')||op.includes('Staking')||op.includes('Learning'))byYear[y].rewards++;if(type==='trade_buy'||op.includes('Buy'))byYear[y].buys++;if(type==='trade_sell'||op.includes('Sell')||op.includes('Sold'))byYear[y].sells++;}if(!byExchange[t.exchange])byExchange[t.exchange]={count:0,coins:new Set(),years:new Set(),deposits:0,withdraws:0,depositsCount:0,withdrawsCount:0,rewards:0,buys:0,sells:0,converts:0,byYear:{}};byExchange[t.exchange].count++;byExchange[t.exchange].coins.add(coin);byExchange[t.exchange].years.add(y);
-if(type==='deposit'){byExchange[t.exchange].depositsCount++;if(isRealDeposit&&amtEur>0)byExchange[t.exchange].deposits+=amtEur;}
-if(type==='withdraw'){byExchange[t.exchange].withdrawsCount++;if(isRealWithdraw&&(isEur||isUsdStable))byExchange[t.exchange].withdraws+=Math.abs(amtEur);}
+allTx.forEach(function(t){var y=t.tax_year||2021;var amt=parseFloat(t.amount)||0;var op=t.operation||'';var type=t.tx_type||'';var coin=t.coin||'';var remark=(t.remark||'').toLowerCase();var isEur=coin==='EUR';var isUsdStable=['USD','USDT','USDC','BUSD','DAI','TUSD','FDUSD'].includes(coin);
+// USA value_eur SE DISPONIBILE (nuovo parser v2)
+var amtEur=t.value_eur?parseFloat(t.value_eur):(isEur?amt:(isUsdStable?amt*0.92:0));
+var isInternal=remark.includes('trade')||remark.includes('exchange')||remark.includes('swap')||remark.includes('transfer')||remark.includes('account')||remark.includes('margin')||remark.includes('funding')||op.toLowerCase().includes('trade');var isRealDeposit=type==='deposit'&&!isInternal;var isRealWithdraw=type==='withdraw'&&!isInternal;
+var hasValue=t.value_eur||isEur||isUsdStable;
+if(byYear[y]){byYear[y].tx++;if((type==='deposit'||type==='trade_buy')&&amtEur>0)byYear[y].deposits+=amtEur;if((type==='withdraw'||type==='trade_sell')&&amtEur>0)byYear[y].withdraws+=amtEur;if(type==='reward'||op.includes('Interest')||op.includes('Reward')||op.includes('Staking')||op.includes('Learning'))byYear[y].rewards++;if(type==='trade_buy'||op.includes('Buy'))byYear[y].buys++;if(type==='trade_sell'||op.includes('Sell')||op.includes('Sold'))byYear[y].sells++;}if(!byExchange[t.exchange])byExchange[t.exchange]={count:0,coins:new Set(),years:new Set(),deposits:0,withdraws:0,depositsCount:0,withdrawsCount:0,rewards:0,buys:0,sells:0,converts:0,byYear:{}};byExchange[t.exchange].count++;byExchange[t.exchange].coins.add(coin);byExchange[t.exchange].years.add(y);
+if(type==='deposit'){byExchange[t.exchange].depositsCount++;if(amtEur>0)byExchange[t.exchange].deposits+=amtEur;}
+if(type==='withdraw'){byExchange[t.exchange].withdrawsCount++;if(amtEur>0)byExchange[t.exchange].withdraws+=amtEur;}
+if(type==='trade_buy'){byExchange[t.exchange].depositsCount++;if(amtEur>0)byExchange[t.exchange].deposits+=amtEur;}
+if(type==='trade_sell'){byExchange[t.exchange].withdrawsCount++;if(amtEur>0)byExchange[t.exchange].withdraws+=amtEur;}
 if(type==='reward'||op.includes('Interest')||op.includes('Reward')||op.includes('Learning'))byExchange[t.exchange].rewards++;
 if(type==='trade_buy'||op.includes('Buy'))byExchange[t.exchange].buys++;
 if(type==='trade_sell'||op.includes('Sell')||op.includes('Sold'))byExchange[t.exchange].sells++;
 if(type==='convert'||op.includes('Convert'))byExchange[t.exchange].converts++;
 if(!byExchange[t.exchange].byYear[y])byExchange[t.exchange].byYear[y]={tx:0,deposits:0,withdraws:0,depositsCount:0,withdrawsCount:0,rewards:0,buys:0,sells:0,converts:0};byExchange[t.exchange].byYear[y].tx++;
-if(type==='deposit'){byExchange[t.exchange].byYear[y].depositsCount++;if(isRealDeposit&&amtEur>0)byExchange[t.exchange].byYear[y].deposits+=amtEur;}
-if(type==='withdraw'){byExchange[t.exchange].byYear[y].withdrawsCount++;if(isRealWithdraw&&(isEur||isUsdStable))byExchange[t.exchange].byYear[y].withdraws+=Math.abs(amtEur);}
+if(type==='deposit'||type==='trade_buy'){byExchange[t.exchange].byYear[y].depositsCount++;if(amtEur>0)byExchange[t.exchange].byYear[y].deposits+=amtEur;}
+if(type==='withdraw'||type==='trade_sell'){byExchange[t.exchange].byYear[y].withdrawsCount++;if(amtEur>0)byExchange[t.exchange].byYear[y].withdraws+=amtEur;}
 if(type==='reward'||op.includes('Interest')||op.includes('Reward')||op.includes('Learning'))byExchange[t.exchange].byYear[y].rewards++;
 if(type==='trade_buy'||op.includes('Buy'))byExchange[t.exchange].byYear[y].buys++;
 if(type==='trade_sell'||op.includes('Sell')||op.includes('Sold'))byExchange[t.exchange].byYear[y].sells++;
@@ -381,8 +388,9 @@ pageTxs.forEach(function(t){var d=new Date(t.tx_timestamp);var dateStr=d.toLocal
 html+='<div style="display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);gap:12px">';
 var coinLower=t.coin.toLowerCase();var iconUrl='https://assets.coincap.io/assets/icons/'+coinLower+'@2x.png';
 html+='<div style="position:relative;width:36px;height:36px;flex-shrink:0"><img src="'+iconUrl+'" style="width:36px;height:36px;border-radius:50%" onerror="this.style.display=\'none\';var n=this.nextElementSibling;if(n)n.style.display=\'flex\';"><div style="display:none;width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff">'+t.coin.slice(0,3)+'</div><div style="position:absolute;bottom:-2px;right:-2px;width:16px;height:16px;border-radius:50%;background:'+opColor+';display:flex;align-items:center;justify-content:center;font-size:9px;border:2px solid var(--bg)">'+icon+'</div></div>';
-html+='<div style="flex:1;min-width:0;overflow:hidden"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:600;white-space:nowrap">'+t.coin+'</div><div class="text-mono" style="color:'+amtColor+';font-weight:600;white-space:nowrap;font-size:13px">'+amtStr+'</div></div>';
-html+='<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-top:2px;gap:8px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'+t.operation+'</div><div style="white-space:nowrap;flex-shrink:0">'+dateStr+'</div></div></div></div>';});
+html+='<div style="flex:1;min-width:0;overflow:hidden"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:600;white-space:nowrap">'+t.coin+(t.pair?' <span style="font-size:10px;color:var(--text2)">'+t.pair+'</span>':'')+'</div><div class="text-mono" style="color:'+amtColor+';font-weight:600;white-space:nowrap;font-size:13px">'+amtStr+'</div></div>';
+var priceStr=t.price_eur?'€'+fmtN(t.price_eur):'';var valueStr=t.value_eur?'<span style="color:var(--cyan);font-weight:600">€'+fmtN(t.value_eur)+'</span>':'';
+html+='<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-top:2px;gap:8px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'+t.operation+(priceStr?' @ '+priceStr:'')+'</div><div style="white-space:nowrap;flex-shrink:0">'+valueStr+(valueStr?' • ':'')+dateStr+'</div></div></div></div>';});
 html+='<div style="display:flex;justify-content:center;margin-top:12px;gap:4px">';
 html+='<button onclick="exDetailGoPage(exDetailPage-1)" class="btn btn-secondary" style="padding:8px 16px" '+(exDetailPage===1?'disabled':'')+'>◀ Precedente</button>';
 html+='<button onclick="exDetailGoPage(exDetailPage+1)" class="btn btn-secondary" style="padding:8px 16px" '+(exDetailPage===totalPages?'disabled':'')+'>Successiva ▶</button>';
@@ -416,6 +424,27 @@ var isPionexDeposit=headerLine.includes('date(UTC')&&headerLine.includes('tx_typ
 var isRevolut=headerLine.includes('Symbol')&&headerLine.includes('Type')&&headerLine.includes('Quantity')&&headerLine.includes('Price')&&headerLine.includes('Value');
 var isBybit=isBybitDeposit||isBybitFund||isBybitUta||isBybitSpot;
 console.log('Format - Binance:',isBinance,'Coinbase:',isCoinbase,'Bybit:',isBybit,'Bitget:',isBitget,'Bitpanda:',isBitpanda,'CryptoCom:',isCryptoCom,'CryptoComEx:',isCryptoComExDeposit||isCryptoComExJournal,'OKX:',isOkipo||isOkxOfficial,'KuCoin:',isKucoinSpot||isKucoinDeposit||isKucoinAccount,'YouHodler:',isYouHodler,'Pionex:',isPionexTrading||isPionexDeposit,'Revolut:',isRevolut,'dataStart:',dataStartLine);
+
+// === BINANCE: USA PARSER AVANZATO v2 ===
+if(isBinance){
+var binanceTxs=parseBinanceAdvanced(csv.text,user.id);
+if(binanceTxs.length>0){
+var withPrice=binanceTxs.filter(function(t){return t.price_eur;}).length;
+var needsPrice=binanceTxs.filter(function(t){return t.needs_price&&!t.price_eur;}).length;
+console.log('Binance v2: '+binanceTxs.length+' TX, '+withPrice+' con prezzo, '+needsPrice+' serve CoinGecko');
+document.getElementById('importStatus').textContent='💾 Salvataggio '+csv.name+' ('+binanceTxs.length+' TX con prezzi)...';
+var inserted=0;var errors=0;
+for(var b=0;b<binanceTxs.length;b+=100){
+var batch=binanceTxs.slice(b,b+100);
+try{var res=await db.from('exchange_transactions').upsert(batch,{onConflict:'user_id,exchange,tx_timestamp,coin,amount,operation'});
+if(res.error){console.error('Upsert error:',res.error);errors+=batch.length;}else{inserted+=batch.length;}}
+catch(e){console.error('Exception:',e);errors+=batch.length;}}
+totalImported+=inserted;totalParsed+=binanceTxs.length;
+console.log('Binance inserted:',inserted,'errors:',errors);
+document.getElementById('importBar').style.width=Math.round(((i+1)/csvTexts.length)*100)+'%';
+continue;}}
+// === FINE BINANCE PARSER v2 ===
+
 for(var j=dataStartLine;j<lines.length;j++){var line=lines[j].trim();if(!line)continue;var cols=parseCSVLine(line);
 var utcTime,operation,coin,change,remark='',account='Spot';
 if(isBinance&&cols.length>=6){utcTime=cols[1]?.replace(/"/g,'');operation=cols[3]?.replace(/"/g,'');coin=cols[4]?.replace(/"/g,'');change=parseFloat(cols[5]?.replace(/"/g,'')||0);remark=cols[6]?.replace(/"/g,'')||'';account=cols[2]?.replace(/"/g,'')||'Spot';}
@@ -465,6 +494,176 @@ if(toInsert.length>0){var inserted=0;var errors=0;for(var b=0;b<toInsert.length;
 document.getElementById('importBar').style.width=Math.round(((i+1)/csvTexts.length)*100)+'%';}
 console.log('TOTALE - Parsed:',totalParsed,'Imported:',totalImported);document.getElementById('importBar').style.width='100%';document.getElementById('importStatus').textContent='✅ '+totalImported+' TX importate ('+totalParsed+' parsate)';document.getElementById('importBtn').disabled=false;toast('✅ '+totalImported+' TX importate!');setTimeout(function(){closeModal('importModal');loadExchangeTx();},2000);}
 function parseCSVLine(line){var result=[];var inQuotes=false;var current='';for(var i=0;i<line.length;i++){var c=line[i];if(c==='"'){inQuotes=!inQuotes;}else if(c===','&&!inQuotes){result.push(current);current='';}else{current+=c;}}result.push(current);return result;}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BINANCE PARSER v2 - Con calcolo prezzi automatico
+// ═══════════════════════════════════════════════════════════════════════════
+var STABLECOINS=['USDT','USDC','BUSD','DAI','TUSD','FDUSD','USD'];
+var FIAT_COINS=['EUR','USD','GBP'];
+var EUR_USD_RATES={2021:0.85,2022:0.95,2023:0.92,2024:0.92,2025:0.92};
+var COINGECKO_IDS={BTC:'bitcoin',ETH:'ethereum',BNB:'binancecoin',SOL:'solana',ADA:'cardano',XRP:'ripple',DOGE:'dogecoin',DOT:'polkadot',MATIC:'matic-network',SHIB:'shiba-inu',AVAX:'avalanche-2',LINK:'chainlink',LTC:'litecoin',ATOM:'cosmos',UNI:'uniswap',FIL:'filecoin',NEAR:'near',APE:'apecoin',SAND:'the-sandbox',MANA:'decentraland',AXS:'axie-infinity',AAVE:'aave',CRO:'crypto-com-chain',FTM:'fantom',CAKE:'pancakeswap-token',LUNA:'terra-luna-2',LUNC:'terra-luna',GRT:'the-graph',ENJ:'enjincoin',CHZ:'chiliz',ONE:'harmony',GALA:'gala',THETA:'theta-token',XTZ:'tezos',EOS:'eos',NEO:'neo',TRX:'tron',VET:'vechain',ALGO:'algorand',XLM:'stellar',HBAR:'hedera-hashgraph',EGLD:'elrond-erd-2',FLOW:'flow',KAVA:'kava',AR:'arweave',STX:'blockstack',CELO:'celo',ROSE:'oasis-network',INJ:'injective-protocol',SUI:'sui',APT:'aptos',SEI:'sei-network',TIA:'celestia',OP:'optimism',ARB:'arbitrum',PEPE:'pepe',FLOKI:'floki',WIF:'dogwifcoin',BONK:'bonk',NOT:'notcoin',TON:'the-open-network',PENDLE:'pendle',JUP:'jupiter-exchange-solana',WLD:'worldcoin-wld',BLUR:'blur',IMX:'immutable-x',CYBER:'cyberconnect',RDNT:'radiant-capital',ID:'space-id',HOOK:'hooked-protocol',HIGH:'highstreet',NFT:'apenft',BTT:'bittorrent',WIN:'winklink',STMX:'storm',HOT:'holotoken',CELR:'celer-network',NKN:'nkn',ANKR:'ankr',BAT:'basic-attention-token',ZRX:'0x',SNX:'havven',COMP:'compound-governance-token',YFI:'yearn-finance',SUSHI:'sushi',CRV:'curve-dao-token','1INCH':'1inch',BAL:'balancer',LRC:'loopring',KSM:'kusama',AUDIO:'audius',RUNE:'thorchain',FET:'fetch-ai',OCEAN:'ocean-protocol',BAND:'band-protocol',STORJ:'storj',SKL:'skale',CTSI:'cartesi',REN:'republic-protocol'};
+
+var priceCache=JSON.parse(localStorage.getItem('cryptofolio_price_cache')||'{}');
+function savePriceCache(){localStorage.setItem('cryptofolio_price_cache',JSON.stringify(priceCache));}
+
+async function getHistoricalPrice(coin,dateStr){
+var cacheKey=coin+'_'+dateStr;
+if(priceCache[cacheKey])return priceCache[cacheKey];
+var cgId=COINGECKO_IDS[coin.toUpperCase()];
+if(!cgId){console.log('No CoinGecko ID for',coin);return null;}
+var parts=dateStr.split('-');
+var cgDate=parts[2]+'-'+parts[1]+'-'+parts[0];
+try{
+var url='https://api.coingecko.com/api/v3/coins/'+cgId+'/history?date='+cgDate+'&localization=false';
+var res=await fetch(url);
+if(!res.ok){console.warn('CoinGecko error for',coin,dateStr);return null;}
+var data=await res.json();
+var priceEur=data.market_data?.current_price?.eur||null;
+var priceUsd=data.market_data?.current_price?.usd||null;
+if(priceEur){priceCache[cacheKey]={eur:priceEur,usd:priceUsd};savePriceCache();}
+return priceCache[cacheKey]||null;
+}catch(e){console.error('CoinGecko fetch error:',e);return null;}}
+
+function groupByTimestamp(txs,toleranceMs){
+if(txs.length===0)return[];
+txs.sort(function(a,b){return a.timestamp-b.timestamp;});
+var groups=[];var currentGroup=[txs[0]];
+for(var i=1;i<txs.length;i++){
+var diff=txs[i].timestamp-currentGroup[0].timestamp;
+if(diff<=toleranceMs){currentGroup.push(txs[i]);}
+else{groups.push(currentGroup);currentGroup=[txs[i]];}}
+groups.push(currentGroup);
+return groups;}
+
+function parseBinanceAdvanced(csvText,userId){
+var lines=csvText.split('\n').filter(function(l){return l.trim();});
+if(lines.length<2)return[];
+var rawTxs=[];
+for(var i=1;i<lines.length;i++){
+var cols=parseCSVLine(lines[i]);
+if(cols.length<6)continue;
+var utcTime=cols[1]?.replace(/"/g,'').trim();
+var account=cols[2]?.replace(/"/g,'').trim()||'Spot';
+var operation=cols[3]?.replace(/"/g,'').trim();
+var coin=cols[4]?.replace(/"/g,'').trim();
+var change=parseFloat(cols[5]?.replace(/"/g,'')||0);
+var remark=cols[6]?.replace(/"/g,'').trim()||'';
+if(!utcTime||!coin||isNaN(change))continue;
+rawTxs.push({utcTime:utcTime,timestamp:new Date(utcTime.replace(' ','T')+'Z').getTime(),account:account,operation:operation,coin:coin,change:change,remark:remark});}
+console.log('Binance raw:',rawTxs.length);
+var groups=groupByTimestamp(rawTxs,1000);
+console.log('Binance groups:',groups.length);
+var results=[];
+for(var g=0;g<groups.length;g++){
+var group=groups[g];
+var year=new Date(group[0].timestamp).getFullYear();
+var eurUsdRate=EUR_USD_RATES[year]||0.92;
+var buys=group.filter(function(t){return t.operation==='Transaction Buy';});
+var spends=group.filter(function(t){return t.operation==='Transaction Spend';});
+var solds=group.filter(function(t){return t.operation==='Transaction Sold';});
+var revenues=group.filter(function(t){return t.operation==='Transaction Revenue';});
+var converts=group.filter(function(t){return t.operation==='Binance Convert';});
+var cardBuys=group.filter(function(t){return t.operation==='Buy Crypto With Card';});
+var fees=group.filter(function(t){return t.operation==='Transaction Fee'||t.operation==='Fee';});
+var others=group.filter(function(t){return!['Transaction Buy','Transaction Spend','Transaction Sold','Transaction Revenue','Binance Convert','Buy Crypto With Card','Transaction Fee','Fee'].includes(t.operation);});
+
+if(buys.length>0&&spends.length>0){
+for(var b=0;b<buys.length;b++){
+var buy=buys[b];
+var spend=spends.find(function(s){return STABLECOINS.includes(s.coin)||FIAT_COINS.includes(s.coin);});
+if(spend){
+var priceUnit=Math.abs(spend.change)/Math.abs(buy.change);
+var isEur=spend.coin==='EUR';
+var isUsd=STABLECOINS.includes(spend.coin);
+results.push({user_id:userId,exchange:'binance',tx_timestamp:formatTs(buy.utcTime),tax_year:year,operation:'Buy',account:buy.account,coin:buy.coin,amount:buy.change,tx_type:'trade_buy',pair:buy.coin+'/'+spend.coin,price_eur:isEur?priceUnit:(isUsd?priceUnit*eurUsdRate:null),price_usd:isUsd?priceUnit:(isEur?priceUnit/eurUsdRate:null),value_eur:isEur?Math.abs(spend.change):(isUsd?Math.abs(spend.change)*eurUsdRate:null),remark:buy.remark||buy.coin+'/'+spend.coin,needs_price:false});
+}else{results.push(createBaseTx(buy,userId,year,'trade_buy',true));}}}
+
+if(solds.length>0){
+for(var s=0;s<solds.length;s++){
+var sold=solds[s];
+var revenue=revenues.find(function(r){return STABLECOINS.includes(r.coin)||FIAT_COINS.includes(r.coin);});
+if(revenue){
+var priceUnit=Math.abs(revenue.change)/Math.abs(sold.change);
+var isEur=revenue.coin==='EUR';
+var isUsd=STABLECOINS.includes(revenue.coin);
+results.push({user_id:userId,exchange:'binance',tx_timestamp:formatTs(sold.utcTime),tax_year:year,operation:'Sell',account:sold.account,coin:sold.coin,amount:sold.change,tx_type:'trade_sell',pair:sold.coin+'/'+revenue.coin,price_eur:isEur?priceUnit:(isUsd?priceUnit*eurUsdRate:null),price_usd:isUsd?priceUnit:(isEur?priceUnit/eurUsdRate:null),value_eur:isEur?Math.abs(revenue.change):(isUsd?Math.abs(revenue.change)*eurUsdRate:null),remark:sold.remark||sold.coin+'/'+revenue.coin,needs_price:false});
+}else{results.push(createBaseTx(sold,userId,year,'trade_sell',true));}}}
+
+if(cardBuys.length>=2){
+var eurTx=cardBuys.find(function(t){return t.coin==='EUR'&&t.change<0;});
+var cryptoTx=cardBuys.find(function(t){return t.coin!=='EUR'&&t.change>0;});
+if(eurTx&&cryptoTx){
+var priceUnit=Math.abs(eurTx.change)/cryptoTx.change;
+results.push({user_id:userId,exchange:'binance',tx_timestamp:formatTs(cryptoTx.utcTime),tax_year:year,operation:'Buy With Card',account:cryptoTx.account,coin:cryptoTx.coin,amount:cryptoTx.change,tx_type:'trade_buy',pair:cryptoTx.coin+'/EUR',price_eur:priceUnit,price_usd:priceUnit/eurUsdRate,value_eur:Math.abs(eurTx.change),remark:cryptoTx.remark,needs_price:false});}}
+
+if(converts.length>=2){
+var fromTx=converts.find(function(t){return t.change<0;});
+var toTx=converts.find(function(t){return t.change>0;});
+if(fromTx&&toTx){
+var fromStable=STABLECOINS.includes(fromTx.coin);
+var toStable=STABLECOINS.includes(toTx.coin);
+if(fromStable){
+var priceUnit=Math.abs(fromTx.change)/toTx.change;
+results.push({user_id:userId,exchange:'binance',tx_timestamp:formatTs(toTx.utcTime),tax_year:year,operation:'Convert Buy',account:toTx.account,coin:toTx.coin,amount:toTx.change,tx_type:'trade_buy',pair:toTx.coin+'/'+fromTx.coin,price_eur:priceUnit*eurUsdRate,price_usd:priceUnit,value_eur:Math.abs(fromTx.change)*eurUsdRate,remark:'Convert '+fromTx.coin+' → '+toTx.coin,needs_price:false});
+}else if(toStable){
+var priceUnit=toTx.change/Math.abs(fromTx.change);
+results.push({user_id:userId,exchange:'binance',tx_timestamp:formatTs(fromTx.utcTime),tax_year:year,operation:'Convert Sell',account:fromTx.account,coin:fromTx.coin,amount:fromTx.change,tx_type:'trade_sell',pair:fromTx.coin+'/'+toTx.coin,price_eur:priceUnit*eurUsdRate,price_usd:priceUnit,value_eur:toTx.change*eurUsdRate,remark:'Convert '+fromTx.coin+' → '+toTx.coin,needs_price:false});
+}else{
+results.push({user_id:userId,exchange:'binance',tx_timestamp:formatTs(fromTx.utcTime),tax_year:year,operation:'Convert Sell',account:fromTx.account,coin:fromTx.coin,amount:fromTx.change,tx_type:'trade_sell',pair:fromTx.coin+'/'+toTx.coin,remark:'Convert '+fromTx.coin+' → '+toTx.coin,needs_price:true});
+results.push({user_id:userId,exchange:'binance',tx_timestamp:formatTs(toTx.utcTime),tax_year:year,operation:'Convert Buy',account:toTx.account,coin:toTx.coin,amount:toTx.change,tx_type:'trade_buy',pair:toTx.coin+'/'+fromTx.coin,remark:'Convert '+fromTx.coin+' → '+toTx.coin,needs_price:true});}}}
+
+for(var o=0;o<others.length;o++){
+var tx=others[o];
+var txType=classifyOp(tx.operation,tx.change);
+var isEur=tx.coin==='EUR';
+var isStable=STABLECOINS.includes(tx.coin);
+results.push({user_id:userId,exchange:'binance',tx_timestamp:formatTs(tx.utcTime),tax_year:year,operation:tx.operation,account:tx.account,coin:tx.coin,amount:tx.change,tx_type:txType,price_eur:isEur?1:(isStable?eurUsdRate:null),value_eur:isEur?Math.abs(tx.change):(isStable?Math.abs(tx.change)*eurUsdRate:null),remark:tx.remark,needs_price:!isEur&&!isStable});}}
+console.log('Binance processed:',results.length);
+return results;}
+
+function createBaseTx(tx,userId,year,txType,needsPrice){
+return{user_id:userId,exchange:'binance',tx_timestamp:formatTs(tx.utcTime),tax_year:year,operation:tx.operation,account:tx.account,coin:tx.coin,amount:tx.change,tx_type:txType,remark:tx.remark,needs_price:needsPrice};}
+
+function classifyOp(op,change){
+var o=op.toLowerCase();
+if(o.includes('deposit')||o.includes('fiat deposit'))return'deposit';
+if(o.includes('withdraw'))return'withdraw';
+if(o.includes('buy')||o.includes('purchase'))return'trade_buy';
+if(o.includes('sell')||o.includes('sold'))return'trade_sell';
+if(o.includes('fee'))return'fee';
+if(o.includes('reward')||o.includes('interest')||o.includes('staking')||o.includes('airdrop')||o.includes('distribution')||o.includes('cashback')||o.includes('launchpool')||o.includes('bnb vault'))return'reward';
+if(o.includes('convert')||o.includes('swap'))return'convert';
+if(o.includes('transfer'))return'transfer';
+if(o.includes('card')||o.includes('payment'))return'payment';
+if(o.includes('subscription')||o.includes('redemption'))return'staking';
+return change>0?'deposit':'withdraw';}
+
+function formatTs(utcTime){
+var ts=utcTime.includes('T')?utcTime:utcTime.replace(' ','T');
+if(!ts.includes('Z')&&!ts.includes('+'))ts+='Z';
+return ts;}
+
+async function fillMissingPrices(txs){
+var needsPriceTxs=txs.filter(function(t){return t.needs_price&&!t.price_eur;});
+if(needsPriceTxs.length===0)return txs;
+console.log('Filling prices for',needsPriceTxs.length,'transactions...');
+var byDateCoin={};
+needsPriceTxs.forEach(function(t){
+var dateStr=t.tx_timestamp.slice(0,10);
+var key=t.coin+'_'+dateStr;
+if(!byDateCoin[key])byDateCoin[key]={coin:t.coin,date:dateStr,txs:[]};
+byDateCoin[key].txs.push(t);});
+var keys=Object.keys(byDateCoin);
+var filled=0;
+for(var i=0;i<Math.min(keys.length,50);i++){
+var k=byDateCoin[keys[i]];
+var price=await getHistoricalPrice(k.coin,k.date);
+if(price&&price.eur){
+k.txs.forEach(function(t){t.price_eur=price.eur;t.price_usd=price.usd;t.value_eur=Math.abs(t.amount)*price.eur;});
+filled+=k.txs.length;}
+await new Promise(function(r){setTimeout(r,250);});}
+console.log('Filled',filled,'prices');
+return txs;}
 function showBlacklist(){document.getElementById('blSymCount').textContent=blacklist.size;document.getElementById('blConCount').textContent=blacklistContracts.size;showBlTab('symbols');document.getElementById('blModal').style.display='flex';}
 function showBlTab(t){document.querySelectorAll('#blModal .tab').forEach(function(x){x.classList.remove('active');});event.target.classList.add('active');document.getElementById('blSymbols').style.display=t==='symbols'?'block':'none';document.getElementById('blContracts').style.display=t==='contracts'?'block':'none';if(t==='symbols'){var html='';blacklist.forEach(function(s){html+='<div class="flex justify-between items-center" style="padding:8px 0;border-bottom:1px solid var(--border)"><span>'+s+'</span><button onclick="removeBL(\''+s+'\')" class="btn btn-sm btn-secondary">✕</button></div>';});document.getElementById('blList').innerHTML=html||'<div style="color:var(--text2)">Vuota</div>';}else{var html='';blacklistContracts.forEach(function(c){html+='<div class="flex justify-between items-center" style="padding:6px 0;border-bottom:1px solid var(--border)"><code style="font-size:9px;word-break:break-all">'+c+'</code><button onclick="removeBlCon(\''+c+'\')" class="btn btn-sm btn-secondary" style="margin-left:8px">✕</button></div>';});document.getElementById('blConList').innerHTML=html||'<div style="color:var(--text2)">Vuota</div>';}}
 function addToBlacklist(){var s=document.getElementById('blAdd').value.trim().toUpperCase();if(!s)return;blacklist.add(s);saveBlacklists();document.getElementById('blAdd').value='';updateBlStats();showBlacklist();toast(s+' in blacklist');}
