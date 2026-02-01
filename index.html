@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v7.85</title>
+<title>CryptoFolio v7.87</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -57,7 +57,7 @@
 <div id="authScreen" class="auth-box">
 <div class="auth-card">
 <div class="logo" style="justify-content:center;margin-bottom:20px"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
-<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v7.85 - 17 Chains</p>
+<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v7.87 - 17 Chains</p>
 <div class="form-group"><label class="form-label">Email</label><input id="authEmail" type="email" class="input"></div>
 <div class="form-group"><label class="form-label">Password</label><input id="authPassword" type="password" class="input"></div>
 <div id="authError" style="color:var(--red);font-size:12px;margin-bottom:12px"></div>
@@ -68,7 +68,7 @@
 <aside class="sidebar">
 <div class="logo"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
 <nav><div class="nav active" data-page="dashboard" onclick="showPage('dashboard')">📊 Dashboard</div><div class="nav" data-page="wallets" onclick="showPage('wallets')">👛 Wallets</div><div class="nav" data-page="exchange" onclick="showPage('exchange')">🏦 Exchange</div><div class="nav" data-page="tokens" onclick="showPage('tokens')">🪙 Token</div><div class="nav" data-page="settings" onclick="showPage('settings')">⚙️ Settings</div></nav>
-<div class="sidebar-footer">v7.85<br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
+<div class="sidebar-footer">v7.87<br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
 </aside>
 <main class="main">
 <div id="page-dashboard">
@@ -334,16 +334,16 @@ function formatExName(ex){return EX_NAMES[ex]||ex.replace(/_/g,' ').replace(/\b\
 var STABLES=['EUR','USD','USDT','USDC','BUSD','DAI','TUSD'];
 async function loadExchangeTx(){var allTx=[];var page=0;var pageSize=1000;var hasMore=true;while(hasMore){var res=await db.from('exchange_transactions').select('*').eq('user_id',user.id).range(page*pageSize,(page+1)*pageSize-1);var data=res.data||[];allTx=allTx.concat(data);hasMore=data.length===pageSize;page++;if(page>20)break;}console.log('Loaded TX:',allTx.length,'('+page+' pages)');
 var byYear={2021:{tx:0,deposits:0,withdraws:0,rewards:0,buys:0,sells:0},2022:{tx:0,deposits:0,withdraws:0,rewards:0,buys:0,sells:0},2023:{tx:0,deposits:0,withdraws:0,rewards:0,buys:0,sells:0},2024:{tx:0,deposits:0,withdraws:0,rewards:0,buys:0,sells:0},2025:{tx:0,deposits:0,withdraws:0,rewards:0,buys:0,sells:0},2026:{tx:0,deposits:0,withdraws:0,rewards:0,buys:0,sells:0}};var byExchange={};
-allTx.forEach(function(t){var y=t.tax_year||2021;var amt=parseFloat(t.amount)||0;var op=t.operation||'';var type=t.tx_type||'';var coin=t.coin||'';var isEur=coin==='EUR';var isStable=['EUR','USD','USDT','USDC','BUSD','DAI','TUSD'].includes(coin);if(byYear[y]){byYear[y].tx++;if(type==='deposit'&&isEur&&amt>0)byYear[y].deposits+=amt;if(type==='withdraw'&&isEur)byYear[y].withdraws+=Math.abs(amt);if(type==='reward'||op.includes('Interest')||op.includes('Reward')||op.includes('Staking')||op.includes('Learning'))byYear[y].rewards++;if(type==='trade_buy'||op.includes('Buy'))byYear[y].buys++;if(type==='trade_sell'||op.includes('Sell')||op.includes('Sold'))byYear[y].sells++;}if(!byExchange[t.exchange])byExchange[t.exchange]={count:0,coins:new Set(),years:new Set(),deposits:0,withdraws:0,depositsCount:0,withdrawsCount:0,rewards:0,buys:0,sells:0,converts:0,byYear:{}};byExchange[t.exchange].count++;byExchange[t.exchange].coins.add(coin);byExchange[t.exchange].years.add(y);
-if(type==='deposit'){byExchange[t.exchange].depositsCount++;if(isEur&&amt>0)byExchange[t.exchange].deposits+=amt;}
-if(type==='withdraw'){byExchange[t.exchange].withdrawsCount++;if(isEur)byExchange[t.exchange].withdraws+=Math.abs(amt);}
+allTx.forEach(function(t){var y=t.tax_year||2021;var amt=parseFloat(t.amount)||0;var op=t.operation||'';var type=t.tx_type||'';var coin=t.coin||'';var isEur=coin==='EUR';var isUsdStable=['USD','USDT','USDC','BUSD','DAI','TUSD','FDUSD'].includes(coin);var amtEur=isEur?amt:(isUsdStable?amt*0.92:0);if(byYear[y]){byYear[y].tx++;if(type==='deposit'&&amtEur>0)byYear[y].deposits+=amtEur;if(type==='withdraw'&&(isEur||isUsdStable))byYear[y].withdraws+=Math.abs(amtEur);if(type==='reward'||op.includes('Interest')||op.includes('Reward')||op.includes('Staking')||op.includes('Learning'))byYear[y].rewards++;if(type==='trade_buy'||op.includes('Buy'))byYear[y].buys++;if(type==='trade_sell'||op.includes('Sell')||op.includes('Sold'))byYear[y].sells++;}if(!byExchange[t.exchange])byExchange[t.exchange]={count:0,coins:new Set(),years:new Set(),deposits:0,withdraws:0,depositsCount:0,withdrawsCount:0,rewards:0,buys:0,sells:0,converts:0,byYear:{}};byExchange[t.exchange].count++;byExchange[t.exchange].coins.add(coin);byExchange[t.exchange].years.add(y);
+if(type==='deposit'){byExchange[t.exchange].depositsCount++;if(amtEur>0)byExchange[t.exchange].deposits+=amtEur;}
+if(type==='withdraw'){byExchange[t.exchange].withdrawsCount++;if(isEur||isUsdStable)byExchange[t.exchange].withdraws+=Math.abs(amtEur);}
 if(type==='reward'||op.includes('Interest')||op.includes('Reward')||op.includes('Learning'))byExchange[t.exchange].rewards++;
 if(type==='trade_buy'||op.includes('Buy'))byExchange[t.exchange].buys++;
 if(type==='trade_sell'||op.includes('Sell')||op.includes('Sold'))byExchange[t.exchange].sells++;
 if(type==='convert'||op.includes('Convert'))byExchange[t.exchange].converts++;
 if(!byExchange[t.exchange].byYear[y])byExchange[t.exchange].byYear[y]={tx:0,deposits:0,withdraws:0,depositsCount:0,withdrawsCount:0,rewards:0,buys:0,sells:0,converts:0};byExchange[t.exchange].byYear[y].tx++;
-if(type==='deposit'){byExchange[t.exchange].byYear[y].depositsCount++;if(isEur&&amt>0)byExchange[t.exchange].byYear[y].deposits+=amt;}
-if(type==='withdraw'){byExchange[t.exchange].byYear[y].withdrawsCount++;if(isEur)byExchange[t.exchange].byYear[y].withdraws+=Math.abs(amt);}
+if(type==='deposit'){byExchange[t.exchange].byYear[y].depositsCount++;if(amtEur>0)byExchange[t.exchange].byYear[y].deposits+=amtEur;}
+if(type==='withdraw'){byExchange[t.exchange].byYear[y].withdrawsCount++;if(isEur||isUsdStable)byExchange[t.exchange].byYear[y].withdraws+=Math.abs(amtEur);}
 if(type==='reward'||op.includes('Interest')||op.includes('Reward')||op.includes('Learning'))byExchange[t.exchange].byYear[y].rewards++;
 if(type==='trade_buy'||op.includes('Buy'))byExchange[t.exchange].byYear[y].buys++;
 if(type==='trade_sell'||op.includes('Sell')||op.includes('Sold'))byExchange[t.exchange].byYear[y].sells++;
