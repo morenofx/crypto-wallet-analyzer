@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v7.57</title>
+<title>CryptoFolio v7.58</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -57,7 +57,7 @@
 <div id="authScreen" class="auth-box">
 <div class="auth-card">
 <div class="logo" style="justify-content:center;margin-bottom:20px"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
-<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v7.57 - 17 Chains</p>
+<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v7.58 - 17 Chains</p>
 <div class="form-group"><label class="form-label">Email</label><input id="authEmail" type="email" class="input"></div>
 <div class="form-group"><label class="form-label">Password</label><input id="authPassword" type="password" class="input"></div>
 <div id="authError" style="color:var(--red);font-size:12px;margin-bottom:12px"></div>
@@ -68,7 +68,7 @@
 <aside class="sidebar">
 <div class="logo"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
 <nav><div class="nav active" data-page="dashboard" onclick="showPage('dashboard')">📊 Dashboard</div><div class="nav" data-page="wallets" onclick="showPage('wallets')">👛 Wallets</div><div class="nav" data-page="exchange" onclick="showPage('exchange')">🏦 Exchange</div><div class="nav" data-page="tokens" onclick="showPage('tokens')">🪙 Token</div><div class="nav" data-page="settings" onclick="showPage('settings')">⚙️ Settings</div></nav>
-<div class="sidebar-footer">v7.57<br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
+<div class="sidebar-footer">v7.58<br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
 </aside>
 <main class="main">
 <div id="page-dashboard">
@@ -115,7 +115,7 @@
 <div class="stats"><div class="stat"><div class="stat-label">Transazioni</div><div class="stat-value" id="exDetailTx">0</div></div><div class="stat"><div class="stat-label">Coin</div><div class="stat-value" id="exDetailCoins">0</div></div><div class="stat"><div class="stat-label">Depositi €</div><div class="stat-value" style="color:var(--green)" id="exDetailIn">€0</div></div><div class="stat"><div class="stat-label">Prelievi €</div><div class="stat-value" style="color:var(--red)" id="exDetailOut">€0</div></div></div>
 <div class="card mb-16">
 <div class="flex gap-8 mb-12 flex-wrap"><select id="exDetailYear" class="input" style="width:100px" onchange="loadExchangeDetail()"><option value="">Tutti</option><option value="2025">2025</option><option value="2024">2024</option><option value="2023">2023</option><option value="2022">2022</option><option value="2021">2021</option></select><select id="exDetailType" class="input" style="width:120px" onchange="loadExchangeDetail()"><option value="">Tutti tipi</option><option value="deposit">📥 Depositi</option><option value="withdraw">📤 Prelievi</option><option value="trade_buy">🛒 Acquisti</option><option value="trade_sell">💰 Vendite</option><option value="reward">🎁 Rewards</option><option value="convert">🔄 Convert</option><option value="fee">💸 Fee</option></select><input type="text" id="exDetailSearch" class="input" placeholder="🔍 Cerca coin..." oninput="loadExchangeDetail()" style="flex:1;min-width:150px"></div>
-<div id="exDetailList" style="max-height:500px;overflow-y:auto"></div>
+<div id="exDetailList" style="max-height:500px;overflow-y:auto;padding-right:12px"></div>
 </div>
 </div>
 <div id="page-tokens" style="display:none">
@@ -188,7 +188,8 @@ function getStatus(sym,name,contract){var u=(sym||'').toUpperCase();if(whitelist
 function isBlacklisted(sym,contract){var u=(sym||'').toUpperCase();if(blacklist.has(u))return true;if(contract&&blacklistContracts.has(contract.toLowerCase()))return true;return false;}
 function icon(sym,chain,logo,sz){sz=sz||32;var ch=CHAINS[chain];var c=ch?ch.c:'#888';var s=(sym||'??').slice(0,2).toUpperCase();var u=(sym||'').toUpperCase();if(!logo&&chain==='pulsechain'){var pt=PLS_TOKENS.find(function(t){return t.sym.toUpperCase()===u;});if(pt)logo='https://tokens.app.pulsex.com/images/tokens/'+pt.contract+'.png';}if(!logo&&NATIVE_ICONS[u])logo=NATIVE_ICONS[u];if(logo)return'<div class="token-icon" style="width:'+sz+'px;height:'+sz+'px"><img src="'+logo+'" onerror="this.onerror=null;this.parentElement.innerHTML=\'<span>'+s+'</span>\';this.parentElement.style.background=\''+c+'30\';this.parentElement.style.color=\''+c+'\';"></div>';return'<div class="token-icon" style="width:'+sz+'px;height:'+sz+'px;background:'+c+'30;color:'+c+';font-weight:700">'+s+'</div>';}
 function fmtC(v){var n=parseFloat(v)||0;return(currency==='eur'?'€':'$')+n.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2});}
-function fmtN(v){var n=parseFloat(v)||0;if(n===0)return'0';if(n>=1e9)return(n/1e9).toFixed(2)+'B';if(n>=1e6)return(n/1e6).toFixed(2)+'M';if(n>=1e3)return(n/1e3).toFixed(2)+'K';if(n<0.0001)return n.toExponential(2);if(n<0.01)return n.toFixed(6);if(n<1)return n.toFixed(4);return n.toLocaleString('it-IT',{maximumFractionDigits:2});}
+function fmtN(v){var n=parseFloat(v)||0;var abs=Math.abs(n);if(abs===0)return'0';if(abs>=1e9)return(n/1e9).toFixed(2)+'B';if(abs>=1e6)return(n/1e6).toFixed(2)+'M';if(abs>=1e3)return Math.round(n).toLocaleString('it-IT');if(abs<0.0001&&abs>0)return n.toFixed(8);if(abs<0.01)return n.toFixed(6);if(abs<1)return n.toFixed(4);return n.toLocaleString('it-IT',{maximumFractionDigits:2});}
+function formatAmount(n){var sign=n>=0?'+':'';var abs=Math.abs(n);if(abs>=1e9)return sign+(n/1e9).toFixed(2)+'B';if(abs>=1e6)return sign+(n/1e6).toFixed(2)+'M';if(abs>=1e3)return sign+Math.round(n).toLocaleString('it-IT');if(abs<0.0001&&abs>0)return sign+n.toFixed(6);if(abs<0.01)return sign+n.toFixed(4);if(abs<1)return sign+n.toFixed(4);return sign+n.toLocaleString('it-IT',{maximumFractionDigits:2});}
 function toast(msg,type){type=type||'success';document.querySelectorAll('.toast').forEach(function(t){t.remove();});var t=document.createElement('div');t.className='toast '+type;t.innerHTML=(type==='success'?'✅':'❌')+' '+msg;document.body.appendChild(t);setTimeout(function(){t.remove();},4000);}
 function toggleCurrency(){currency=currency==='eur'?'usd':'eur';document.getElementById('currencyBtn').textContent=currency==='eur'?'💶 EUR':'💵 USD';loadDashboard();}
 function renderChainGrid(id){var h='';for(var k in CHAINS){var ch=CHAINS[k];var on=selectedChains.has(k);h+='<label class="chain-item'+(on?' active':'')+'"><input type="checkbox" '+(on?'checked':'')+' onchange="toggleChain(\''+k+'\',this)"><span class="chain-dot" style="background:'+ch.c+'"></span>'+ch.n+'</label>';}var el=document.getElementById(id);if(el)el.innerHTML=h;}
@@ -316,8 +317,8 @@ document.getElementById('exDetailTx').textContent=txs.length;document.getElement
 if(txs.length===0){document.getElementById('exDetailList').innerHTML='<div style="padding:40px;text-align:center;color:var(--text2)">Nessuna transazione</div>';return;}
 var typeIcons={deposit:'📥',withdraw:'📤',trade_buy:'🛒',trade_sell:'💰',reward:'🎁',convert:'🔄',fee:'💸',transfer:'↔️',other:'•'};var typeColors={deposit:'var(--green)',withdraw:'var(--red)',trade_buy:'var(--green)',trade_sell:'var(--red)',reward:'var(--yellow)',convert:'var(--blue)',fee:'var(--red)',transfer:'var(--cyan)',other:'var(--text2)'};
 var html='<div style="font-size:11px;color:var(--text2);margin-bottom:8px">Mostrando '+Math.min(txs.length,500)+' di '+txs.length+' TX</div>';
-txs.slice(0,500).forEach(function(t){var d=new Date(t.tx_timestamp);var dateStr=d.toLocaleDateString('it-IT')+' '+d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});var amt=parseFloat(t.amount);var amtStr=amt>=0?'+'+fmtN(amt):fmtN(amt);var amtColor=amt>=0?'var(--green)':'var(--red)';var icon=typeIcons[t.tx_type]||'•';var opColor=typeColors[t.tx_type]||'var(--text2)';
-html+='<div style="display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);gap:12px">';html+='<div style="width:36px;height:36px;border-radius:8px;background:'+opColor+'20;display:flex;align-items:center;justify-content:center;font-size:16px">'+icon+'</div>';html+='<div style="flex:1;min-width:0"><div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:600">'+t.coin+'</div><div class="text-mono" style="color:'+amtColor+';font-weight:600">'+amtStr+'</div></div>';html+='<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-top:2px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px">'+t.operation+'</div><div>'+dateStr+'</div></div></div></div>';});
+txs.slice(0,500).forEach(function(t){var d=new Date(t.tx_timestamp);var dateStr=d.toLocaleDateString('it-IT')+' '+d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});var amt=parseFloat(t.amount);var amtStr=formatAmount(amt);var amtColor=amt>=0?'var(--green)':'var(--red)';var icon=typeIcons[t.tx_type]||'•';var opColor=typeColors[t.tx_type]||'var(--text2)';
+html+='<div style="display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);gap:12px">';html+='<div style="width:36px;height:36px;border-radius:8px;background:'+opColor+'20;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">'+icon+'</div>';html+='<div style="flex:1;min-width:0;overflow:hidden"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:600;white-space:nowrap">'+t.coin+'</div><div class="text-mono" style="color:'+amtColor+';font-weight:600;white-space:nowrap">'+amtStr+'</div></div>';html+='<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-top:2px;gap:8px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'+t.operation+'</div><div style="white-space:nowrap;flex-shrink:0">'+dateStr+'</div></div></div></div>';});
 if(txs.length>500)html+='<div style="padding:20px;text-align:center;color:var(--text2);font-size:11px">...e altre '+(txs.length-500)+' TX. Usa i filtri per affinare.</div>';
 document.getElementById('exDetailList').innerHTML=html;}
 function toggleYearDetail(year){var el=document.getElementById('yearDetail'+year);el.style.display=el.style.display==='none'?'block':'none';}
