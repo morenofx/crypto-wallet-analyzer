@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v7.26</title>
+<title>CryptoFolio v7.27</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
@@ -55,7 +55,7 @@
 <div id="authScreen" class="auth-box">
 <div class="auth-card">
 <div class="logo" style="justify-content:center;margin-bottom:20px"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
-<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v7.26 - 17 Chains</p>
+<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v7.27 - 17 Chains</p>
 <div class="form-group"><label class="form-label">Email</label><input id="authEmail" type="email" class="input"></div>
 <div class="form-group"><label class="form-label">Password</label><input id="authPassword" type="password" class="input"></div>
 <div id="authError" style="color:var(--red);font-size:12px;margin-bottom:12px"></div>
@@ -66,7 +66,7 @@
 <aside class="sidebar">
 <div class="logo"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
 <nav><div class="nav active" data-page="dashboard" onclick="showPage('dashboard')">📊 Dashboard</div><div class="nav" data-page="wallets" onclick="showPage('wallets')">👛 Wallets</div><div class="nav" data-page="tokens" onclick="showPage('tokens')">🪙 Token</div><div class="nav" data-page="settings" onclick="showPage('settings')">⚙️ Settings</div></nav>
-<div class="sidebar-footer">v7.26<br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
+<div class="sidebar-footer">v7.27<br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
 </aside>
 <main class="main">
 <div id="page-dashboard">
@@ -164,7 +164,7 @@ function renderChainGrid(id){var h='';for(var k in CHAINS){var ch=CHAINS[k];var 
 function toggleChain(k,el){if(el.checked)selectedChains.add(k);else selectedChains.delete(k);el.parentElement.classList.toggle('active',el.checked);saveSelectedChains();}
 function selectAllChains(){selectedChains=new Set(Object.keys(CHAINS));saveSelectedChains();renderChainGrid('modalChainGrid');}
 function selectNoChains(){selectedChains.clear();saveSelectedChains();renderChainGrid('modalChainGrid');}
-async function fetchPrices(syms){var fsyms=[...new Set(syms.map(function(s){return(s||'').toUpperCase();}))].filter(function(s){return s.length>0&&s.length<10;});if(!fsyms.length)return;try{var url='https://min-api.cryptocompare.com/data/pricemulti?fsyms='+fsyms.slice(0,50).join(',')+'&tsyms=EUR,USD';var r=await fetch(url);var d=await r.json();for(var sym in d){if(d[sym]){prices[sym]={eur:d[sym].EUR||0,usd:d[sym].USD||0};}}}catch(e){console.error('Price fetch error:',e);}}
+async function fetchPrices(syms){var ids=[];syms.forEach(function(s){var u=(s||'').toUpperCase();if(CG_MAP[u])ids.push(CG_MAP[u]);});ids=[...new Set(ids)];if(!ids.length)return;try{var r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids='+ids.join(',')+'&vs_currencies=eur,usd');var d=await r.json();for(var sym in CG_MAP){if(d[CG_MAP[sym]])prices[sym]={eur:d[CG_MAP[sym]].eur||0,usd:d[CG_MAP[sym]].usd||0};}}catch(e){console.error('Price fetch error:',e);}}
 async function refreshPrices(){toast('Aggiornamento...');await fetchPrices(balances.map(function(b){return b.symbol;}));await loadDashboard();toast('Prezzi aggiornati!');}
 function safeAmount(bal){if(bal>1e15)return bal/1e18;return bal;}
 function updateBulkBar(){var bar=document.getElementById('bulkBar');var cnt=document.getElementById('bulkCount');if(bar){bar.style.display=selectedTokenIds.size>0?'flex':'none';cnt.textContent=selectedTokenIds.size+' selezionati';}}
