@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v7.75</title>
+<title>CryptoFolio v7.76</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -57,7 +57,7 @@
 <div id="authScreen" class="auth-box">
 <div class="auth-card">
 <div class="logo" style="justify-content:center;margin-bottom:20px"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
-<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v7.75 - 17 Chains</p>
+<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v7.76 - 17 Chains</p>
 <div class="form-group"><label class="form-label">Email</label><input id="authEmail" type="email" class="input"></div>
 <div class="form-group"><label class="form-label">Password</label><input id="authPassword" type="password" class="input"></div>
 <div id="authError" style="color:var(--red);font-size:12px;margin-bottom:12px"></div>
@@ -68,7 +68,7 @@
 <aside class="sidebar">
 <div class="logo"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
 <nav><div class="nav active" data-page="dashboard" onclick="showPage('dashboard')">📊 Dashboard</div><div class="nav" data-page="wallets" onclick="showPage('wallets')">👛 Wallets</div><div class="nav" data-page="exchange" onclick="showPage('exchange')">🏦 Exchange</div><div class="nav" data-page="tokens" onclick="showPage('tokens')">🪙 Token</div><div class="nav" data-page="settings" onclick="showPage('settings')">⚙️ Settings</div></nav>
-<div class="sidebar-footer">v7.75<br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
+<div class="sidebar-footer">v7.76<br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
 </aside>
 <main class="main">
 <div id="page-dashboard">
@@ -395,15 +395,16 @@ for(var f=0;f<files.length;f++){var file=files[f];document.getElementById('impor
 console.log('Totale file CSV:',csvTexts.length);document.getElementById('importStatus').textContent='📊 Elaborazione '+csvTexts.length+' file...';
 for(var i=0;i<csvTexts.length;i++){var csv=csvTexts[i];var cleanText=csv.text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');var lines=cleanText.split('\n');var toInsert=[];
 var headerLine='';var dataStartLine=1;
-for(var h=0;h<Math.min(10,lines.length);h++){var lineH=lines[h]||'';if(lineH.includes('Timestamp')&&lineH.includes('Transaction')){headerLine=lineH;dataStartLine=h+1;break;}if(lineH.includes('User_ID')&&lineH.includes('UTC_Time')){headerLine=lineH;dataStartLine=h+1;break;}if(lineH.includes('Date')&&lineH.includes('Type')&&lineH.includes('Asset')&&lineH.includes('Chain')){headerLine=lineH;dataStartLine=h+1;break;}if(lineH.includes('Date & Time')&&lineH.includes('Coin')&&lineH.includes('QTY')){headerLine=lineH;dataStartLine=h+1;break;}if(lineH.includes('Currency')&&lineH.includes('Cash Flow')){headerLine=lineH;dataStartLine=h+1;break;}if(lineH.includes('Spot Pairs')&&lineH.includes('Direction')){headerLine=lineH;dataStartLine=h+1;break;}if(lineH.includes('order')&&lineH.includes('Date')&&lineH.includes('Coin')&&lineH.includes('Type')){headerLine=lineH;dataStartLine=h+1;break;}if(lineH.includes('Transaction ID')&&lineH.includes('Amount Asset')){headerLine=lineH;dataStartLine=h+1;break;}}
+for(var h=0;h<Math.min(10,lines.length);h++){var lineH=lines[h]||'';if(lineH.includes('Timestamp')&&lineH.includes('Transaction')){headerLine=lineH;dataStartLine=h+1;break;}if(lineH.includes('User_ID')&&lineH.includes('UTC_Time')){headerLine=lineH;dataStartLine=h+1;break;}if(lineH.includes('Date')&&lineH.includes('Type')&&lineH.includes('Asset')&&lineH.includes('Chain')){headerLine=lineH;dataStartLine=h+1;break;}if(lineH.includes('Date & Time')&&lineH.includes('Coin')&&lineH.includes('QTY')){headerLine=lineH;dataStartLine=h+1;break;}if(lineH.includes('Currency')&&lineH.includes('Cash Flow')){headerLine=lineH;dataStartLine=h+1;break;}if(lineH.includes('Spot Pairs')&&lineH.includes('Direction')){headerLine=lineH;dataStartLine=h+1;break;}if(lineH.includes('order')&&lineH.includes('Date')&&lineH.includes('Coin')&&lineH.includes('Type')){headerLine=lineH;dataStartLine=h+1;break;}if(lineH.includes('Transaction ID')&&lineH.includes('Amount Asset')){headerLine=lineH;dataStartLine=h+1;break;}if(lineH.includes('Timestamp (UTC)')&&lineH.includes('Transaction Description')&&lineH.includes('Transaction Kind')){headerLine=lineH;dataStartLine=h+1;if(lines[h+1]&&lines[h+1].startsWith('---'))dataStartLine=h+2;break;}}
 if(!headerLine)headerLine=lines[0]||'';
 console.log('CSV Header:',headerLine,'dataStart:',dataStartLine);
 var isBinance=headerLine.includes('User_ID')&&headerLine.includes('UTC_Time');var isCoinbase=headerLine.includes('Transaction Type')&&headerLine.includes('Asset')&&headerLine.includes('Quantity');var isKraken=headerLine.includes('txid')&&headerLine.includes('refid');
 var isBybitDeposit=headerLine.includes('Date')&&headerLine.includes('Type')&&headerLine.includes('Asset')&&headerLine.includes('Chain');var isBybitFund=headerLine.includes('Date & Time')&&headerLine.includes('Coin')&&headerLine.includes('QTY');var isBybitUta=headerLine.includes('Currency')&&headerLine.includes('Cash Flow')&&headerLine.includes('Wallet Balance');var isBybitSpot=headerLine.includes('Spot Pairs')&&headerLine.includes('Direction')&&headerLine.includes('Filled');
 var isBitget=headerLine.includes('order')&&headerLine.includes('Date')&&headerLine.includes('Coin')&&headerLine.includes('Type')&&headerLine.includes('Amount');
 var isBitpanda=headerLine.includes('Transaction ID')&&headerLine.includes('Amount Asset');
+var isCryptoCom=headerLine.includes('Timestamp (UTC)')&&headerLine.includes('Transaction Description')&&headerLine.includes('Transaction Kind');
 var isBybit=isBybitDeposit||isBybitFund||isBybitUta||isBybitSpot;
-console.log('Format - Binance:',isBinance,'Coinbase:',isCoinbase,'Bybit:',isBybit,'Bitget:',isBitget,'Bitpanda:',isBitpanda,'dataStart:',dataStartLine);
+console.log('Format - Binance:',isBinance,'Coinbase:',isCoinbase,'Bybit:',isBybit,'Bitget:',isBitget,'Bitpanda:',isBitpanda,'CryptoCom:',isCryptoCom,'dataStart:',dataStartLine);
 for(var j=dataStartLine;j<lines.length;j++){var line=lines[j].trim();if(!line)continue;var cols=parseCSVLine(line);
 var utcTime,operation,coin,change,remark='',account='Spot';
 if(isBinance&&cols.length>=6){utcTime=cols[1]?.replace(/"/g,'');operation=cols[3]?.replace(/"/g,'');coin=cols[4]?.replace(/"/g,'');change=parseFloat(cols[5]?.replace(/"/g,'')||0);remark=cols[6]?.replace(/"/g,'')||'';account=cols[2]?.replace(/"/g,'')||'Spot';}
@@ -415,11 +416,14 @@ else if(isBybitUta&&cols.length>=14){utcTime=cols[14]?.replace(/"/g,'');coin=col
 else if(isBybitSpot&&cols.length>=10){utcTime=cols[10]?.replace(/"/g,'');var pair=cols[1]?.replace(/"/g,'')||'';coin=pair.replace(/USDT|USDC|EUR|USD/g,'');operation=cols[3]?.replace(/"/g,'')||'';change=parseFloat(cols[6]?.replace(/"/g,'')||0);if(operation==='SELL')change=-Math.abs(change);remark='Spot Trade '+pair;account='Bybit Spot';}
 else if(isBitget&&cols.length>=5){utcTime=cols[1]?.replace(/"/g,'').trim();coin=cols[2]?.replace(/"/g,'').trim();operation=cols[3]?.replace(/"/g,'').trim();change=parseFloat(cols[4]?.replace(/"/g,'')||0);remark=operation;account='Bitget';}
 else if(isBitpanda&&cols.length>=8){utcTime=cols[1]?.replace(/"/g,'').trim();operation=cols[2]?.replace(/"/g,'').trim();var inOut=cols[3]?.replace(/"/g,'').trim()||'';change=parseFloat(cols[6]?.replace(/"/g,'')||0);coin=cols[7]?.replace(/"/g,'').trim();if(inOut==='outgoing')change=-Math.abs(change);remark=operation+' '+inOut;account='Bitpanda';}
+else if(isCryptoCom&&cols.length>=10){utcTime=cols[0]?.replace(/"/g,'').trim();var desc=cols[1]?.replace(/"/g,'').trim()||'';coin=cols[2]?.replace(/"/g,'').trim();change=parseFloat(cols[3]?.replace(/"/g,'')||0);var toCoin=cols[4]?.replace(/"/g,'').trim()||'';var toAmt=parseFloat(cols[5]?.replace(/"/g,'')||0);var kind=cols[9]?.replace(/"/g,'').trim()||'';operation=desc;remark=kind;account='Crypto.com';
+if(kind.includes('purchase')||desc.includes('Bought')){operation='buy';if(toCoin&&toAmt){coin=toCoin;change=toAmt;}}
+if(kind.includes('viban')&&desc.includes('Sold')){operation='sell';}}
 else if(isKraken&&cols.length>=7){utcTime=cols[2]?.replace(/"/g,'');operation=cols[3]?.replace(/"/g,'');coin=cols[5]?.replace(/"/g,'');change=parseFloat(cols[6]?.replace(/"/g,'')||0);}
 else if(cols.length>=6){utcTime=cols[1]?.replace(/"/g,'');operation=cols[3]?.replace(/"/g,'');coin=cols[4]?.replace(/"/g,'');change=parseFloat(cols[5]?.replace(/"/g,'')||0);}
 if(!utcTime||!coin||coin.length<1)continue;
 var valueEur=typeof valueEur!=='undefined'?valueEur:0;
-var txType='other';var opLower=(operation||'').toLowerCase();if(opLower.includes('deposit')||opLower==='incoming')txType='deposit';else if(opLower.includes('withdraw')||opLower.includes('withdrawal'))txType='withdraw';else if(opLower.includes('buy')||opLower==='buy'||opLower.includes('coin purchase'))txType='trade_buy';else if(opLower.includes('sell')||opLower.includes('sold')||opLower==='sell')txType='trade_sell';else if(opLower.includes('fee'))txType='fee';else if(opLower.includes('reward')||opLower.includes('interest')||opLower.includes('staking')||opLower.includes('learning')||opLower.includes('airdrop')||opLower.includes('bonus')||opLower.includes('redeem'))txType='reward';else if(opLower.includes('convert')||opLower.includes('exchange')||opLower.includes('swap')||opLower==='fiat')txType='convert';else if(opLower.includes('transfer')||opLower==='receive'||opLower==='send'||opLower==='transfer_in'||opLower==='transfer_out')txType='transfer';else if(opLower.includes('purchase')||opLower.includes('card'))txType='payment';
+var txType='other';var opLower=(operation||'').toLowerCase();var remarkLower=(remark||'').toLowerCase();if(opLower.includes('deposit')||opLower==='incoming'||remarkLower.includes('deposit'))txType='deposit';else if(opLower.includes('withdraw')||opLower.includes('withdrawal'))txType='withdraw';else if(opLower.includes('buy')||opLower==='buy'||opLower.includes('coin purchase')||opLower.includes('bought')||remarkLower.includes('purchase'))txType='trade_buy';else if(opLower.includes('sell')||opLower.includes('sold')||opLower==='sell')txType='trade_sell';else if(opLower.includes('fee'))txType='fee';else if(opLower.includes('reward')||opLower.includes('interest')||opLower.includes('staking')||opLower.includes('learning')||opLower.includes('airdrop')||opLower.includes('bonus')||opLower.includes('redeem')||opLower.includes('cashback')||opLower.includes('rebate')||remarkLower.includes('reward')||remarkLower.includes('cashback'))txType='reward';else if(opLower.includes('convert')||opLower.includes('exchange')||opLower.includes('swap')||opLower==='fiat')txType='convert';else if(opLower.includes('transfer')||opLower==='receive'||opLower==='send'||opLower==='transfer_in'||opLower==='transfer_out')txType='transfer';else if(opLower.includes('top up')||opLower.includes('card')||remarkLower.includes('card_top_up'))txType='payment';
 var timestamp=utcTime.includes('T')?utcTime:utcTime.replace(' ','T');if(!timestamp.includes('Z')&&!timestamp.includes('+'))timestamp=timestamp.replace(' UTC','')+'Z';
 var taxYear=parseInt(utcTime.slice(0,4));if(isNaN(taxYear)||taxYear<2010||taxYear>2030)continue;
 if(!coin||coin.length>20)continue;
