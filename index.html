@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v7.95</title>
+<title>CryptoFolio v7.96</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -68,7 +68,7 @@
 <aside class="sidebar">
 <div class="logo"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
 <nav><div class="nav active" data-page="dashboard" onclick="showPage('dashboard')">📊 Dashboard</div><div class="nav" data-page="wallets" onclick="showPage('wallets')">👛 Wallets</div><div class="nav" data-page="exchange" onclick="showPage('exchange')">🏦 Exchange</div><div class="nav" data-page="tokens" onclick="showPage('tokens')">🪙 Token</div><div class="nav" data-page="settings" onclick="showPage('settings')">⚙️ Settings</div></nav>
-<div class="sidebar-footer"><span id="appVersion">v7.95</span><br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
+<div class="sidebar-footer"><span id="appVersion">v7.96</span><br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
 </aside>
 <main class="main">
 <div id="page-dashboard">
@@ -147,7 +147,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='7.95';
+const APP_VERSION='7.96';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -809,8 +809,15 @@ if(type==='trade_buy'||op.includes('Buy'))byYear[y].buys++;
 if(type==='trade_sell'||op.includes('Sell')||op.includes('Sold'))byYear[y].sells++;
 }
 
-if(!byExchange[t.exchange])byExchange[t.exchange]={count:0,coins:new Set(),years:new Set(),deposits:0,withdraws:0,depositsCount:0,withdrawsCount:0,rewards:0,buys:0,sells:0,converts:0,internal:0,byYear:{}};
+if(!byExchange[t.exchange])byExchange[t.exchange]={count:0,coins:new Set(),years:new Set(),deposits:0,withdraws:0,depositsCount:0,withdrawsCount:0,rewards:0,buys:0,sells:0,converts:0,internal:0,byYear:{},coinBalances:{}};
 byExchange[t.exchange].count++;byExchange[t.exchange].coins.add(coin);byExchange[t.exchange].years.add(y);
+
+// Calcola saldi coin per anno (cumulativo fino a fine anno)
+if(!byExchange[t.exchange].coinBalances[coin])byExchange[t.exchange].coinBalances[coin]={};
+for(var yy=y;yy<=2026;yy++){
+if(!byExchange[t.exchange].coinBalances[coin][yy])byExchange[t.exchange].coinBalances[coin][yy]=0;
+byExchange[t.exchange].coinBalances[coin][yy]+=amt;
+}
 
 if(isInternal){byExchange[t.exchange].internal++;}
 else{
@@ -837,10 +844,44 @@ if(type==='convert'||op.includes('Convert'))byExchange[t.exchange].byYear[y].con
 for(var y=2021;y<=2026;y++){var el=document.getElementById('exYear'+y);if(el){var d=byYear[y];var html='<div style="font-size:16px;font-weight:700;color:var(--cyan)">'+d.tx+' TX</div>';if(d.deposits>0||d.withdraws>0){html+='<div style="font-size:9px;margin-top:4px"><span style="color:var(--green)">📥'+fmtC(d.deposits).replace('€','')+'</span> <span style="color:var(--red)">📤'+fmtC(d.withdraws).replace('€','')+'</span></div>';}if(d.rewards>0||d.buys>0||d.sells>0){html+='<div style="font-size:9px;margin-top:2px">';if(d.rewards>0)html+='<span style="color:var(--yellow)">🎁'+d.rewards+'</span> ';if(d.buys>0)html+='<span style="color:var(--green)">🛒'+d.buys+'</span> ';if(d.sells>0)html+='<span style="color:var(--red)">💰'+d.sells+'</span>';html+='</div>';}el.innerHTML=html;}}
 var html='';if(Object.keys(byExchange).length===0){html='<div class="card" style="grid-column:1/-1;padding:40px;text-align:center;color:var(--text2)">Nessun exchange. Clicca "Import CSV" per importare dati.</div>';}else{Object.entries(byExchange).forEach(function(e){var ex=e[0];var data=e[1];var color=EX_COLORS[ex]||'#888';var logo=EX_LOGOS[ex]||EX_LOGOS.other;
 html+='<div class="card" style="grid-column:1/-1"><div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;cursor:pointer" onclick="openExchangeDetail(\''+ex+'\')"><div style="width:48px;height:48px;border-radius:12px;background:'+color+'20;display:flex;align-items:center;justify-content:center;overflow:hidden"><img src="'+logo+'" style="width:36px;height:36px;border-radius:8px" onerror="this.style.display=\'none\';var p=this.parentElement;if(p)p.innerHTML=\'🏦\';"></div><div style="flex:1"><div style="font-size:18px;font-weight:700">'+formatExName(ex)+'</div><div style="font-size:12px;color:var(--text2)">'+data.count+' TX totali • '+data.coins.size+' coin</div></div><button onclick="event.stopPropagation();openExchangeDetail(\''+ex+'\')" class="btn btn-sm btn-secondary">Dettagli →</button></div>';
-html+='<div style="overflow-x:auto"><table class="table" style="font-size:12px;margin:0"><thead><tr><th>Anno</th><th class="text-right">TX</th><th class="text-right">💶 Depositati</th><th class="text-right">💶 Prelevati</th><th class="text-right">🔄 Interni</th><th class="text-right">🎁 Rewards</th><th class="text-right">🛒 Buy</th><th class="text-right">💰 Sell</th></tr></thead><tbody>';
-var years=[2021,2022,2023,2024,2025,2026];years.forEach(function(y){if(data.byYear[y]&&data.byYear[y].tx>0){var yd=data.byYear[y];var depStr=yd.deposits>0?fmtC(yd.deposits):'-';var witStr=yd.withdraws>0?fmtC(yd.withdraws):'-';var intStr=yd.internal||0;html+='<tr style="cursor:pointer" onclick="openExchangeDetail(\''+ex+'\');setTimeout(function(){document.getElementById(\'exDetailYear\').value=\''+y+'\';loadExchangeDetail();},100)"><td><strong>'+y+'</strong></td><td class="text-right text-mono">'+yd.tx+'</td><td class="text-right text-mono" style="color:var(--green)">'+depStr+'</td><td class="text-right text-mono" style="color:var(--red)">'+witStr+'</td><td class="text-right text-mono" style="color:var(--text2)">'+intStr+'</td><td class="text-right text-mono" style="color:var(--yellow)">'+yd.rewards+'</td><td class="text-right text-mono" style="color:var(--green)">'+yd.buys+'</td><td class="text-right text-mono" style="color:var(--red)">'+yd.sells+'</td></tr>';}});
+html+='<div style="overflow-x:auto"><table class="table" style="font-size:12px;margin:0"><thead><tr><th>Anno</th><th class="text-right">TX</th><th class="text-right">💶 Depositati</th><th class="text-right">💶 Prelevati</th><th class="text-right">🔄 Interni</th><th class="text-right">🎁 Rewards</th><th style="min-width:200px">🪙 Saldo Coin (31/12)</th></tr></thead><tbody>';
+var years=[2021,2022,2023,2024,2025,2026];years.forEach(function(y){if(data.byYear[y]&&data.byYear[y].tx>0){var yd=data.byYear[y];var depStr=yd.deposits>0?fmtC(yd.deposits):'-';var witStr=yd.withdraws>0?fmtC(yd.withdraws):'-';var intStr=yd.internal||0;
+// Calcola top coin per questo anno
+var coinList=[];
+Object.entries(data.coinBalances||{}).forEach(function(cb){
+var coinName=cb[0];
+var yearBalances=cb[1];
+var bal=yearBalances[y]||0;
+if(Math.abs(bal)>0.00001&&coinName!=='EUR'&&!FIAT_COINS.includes(coinName)){
+coinList.push({coin:coinName,bal:bal});
+}
+});
+// Ordina per valore assoluto e prendi top 5
+coinList.sort(function(a,b){return Math.abs(b.bal)-Math.abs(a.bal);});
+var topCoins=coinList.slice(0,5);
+var coinStr=topCoins.length>0?topCoins.map(function(c){
+var balStr=Math.abs(c.bal)>=1000?fmtN(c.bal):(Math.abs(c.bal)>=1?c.bal.toFixed(2):c.bal.toFixed(4));
+return'<span style="display:inline-block;background:var(--bg3);padding:2px 6px;border-radius:4px;margin:1px;font-size:10px">'+c.coin+' <strong>'+balStr+'</strong></span>';
+}).join('')+(coinList.length>5?'<span style="color:var(--text2);font-size:10px"> +altri '+(coinList.length-5)+'</span>':''):'<span style="color:var(--text2)">-</span>';
+html+='<tr style="cursor:pointer" onclick="openExchangeDetail(\''+ex+'\');setTimeout(function(){document.getElementById(\'exDetailYear\').value=\''+y+'\';loadExchangeDetail();},100)"><td><strong>'+y+'</strong></td><td class="text-right text-mono">'+yd.tx+'</td><td class="text-right text-mono" style="color:var(--green)">'+depStr+'</td><td class="text-right text-mono" style="color:var(--red)">'+witStr+'</td><td class="text-right text-mono" style="color:var(--text2)">'+intStr+'</td><td class="text-right text-mono" style="color:var(--yellow)">'+yd.rewards+'</td><td style="text-align:left">'+coinStr+'</td></tr>';}});
 var totDepStr=data.deposits>0?fmtC(data.deposits):'-';var totWitStr=data.withdraws>0?fmtC(data.withdraws):'-';var totIntStr=data.internal||0;
-html+='<tr style="background:var(--bg2);font-weight:700"><td>TOTALE</td><td class="text-right text-mono">'+data.count+'</td><td class="text-right text-mono" style="color:var(--green)">'+totDepStr+'</td><td class="text-right text-mono" style="color:var(--red)">'+totWitStr+'</td><td class="text-right text-mono" style="color:var(--text2)">'+totIntStr+'</td><td class="text-right text-mono" style="color:var(--yellow)">'+data.rewards+'</td><td class="text-right text-mono" style="color:var(--green)">'+data.buys+'</td><td class="text-right text-mono" style="color:var(--red)">'+data.sells+'</td></tr>';
+// Calcola saldo attuale (ultimo anno con dati)
+var currentCoins=[];
+Object.entries(data.coinBalances||{}).forEach(function(cb){
+var coinName=cb[0];
+var yearBalances=cb[1];
+var bal=yearBalances[2025]||yearBalances[2024]||0;
+if(Math.abs(bal)>0.00001&&coinName!=='EUR'&&!FIAT_COINS.includes(coinName)){
+currentCoins.push({coin:coinName,bal:bal});
+}
+});
+currentCoins.sort(function(a,b){return Math.abs(b.bal)-Math.abs(a.bal);});
+var topCurrentCoins=currentCoins.slice(0,6);
+var currentCoinStr=topCurrentCoins.length>0?topCurrentCoins.map(function(c){
+var balStr=Math.abs(c.bal)>=1000?fmtN(c.bal):(Math.abs(c.bal)>=1?c.bal.toFixed(2):c.bal.toFixed(4));
+return'<span style="display:inline-block;background:var(--cyan)20;padding:2px 6px;border-radius:4px;margin:1px;font-size:10px;color:var(--cyan)">'+c.coin+' <strong>'+balStr+'</strong></span>';
+}).join('')+(currentCoins.length>6?'<span style="color:var(--text2);font-size:10px"> +altri '+(currentCoins.length-6)+'</span>':''):'<span style="color:var(--text2)">-</span>';
+html+='<tr style="background:var(--bg2);font-weight:700"><td>TOTALE</td><td class="text-right text-mono">'+data.count+'</td><td class="text-right text-mono" style="color:var(--green)">'+totDepStr+'</td><td class="text-right text-mono" style="color:var(--red)">'+totWitStr+'</td><td class="text-right text-mono" style="color:var(--text2)">'+totIntStr+'</td><td class="text-right text-mono" style="color:var(--yellow)">'+data.rewards+'</td><td style="text-align:left">'+currentCoinStr+'</td></tr>';
 html+='</tbody></table></div></div>';});}document.getElementById('exExchangeGrid').innerHTML=html;}
 function openExchangeDetail(ex){currentExchange=ex;exDetailPage=1;exDetailTxs=[];var color=EX_COLORS[ex]||'#888';var logo=EX_LOGOS[ex]||EX_LOGOS.other;document.getElementById('exDetailName').innerHTML='<div class="flex items-center gap-12"><img src="'+logo+'" style="width:32px;height:32px;border-radius:8px" onerror="this.style.display=\'none\'"><span>'+formatExName(ex)+'</span></div>';document.getElementById('exDetailYear').value='';document.getElementById('exDetailType').value='';document.getElementById('exDetailSearch').value='';document.getElementById('page-exchange').style.display='none';document.getElementById('page-exchange-detail').style.display='block';loadExchangeDetail();}
 async function resetCurrentExchange(){if(!currentExchange)return;if(!confirm('Sicuro di cancellare tutti i dati di '+currentExchange+'?'))return;try{await db.from('exchange_transactions').delete().eq('user_id',user.id).eq('exchange',currentExchange);toast('✅ Dati '+currentExchange+' cancellati!');showPage('exchange');}catch(e){toast('❌ Errore: '+e.message,'error');}}
