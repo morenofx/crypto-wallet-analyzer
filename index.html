@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v7.14</title>
+<title>CryptoFolio v7.15</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
@@ -19,10 +19,11 @@
 .btn{padding:10px 18px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:500;transition:all .2s}
 .btn-primary{background:var(--blue);color:#fff}.btn-primary:hover{background:#a29bfe}.btn-secondary{background:var(--bg3);color:var(--text);border:1px solid var(--border)}.btn-danger{background:var(--red);color:#fff}.btn-sm{padding:6px 12px;font-size:11px}
 .input{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:13px;width:100%}.input:focus{outline:none;border-color:var(--blue)}
-.table{width:100%;border-collapse:collapse;table-layout:fixed}.table th,.table td{padding:10px 6px;border-bottom:1px solid var(--border);vertical-align:middle;overflow:hidden;text-overflow:ellipsis}.table th{text-align:left;color:var(--text2);font-size:10px;text-transform:uppercase;font-weight:500}
+.table{width:100%;border-collapse:collapse;table-layout:fixed}.table th,.table td{padding:8px 6px;border-bottom:1px solid var(--border);vertical-align:middle;overflow:hidden;text-overflow:ellipsis}.table th{text-align:left;color:var(--text2);font-size:10px;text-transform:uppercase;font-weight:500}
 .token-cell{display:flex;align-items:center;gap:8px}.token-icon{width:28px;height:28px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:9px;overflow:hidden;flex-shrink:0}.token-icon img{width:100%;height:100%;object-fit:cover}
 .token-info{min-width:0}.token-info .symbol{font-weight:600;font-size:12px}.token-info .name{font-size:9px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.badge{display:inline-block;padding:2px 5px;border-radius:4px;font-size:8px;font-weight:600}.badge-ok{background:var(--green);color:#000}.badge-bad{background:var(--red);color:#fff}.badge-unk{background:var(--bg2);color:var(--text2)}
+.token-info .contract{font-size:8px;color:var(--text2);font-family:monospace;cursor:pointer}.token-info .contract:hover{color:var(--green)}
+.badge{display:inline-block;padding:2px 5px;border-radius:4px;font-size:8px;font-weight:600}.badge-ok{background:var(--green);color:#000}.badge-bad{background:var(--red);color:#fff}.badge-unk{background:var(--bg2);color:var(--text2)}.badge-warn{background:var(--yellow);color:#000}
 .chain-tag{display:inline-block;padding:2px 6px;border-radius:4px;font-size:8px;font-weight:500;white-space:nowrap}
 .text-mono{font-family:'SF Mono',Monaco,monospace;font-size:10px}.text-right{text-align:right!important}
 .top-item{display:flex;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);gap:12px}.top-item:last-child{border-bottom:none}
@@ -46,8 +47,6 @@
 .chain-item.active{border-color:var(--green);background:rgba(0,206,201,.1)}.chain-item input{accent-color:var(--green)}
 .chain-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 .api-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.hidden-row{opacity:0.4;background:var(--bg)!important}
-.filter-bar{display:flex;gap:8px;margin-bottom:12px;align-items:center}
 @media(max-width:768px){.sidebar{display:none}.main{margin-left:0}.charts{grid-template-columns:1fr}.chain-grid{grid-template-columns:repeat(2,1fr)}.api-grid{grid-template-columns:1fr}}
 </style>
 </head>
@@ -55,7 +54,7 @@
 <div id="authScreen" class="auth-box">
 <div class="auth-card">
 <div class="logo" style="justify-content:center;margin-bottom:24px"><div class="logo-icon">💰</div><div class="logo-text">CryptoFolio</div></div>
-<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v7.14</p>
+<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v7.15 + GoPlus Security</p>
 <div class="form-group"><label class="form-label">Email</label><input type="email" id="authEmail" class="input"></div>
 <div class="form-group"><label class="form-label">Password</label><input type="password" id="authPassword" class="input"></div>
 <button onclick="handleLogin()" class="btn btn-primary" style="width:100%;margin-bottom:10px">🔐 Accedi</button>
@@ -70,7 +69,7 @@
 <div class="nav" data-page="wallets" onclick="showPage('wallets')"><span>👛</span> Wallets</div>
 <div class="nav" data-page="tokens" onclick="showPage('tokens')"><span>🪙</span> Token Manager</div>
 <div class="nav" data-page="settings" onclick="showPage('settings')"><span>⚙️</span> Impostazioni</div>
-<div class="sidebar-footer">v7.14<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
+<div class="sidebar-footer">v7.15<br>🛡️ GoPlus Security<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
 </nav>
 <main class="main">
 <div id="page-dashboard">
@@ -107,21 +106,14 @@
 <div id="page-tokens" style="display:none">
 <div class="header"><h1 class="title">Token Manager</h1><div class="flex gap-8"><button onclick="showWhitelist()" class="btn btn-secondary btn-sm">✅ WL</button><button onclick="showBlacklist()" class="btn btn-secondary btn-sm">🚫 BL</button></div></div>
 <div class="card">
-<div class="filter-bar">
-<input type="text" id="tmSearch" class="input" placeholder="🔍 Cerca..." oninput="renderTM()" style="flex:1">
-<select id="tmFilter" class="input" style="width:130px" onchange="renderTM()">
-<option value="visible">👁 Visibili</option>
-<option value="hidden">🚫 Nascosti</option>
-<option value="all">📋 Tutti</option>
-</select>
-</div>
-<p style="font-size:10px;color:var(--text2);margin-bottom:12px">WL=Whitelist (✓) | BL=Blacklist (spam) | ✕=Nascondi | 👁=Mostra</p>
+<div class="flex gap-8 mb-16"><input type="text" id="tmSearch" class="input" placeholder="🔍 Cerca..." oninput="renderTM()" style="flex:1"><select id="tmFilter" class="input" style="width:130px" onchange="renderTM()"><option value="visible">👁 Visibili</option><option value="hidden">🚫 Nascosti</option><option value="all">📋 Tutti</option></select></div>
+<p style="font-size:10px;color:var(--text2);margin-bottom:12px">WL=Whitelist | BL=Blacklist | ✕=Nascondi | 👁=Mostra | 🛡️=GoPlus OK | ⚠️=Sospetto</p>
 <div id="tmList" style="max-height:500px;overflow-y:auto"></div>
 </div>
 </div>
 <div id="page-settings" style="display:none">
 <div class="header"><h1 class="title">Impostazioni</h1></div>
-<div class="card"><div style="font-size:13px;margin-bottom:12px;font-weight:600">🔑 API Keys Moralis (4 slot)</div><div class="api-grid"><div class="form-group"><label class="form-label">Key 1</label><input id="apiKey1" class="input" placeholder="Opzionale"></div><div class="form-group"><label class="form-label">Key 2</label><input id="apiKey2" class="input" placeholder="Opzionale"></div><div class="form-group"><label class="form-label">Key 3</label><input id="apiKey3" class="input" placeholder="Opzionale"></div><div class="form-group"><label class="form-label">Key 4</label><input id="apiKey4" class="input" placeholder="Opzionale"></div></div><button onclick="saveApiKeys()" class="btn btn-primary" style="margin-top:8px">💾 Salva</button><p style="font-size:10px;color:var(--text2);margin-top:8px">Se vuoti, usa le key di default</p></div>
+<div class="card"><div style="font-size:13px;margin-bottom:12px;font-weight:600">🔑 API Keys Moralis (4 slot)</div><div class="api-grid"><div class="form-group"><label class="form-label">Key 1</label><input id="apiKey1" class="input" placeholder="Opzionale"></div><div class="form-group"><label class="form-label">Key 2</label><input id="apiKey2" class="input"></div><div class="form-group"><label class="form-label">Key 3</label><input id="apiKey3" class="input"></div><div class="form-group"><label class="form-label">Key 4</label><input id="apiKey4" class="input"></div></div><button onclick="saveApiKeys()" class="btn btn-primary" style="margin-top:8px">💾 Salva</button></div>
 <div class="card"><div class="form-group"><label class="form-label">Valuta</label><select id="setCurrency" class="input" onchange="saveCurrency()"><option value="eur">EUR</option><option value="usd">USD</option></select></div></div>
 <div class="card"><div class="flex gap-8"><button onclick="exportCSV()" class="btn btn-secondary">📤 CSV</button><button onclick="clearAllData()" class="btn btn-danger">🗑️ Reset</button></div></div>
 </div>
@@ -136,28 +128,31 @@ const SB_URL='https://welnvmqfnceszrvpjoju.supabase.co',SB_KEY='eyJhbGciOiJIUzI1
 const DEF_KEYS=['eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjZjYThhZDhkLTEyMTktNDQ0Ny04ZGQ4LWZiZjlmOTlmYzcwYyIsIm9yZ0lkIjoiNDk2ODU3IiwidXNlcklkIjoiNTExMjY4IiwidHlwZUlkIjoiMmY1NzM4MWItYzNmOS00MDA4LTk5OGYtN2ExMmNiYTAzOWI0IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NjkzODIzMzQsImV4cCI6NDkyNTE0MjMzNH0.7cb3HhwH4qmvCYIil3ZWFAYcMD3qEcD3J8J16tAvpbM','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjVlNDJkYTQ5LWFlNmYtNGI2ZC05OTYwLTJkNTUwNGUwZDlmNyIsIm9yZ0lkIjoiNDg3NTI0IiwidXNlcklkIjoiNTAxNTk0IiwidHlwZUlkIjoiY2E1NjEyYzUtMGUzMy00Yzk3LTk1ODktNTA1Yjg4ZmIyNzU1IiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NjY2ODczNjMsImV4cCI6NDkyMjQ0NzM2M30.kwUGFKbnzJsALQww3R_UgZO00cDy50Rvf6OmLMTuu9c','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjE0ZDdlNmIxLTkzNTEtNGIwMi1hZGMzLWQ3NjA3MjllNjMxMiIsIm9yZ0lkIjoiNDk2OTIxIiwidXNlcklkIjoiNTExMzM2IiwidHlwZUlkIjoiYTgwMTE2N2QtNGE4MS00ZjVjLThiNGUtMjg0YTlkNzRlOTljIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3Njk0Mjc1ODIsImV4cCI6NDkyNTE4NzU4Mn0.iqQXubNVxU4I_MSjuQolQNKSo4vRHSnGiyiHjvos5eE','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjhlY2U3NzU0LTE0NjUtNGQzMS1iNjRjLTZiNzQ0ZDk3Y2E3ZSIsIm9yZ0lkIjoiNDg3NTI5IiwidXNlcklkIjoiNTAxNTk5IiwidHlwZUlkIjoiYWNiNzFlZjQtZGQ1Ni00NzExLWI1YmQtYjkyNTdmYjgxNDRiIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NjY2OTQ2MDEsImV4cCI6NDkyMjQ1NDYwMX0.3ygKvNrptS9FkNBcmGIO-gSAKGPh9B3h2VeuHdioty8'];
 let KEYS=[...DEF_KEYS],keyIdx=0;
 
-const CHAINS={eth:{n:'Ethereum',hex:'0x1',c:'#627eea',t:'ETH'},bsc:{n:'BNB Chain',hex:'0x38',c:'#f3ba2f',t:'BNB'},polygon:{n:'Polygon',hex:'0x89',c:'#8247e5',t:'POL'},arbitrum:{n:'Arbitrum',hex:'0xa4b1',c:'#28a0f0',t:'ETH'},optimism:{n:'Optimism',hex:'0xa',c:'#ff0420',t:'ETH'},base:{n:'Base',hex:'0x2105',c:'#0052ff',t:'ETH'},avalanche:{n:'Avalanche',hex:'0xa86a',c:'#e84142',t:'AVAX'},fantom:{n:'Fantom',hex:'0xfa',c:'#1969ff',t:'FTM'},cronos:{n:'Cronos',hex:'0x19',c:'#002d74',t:'CRO'},linea:{n:'Linea',hex:'0xe708',c:'#61dfff',t:'ETH'},gnosis:{n:'Gnosis',hex:'0x64',c:'#04795b',t:'xDAI'}};
+const CHAINS={eth:{n:'Ethereum',hex:'0x1',c:'#627eea',t:'ETH',gp:'1'},bsc:{n:'BNB Chain',hex:'0x38',c:'#f3ba2f',t:'BNB',gp:'56'},polygon:{n:'Polygon',hex:'0x89',c:'#8247e5',t:'POL',gp:'137'},arbitrum:{n:'Arbitrum',hex:'0xa4b1',c:'#28a0f0',t:'ETH',gp:'42161'},optimism:{n:'Optimism',hex:'0xa',c:'#ff0420',t:'ETH',gp:'10'},base:{n:'Base',hex:'0x2105',c:'#0052ff',t:'ETH',gp:'8453'},avalanche:{n:'Avalanche',hex:'0xa86a',c:'#e84142',t:'AVAX',gp:'43114'},fantom:{n:'Fantom',hex:'0xfa',c:'#1969ff',t:'FTM',gp:'250'},cronos:{n:'Cronos',hex:'0x19',c:'#002d74',t:'CRO',gp:'25'},linea:{n:'Linea',hex:'0xe708',c:'#61dfff',t:'ETH',gp:'59144'},gnosis:{n:'Gnosis',hex:'0x64',c:'#04795b',t:'xDAI',gp:'100'}};
 
-// ICONE NATIVE
 const NATIVE_ICONS={ETH:'https://assets.coingecko.com/coins/images/279/small/ethereum.png',BNB:'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',POL:'https://assets.coingecko.com/coins/images/4713/small/polygon.png',MATIC:'https://assets.coingecko.com/coins/images/4713/small/polygon.png',AVAX:'https://assets.coingecko.com/coins/images/12559/small/Avalanche_Circle_RedWhite_Trans.png',FTM:'https://assets.coingecko.com/coins/images/4001/small/Fantom_round.png',CRO:'https://assets.coingecko.com/coins/images/7310/small/cro_token_logo.png',xDAI:'https://assets.coingecko.com/coins/images/11062/small/Identity-Primary-DarkBG.png'};
 const VERIFIED=new Set(['ETH','BTC','BNB','USDT','USDC','DAI','WETH','WBTC','WBNB','LINK','UNI','AAVE','MATIC','POL','AVAX','FTM','CRO','WCRO','SHIB','DOGE','PEPE','CAKE','PLS','PLSX','HEX','BONE','BUBBLE','CIV','ONE','MAVIA','WBAI']);
 const CG_MAP={ETH:'ethereum',BTC:'bitcoin',BNB:'binancecoin',USDT:'tether',USDC:'usd-coin',WETH:'weth',MATIC:'matic-network',POL:'matic-network',AVAX:'avalanche-2',FTM:'fantom',CRO:'crypto-com-chain',LINK:'chainlink',UNI:'uniswap',AAVE:'aave',ARB:'arbitrum',OP:'optimism',PLS:'pulsechain',HEX:'hex',SHIB:'shiba-inu',DOGE:'dogecoin',PEPE:'pepe',CAKE:'pancakeswap-token',BONE:'bone-shibaswap'};
+
 function isSpam(name,sym){var n=(name||'').toLowerCase(),s=(sym||'').toLowerCase();var spam=['visit','claim','reward','.com','.org','.io','.xyz','airdrop','bonus','free','gift','http','$','#'];for(var i=0;i<spam.length;i++)if(n.includes(spam[i])||s.includes(spam[i]))return true;return(name||'').length>40;}
+
 const{createClient}=supabase;const db=createClient(SB_URL,SB_KEY);
 let user=null,currency='eur',chart=null,balances=[],prices={},scanning=false,currentWallet=null,scanTargetWallet=null;
 let whitelist=new Set(JSON.parse(localStorage.getItem('cf_wl')||'[]'));
 let blacklist=new Set(JSON.parse(localStorage.getItem('cf_bl')||'[]'));
 let hidden=new Set(JSON.parse(localStorage.getItem('cf_hid')||'[]'));
 let selectedChains=new Set(Object.keys(CHAINS));
-let walletTxCache={};
 
-// INIT - Custom keys SOSTITUISCONO default (max 4)
-function init(){
-var saved=JSON.parse(localStorage.getItem('cf_apikeys')||'[]').filter(function(k){return k&&k.length>20;});
-KEYS=saved.length>0?saved.slice(0,4):[...DEF_KEYS];
-updateApiStatus();
-}
-function updateApiStatus(){document.getElementById('apiStatus').textContent='🔑 4 keys';}
+// TX CACHE PERSISTENTE - usa localStorage!
+function getTxCache(){try{return JSON.parse(localStorage.getItem('cf_tx_cache')||'{}');}catch(e){return {};}}
+function setTxCache(cache){try{localStorage.setItem('cf_tx_cache',JSON.stringify(cache));}catch(e){}}
+
+// GoPlus cache locale
+let goplusCache=JSON.parse(localStorage.getItem('cf_goplus')||'{}');
+function saveGoplusCache(){localStorage.setItem('cf_goplus',JSON.stringify(goplusCache));}
+
+function init(){var saved=JSON.parse(localStorage.getItem('cf_apikeys')||'[]').filter(function(k){return k&&k.length>20;});KEYS=saved.length>0?saved.slice(0,4):[...DEF_KEYS];updateApiStatus();}
+function updateApiStatus(){document.getElementById('apiStatus').textContent='🔑 '+KEYS.length+' keys';}
 
 async function checkAuth(){init();var res=await db.auth.getSession();if(res.data.session){user=res.data.session.user;showApp();}else showAuth();}
 async function handleLogin(){var e=document.getElementById('authEmail').value,p=document.getElementById('authPassword').value;var res=await db.auth.signInWithPassword({email:e,password:p});if(res.error){document.getElementById('authError').textContent=res.error.message;return;}user=res.data.user;showApp();}
@@ -169,15 +164,37 @@ function showPage(p){document.querySelectorAll('[id^="page-"]').forEach(function
 function closeModal(id){document.getElementById(id).style.display='none';}
 function getKey(){return KEYS[keyIdx%KEYS.length];}
 function rotateKey(){keyIdx=(keyIdx+1)%KEYS.length;}
+
+// GoPlus Security Check
+async function checkGoPlus(contract,chainKey){
+var ch=CHAINS[chainKey];if(!ch||!ch.gp||!contract)return{safe:true,checked:false};
+var cacheKey=contract.toLowerCase()+'_'+chainKey;
+if(goplusCache[cacheKey])return goplusCache[cacheKey];
+try{
+var r=await fetch('https://api.gopluslabs.io/api/v1/token_security/'+ch.gp+'?contract_addresses='+contract);
+var d=await r.json();
+var info=d.result?d.result[contract.toLowerCase()]:null;
+var result={safe:true,checked:true,honeypot:false,blacklisted:false};
+if(info){
+result.honeypot=info.is_honeypot==='1';
+result.blacklisted=info.is_blacklisted==='1';
+result.safe=!result.honeypot&&!result.blacklisted;
+}
+goplusCache[cacheKey]=result;
+saveGoplusCache();
+return result;
+}catch(e){return{safe:true,checked:false};}
+}
+
 async function fetchMoralis(addr,chainKey,retry){retry=retry||0;var ch=CHAINS[chainKey];if(!ch)return null;try{var key=getKey();var nRes=await fetch('https://deep-index.moralis.io/api/v2.2/'+addr+'/balance?chain='+ch.hex,{headers:{'X-API-Key':key}});if(nRes.status===429||nRes.status===401){rotateKey();if(retry<KEYS.length)return fetchMoralis(addr,chainKey,retry+1);return null;}if(!nRes.ok)return null;var nData=await nRes.json();var tRes=await fetch('https://deep-index.moralis.io/api/v2.2/'+addr+'/erc20?chain='+ch.hex,{headers:{'X-API-Key':key}});if(tRes.status===429||tRes.status===401){rotateKey();if(retry<KEYS.length)return fetchMoralis(addr,chainKey,retry+1);return null;}var tData=tRes.ok?await tRes.json():[];return{nativeBalance:nData.balance||'0',tokens:Array.isArray(tData)?tData:[]};}catch(e){if(retry<KEYS.length){rotateKey();return fetchMoralis(addr,chainKey,retry+1);}return null;}}
 function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
 function getStatus(sym,name){var u=(sym||'').toUpperCase();if(whitelist.has(u))return'verified';if(blacklist.has(u))return'spam';if(VERIFIED.has(u))return'verified';if(isSpam(name,sym))return'spam';return'unverified';}
-// ICONA con native icons
 function icon(sym,chain,logo,sz){sz=sz||28;var ch=CHAINS[chain];var c=ch?ch.c:'#888';var s=(sym||'??').slice(0,2).toUpperCase();var u=(sym||'').toUpperCase();if(!logo&&NATIVE_ICONS[u])logo=NATIVE_ICONS[u];if(logo)return'<div class="token-icon" style="width:'+sz+'px;height:'+sz+'px"><img src="'+logo+'" onerror="this.onerror=null;this.parentElement.innerHTML=\'<span>'+s+'</span>\';this.parentElement.style.background=\''+c+'30\';this.parentElement.style.color=\''+c+'\';"></div>';return'<div class="token-icon" style="width:'+sz+'px;height:'+sz+'px;background:'+c+'30;color:'+c+';font-weight:700">'+s+'</div>';}
 function fmtC(v){var n=parseFloat(v)||0;return(currency==='eur'?'€':'$')+n.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function fmtN(v){var n=parseFloat(v)||0;if(n===0)return'0';if(n>=1e12)return(n/1e12).toFixed(2)+'T';if(n>=1e9)return(n/1e9).toFixed(2)+'B';if(n>=1e6)return(n/1e6).toFixed(2)+'M';if(n<0.0001)return n.toExponential(2);if(n<0.01)return n.toFixed(6);if(n<1)return n.toFixed(4);if(n<1000)return n.toFixed(2);return n.toLocaleString('it-IT',{maximumFractionDigits:2});}
 function toast(msg,type){type=type||'success';document.querySelectorAll('.toast').forEach(function(t){t.remove();});var t=document.createElement('div');t.className='toast '+type;t.innerHTML=(type==='success'?'✅':'❌')+' '+msg;document.body.appendChild(t);setTimeout(function(){t.remove();},4000);}
 function toggleCurrency(){currency=currency==='eur'?'usd':'eur';document.getElementById('currencyBtn').textContent=currency==='eur'?'💶 EUR':'💵 USD';loadDashboard();}
+function copyContract(addr){navigator.clipboard.writeText(addr);toast('Copiato!');}
 function renderChainGrid(id){var h='';for(var k in CHAINS){var ch=CHAINS[k];var on=selectedChains.has(k);h+='<label class="chain-item'+(on?' active':'')+'"><input type="checkbox" '+(on?'checked':'')+' onchange="toggleChain(\''+k+'\',this)"><span class="chain-dot" style="background:'+ch.c+'"></span>'+ch.n+'</label>';}var el=document.getElementById(id);if(el)el.innerHTML=h;}
 function toggleChain(k,el){if(el.checked)selectedChains.add(k);else selectedChains.delete(k);el.parentElement.classList.toggle('active',el.checked);}
 function selectAllChains(){selectedChains=new Set(Object.keys(CHAINS));renderChainGrid('modalChainGrid');renderChainGrid('scanChainGrid');}
@@ -185,11 +202,18 @@ function selectNoChains(){selectedChains.clear();renderChainGrid('modalChainGrid
 async function fetchPrices(syms){var ids=[];syms.forEach(function(s){var u=(s||'').toUpperCase();if(CG_MAP[u])ids.push(CG_MAP[u]);});ids=[...new Set(ids)];if(!ids.length)return;try{var r=await fetch('https://api.coingecko.com/api/v3/simple/price?ids='+ids.join(',')+'&vs_currencies=eur,usd');var d=await r.json();for(var sym in CG_MAP){if(d[CG_MAP[sym]])prices[sym]={eur:d[CG_MAP[sym]].eur||0,usd:d[CG_MAP[sym]].usd||0};}}catch(e){}}
 async function refreshPrices(){toast('Aggiornamento...');await fetchPrices(balances.map(function(b){return b.symbol;}));await loadDashboard();toast('Prezzi aggiornati!');}
 function safeAmount(bal){if(bal>1e15)return bal/1e18;return bal;}
-async function scanWallet(wallet){if(scanning)return;if(selectedChains.size===0){toast('Seleziona chain!','error');return;}scanning=true;var scanBox=document.getElementById('walletScanBox');scanBox.style.display='block';document.getElementById('walletScanLog').innerHTML='';document.getElementById('walletScanTitle').textContent='🔍 '+(wallet.name||'Wallet');function log(m,cls){cls=cls||'log-info';var el=document.getElementById('walletScanLog');el.innerHTML+='<div class="'+cls+'">'+m+'</div>';el.scrollTop=el.scrollHeight;}try{var results=[];var chainKeys=[...selectedChains];var done=0;log('👛 '+wallet.address.slice(0,10)+'...');for(var i=0;i<chainKeys.length;i++){var ck=chainKeys[i];var ch=CHAINS[ck];var pct=Math.round((done/chainKeys.length)*100);document.getElementById('walletScanBar').style.width=pct+'%';document.getElementById('walletScanPct').textContent=pct+'%';document.getElementById('walletScanStatus').textContent=ch.n;log('→ '+ch.n+'...');var data=await fetchMoralis(wallet.address,ck);if(data){var nativeBal=0;try{nativeBal=Number(BigInt(data.nativeBalance||'0'))/1e18;}catch(e){}if(nativeBal>0.00001){results.push({user_id:user.id,wallet_id:wallet.id,symbol:ch.t,name:ch.n+' Native',chain:ck,contract_address:null,amount:safeAmount(nativeBal),logo_url:null,is_hidden:false});log('  ✅ '+ch.t+': '+fmtN(nativeBal),'log-ok');}if(data.tokens&&data.tokens.length>0){log('  📦 '+data.tokens.length+' token');var added=0;for(var j=0;j<data.tokens.length;j++){var token=data.tokens[j];if(!token.symbol)continue;var contract=(token.token_address||'').toLowerCase();if(blacklist.has(contract))continue;if(isSpam(token.name,token.symbol)&&!whitelist.has((token.symbol||'').toUpperCase()))continue;var bal=0;try{bal=Number(BigInt(token.balance||'0'))/Math.pow(10,token.decimals||18);}catch(e){try{bal=parseFloat(token.balance||'0')/Math.pow(10,token.decimals||18);}catch(e2){}}if(bal<=0)continue;results.push({user_id:user.id,wallet_id:wallet.id,symbol:token.symbol,name:token.name||token.symbol,chain:ck,contract_address:contract,amount:safeAmount(bal),logo_url:token.logo||token.thumbnail||null,is_hidden:false});added++;}log('  ✅ '+added+' salvati','log-ok');}}await sleep(150);done++;}document.getElementById('walletScanStatus').textContent='Salvataggio...';log('💾 '+results.length+' token...');await db.from('balances').delete().eq('wallet_id',wallet.id);if(results.length>0){var ok=0;for(var b=0;b<results.length;b+=20){var batch=results.slice(b,b+20);var insRes=await db.from('balances').insert(batch);if(!insRes.error)ok+=batch.length;}log('📊 '+ok+'/'+results.length+' salvati','log-ok');}await db.from('wallets').update({last_scan_at:new Date().toISOString()}).eq('id',wallet.id);document.getElementById('walletScanBar').style.width='100%';document.getElementById('walletScanStatus').textContent='✅ Fatto!';log('✅ COMPLETATO!','log-ok');toast(results.length+' token');await loadDashboard();await loadWallets();}catch(e){log('❌ '+e.message,'log-err');toast(e.message,'error');}finally{scanning=false;setTimeout(function(){scanBox.style.display='none';},5000);}}
+async function scanWallet(wallet){if(scanning)return;if(selectedChains.size===0){toast('Seleziona chain!','error');return;}scanning=true;var scanBox=document.getElementById('walletScanBox');scanBox.style.display='block';document.getElementById('walletScanLog').innerHTML='';document.getElementById('walletScanTitle').textContent='🔍 '+(wallet.name||'Wallet');function log(m,cls){cls=cls||'log-info';var el=document.getElementById('walletScanLog');el.innerHTML+='<div class="'+cls+'">'+m+'</div>';el.scrollTop=el.scrollHeight;}try{var results=[];var chainKeys=[...selectedChains];var done=0;log('👛 '+wallet.address.slice(0,10)+'...');for(var i=0;i<chainKeys.length;i++){var ck=chainKeys[i];var ch=CHAINS[ck];var pct=Math.round((done/chainKeys.length)*100);document.getElementById('walletScanBar').style.width=pct+'%';document.getElementById('walletScanPct').textContent=pct+'%';document.getElementById('walletScanStatus').textContent=ch.n;log('→ '+ch.n+'...');var data=await fetchMoralis(wallet.address,ck);if(data){var nativeBal=0;try{nativeBal=Number(BigInt(data.nativeBalance||'0'))/1e18;}catch(e){}if(nativeBal>0.00001){results.push({user_id:user.id,wallet_id:wallet.id,symbol:ch.t,name:ch.n+' Native',chain:ck,contract_address:null,amount:safeAmount(nativeBal),logo_url:null,is_hidden:false,goplus_safe:true});log('  ✅ '+ch.t+': '+fmtN(nativeBal),'log-ok');}if(data.tokens&&data.tokens.length>0){log('  📦 '+data.tokens.length+' token');var added=0,skipped=0;for(var j=0;j<data.tokens.length;j++){var token=data.tokens[j];if(!token.symbol)continue;var contract=(token.token_address||'').toLowerCase();if(blacklist.has(contract)){skipped++;continue;}if(isSpam(token.name,token.symbol)&&!whitelist.has((token.symbol||'').toUpperCase())){skipped++;continue;}var bal=0;try{bal=Number(BigInt(token.balance||'0'))/Math.pow(10,token.decimals||18);}catch(e){try{bal=parseFloat(token.balance||'0')/Math.pow(10,token.decimals||18);}catch(e2){}}if(bal<=0)continue;
+// GoPlus check per token sconosciuti
+var gpSafe=true;
+if(!VERIFIED.has((token.symbol||'').toUpperCase())&&contract){
+var gp=await checkGoPlus(contract,ck);
+gpSafe=gp.safe;
+if(!gpSafe){log('  ⚠️ '+token.symbol+' sospetto!','log-warn');skipped++;continue;}
+}
+results.push({user_id:user.id,wallet_id:wallet.id,symbol:token.symbol,name:token.name||token.symbol,chain:ck,contract_address:contract,amount:safeAmount(bal),logo_url:token.logo||token.thumbnail||null,is_hidden:false,goplus_safe:gpSafe});added++;}log('  ✅ '+added+' salvati, '+skipped+' scartati','log-ok');}}await sleep(150);done++;}document.getElementById('walletScanStatus').textContent='Salvataggio...';log('💾 '+results.length+' token...');await db.from('balances').delete().eq('wallet_id',wallet.id);if(results.length>0){var ok=0;for(var b=0;b<results.length;b+=20){var batch=results.slice(b,b+20);var insRes=await db.from('balances').insert(batch);if(!insRes.error)ok+=batch.length;}log('📊 '+ok+'/'+results.length+' salvati','log-ok');}await db.from('wallets').update({last_scan_at:new Date().toISOString()}).eq('id',wallet.id);document.getElementById('walletScanBar').style.width='100%';document.getElementById('walletScanStatus').textContent='✅ Fatto!';log('✅ COMPLETATO!','log-ok');toast(results.length+' token');await loadDashboard();await loadWallets();}catch(e){log('❌ '+e.message,'log-err');toast(e.message,'error');}finally{scanning=false;setTimeout(function(){scanBox.style.display='none';},5000);}}
 function showScanWalletModal(wallet){scanTargetWallet=wallet;document.getElementById('scanWalletName').textContent='👛 '+(wallet.name||wallet.address.slice(0,14));selectedChains=new Set(Object.keys(CHAINS));renderChainGrid('scanChainGrid');document.getElementById('scanWalletModal').style.display='flex';}
 async function startScanWallet(){closeModal('scanWalletModal');if(scanTargetWallet)await scanWallet(scanTargetWallet);}
 async function loadDashboard(){var res=await db.from('balances').select('*').eq('user_id',user.id);balances=res.data||[];await fetchPrices(balances.map(function(b){return b.symbol;}));balances.forEach(function(b){var p=prices[(b.symbol||'').toUpperCase()];b.price_eur=p?p.eur:0;b.price_usd=p?p.usd:0;b.value_eur=(b.amount||0)*(p?p.eur:0);b.value_usd=(b.amount||0)*(p?p.usd:0);});var used=new Set(balances.map(function(b){return b.chain;}));var cf=document.getElementById('chainFilter');cf.innerHTML='<option value="">Tutte</option>';for(var k in CHAINS){if(used.has(k))cf.innerHTML+='<option value="'+k+'">'+CHAINS[k].n+'</option>';}var totalE=0,verE=0,hidCount=0,toks=new Set(),chs=new Set();balances.forEach(function(b){if(b.amount>0&&!b.is_hidden){totalE+=b.value_eur||0;toks.add(b.symbol);chs.add(b.chain);if(getStatus(b.symbol,b.name)==='verified')verE+=b.value_eur||0;}if(b.is_hidden)hidCount++;});document.getElementById('totalValue').textContent=fmtC(totalE);document.getElementById('verifiedValue').textContent=fmtC(verE);document.getElementById('tokenCount').textContent=toks.size;document.getElementById('chainCount').textContent=chs.size;document.getElementById('spamCount').textContent=hidCount;var wRes=await db.from('wallets').select('*',{count:'exact',head:true}).eq('user_id',user.id);document.getElementById('walletCount').textContent=wRes.count||0;renderTop();renderChart();renderTokens();}
-// TOP HOLDINGS - Aggrega per SYMBOL+CHAIN (chain corretta!)
 function renderTop(){var vis=balances.filter(function(b){return!b.is_hidden&&b.amount>0;});var by={};vis.forEach(function(b){var k=b.symbol+'_'+b.chain;if(!by[k])by[k]={sym:b.symbol,chain:b.chain,eur:0,amt:0,logo:b.logo_url};by[k].eur+=b.value_eur||0;by[k].amt+=b.amount;if(b.logo_url)by[k].logo=b.logo_url;});var sorted=Object.values(by).sort(function(a,b){return b.eur-a.eur;}).slice(0,5);if(!sorted.length){document.getElementById('topHoldings').innerHTML='<p style="color:var(--text2);font-size:11px;padding:16px">Nessun token</p>';return;}var total=sorted.reduce(function(s,h){return s+h.eur;},0);var html='';sorted.forEach(function(h){var pct=total>0?((h.eur/total)*100).toFixed(0):0;var st=getStatus(h.sym,'');var ch=CHAINS[h.chain]||{n:'?',c:'#888'};html+='<div class="top-item"><div class="top-icon">'+icon(h.sym,h.chain,h.logo,32)+'</div><div class="top-info"><div class="top-row1"><span class="top-sym">'+h.sym+'</span>'+(st==='verified'?'<span class="badge badge-ok">✓</span>':'')+'<span class="chain-tag" style="background:'+ch.c+'22;color:'+ch.c+'">'+ch.n+'</span></div><div class="top-amt">'+fmtN(h.amt)+'</div></div><div class="top-values"><div class="top-val">'+fmtC(h.eur)+'</div><div class="top-pct">'+pct+'%</div></div></div>';});document.getElementById('topHoldings').innerHTML=html;}
 function renderChart(){var vis=balances.filter(function(b){return!b.is_hidden&&b.amount>0&&(b.value_eur||0)>0;});var by={};vis.forEach(function(b){if(!by[b.symbol])by[b.symbol]=0;by[b.symbol]+=b.value_eur||0;});var sorted=Object.entries(by).sort(function(a,b){return b[1]-a[1];}).slice(0,5);var ctx=document.getElementById('chart');if(chart)chart.destroy();if(!sorted.length)return;var colors=['#00cec9','#6c5ce7','#a29bfe','#ff6b6b','#fdcb6e'];chart=new Chart(ctx,{type:'doughnut',data:{labels:sorted.map(function(s){return s[0];}),datasets:[{data:sorted.map(function(s){return s[1];}),backgroundColor:colors,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{color:'#fff',padding:8,font:{size:11}}}}}});}
 function renderTokens(){var cfv=document.getElementById('chainFilter').value,sfv=document.getElementById('statusFilter').value;var fil=balances.filter(function(b){return b.amount>0;});if(cfv)fil=fil.filter(function(b){return b.chain===cfv;});fil=fil.map(function(b){return Object.assign({},b,{st:getStatus(b.symbol,b.name)});});if(sfv==='verified')fil=fil.filter(function(b){return b.st==='verified'&&!b.is_hidden;});else if(sfv==='unverified')fil=fil.filter(function(b){return b.st==='unverified'&&!b.is_hidden;});else if(sfv==='hidden')fil=fil.filter(function(b){return b.is_hidden;});else fil=fil.filter(function(b){return!b.is_hidden;});fil.sort(function(a,b){return(b.value_eur||0)-(a.value_eur||0);});document.getElementById('tokenListCount').textContent='('+fil.length+')';if(!fil.length){document.getElementById('tokenList').innerHTML='<p style="color:var(--text2);font-size:11px;padding:16px">Nessun token</p>';return;}var html='<table class="table"><thead><tr><th style="width:32%">Token</th><th style="width:18%" class="text-right">Quantità</th><th style="width:14%">Chain</th><th style="width:18%" class="text-right">Valore</th><th style="width:18%">Azioni</th></tr></thead><tbody>';fil.slice(0,100).forEach(function(b){var ch=CHAINS[b.chain]||{n:b.chain,c:'#888'};var badge=b.st==='verified'?'<span class="badge badge-ok">✓</span>':b.st==='spam'?'<span class="badge badge-bad">⚠</span>':'<span class="badge badge-unk">?</span>';html+='<tr style="'+(b.is_hidden?'opacity:0.4;':'')+'"><td><div class="token-cell">'+icon(b.symbol,b.chain,b.logo_url,26)+'<div class="token-info"><div class="symbol">'+(b.symbol||'?')+' '+badge+'</div><div class="name">'+(b.name||'').slice(0,16)+'</div></div></div></td><td class="text-mono text-right">'+fmtN(b.amount)+'</td><td><span class="chain-tag" style="background:'+ch.c+'22;color:'+ch.c+'">'+ch.n+'</span></td><td class="text-right" style="font-weight:600;color:var(--green)">'+((b.value_eur||0)>0.01?fmtC(b.value_eur):'-')+'</td><td><button class="btn btn-sm btn-secondary" onclick="toggleHide(\''+b.id+'\')">'+(b.is_hidden?'👁':'✕')+'</button></td></tr>';});document.getElementById('tokenList').innerHTML=html+'</tbody></table>';}
@@ -197,15 +221,150 @@ async function toggleHide(id){var b=balances.find(function(x){return x.id===id;}
 async function loadWallets(){var res=await db.from('wallets').select('*').eq('user_id',user.id).order('created_at',{ascending:false});var ws=res.data;if(!ws||!ws.length){document.getElementById('walletList').innerHTML='<div class="card"><p style="color:var(--text2)">Nessun wallet</p></div>';return;}var html='';ws.forEach(function(w){var wb=balances.filter(function(b){return b.wallet_id===w.id&&!b.is_hidden;});var tot=wb.reduce(function(s,b){return s+(b.value_eur||0);},0);var chs=new Set(wb.map(function(b){return b.chain;}));var ls=w.last_scan_at?new Date(w.last_scan_at).toLocaleString('it-IT'):'Mai';html+='<div class="card" style="margin-bottom:12px"><div class="flex justify-between items-center mb-12"><div><h3 style="font-size:14px;margin-bottom:4px;cursor:pointer" onclick="showWalletDetail(\''+w.id+'\')">'+(w.name||'Wallet')+' →</h3><code style="font-size:9px;color:var(--text2)">'+w.address+'</code></div><div style="text-align:right"><div style="font-size:18px;font-weight:700;color:var(--green)">'+fmtC(tot)+'</div><div style="font-size:10px;color:var(--text2)">'+wb.length+' token · '+chs.size+' chain</div></div></div><div style="font-size:9px;color:var(--text2);margin-bottom:8px">Scan: '+ls+'</div><div class="flex gap-8"><button onclick="showScanWalletModal({id:\''+w.id+'\',name:\''+(w.name||'')+'\',address:\''+w.address+'\'})" class="btn btn-primary btn-sm">🔍 Scan</button><button onclick="showWalletDetail(\''+w.id+'\')" class="btn btn-secondary btn-sm">👁 Dettagli</button><button onclick="deleteWallet(\''+w.id+'\')" class="btn btn-danger btn-sm">🗑</button></div></div>';});document.getElementById('walletList').innerHTML=html;}
 function showAddWallet(){selectedChains=new Set(Object.keys(CHAINS));renderChainGrid('modalChainGrid');document.getElementById('addWalletModal').style.display='flex';}
 async function addWallet(){var n=document.getElementById('wName').value.trim(),a=document.getElementById('wAddr').value.trim();if(!a||!a.startsWith('0x')||a.length!==42){toast('Indirizzo non valido','error');return;}if(selectedChains.size===0){toast('Seleziona chain','error');return;}var res=await db.from('wallets').insert({user_id:user.id,address:a,name:n||null,wallet_type:'evm'}).select().single();if(res.error){toast(res.error.message,'error');return;}closeModal('addWalletModal');document.getElementById('wName').value='';document.getElementById('wAddr').value='';toast('Wallet aggiunto!');await scanWallet(res.data);loadWallets();}
-async function deleteWallet(id){if(!confirm('Eliminare?'))return;await db.from('balances').delete().eq('wallet_id',id);await db.from('wallets').delete().eq('id',id);balances=balances.filter(function(b){return b.wallet_id!==id;});delete walletTxCache[id];toast('Eliminato');loadWallets();loadDashboard();}
-async function showWalletDetail(id){var res=await db.from('wallets').select('*').eq('id',id).single();var w=res.data;if(!w)return;currentWallet=w;document.getElementById('page-wallets').style.display='none';document.getElementById('page-wallet-detail').style.display='block';document.getElementById('wdName').textContent=w.name||'Wallet';document.getElementById('wdAddr').textContent=w.address;var wb=balances.filter(function(b){return b.wallet_id===id&&!b.is_hidden;});document.getElementById('wdValue').textContent=fmtC(wb.reduce(function(s,b){return s+(b.value_eur||0);},0));document.getElementById('wdTokens').textContent=wb.length;renderWalletTokens(id);if(walletTxCache[id]&&walletTxCache[id].length>0){renderTxTable(walletTxCache[id]);document.getElementById('wdTxTab').style.display='none';}else{document.getElementById('wdTxTab').innerHTML='<p style="color:var(--text2);font-size:11px">Clicca 📜 TX</p>';}}
-function showWalletTab(t){document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active');});event.target.classList.add('active');document.getElementById('wdTokensTab').style.display=t==='tokens'?'block':'none';document.getElementById('wdTxTab').style.display=t==='tx'?'block':'none';if(t==='tx'&&currentWallet&&walletTxCache[currentWallet.id])renderTxTable(walletTxCache[currentWallet.id]);}
+async function deleteWallet(id){if(!confirm('Eliminare?'))return;await db.from('balances').delete().eq('wallet_id',id);await db.from('wallets').delete().eq('id',id);balances=balances.filter(function(b){return b.wallet_id!==id;});var txCache=getTxCache();delete txCache[id];setTxCache(txCache);toast('Eliminato');loadWallets();loadDashboard();}
+
+async function showWalletDetail(id){
+var res=await db.from('wallets').select('*').eq('id',id).single();
+var w=res.data;if(!w)return;
+currentWallet=w;
+document.getElementById('page-wallets').style.display='none';
+document.getElementById('page-wallet-detail').style.display='block';
+document.getElementById('wdName').textContent=w.name||'Wallet';
+document.getElementById('wdAddr').textContent=w.address;
+var wb=balances.filter(function(b){return b.wallet_id===id&&!b.is_hidden;});
+document.getElementById('wdValue').textContent=fmtC(wb.reduce(function(s,b){return s+(b.value_eur||0);},0));
+document.getElementById('wdTokens').textContent=wb.length;
+renderWalletTokens(id);
+// CARICA TX DA CACHE LOCALSTORAGE
+var txCache=getTxCache();
+if(txCache[id]&&txCache[id].length>0){
+console.log('TX cache trovata per wallet',id,txCache[id].length,'TX');
+renderTxTable(txCache[id]);
+document.getElementById('wdTxTab').style.display='none';
+}else{
+document.getElementById('wdTxTab').innerHTML='<p style="color:var(--text2);font-size:11px">Clicca 📜 TX per caricare</p>';
+}
+}
+
+function showWalletTab(t){
+document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active');});
+event.target.classList.add('active');
+document.getElementById('wdTokensTab').style.display=t==='tokens'?'block':'none';
+document.getElementById('wdTxTab').style.display=t==='tx'?'block':'none';
+// Se tab TX, mostra da cache
+if(t==='tx'&&currentWallet){
+var txCache=getTxCache();
+if(txCache[currentWallet.id]&&txCache[currentWallet.id].length>0){
+renderTxTable(txCache[currentWallet.id]);
+}
+}
+}
+
 function renderWalletTokens(id){var wb=balances.filter(function(b){return b.wallet_id===id&&b.amount>0;}).sort(function(a,b){return(b.value_eur||0)-(a.value_eur||0);});if(!wb.length){document.getElementById('wdTokensTab').innerHTML='<p style="color:var(--text2);font-size:11px">Nessun token</p>';return;}var html='<table class="table"><thead><tr><th style="width:35%">Token</th><th style="width:20%" class="text-right">Quantità</th><th style="width:18%">Chain</th><th style="width:27%" class="text-right">Valore</th></tr></thead><tbody>';wb.forEach(function(b){var ch=CHAINS[b.chain]||{n:b.chain,c:'#888'};var st=getStatus(b.symbol,b.name);html+='<tr><td><div class="token-cell">'+icon(b.symbol,b.chain,b.logo_url,26)+'<div class="token-info"><div class="symbol">'+b.symbol+(st==='verified'?' <span class="badge badge-ok">✓</span>':'')+'</div><div class="name">'+(b.name||'').slice(0,16)+'</div></div></div></td><td class="text-mono text-right">'+fmtN(b.amount)+'</td><td><span class="chain-tag" style="background:'+ch.c+'22;color:'+ch.c+'">'+ch.n+'</span></td><td class="text-right" style="font-weight:600;color:var(--green)">'+fmtC(b.value_eur||0)+'</td></tr>';});document.getElementById('wdTokensTab').innerHTML=html+'</tbody></table>';}
-async function loadWalletTx(){if(!currentWallet)return;toast('Caricamento TX...');document.getElementById('wdTxTab').innerHTML='<p>Caricamento...</p>';document.getElementById('wdTxTab').style.display='block';document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active');});document.querySelectorAll('.tab')[1].classList.add('active');document.getElementById('wdTokensTab').style.display='none';var allTx=[];var usedChains=new Set(balances.filter(function(b){return b.wallet_id===currentWallet.id;}).map(function(b){return b.chain;}));for(var ck of usedChains){var ch=CHAINS[ck];if(!ch)continue;try{var r=await fetch('https://deep-index.moralis.io/api/v2.2/'+currentWallet.address+'/erc20/transfers?chain='+ch.hex+'&limit=30',{headers:{'X-API-Key':getKey()}});if(!r.ok)continue;var data=await r.json();if(data.result){data.result.forEach(function(tx){var isIn=(tx.to_address||'').toLowerCase()===currentWallet.address.toLowerCase();var dec=parseInt(tx.token_decimals)||18;allTx.push({date:new Date(tx.block_timestamp),type:isIn?'IN':'OUT',symbol:tx.token_symbol||'?',amount:parseFloat(tx.value)/Math.pow(10,dec),chain:ck});});}await sleep(100);}catch(e){}}allTx.sort(function(a,b){return b.date-a.date;});walletTxCache[currentWallet.id]=allTx;renderTxTable(allTx);toast(allTx.length+' TX');}
-function renderTxTable(allTx){if(!allTx||!allTx.length){document.getElementById('wdTxTab').innerHTML='<p style="color:var(--text2);font-size:11px">Nessuna TX</p>';return;}var html='<table class="table"><thead><tr><th style="width:18%">Data</th><th style="width:12%">Tipo</th><th style="width:25%">Token</th><th style="width:25%" class="text-right">Quantità</th><th style="width:20%">Chain</th></tr></thead><tbody>';allTx.slice(0,50).forEach(function(tx){var ch=CHAINS[tx.chain]||{n:tx.chain,c:'#888'};html+='<tr><td style="font-size:10px">'+tx.date.toLocaleDateString('it-IT')+'</td><td><span class="badge" style="background:'+(tx.type==='IN'?'var(--green)':'var(--red)')+'22;color:'+(tx.type==='IN'?'var(--green)':'var(--red)')+'">'+tx.type+'</span></td><td style="font-weight:600;font-size:11px">'+tx.symbol+'</td><td class="text-mono text-right">'+(tx.type==='IN'?'+':'-')+fmtN(tx.amount)+'</td><td><span class="chain-tag" style="background:'+ch.c+'22;color:'+ch.c+'">'+ch.n+'</span></td></tr>';});document.getElementById('wdTxTab').innerHTML=html+'</tbody></table>';}
-// TOKEN MANAGER con filtro chiaro
-function renderTM(){var q=(document.getElementById('tmSearch')?document.getElementById('tmSearch').value:'').toLowerCase();var filt=document.getElementById('tmFilter')?document.getElementById('tmFilter').value:'visible';var fil=balances.filter(function(b){return b.amount>0;});if(q)fil=fil.filter(function(b){return(b.symbol||'').toLowerCase().includes(q)||(b.name||'').toLowerCase().includes(q);});// Applica filtro visibilità
-if(filt==='visible')fil=fil.filter(function(b){return!b.is_hidden;});else if(filt==='hidden')fil=fil.filter(function(b){return b.is_hidden;});fil=fil.map(function(b){return Object.assign({},b,{st:getStatus(b.symbol,b.name)});}).sort(function(a,b){return(b.value_eur||0)-(a.value_eur||0);});if(!fil.length){document.getElementById('tmList').innerHTML='<p style="color:var(--text2);font-size:11px">Nessun token</p>';return;}var html='<table class="table"><thead><tr><th style="width:28%">Token</th><th style="width:14%">Chain</th><th style="width:12%" class="text-right">Qtà</th><th style="width:14%" class="text-right">Valore</th><th style="width:32%">Azioni</th></tr></thead><tbody>';fil.slice(0,100).forEach(function(b){var ch=CHAINS[b.chain]||{n:b.chain,c:'#888'};var isWL=whitelist.has((b.symbol||'').toUpperCase()),isBL=blacklist.has((b.symbol||'').toUpperCase());var stBadge=b.st==='verified'?'<span class="badge badge-ok">✓</span>':b.st==='spam'?'<span class="badge badge-bad">⚠</span>':'<span class="badge badge-unk">?</span>';html+='<tr style="'+(b.is_hidden?'opacity:0.4;':'')+'"><td><div class="token-cell">'+icon(b.symbol,b.chain,b.logo_url,24)+'<div class="token-info"><div class="symbol">'+(b.symbol||'?')+' '+stBadge+'</div><div class="name">'+(b.name||'').slice(0,12)+'</div></div></div></td><td><span class="chain-tag" style="background:'+ch.c+'22;color:'+ch.c+'">'+ch.n+'</span></td><td class="text-mono text-right">'+fmtN(b.amount)+'</td><td class="text-right" style="font-weight:500">'+fmtC(b.value_eur||0)+'</td><td><button class="btn btn-sm '+(isWL?'btn-primary':'btn-secondary')+'" onclick="toggleWL(\''+b.symbol+'\')" style="margin-right:2px">WL</button><button class="btn btn-sm '+(isBL?'btn-danger':'btn-secondary')+'" onclick="toggleBL(\''+b.symbol+'\')" style="margin-right:2px">BL</button><button class="btn btn-sm btn-secondary" onclick="toggleHide(\''+b.id+'\')">'+(b.is_hidden?'👁':'✕')+'</button></td></tr>';});document.getElementById('tmList').innerHTML=html+'</tbody></table>';}
+
+// TX - SALVA IN LOCALSTORAGE!
+async function loadWalletTx(){
+if(!currentWallet)return;
+toast('Caricamento TX...');
+document.getElementById('wdTxTab').innerHTML='<p>⏳ Caricamento...</p>';
+document.getElementById('wdTxTab').style.display='block';
+document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active');});
+document.querySelectorAll('.tab')[1].classList.add('active');
+document.getElementById('wdTokensTab').style.display='none';
+
+var allTx=[];
+var usedChains=new Set(balances.filter(function(b){return b.wallet_id===currentWallet.id;}).map(function(b){return b.chain;}));
+
+for(var ck of usedChains){
+var ch=CHAINS[ck];if(!ch)continue;
+try{
+var r=await fetch('https://deep-index.moralis.io/api/v2.2/'+currentWallet.address+'/erc20/transfers?chain='+ch.hex+'&limit=30',{headers:{'X-API-Key':getKey()}});
+if(!r.ok)continue;
+var data=await r.json();
+if(data.result){
+data.result.forEach(function(tx){
+var isIn=(tx.to_address||'').toLowerCase()===currentWallet.address.toLowerCase();
+var dec=parseInt(tx.token_decimals)||18;
+allTx.push({
+date:tx.block_timestamp,
+type:isIn?'IN':'OUT',
+symbol:tx.token_symbol||'?',
+amount:parseFloat(tx.value)/Math.pow(10,dec),
+chain:ck
+});
+});
+}
+await sleep(100);
+}catch(e){console.error('TX error',ck,e);}
+}
+
+allTx.sort(function(a,b){return new Date(b.date)-new Date(a.date);});
+
+// SALVA IN LOCALSTORAGE!
+var txCache=getTxCache();
+txCache[currentWallet.id]=allTx;
+setTxCache(txCache);
+console.log('TX salvate in localStorage per wallet',currentWallet.id,allTx.length,'TX');
+
+renderTxTable(allTx);
+toast(allTx.length+' TX caricate e salvate');
+}
+
+function renderTxTable(allTx){
+if(!allTx||!allTx.length){
+document.getElementById('wdTxTab').innerHTML='<p style="color:var(--text2);font-size:11px">Nessuna TX</p>';
+return;
+}
+var html='<table class="table"><thead><tr><th style="width:18%">Data</th><th style="width:12%">Tipo</th><th style="width:25%">Token</th><th style="width:25%" class="text-right">Quantità</th><th style="width:20%">Chain</th></tr></thead><tbody>';
+allTx.slice(0,50).forEach(function(tx){
+var ch=CHAINS[tx.chain]||{n:tx.chain,c:'#888'};
+var d=new Date(tx.date);
+html+='<tr><td style="font-size:10px">'+d.toLocaleDateString('it-IT')+'</td><td><span class="badge" style="background:'+(tx.type==='IN'?'var(--green)':'var(--red)')+'22;color:'+(tx.type==='IN'?'var(--green)':'var(--red)')+'">'+tx.type+'</span></td><td style="font-weight:600;font-size:11px">'+tx.symbol+'</td><td class="text-mono text-right">'+(tx.type==='IN'?'+':'-')+fmtN(tx.amount)+'</td><td><span class="chain-tag" style="background:'+ch.c+'22;color:'+ch.c+'">'+ch.n+'</span></td></tr>';
+});
+document.getElementById('wdTxTab').innerHTML=html+'</tbody></table>';
+}
+// TOKEN MANAGER con indirizzo contratto
+function renderTM(){
+var q=(document.getElementById('tmSearch')?document.getElementById('tmSearch').value:'').toLowerCase();
+var filt=document.getElementById('tmFilter')?document.getElementById('tmFilter').value:'visible';
+var fil=balances.filter(function(b){return b.amount>0;});
+if(q)fil=fil.filter(function(b){
+return(b.symbol||'').toLowerCase().includes(q)||
+(b.name||'').toLowerCase().includes(q)||
+(b.contract_address||'').toLowerCase().includes(q);
+});
+if(filt==='visible')fil=fil.filter(function(b){return!b.is_hidden;});
+else if(filt==='hidden')fil=fil.filter(function(b){return b.is_hidden;});
+fil=fil.map(function(b){return Object.assign({},b,{st:getStatus(b.symbol,b.name)});}).sort(function(a,b){return(b.value_eur||0)-(a.value_eur||0);});
+if(!fil.length){document.getElementById('tmList').innerHTML='<p style="color:var(--text2);font-size:11px">Nessun token</p>';return;}
+
+var html='<table class="table"><thead><tr><th style="width:35%">Token / Contratto</th><th style="width:12%">Chain</th><th style="width:15%" class="text-right">Qtà</th><th style="width:13%" class="text-right">€</th><th style="width:25%">Azioni</th></tr></thead><tbody>';
+fil.slice(0,100).forEach(function(b){
+var ch=CHAINS[b.chain]||{n:b.chain,c:'#888'};
+var isWL=whitelist.has((b.symbol||'').toUpperCase()),isBL=blacklist.has((b.symbol||'').toUpperCase());
+var stBadge=b.st==='verified'?'<span class="badge badge-ok">✓</span>':b.st==='spam'?'<span class="badge badge-bad">⚠</span>':'<span class="badge badge-unk">?</span>';
+// GoPlus badge
+var gpBadge='';
+if(b.contract_address){
+var cacheKey=b.contract_address.toLowerCase()+'_'+b.chain;
+if(goplusCache[cacheKey]){
+gpBadge=goplusCache[cacheKey].safe?'<span class="badge badge-ok" title="GoPlus OK">🛡️</span>':'<span class="badge badge-warn" title="Sospetto">⚠️</span>';
+}
+}
+// Contract address troncato e cliccabile
+var contractHtml='';
+if(b.contract_address){
+var short=b.contract_address.slice(0,6)+'...'+b.contract_address.slice(-4);
+contractHtml='<div class="contract" onclick="copyContract(\''+b.contract_address+'\')">'+short+'</div>';
+}else{
+contractHtml='<div class="contract" style="color:var(--green)">Native</div>';
+}
+
+html+='<tr style="'+(b.is_hidden?'opacity:0.4;':'')+'"><td><div class="token-cell">'+icon(b.symbol,b.chain,b.logo_url,24)+'<div class="token-info"><div class="symbol">'+(b.symbol||'?')+' '+stBadge+' '+gpBadge+'</div>'+contractHtml+'</div></div></td><td><span class="chain-tag" style="background:'+ch.c+'22;color:'+ch.c+'">'+ch.n+'</span></td><td class="text-mono text-right">'+fmtN(b.amount)+'</td><td class="text-right" style="font-weight:500">'+fmtC(b.value_eur||0)+'</td><td><button class="btn btn-sm '+(isWL?'btn-primary':'btn-secondary')+'" onclick="toggleWL(\''+b.symbol+'\')" style="margin-right:2px" title="Whitelist">WL</button><button class="btn btn-sm '+(isBL?'btn-danger':'btn-secondary')+'" onclick="toggleBL(\''+b.symbol+'\')" style="margin-right:2px" title="Blacklist">BL</button><button class="btn btn-sm btn-secondary" onclick="toggleHide(\''+b.id+'\')" title="'+(b.is_hidden?'Mostra':'Nascondi')+'">'+(b.is_hidden?'👁':'✕')+'</button></td></tr>';
+});
+document.getElementById('tmList').innerHTML=html+'</tbody></table>';
+}
+
 function toggleWL(sym){var u=(sym||'').toUpperCase();if(!u)return;if(whitelist.has(u))whitelist.delete(u);else{whitelist.add(u);blacklist.delete(u);}localStorage.setItem('cf_wl',JSON.stringify([...whitelist]));localStorage.setItem('cf_bl',JSON.stringify([...blacklist]));renderTM();loadDashboard();toast(whitelist.has(u)?'Whitelist':'Rimosso');}
 function toggleBL(sym){var u=(sym||'').toUpperCase();if(!u)return;if(blacklist.has(u))blacklist.delete(u);else{blacklist.add(u);whitelist.delete(u);}localStorage.setItem('cf_wl',JSON.stringify([...whitelist]));localStorage.setItem('cf_bl',JSON.stringify([...blacklist]));renderTM();loadDashboard();toast(blacklist.has(u)?'Blacklist':'Rimosso');}
 function showWhitelist(){document.getElementById('wlModal').style.display='flex';var html='';whitelist.forEach(function(s){html+='<div class="flex justify-between items-center" style="padding:6px 0;border-bottom:1px solid var(--border)"><span style="font-size:12px">'+s+'</span><button class="btn btn-sm btn-danger" onclick="removeWL(\''+s+'\')">✕</button></div>';});document.getElementById('wlContent').innerHTML=html||'<p style="color:var(--text2);font-size:11px">Vuota</p>';}
@@ -217,8 +376,9 @@ function removeBL(s){blacklist.delete(s);localStorage.setItem('cf_bl',JSON.strin
 function loadSettings(){document.getElementById('setCurrency').value=currency;var saved=JSON.parse(localStorage.getItem('cf_apikeys')||'[]');['apiKey1','apiKey2','apiKey3','apiKey4'].forEach(function(id,i){document.getElementById(id).value=saved[i]||'';});}
 function saveApiKeys(){var keys=['apiKey1','apiKey2','apiKey3','apiKey4'].map(function(id){return document.getElementById(id).value.trim();});localStorage.setItem('cf_apikeys',JSON.stringify(keys));var custom=keys.filter(function(k){return k&&k.length>20;});KEYS=custom.length>0?custom.slice(0,4):[...DEF_KEYS];updateApiStatus();toast('Salvato!');}
 function saveCurrency(){currency=document.getElementById('setCurrency').value;loadDashboard();toast('OK');}
-function exportCSV(){var csv='Symbol,Name,Chain,Amount,EUR\n';balances.forEach(function(b){csv+='"'+b.symbol+'","'+(b.name||'')+'","'+b.chain+'",'+b.amount+','+(b.value_eur||0)+'\n';});var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='cryptofolio.csv';a.click();toast('CSV!');}
-async function clearAllData(){if(!confirm('Eliminare TUTTO?'))return;await db.from('balances').delete().eq('user_id',user.id);await db.from('wallets').delete().eq('user_id',user.id);balances=[];walletTxCache={};localStorage.clear();whitelist.clear();blacklist.clear();hidden.clear();toast('Reset!');loadDashboard();}
+function exportCSV(){var csv='Symbol,Name,Chain,Contract,Amount,EUR\n';balances.forEach(function(b){csv+='"'+b.symbol+'","'+(b.name||'')+'","'+b.chain+'","'+(b.contract_address||'native')+'",'+b.amount+','+(b.value_eur||0)+'\n';});var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='cryptofolio.csv';a.click();toast('CSV!');}
+async function clearAllData(){if(!confirm('Eliminare TUTTO?'))return;await db.from('balances').delete().eq('user_id',user.id);await db.from('wallets').delete().eq('user_id',user.id);balances=[];localStorage.removeItem('cf_tx_cache');localStorage.removeItem('cf_goplus');whitelist.clear();blacklist.clear();hidden.clear();localStorage.removeItem('cf_wl');localStorage.removeItem('cf_bl');localStorage.removeItem('cf_hid');toast('Reset!');loadDashboard();}
+
 checkAuth();
 db.auth.onAuthStateChange(function(e,s){if(e==='SIGNED_OUT')showAuth();});
 </script>
