@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v8.16</title>
+<title>CryptoFolio v8.17</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -147,7 +147,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.16';
+const APP_VERSION='8.17';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -541,7 +541,7 @@ console.log('Historical prices response:',res.status);
 if(res.ok){
 var data=await res.json();
 console.log('Historical prices data:',data);
-if(data.prices){
+if(data.prices && Object.keys(data.prices).length>0){
 Object.entries(data.prices).forEach(function(e){
 var coin=e[0];var p=e[1];
 cached[coin+'_'+date]={price_eur:p.eur,price_usd:p.usd};
