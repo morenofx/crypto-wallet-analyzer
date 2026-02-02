@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v8.07</title>
+<title>CryptoFolio v8.08</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -147,7 +147,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.07';
+const APP_VERSION='8.08';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -798,7 +798,128 @@ toast('✅ Riconciliati '+updated+' record!');
 closeModal('reconcileModal');
 loadExchangeTx();
 }
-async function testAndSyncApi(){var apiKey=document.getElementById('apiKey2').value.trim();var apiSecret=document.getElementById('apiSecret').value.trim();var exchange=document.getElementById('apiExchange').value;if(!apiKey||!apiSecret){showApiStatus('❌ Inserisci API Key e Secret','error');return;}document.getElementById('apiSyncBtn').disabled=true;document.getElementById('apiSyncBtn').textContent='🔄 Connessione...';showApiStatus('🔄 Connessione a Binance via Edge Function...','info');try{var edgeUrl=SB_URL+'/functions/v1/binance-proxy';var res=await fetch(edgeUrl,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},body:JSON.stringify({apiKey:apiKey,apiSecret:apiSecret,action:'all'})});if(!res.ok){var err=await res.json();throw new Error(err.error||'Errore API');}var data=await res.json();localStorage.setItem('binance_api_key',apiKey);localStorage.setItem('binance_api_secret',apiSecret);showApiStatus('✅ Connesso! Balances: '+data.balances.length+', Deposits: '+data.deposits.length+', Withdraws: '+data.withdraws.length,'success');var allTx=[];data.deposits.forEach(function(d){allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:new Date(d.insertTime).toISOString(),tax_year:new Date(d.insertTime).getFullYear(),operation:'Deposit',account:'Spot',coin:d.coin,amount:parseFloat(d.amount),tx_type:'deposit',remark:d.txId||''});});data.withdraws.forEach(function(w){allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:new Date(w.completeTime||w.applyTime).toISOString(),tax_year:new Date(w.completeTime||w.applyTime).getFullYear(),operation:'Withdraw',account:'Spot',coin:w.coin,amount:-parseFloat(w.amount),tx_type:'withdraw',remark:w.txId||''});});(data.trades||[]).forEach(function(t){var isBuy=t.isBuyer;allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:new Date(t.time).toISOString(),tax_year:new Date(t.time).getFullYear(),operation:isBuy?'Trade Buy':'Trade Sell',account:'Spot',coin:t.symbol.replace('USDT',''),amount:parseFloat(t.qty)*(isBuy?1:-1),tx_type:isBuy?'trade_buy':'trade_sell',remark:'Price: '+t.price});});if(allTx.length>0){showApiStatus('🔄 Salvataggio '+allTx.length+' transazioni...','info');for(var i=0;i<allTx.length;i+=50){var batch=allTx.slice(i,i+50);await db.from('exchange_transactions').upsert(batch,{onConflict:'user_id,exchange,tx_timestamp,coin,amount,operation',ignoreDuplicates:true});}}showApiStatus('✅ Sincronizzati '+allTx.length+' record!','success');toast('✅ '+allTx.length+' TX sincronizzate via API!');setTimeout(function(){closeModal('apiModal');loadExchangeTx();},2000);}catch(e){console.error('API Error:',e);if(e.message.includes('FunctionNotFound')||e.message.includes('404')){showApiStatus('⚠️ Edge Function non deployata.<br><a href="#" onclick="showEdgeFunctionHelp();return false;" style="color:var(--primary)">→ Come deployare</a><br><br>Oppure usa <strong>Import CSV</strong>','warning');}else{showApiStatus('❌ Errore: '+e.message,'error');}}document.getElementById('apiSyncBtn').disabled=false;document.getElementById('apiSyncBtn').textContent='🚀 Connetti e Sincronizza';}
+async function testAndSyncApi(){
+var apiKey=document.getElementById('apiKey2').value.trim();
+var apiSecret=document.getElementById('apiSecret').value.trim();
+var exchange=document.getElementById('apiExchange').value;
+if(!apiKey||!apiSecret){showApiStatus('❌ Inserisci API Key e Secret','error');return;}
+document.getElementById('apiSyncBtn').disabled=true;
+document.getElementById('apiSyncBtn').textContent='🔄 Connessione...';
+showApiStatus('🔄 Connessione a Binance via Edge Function...','info');
+
+try{
+var edgeUrl=SB_URL+'/functions/v1/binance-proxy';
+var res=await fetch(edgeUrl,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},body:JSON.stringify({apiKey:apiKey,apiSecret:apiSecret,action:'all'})});
+if(!res.ok){var err=await res.json();throw new Error(err.error||'Errore API');}
+var data=await res.json();
+
+localStorage.setItem('binance_api_key',apiKey);
+localStorage.setItem('binance_api_secret',apiSecret);
+
+var tot=data.totals||{};
+showApiStatus('✅ Connesso! Dep:'+tot.deposits+' With:'+tot.withdraws+' Conv:'+tot.conversions+' Earn:'+(tot.earnSubscriptions+tot.earnRedemptions+tot.earnRewards),'success');
+
+var allTx=[];
+
+// DEPOSITS
+(data.deposits||[]).forEach(function(d){
+var ts=new Date(d.insertTime);
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Deposit',account:'Spot',coin:d.coin,amount:parseFloat(d.amount),tx_type:'deposit',asset_type:classifyAsset(d.coin),remark:d.txId||''});
+});
+
+// WITHDRAWS
+(data.withdraws||[]).forEach(function(w){
+var ts=new Date(w.completeTime||w.applyTime);
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Withdraw',account:'Spot',coin:w.coin,amount:-parseFloat(w.amount),tx_type:'withdraw',asset_type:classifyAsset(w.coin),remark:w.txId||''});
+});
+
+// CONVERSIONS (Binance Convert)
+(data.conversions||[]).forEach(function(c){
+var ts=new Date(parseInt(c.createTime));
+// From coin (vendita)
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Binance Convert',account:'Spot',coin:c.fromAsset,amount:-parseFloat(c.fromAmount),tx_type:'trade_sell',asset_type:classifyAsset(c.fromAsset),remark:'Convert '+c.fromAsset+' → '+c.toAsset});
+// To coin (acquisto)
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:new Date(parseInt(c.createTime)+1).toISOString(),tax_year:ts.getFullYear(),operation:'Binance Convert',account:'Spot',coin:c.toAsset,amount:parseFloat(c.toAmount),tx_type:'trade_buy',asset_type:classifyAsset(c.toAsset),remark:'Convert '+c.fromAsset+' → '+c.toAsset});
+});
+
+// EARN SUBSCRIPTIONS (Spot → Earn, giroconto interno)
+(data.earnSubscriptions||[]).forEach(function(e){
+var ts=new Date(parseInt(e.time));
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Simple Earn Flexible Subscription',account:'Spot',coin:e.asset,amount:-parseFloat(e.amount),tx_type:'earn_sub',asset_type:classifyAsset(e.asset),remark:'Earn Subscription'});
+});
+
+// EARN REDEMPTIONS (Earn → Spot, giroconto interno)
+(data.earnRedemptions||[]).forEach(function(e){
+var ts=new Date(parseInt(e.time));
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Simple Earn Flexible Redemption',account:'Spot',coin:e.asset,amount:parseFloat(e.amount),tx_type:'earn_red',asset_type:classifyAsset(e.asset),remark:'Earn Redemption'});
+});
+
+// EARN REWARDS (interessi, tassabili)
+(data.earnRewards||[]).forEach(function(e){
+var ts=new Date(parseInt(e.time));
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Simple Earn Flexible Interest',account:'Spot',coin:e.asset,amount:parseFloat(e.rewards),tx_type:'reward',asset_type:classifyAsset(e.asset),remark:'Earn Interest'});
+});
+
+// DIVIDENDS (distribuzioni, airdrop, ecc.)
+(data.dividends||[]).forEach(function(d){
+var ts=new Date(parseInt(d.divTime));
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Distribution',account:'Spot',coin:d.asset,amount:parseFloat(d.amount),tx_type:'reward',asset_type:classifyAsset(d.asset),remark:d.enInfo||'Dividend'});
+});
+
+// FIAT DEPOSITS
+(data.fiatDeposits||[]).forEach(function(f){
+var ts=new Date(parseInt(f.createTime));
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Fiat Deposit',account:'Spot',coin:f.fiatCurrency,amount:parseFloat(f.amount),tx_type:'deposit',asset_type:'FIAT',remark:'Fiat deposit'});
+});
+
+// FIAT WITHDRAWS
+(data.fiatWithdraws||[]).forEach(function(f){
+var ts=new Date(parseInt(f.createTime));
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Fiat Withdraw',account:'Spot',coin:f.fiatCurrency,amount:-parseFloat(f.amount),tx_type:'withdraw',asset_type:'FIAT',remark:'Fiat withdraw'});
+});
+
+// DUST LOG (Small Assets → BNB)
+(data.dustLog||[]).forEach(function(d){
+var ts=new Date(parseInt(d.operateTime));
+(d.userAssetDribbletDetails||[]).forEach(function(det){
+// Asset venduto
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Small Assets Exchange BNB',account:'Spot',coin:det.fromAsset,amount:-parseFloat(det.amount),tx_type:'trade_sell',asset_type:classifyAsset(det.fromAsset),remark:'Dust to BNB'});
+// BNB ricevuto
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:new Date(parseInt(d.operateTime)+1).toISOString(),tax_year:ts.getFullYear(),operation:'Small Assets Exchange BNB',account:'Spot',coin:'BNB',amount:parseFloat(det.transferedAmount),tx_type:'trade_buy',asset_type:'CRYPTO',remark:'Dust to BNB'});
+});
+});
+
+console.log('API TX totali:',allTx.length);
+
+if(allTx.length>0){
+showApiStatus('🔄 Salvataggio '+allTx.length+' transazioni...','info');
+var inserted=0;
+for(var i=0;i<allTx.length;i+=100){
+var batch=allTx.slice(i,i+100);
+try{
+var res=await db.from('exchange_transactions').upsert(batch,{onConflict:'user_id,exchange,tx_timestamp,coin,amount,operation',ignoreDuplicates:true});
+if(!res.error)inserted+=batch.length;
+}catch(e){console.error('Batch error:',e);}
+document.getElementById('importBar').style.width=Math.round((i/allTx.length)*100)+'%';
+}
+showApiStatus('✅ Sincronizzati '+inserted+' record!','success');
+toast('✅ '+inserted+' TX sincronizzate via API!');
+}else{
+showApiStatus('✅ Connesso ma nessuna nuova TX trovata','success');
+}
+
+setTimeout(function(){closeModal('apiModal');loadExchangeTx();},2000);
+
+}catch(e){
+console.error('API Error:',e);
+if(e.message.includes('FunctionNotFound')||e.message.includes('404')||e.message.includes('TypeError')){
+showApiStatus('⚠️ Edge Function non deployata.<br><a href="#" onclick="showEdgeFunctionHelp();return false;" style="color:var(--primary)">→ Come deployare</a><br><br>Oppure usa <strong>Import CSV/Tatax</strong>','warning');
+}else{
+showApiStatus('❌ Errore: '+e.message,'error');
+}}
+document.getElementById('apiSyncBtn').disabled=false;
+document.getElementById('apiSyncBtn').textContent='🚀 Connetti e Sincronizza';
+}
 function showEdgeFunctionHelp(){alert('COME DEPLOYARE LA EDGE FUNCTION:\\n\\n1. Installa Supabase CLI:\\n   npm install -g supabase\\n\\n2. Login:\\n   supabase login\\n\\n3. Link al progetto:\\n   supabase link --project-ref TUO_PROJECT_REF\\n\\n4. Crea la funzione:\\n   supabase functions new binance-proxy\\n\\n5. Copia il file supabase_edge_function_binance.ts\\n\\n6. Deploy:\\n   supabase functions deploy binance-proxy\\n\\nScarica il file dalla chat!');}
 function updateApiHelp(){var ex=document.getElementById('apiExchange').value;var helps={binance:'<strong>📋 Come ottenere le API Binance:</strong><ol style="margin:8px 0 0 16px;padding:0"><li>Vai su <a href="https://www.binance.com/it/my/settings/api-management" target="_blank" style="color:var(--primary)">Binance API Management</a></li><li>Crea una nuova API Key</li><li>Abilita solo "Read" (nessun permesso di trading!)</li><li>Copia API Key e Secret qui sotto</li></ol>',kucoin:'<strong>📋 Come ottenere le API KuCoin:</strong><ol style="margin:8px 0 0 16px;padding:0"><li>Vai su <a href="https://www.kucoin.com/account/api" target="_blank" style="color:var(--primary)">KuCoin API Management</a></li><li>Crea una nuova API</li><li>Imposta permessi "General" e "Trade" in sola lettura</li></ol>',bybit:'<strong>📋 Come ottenere le API Bybit:</strong><ol style="margin:8px 0 0 16px;padding:0"><li>Vai su <a href="https://www.bybit.com/app/user/api-management" target="_blank" style="color:var(--primary)">Bybit API Management</a></li><li>Crea una nuova API Key</li><li>Abilita solo permessi di lettura</li></ol>'};document.getElementById('apiHelp').innerHTML=helps[ex]||helps.binance;}
 var currentExchange='';var exDetailPage=1;var exDetailTxs=[];
