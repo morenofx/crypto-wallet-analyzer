@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v8.08</title>
+<title>CryptoFolio v8.09</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -147,7 +147,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.08';
+const APP_VERSION='8.09';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -395,11 +395,17 @@ var dbg=debugCounts[c]||{total:0,sum:0};
 console.log(c+': saldo='+bal.toFixed(2)+' (TX:'+dbg.total+')');
 });
 
-// FILTRA SALDI: escludi solo negativi e dust estremo
+// FILTRA SALDI: escludi negativi, dust, FIAT e stablecoin
 var filteredBalances={};
+var FIAT_RW=['EUR','USD','GBP','CHF'];
+var STABLE_RW=['USDT','USDC','BUSD','DAI','TUSD','FDUSD','UST','USDP','GUSD','FRAX','LUSD','USDD','PYUSD'];
 Object.entries(exBalances).forEach(function(e){
 var coin=e[0];
 var bal=e[1].amount;
+// Escludi FIAT (non sono crypto)
+if(FIAT_RW.includes(coin))return;
+// Escludi stablecoin (non vanno nel Quadro RW)
+if(STABLE_RW.includes(coin))return;
 // Escludi saldi negativi (errori di calcolo) o dust estremo
 if(bal<=0.001)return;
 filteredBalances[coin]={amount:bal,source:'exchange'};
