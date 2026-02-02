@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v8.03</title>
+<title>CryptoFolio v8.04</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -68,7 +68,7 @@
 <aside class="sidebar">
 <div class="logo"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
 <nav><div class="nav active" data-page="dashboard" onclick="showPage('dashboard')">📊 Dashboard</div><div class="nav" data-page="wallets" onclick="showPage('wallets')">👛 Wallets</div><div class="nav" data-page="exchange" onclick="showPage('exchange')">🏦 Exchange</div><div class="nav" data-page="tokens" onclick="showPage('tokens')">🪙 Token</div><div class="nav" data-page="settings" onclick="showPage('settings')">⚙️ Settings</div></nav>
-<div class="sidebar-footer"><span id="appVersion">v8.03</span><br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
+<div class="sidebar-footer"><span id="appVersion">v8.04</span><br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
 </aside>
 <main class="main">
 <div id="page-dashboard">
@@ -147,7 +147,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.03';
+const APP_VERSION='8.04';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -386,6 +386,21 @@ if(!exBalances[coin])exBalances[coin]={amount:0,source:'exchange'};
 exBalances[coin].amount+=amt;
 }});
 
+// FILTRA SALDI: escludi negativi, FIAT, stablecoin, dust
+var filteredBalances={};
+Object.entries(exBalances).forEach(function(e){
+var coin=e[0];
+var bal=e[1].amount;
+// Escludi FIAT
+if(['EUR','USD','GBP','CHF'].includes(coin))return;
+// Escludi stablecoin
+if(['USDT','USDC','BUSD','DAI','TUSD','FDUSD','UST','USDP','GUSD','FRAX','LUSD','USDD','PYUSD'].includes(coin))return;
+// Escludi saldi negativi o troppo piccoli
+if(bal<=0.0001)return;
+filteredBalances[coin]={amount:bal,source:'exchange'};
+});
+exBalances=filteredBalances;
+
 // === SALDI WALLET (metodo ibrido) ===
 var wBalances={};
 if(isCurrentYear){
@@ -434,9 +449,14 @@ combined[coin].wallet=data.amount;
 });
 
 var coinsWithBalance=Object.entries(combined).filter(function(e){
+var coin=e[0];
 var total=e[1].exchange+e[1].wallet;
-// Escludi saldi troppo piccoli (dust)
-return Math.abs(total)>0.0001;
+// Escludi FIAT e stablecoin
+if(['EUR','USD','GBP','CHF','USDT','USDC','BUSD','DAI','TUSD','FDUSD'].includes(coin))return false;
+// Escludi saldi negativi
+if(total<=0)return false;
+// Escludi saldi troppo piccoli
+return total>0.0001;
 }).map(function(e){
 return[e[0],e[1].exchange+e[1].wallet,e[1].exchange,e[1].wallet];
 });
@@ -491,14 +511,20 @@ years.forEach(function(year){
 var r=results.find(function(x){return x.year===year;});
 if(!r)return;
 var rows=[];var totalEur=0;var totalUnpriced=0;
+// USA PREZZI DALLA CACHE GLOBALE (dashboard) SE DISPONIBILI
+var globalPrices=window.prices||{};
 r.balances.forEach(function(b){
 var coin=b[0];var bal=b[1];var exBal=b[2];var wBal=b[3];
 var priceData=cached[coin+'_'+year+'-12-31'];
 var price=priceData?parseFloat(priceData.price_eur):0;
+// Se non ho prezzo storico e anno recente, usa prezzo attuale dalla dashboard
+if(price===0&&year>=2024&&globalPrices[coin]){
+price=globalPrices[coin].eur||0;
+}
 var value=bal*price;
-// FILTRO DUST: escludi coin con valore < €0.50 (a meno che non abbiano prezzo nullo)
-var isDust=price>0&&Math.abs(value)<0.5;
-if(Math.abs(bal)>0.000001&&!isDust){
+// FILTRO AGGRESSIVO: escludi coin con valore < €1 o senza prezzo con saldo < 1
+var isDust=(price>0&&Math.abs(value)<1)||(price===0&&Math.abs(bal)<1);
+if(Math.abs(bal)>0.0001&&!isDust){
 totalEur+=value;
 if(price===0)totalUnpriced++;
 rows.push({coin:coin,balance:bal,exBalance:exBal,wBalance:wBal,price:price,value:value});
@@ -509,7 +535,7 @@ rwData.push({year:year,total:totalEur,rows:rows});
 html+='<div class="card mb-12"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div style="font-size:14px;font-weight:700">📅 '+year+' - Valore al 31/12'+(r.isCurrentYear?' <span style="font-size:10px;color:var(--yellow)">(saldi attuali wallet)</span>':'')+'</div><div style="font-size:16px;font-weight:700;color:var(--green)">'+fmtC(totalEur)+'</div></div>';
 if(rows.length===0){html+='<div style="color:var(--text2);font-size:12px">Nessun saldo crypto</div>';}
 else{
-if(totalUnpriced>0)html+='<div style="color:var(--yellow);font-size:11px;margin-bottom:8px">⚠️ '+totalUnpriced+' coin senza prezzo</div>';
+if(totalUnpriced>0)html+='<div style="color:var(--yellow);font-size:11px;margin-bottom:8px">⚠️ '+totalUnpriced+' coin senza prezzo - <strong>Vai prima in Dashboard per caricare i prezzi!</strong></div>';
 html+='<table class="table" style="font-size:11px"><thead><tr><th>Coin</th><th class="text-right">Saldo Tot</th><th class="text-right" style="color:var(--cyan)">🏦 Ex</th><th class="text-right" style="color:var(--purple)">👛 Wal</th><th class="text-right">Prezzo €</th><th class="text-right">Valore €</th></tr></thead><tbody>';
 rows.slice(0,30).forEach(function(row){
 var priceCol=row.price>0?fmtC(row.price):'<span style="color:var(--yellow)">?</span>';
