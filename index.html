@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v8.00</title>
+<title>CryptoFolio v8.01</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -68,7 +68,7 @@
 <aside class="sidebar">
 <div class="logo"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
 <nav><div class="nav active" data-page="dashboard" onclick="showPage('dashboard')">📊 Dashboard</div><div class="nav" data-page="wallets" onclick="showPage('wallets')">👛 Wallets</div><div class="nav" data-page="exchange" onclick="showPage('exchange')">🏦 Exchange</div><div class="nav" data-page="tokens" onclick="showPage('tokens')">🪙 Token</div><div class="nav" data-page="settings" onclick="showPage('settings')">⚙️ Settings</div></nav>
-<div class="sidebar-footer"><span id="appVersion">v8.00</span><br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
+<div class="sidebar-footer"><span id="appVersion">v8.01</span><br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
 </aside>
 <main class="main">
 <div id="page-dashboard">
@@ -147,7 +147,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.00';
+const APP_VERSION='8.01';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -363,22 +363,34 @@ var isCurrentYear=year===currentYear;
 
 // === SALDI EXCHANGE (dalle TX) ===
 var exBalances={};
+// LISTA ESPLICITA di operazioni INTERNE da escludere (non cambiano patrimonio totale)
+var INTERNAL_OPS_RW=[
+'simple earn flexible subscription','simple earn flexible redemption',
+'simple earn locked subscription','simple earn locked redemption',
+'staking purchase','staking redemption',
+'launchpool subscription','launchpool subscription/redemption','launchpool redemption',
+'pos savings purchase','pos savings redemption',
+'transfer between main and funding wallet','transfer between spot and funding',
+'locked staking','savings purchase','savings redemption','savings principal redemption',
+'eth 2.0 staking','bnb vault rewards distribution' // questi li contiamo come reward, non qui
+];
 exchangeTx.forEach(function(t){
 var txDate=new Date(t.tx_timestamp);
 if(txDate<=endDate){
 var txType=t.tx_type||'';
-var op=(t.operation||'').toLowerCase();
-// ESCLUDI operazioni INTERNE che non cambiano il patrimonio totale:
-// - internal_transfer: già riconciliati
-// - earn_sub/earn_red: Spot ↔ Earn (trasferimento interno)
-// - transfer: Main ↔ Funding ↔ Margin
-// - Staking/Launchpool subscription/redemption
+var op=(t.operation||'').toLowerCase().trim();
+// ESCLUDI operazioni interne
 if(txType==='internal_transfer')return;
 if(txType==='earn_sub'||txType==='earn_red')return;
-if(txType==='transfer'&&(op.includes('main')||op.includes('funding')||op.includes('margin')))return;
-if(op.includes('subscription')&&(op.includes('earn')||op.includes('staking')||op.includes('launchpool')))return;
-if(op.includes('redemption')&&(op.includes('earn')||op.includes('staking')||op.includes('launchpool')))return;
-if(op.includes('staking purchase')||op.includes('staking redemption'))return;
+// Controlla lista esplicita
+var isInternal=false;
+for(var i=0;i<INTERNAL_OPS_RW.length;i++){
+if(op.includes(INTERNAL_OPS_RW[i])){isInternal=true;break;}
+}
+if(isInternal)return;
+// Controlla pattern generici
+if(op.includes('subscription')&&!op.includes('launchpad'))return; // Launchpad è diverso da Launchpool
+if(op.includes('redemption')&&!op.includes('launchpad'))return;
 var coin=t.coin;
 var amt=parseFloat(t.amount)||0;
 if(!exBalances[coin])exBalances[coin]={amount:0,source:'exchange'};
@@ -434,7 +446,8 @@ combined[coin].wallet=data.amount;
 
 var coinsWithBalance=Object.entries(combined).filter(function(e){
 var total=e[1].exchange+e[1].wallet;
-return Math.abs(total)>0.000001;
+// Escludi saldi troppo piccoli (dust)
+return Math.abs(total)>0.0001;
 }).map(function(e){
 return[e[0],e[1].exchange+e[1].wallet,e[1].exchange,e[1].wallet];
 });
@@ -494,7 +507,9 @@ var coin=b[0];var bal=b[1];var exBal=b[2];var wBal=b[3];
 var priceData=cached[coin+'_'+year+'-12-31'];
 var price=priceData?parseFloat(priceData.price_eur):0;
 var value=bal*price;
-if(Math.abs(bal)>0.000001){
+// FILTRO DUST: escludi coin con valore < €0.50 (a meno che non abbiano prezzo nullo)
+var isDust=price>0&&Math.abs(value)<0.5;
+if(Math.abs(bal)>0.000001&&!isDust){
 totalEur+=value;
 if(price===0)totalUnpriced++;
 rows.push({coin:coin,balance:bal,exBalance:exBal,wBalance:wBal,price:price,value:value});
