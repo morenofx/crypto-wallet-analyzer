@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v8.01</title>
+<title>CryptoFolio v8.02</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -68,7 +68,7 @@
 <aside class="sidebar">
 <div class="logo"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
 <nav><div class="nav active" data-page="dashboard" onclick="showPage('dashboard')">📊 Dashboard</div><div class="nav" data-page="wallets" onclick="showPage('wallets')">👛 Wallets</div><div class="nav" data-page="exchange" onclick="showPage('exchange')">🏦 Exchange</div><div class="nav" data-page="tokens" onclick="showPage('tokens')">🪙 Token</div><div class="nav" data-page="settings" onclick="showPage('settings')">⚙️ Settings</div></nav>
-<div class="sidebar-footer"><span id="appVersion">v8.01</span><br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
+<div class="sidebar-footer"><span id="appVersion">v8.02</span><br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
 </aside>
 <main class="main">
 <div id="page-dashboard">
@@ -147,7 +147,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.01';
+const APP_VERSION='8.02';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -363,34 +363,23 @@ var isCurrentYear=year===currentYear;
 
 // === SALDI EXCHANGE (dalle TX) ===
 var exBalances={};
-// LISTA ESPLICITA di operazioni INTERNE da escludere (non cambiano patrimonio totale)
-var INTERNAL_OPS_RW=[
-'simple earn flexible subscription','simple earn flexible redemption',
-'simple earn locked subscription','simple earn locked redemption',
-'staking purchase','staking redemption',
-'launchpool subscription','launchpool subscription/redemption','launchpool redemption',
-'pos savings purchase','pos savings redemption',
-'transfer between main and funding wallet','transfer between spot and funding',
-'locked staking','savings purchase','savings redemption','savings principal redemption',
-'eth 2.0 staking','bnb vault rewards distribution' // questi li contiamo come reward, non qui
-];
 exchangeTx.forEach(function(t){
 var txDate=new Date(t.tx_timestamp);
 if(txDate<=endDate){
-var txType=t.tx_type||'';
 var op=(t.operation||'').toLowerCase().trim();
-// ESCLUDI operazioni interne
-if(txType==='internal_transfer')return;
-if(txType==='earn_sub'||txType==='earn_red')return;
-// Controlla lista esplicita
-var isInternal=false;
-for(var i=0;i<INTERNAL_OPS_RW.length;i++){
-if(op.includes(INTERNAL_OPS_RW[i])){isInternal=true;break;}
-}
-if(isInternal)return;
-// Controlla pattern generici
-if(op.includes('subscription')&&!op.includes('launchpad'))return; // Launchpad è diverso da Launchpool
-if(op.includes('redemption')&&!op.includes('launchpad'))return;
+
+// ESCLUDI SEMPRE basandomi sull'operation (più affidabile del tx_type)
+// Subscription = Spot → Earn/Staking (giroconto interno)
+if(op.includes('subscription'))return;
+// Redemption = Earn/Staking → Spot (giroconto interno)
+if(op.includes('redemption'))return;
+// Staking Purchase/Redemption
+if(op.includes('staking purchase')||op.includes('staking redemption'))return;
+// Transfer tra account interni
+if(op.includes('transfer between'))return;
+// Auto-subscription (reinvestimento automatico)
+if(op.includes('auto-subscribe'))return;
+
 var coin=t.coin;
 var amt=parseFloat(t.amount)||0;
 if(!exBalances[coin])exBalances[coin]={amount:0,source:'exchange'};
