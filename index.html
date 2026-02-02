@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v8.02</title>
+<title>CryptoFolio v8.03</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -68,7 +68,7 @@
 <aside class="sidebar">
 <div class="logo"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
 <nav><div class="nav active" data-page="dashboard" onclick="showPage('dashboard')">📊 Dashboard</div><div class="nav" data-page="wallets" onclick="showPage('wallets')">👛 Wallets</div><div class="nav" data-page="exchange" onclick="showPage('exchange')">🏦 Exchange</div><div class="nav" data-page="tokens" onclick="showPage('tokens')">🪙 Token</div><div class="nav" data-page="settings" onclick="showPage('settings')">⚙️ Settings</div></nav>
-<div class="sidebar-footer"><span id="appVersion">v8.02</span><br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
+<div class="sidebar-footer"><span id="appVersion">v8.03</span><br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
 </aside>
 <main class="main">
 <div id="page-dashboard">
@@ -147,7 +147,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.02';
+const APP_VERSION='8.03';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -1162,6 +1162,13 @@ results.push({user_id:userId,exchange:'binance',tx_timestamp:formatTs(toTx.utcTi
 
 for(var o=0;o<others.length;o++){
 var tx=others[o];
+var opLower=tx.operation.toLowerCase();
+// NON SALVARE operazioni interne (subscription/redemption/transfer between)
+if(opLower.includes('subscription'))continue;
+if(opLower.includes('redemption'))continue;
+if(opLower.includes('transfer between'))continue;
+if(opLower.includes('staking purchase'))continue;
+if(opLower.includes('staking redemption'))continue;
 var txType=classifyOp(tx.operation,tx.change);
 var isEur=tx.coin==='EUR';
 var isStable=STABLECOINS.includes(tx.coin);
