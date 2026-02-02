@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v8.06</title>
+<title>CryptoFolio v8.07</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -68,7 +68,7 @@
 <aside class="sidebar">
 <div class="logo"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
 <nav><div class="nav active" data-page="dashboard" onclick="showPage('dashboard')">📊 Dashboard</div><div class="nav" data-page="wallets" onclick="showPage('wallets')">👛 Wallets</div><div class="nav" data-page="exchange" onclick="showPage('exchange')">🏦 Exchange</div><div class="nav" data-page="tokens" onclick="showPage('tokens')">🪙 Token</div><div class="nav" data-page="settings" onclick="showPage('settings')">⚙️ Settings</div></nav>
-<div class="sidebar-footer"><span id="appVersion">v8.06</span><br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
+<div class="sidebar-footer"><span id="appVersion">v8.07</span><br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
 </aside>
 <main class="main">
 <div id="page-dashboard">
@@ -137,7 +137,7 @@
 <div id="addWalletModal" class="modal-bg" style="display:none"><div class="modal"><div class="modal-head"><h2 class="modal-title">➕ Aggiungi Wallet</h2><button class="modal-close" onclick="closeModal('addWalletModal')">&times;</button></div><div class="form-group"><label class="form-label">Nome</label><input id="wName" class="input" placeholder="MetaMask..."></div><div class="form-group"><label class="form-label">Indirizzo</label><input id="wAddr" class="input" placeholder="0x..."></div><div class="form-group"><label class="form-label">Chain</label><div class="flex gap-8 mb-12"><button onclick="selectAllChains()" class="btn btn-sm btn-primary">✅ Tutte</button><button onclick="selectNoChains()" class="btn btn-sm btn-secondary">❌ Nessuna</button></div><div id="modalChainGrid" class="chain-grid"></div></div><div class="flex gap-8" style="margin-top:16px"><button onclick="closeModal('addWalletModal')" class="btn btn-secondary" style="flex:1">Annulla</button><button onclick="addWallet()" class="btn btn-primary" style="flex:1">➕ Aggiungi</button></div></div></div>
 <div id="wlModal" class="modal-bg" style="display:none"><div class="modal"><div class="modal-head"><h2 class="modal-title">✅ Whitelist</h2><button class="modal-close" onclick="closeModal('wlModal')">&times;</button></div><div class="flex gap-8 mb-16"><input id="wlAdd" class="input" placeholder="Simbolo (es. BTC)"><button onclick="addToWhitelist()" class="btn btn-primary btn-sm">➕</button></div><div id="wlList" style="max-height:300px;overflow-y:auto"></div></div></div>
 <div id="blModal" class="modal-bg" style="display:none"><div class="modal"><div class="modal-head"><h2 class="modal-title">🚫 Blacklist</h2><button class="modal-close" onclick="closeModal('blModal')">&times;</button></div><div class="tabs mb-12"><div class="tab active" onclick="showBlTab('symbols')">Simboli (<span id="blSymCount">0</span>)</div><div class="tab" onclick="showBlTab('contracts')">Contratti (<span id="blConCount">0</span>)</div></div><div id="blSymbols"><div class="flex gap-8 mb-16"><input id="blAdd" class="input" placeholder="Simbolo"><button onclick="addToBlacklist()" class="btn btn-primary btn-sm">➕</button></div><div id="blList" style="max-height:250px;overflow-y:auto"></div></div><div id="blContracts" style="display:none"><div id="blConList" style="max-height:300px;overflow-y:auto;font-size:10px"></div></div></div></div>
-<div id="importModal" class="modal-bg" style="display:none"><div class="modal"><div class="modal-head"><h2 class="modal-title">📥 Import CSV Exchange</h2><button class="modal-close" onclick="closeModal('importModal')">&times;</button></div><div class="form-group"><label class="form-label">Exchange</label><select id="importExchange" class="input"><option value="binance">Binance</option><option value="bitget">Bitget</option><option value="bitpanda">Bitpanda</option><option value="bybit">Bybit</option><option value="bybit_eu">Bybit EU</option><option value="cake">PancakeSwap (CAKE)</option><option value="coinbase">Coinbase</option><option value="crypto_com">Crypto.com App</option><option value="crypto_com_ex">Crypto.com Exchange</option><option value="gate">Gate.io</option><option value="kraken">Kraken</option><option value="kucoin">KuCoin</option><option value="mexc">MEXC</option><option value="nexo">Nexo</option><option value="okx">OKX</option><option value="pionex">Pionex</option><option value="revolut">Revolut</option><option value="whitebit">WhiteBIT</option><option value="youhodler">YouHodler</option><option value="youngplatform">Young Platform</option><option value="cosmos">Cosmos (ATOM)</option><option value="osmosis">Osmosis (OSMO)</option><option value="terra">Terra (LUNC)</option><option value="pulsechain">PulseChain</option><option value="manta">Manta Pacific</option><option value="other">Altro</option></select></div><div class="form-group"><label class="form-label">File CSV o ZIP</label><input type="file" id="importFile" accept=".csv,.zip" class="input" multiple><div style="font-size:10px;color:var(--text2);margin-top:4px">Puoi caricare CSV singoli o ZIP con più CSV</div><div style="font-size:10px;color:var(--green);margin-top:2px">✓ I duplicati vengono ignorati automaticamente</div></div><div id="importPreview" style="display:none;margin:12px 0;padding:12px;background:var(--card);border-radius:8px"><div style="font-size:11px;color:var(--text2)" id="importInfo"></div></div><div id="importProgress" style="display:none;margin:12px 0"><div class="progress"><div class="progress-bar" id="importBar" style="width:0%"></div></div><div style="font-size:11px;color:var(--text2);margin-top:4px" id="importStatus"></div></div><div class="flex gap-8" style="margin-top:16px"><button onclick="closeModal('importModal')" class="btn btn-secondary" style="flex:1">Annulla</button><button onclick="importCSV()" class="btn btn-primary" style="flex:1" id="importBtn">📥 Importa</button></div></div></div>
+<div id="importModal" class="modal-bg" style="display:none"><div class="modal"><div class="modal-head"><h2 class="modal-title">📥 Import CSV Exchange</h2><button class="modal-close" onclick="closeModal('importModal')">&times;</button></div><div class="form-group"><label class="form-label">Exchange</label><select id="importExchange" class="input"><option value="binance">Binance</option><option value="tatax">Tatax (API Binance)</option><option value="bitget">Bitget</option><option value="bitpanda">Bitpanda</option><option value="bybit">Bybit</option><option value="bybit_eu">Bybit EU</option><option value="cake">PancakeSwap (CAKE)</option><option value="coinbase">Coinbase</option><option value="crypto_com">Crypto.com App</option><option value="crypto_com_ex">Crypto.com Exchange</option><option value="gate">Gate.io</option><option value="kraken">Kraken</option><option value="kucoin">KuCoin</option><option value="mexc">MEXC</option><option value="nexo">Nexo</option><option value="okx">OKX</option><option value="pionex">Pionex</option><option value="revolut">Revolut</option><option value="whitebit">WhiteBIT</option><option value="youhodler">YouHodler</option><option value="youngplatform">Young Platform</option><option value="cosmos">Cosmos (ATOM)</option><option value="osmosis">Osmosis (OSMO)</option><option value="terra">Terra (LUNC)</option><option value="pulsechain">PulseChain</option><option value="manta">Manta Pacific</option><option value="other">Altro</option></select></div><div class="form-group"><label class="form-label">File CSV o ZIP</label><input type="file" id="importFile" accept=".csv,.zip" class="input" multiple><div style="font-size:10px;color:var(--text2);margin-top:4px">Puoi caricare CSV singoli o ZIP con più CSV</div><div style="font-size:10px;color:var(--green);margin-top:2px">✓ I duplicati vengono ignorati automaticamente</div></div><div id="importPreview" style="display:none;margin:12px 0;padding:12px;background:var(--card);border-radius:8px"><div style="font-size:11px;color:var(--text2)" id="importInfo"></div></div><div id="importProgress" style="display:none;margin:12px 0"><div class="progress"><div class="progress-bar" id="importBar" style="width:0%"></div></div><div style="font-size:11px;color:var(--text2);margin-top:4px" id="importStatus"></div></div><div class="flex gap-8" style="margin-top:16px"><button onclick="closeModal('importModal')" class="btn btn-secondary" style="flex:1">Annulla</button><button onclick="importCSV()" class="btn btn-primary" style="flex:1" id="importBtn">📥 Importa</button></div></div></div>
 <div id="apiModal" class="modal-bg" style="display:none"><div class="modal" style="max-width:500px"><div class="modal-head"><h2 class="modal-title">🔗 Connetti API Exchange</h2><button class="modal-close" onclick="closeModal('apiModal')">&times;</button></div><div class="form-group"><label class="form-label">Exchange</label><select id="apiExchange" class="input"><option value="binance">Binance</option></select></div><div id="apiHelp" style="background:var(--card);padding:12px;border-radius:8px;margin-bottom:12px;font-size:11px"><strong>📋 Come ottenere le API Binance:</strong><ol style="margin:8px 0 0 16px;padding:0"><li>Vai su <a href="https://www.binance.com/it/my/settings/api-management" target="_blank" style="color:var(--primary)">Binance API Management</a></li><li>Crea una nuova API Key</li><li>Abilita solo "Read" (nessun permesso di trading!)</li><li>Copia API Key e Secret qui sotto</li></ol></div><div class="form-group"><label class="form-label">API Key</label><input type="text" id="apiKey2" class="input" placeholder="La tua API Key..."></div><div class="form-group"><label class="form-label">Secret Key</label><input type="password" id="apiSecret" class="input" placeholder="Il tuo Secret..."></div><div id="apiStatus" style="display:none;margin:12px 0;padding:12px;border-radius:8px;font-size:12px"></div><div class="flex gap-8" style="margin-top:16px"><button onclick="closeModal('apiModal')" class="btn btn-secondary" style="flex:1">Annulla</button><button onclick="testAndSyncApi()" class="btn btn-primary" style="flex:1" id="apiSyncBtn">🚀 Connetti e Sincronizza</button></div></div></div>
 <div id="resetModal" class="modal-bg" style="display:none"><div class="modal" style="max-width:400px"><div class="modal-head"><h2 class="modal-title">🗑️ Reset Dati Exchange</h2><button class="modal-close" onclick="closeModal('resetModal')">&times;</button></div><div style="margin-bottom:16px;color:var(--text2);font-size:13px">Seleziona cosa vuoi cancellare:</div><div id="resetOptions" style="display:flex;flex-direction:column;gap:8px"></div><div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)"><button onclick="closeModal('resetModal')" class="btn btn-secondary" style="width:100%">Annulla</button></div></div></div>
 <div id="earnModal" class="modal-bg" style="display:none"><div class="modal" style="max-width:700px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column"><div class="modal-head"><h2 class="modal-title">🎁 Report Earn/Staking</h2><button class="modal-close" onclick="closeModal('earnModal')">&times;</button></div><div id="earnContent" style="overflow-y:auto;flex:1;padding-right:8px"></div><div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)"><button onclick="closeModal('earnModal')" class="btn btn-secondary" style="width:100%">Chiudi</button></div></div></div>
@@ -147,7 +147,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.06';
+const APP_VERSION='8.07';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -362,27 +362,27 @@ var endDate=new Date(year,11,31,23,59,59);
 var isCurrentYear=year===currentYear;
 
 // === SALDI EXCHANGE (dalle TX) ===
+// LOGICA CORRETTA: Somma TUTTE le TX (subscription/redemption si annullano)
+// Il risultato è il saldo totale (Spot + Earn + Staking)
 var exBalances={};
 var debugCounts={};
 exchangeTx.forEach(function(t){
 var txDate=new Date(t.tx_timestamp);
 if(txDate<=endDate){
 var op=(t.operation||'').toLowerCase().trim();
-
-// DEBUG: conta operazioni per coin
 var coin=t.coin;
-if(!debugCounts[coin])debugCounts[coin]={total:0,skipped:0,included:0};
+
+// DEBUG
+if(!debugCounts[coin])debugCounts[coin]={total:0,sum:0};
 debugCounts[coin].total++;
 
-// ESCLUDI SEMPRE basandomi sull'operation (più affidabile del tx_type)
-if(op.includes('subscription')){debugCounts[coin].skipped++;return;}
-if(op.includes('redemption')){debugCounts[coin].skipped++;return;}
-if(op.includes('staking purchase')||op.includes('staking redemption')){debugCounts[coin].skipped++;return;}
-if(op.includes('transfer between')){debugCounts[coin].skipped++;return;}
-if(op.includes('auto-subscribe')){debugCounts[coin].skipped++;return;}
+// ESCLUDI SOLO i trasferimenti tra wallet (non cambiano il totale su Binance)
+// MA INCLUDI subscription/redemption (le coin restano tue, solo in Earn!)
+if(op.includes('transfer between main and funding'))return;
+if(op.includes('transfer between spot and margin'))return;
 
-debugCounts[coin].included++;
 var amt=parseFloat(t.amount)||0;
+debugCounts[coin].sum+=amt;
 if(!exBalances[coin])exBalances[coin]={amount:0,source:'exchange'};
 exBalances[coin].amount+=amt;
 }});
@@ -391,21 +391,17 @@ exBalances[coin].amount+=amt;
 console.log('=== DEBUG RW Year',year,'===');
 ['LUNC','NOT','PEPE','SHIB','WIN','BONK','DOGS'].forEach(function(c){
 var bal=exBalances[c]?exBalances[c].amount:0;
-var dbg=debugCounts[c]||{total:0,skipped:0,included:0};
-console.log(c+': saldo='+bal+' (TX tot:'+dbg.total+' skip:'+dbg.skipped+' incl:'+dbg.included+')');
+var dbg=debugCounts[c]||{total:0,sum:0};
+console.log(c+': saldo='+bal.toFixed(2)+' (TX:'+dbg.total+')');
 });
 
-// FILTRA SALDI: escludi negativi, FIAT, stablecoin, dust
+// FILTRA SALDI: escludi solo negativi e dust estremo
 var filteredBalances={};
 Object.entries(exBalances).forEach(function(e){
 var coin=e[0];
 var bal=e[1].amount;
-// Escludi FIAT
-if(['EUR','USD','GBP','CHF'].includes(coin))return;
-// Escludi stablecoin
-if(['USDT','USDC','BUSD','DAI','TUSD','FDUSD','UST','USDP','GUSD','FRAX','LUSD','USDD','PYUSD'].includes(coin))return;
-// Escludi saldi negativi o troppo piccoli
-if(bal<=0.0001)return;
+// Escludi saldi negativi (errori di calcolo) o dust estremo
+if(bal<=0.001)return;
 filteredBalances[coin]={amount:bal,source:'exchange'};
 });
 exBalances=filteredBalances;
@@ -460,12 +456,10 @@ combined[coin].wallet=data.amount;
 var coinsWithBalance=Object.entries(combined).filter(function(e){
 var coin=e[0];
 var total=e[1].exchange+e[1].wallet;
-// Escludi FIAT e stablecoin
-if(['EUR','USD','GBP','CHF','USDT','USDC','BUSD','DAI','TUSD','FDUSD'].includes(coin))return false;
-// Escludi saldi negativi
-if(total<=0)return false;
-// Escludi saldi troppo piccoli
-return total>0.0001;
+// Escludi saldi negativi (errori)
+if(total<0)return false;
+// Escludi saldi troppo piccoli (dust < 0.01)
+return total>0.01;
 }).map(function(e){
 return[e[0],e[1].exchange+e[1].wallet,e[1].exchange,e[1].wallet];
 });
@@ -950,8 +944,27 @@ var isYouHodler=headerLine.includes('Date & Time')&&headerLine.includes('Transac
 var isPionexTrading=headerLine.includes('date(UTC')&&headerLine.includes('executed_qty')&&headerLine.includes('side')&&headerLine.includes('symbol');
 var isPionexDeposit=headerLine.includes('date(UTC')&&headerLine.includes('tx_type')&&headerLine.includes('coin')&&headerLine.includes('network');
 var isRevolut=headerLine.includes('Symbol')&&headerLine.includes('Type')&&headerLine.includes('Quantity')&&headerLine.includes('Price')&&headerLine.includes('Value');
+var isTatax=headerLine.includes('Symbol')&&headerLine.includes('MovementType')&&headerLine.includes('Quantity')&&headerLine.includes('Countervalue');
 var isBybit=isBybitDeposit||isBybitFund||isBybitUta||isBybitSpot;
-console.log('Format - Binance:',isBinance,'Coinbase:',isCoinbase,'Bybit:',isBybit,'Bitget:',isBitget,'Bitpanda:',isBitpanda,'CryptoCom:',isCryptoCom,'CryptoComEx:',isCryptoComExDeposit||isCryptoComExJournal,'OKX:',isOkipo||isOkxOfficial,'KuCoin:',isKucoinSpot||isKucoinDeposit||isKucoinAccount,'YouHodler:',isYouHodler,'Pionex:',isPionexTrading||isPionexDeposit,'Revolut:',isRevolut,'dataStart:',dataStartLine);
+console.log('Format - Binance:',isBinance,'Tatax:',isTatax,'Coinbase:',isCoinbase,'Bybit:',isBybit,'Bitget:',isBitget,'Bitpanda:',isBitpanda,'CryptoCom:',isCryptoCom,'CryptoComEx:',isCryptoComExDeposit||isCryptoComExJournal,'OKX:',isOkipo||isOkxOfficial,'KuCoin:',isKucoinSpot||isKucoinDeposit||isKucoinAccount,'YouHodler:',isYouHodler,'Pionex:',isPionexTrading||isPionexDeposit,'Revolut:',isRevolut,'dataStart:',dataStartLine);
+
+// === TATAX: Formato esportato da Tatax via API Binance ===
+if(isTatax){
+var tataxTxs=parseTatax(csv.text,user.id);
+if(tataxTxs.length>0){
+console.log('Tatax: '+tataxTxs.length+' TX');
+document.getElementById('importStatus').textContent='💾 Salvataggio '+csv.name+' ('+tataxTxs.length+' TX Tatax)...';
+var inserted=0;var errors=0;
+for(var b=0;b<tataxTxs.length;b+=100){
+var batch=tataxTxs.slice(b,b+100);
+try{var res=await db.from('exchange_transactions').upsert(batch,{onConflict:'user_id,exchange,tx_timestamp,coin,amount,operation'});
+if(res.error){console.error('Upsert error:',res.error);errors+=batch.length;}else{inserted+=batch.length;}}
+catch(e){console.error('Exception:',e);errors+=batch.length;}}
+totalImported+=inserted;totalParsed+=tataxTxs.length;
+console.log('Tatax inserted:',inserted,'errors:',errors);
+document.getElementById('importBar').style.width=Math.round(((i+1)/csvTexts.length)*100)+'%';
+continue;}}
+// === FINE TATAX ===
 
 // === BINANCE: USA PARSER AVANZATO v2 ===
 if(isBinance){
@@ -1121,7 +1134,7 @@ return groups;}
 // ═══════════════════════════════════════════════════════════════════════════
 // PARSER BINANCE SEMPLIFICATO - Approccio Somma Algebrica (come Gemini)
 // Ogni riga CSV = 1 transazione, amount = Change
-// Le operazioni interne (subscription/redemption) NON vengono salvate
+// SALVA TUTTO - la somma algebrica darà il saldo corretto (Spot + Earn)
 // ═══════════════════════════════════════════════════════════════════════════
 function parseBinanceAdvanced(csvText,userId){
 var lines=csvText.split('\n').filter(function(l){return l.trim();});
@@ -1129,8 +1142,8 @@ if(lines.length<2)return[];
 var results=[];
 var skipped=0;
 
-// OPERAZIONI DA ESCLUDERE (trasferimenti interni, non cambiano patrimonio)
-var SKIP_OPS=['subscription','redemption','transfer between','staking purchase','staking redemption'];
+// OPERAZIONI DA ESCLUDERE (solo trasferimenti tra wallet interni che si annullano)
+var SKIP_OPS=['transfer between main and funding','transfer between spot and margin'];
 
 for(var i=1;i<lines.length;i++){
 var cols=parseCSVLine(lines[i]);
@@ -1145,7 +1158,7 @@ if(!utcTime||!coin||isNaN(change)||change===0)continue;
 
 var opLower=operation.toLowerCase();
 
-// SKIP operazioni interne
+// SKIP solo transfer tra wallet (si annullano a coppie)
 var shouldSkip=false;
 for(var s=0;s<SKIP_OPS.length;s++){
 if(opLower.includes(SKIP_OPS[s])){shouldSkip=true;break;}
@@ -1177,8 +1190,68 @@ remark:remark,
 needs_price:!isEur&&!isStable
 });
 }
-console.log('Binance parsed:',results.length,'skipped:',skipped);
+console.log('Binance parsed:',results.length,'skipped (transfer):',skipped);
 return results;}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PARSER TATAX - Formato esportato da Tatax via API Binance
+// Symbol,TokenAddress,TimeStamp,MovementType,Quantity,Countervalue,...
+// ═══════════════════════════════════════════════════════════════════════════
+function parseTatax(csvText,userId){
+var lines=csvText.split('\n').filter(function(l){return l.trim();});
+if(lines.length<2)return[];
+var results=[];
+
+for(var i=1;i<lines.length;i++){
+var cols=parseCSVLine(lines[i]);
+if(cols.length<5)continue;
+var symbol=cols[0]?.replace(/"/g,'').trim();
+var timestamp=cols[2]?.replace(/"/g,'').trim();
+var movementType=cols[3]?.replace(/"/g,'').trim();
+var quantity=parseFloat(cols[4]?.replace(/"/g,'')||0);
+if(!symbol||!timestamp||isNaN(quantity)||quantity===0)continue;
+
+// Normalizza symbol: rimuovi .LENDING@BINANCE, .STAKING@BINANCE, etc.
+var coin=symbol.split('.')[0].split('@')[0];
+
+// Calcola anno
+var year=parseInt(timestamp.substring(0,4));
+
+// Classifica operazione
+var txType='other';
+var mt=movementType.toUpperCase();
+if(mt==='DEPOSIT')txType='deposit';
+else if(mt==='WITHDRAWAL')txType='withdraw';
+else if(mt==='CREDIT')txType='trade_buy';
+else if(mt==='DEBIT')txType='trade_sell';
+else if(mt==='EXCHANGE_FEE')txType='fee';
+else if(mt.includes('INTEREST')||mt.includes('REWARD'))txType='reward';
+else if(mt.includes('AIRDROP'))txType='reward';
+
+var isEur=coin==='EUR';
+var isStable=STABLECOINS.includes(coin);
+var eurUsdRate=EUR_USD_RATES[year]||0.92;
+
+results.push({
+user_id:userId,
+exchange:'binance',
+tx_timestamp:formatTs(timestamp),
+tax_year:year,
+operation:movementType,
+account:'Spot',
+coin:coin,
+amount:quantity,
+tx_type:txType,
+asset_type:classifyAsset(coin),
+price_eur:isEur?1:(isStable?eurUsdRate:null),
+value_eur:isEur?Math.abs(quantity):(isStable?Math.abs(quantity)*eurUsdRate:null),
+remark:symbol.includes('.')?symbol:'',
+needs_price:!isEur&&!isStable
+});
+}
+console.log('Tatax parsed:',results.length);
+return results;}
+
 function createBaseTx(tx,userId,year,txType,needsPrice){
 return{user_id:userId,exchange:'binance',tx_timestamp:formatTs(tx.utcTime),tax_year:year,operation:tx.operation,account:tx.account,coin:tx.coin,amount:tx.change,tx_type:txType,remark:tx.remark,needs_price:needsPrice};}
 
