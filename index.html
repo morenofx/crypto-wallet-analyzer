@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v8.13</title>
+<title>CryptoFolio v8.14</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -147,7 +147,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.13';
+const APP_VERSION='8.14';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -493,25 +493,61 @@ var cachedRes=await db.from('historical_prices').select('*').in('coin',allCoins)
 var cached={};(cachedRes.data||[]).forEach(function(p){cached[p.coin+'_'+p.date]=p;});
 var missing=pricesToFetch.filter(function(p){return!cached[p.coin+'_'+p.date];});
 
-// CARICA PREZZI PER LE COIN MANCANTI (exchange)
+// CARICA PREZZI MANCANTI VIA EDGE FUNCTION
 if(missing.length>0){
-document.getElementById('rwContent').innerHTML='<div style="padding:40px;text-align:center"><div class="spinner"></div><div style="margin-top:12px;color:var(--text2)">Carico prezzi per '+allCoins.length+' coin...</div></div>';
-// Chiama fetchPrices per caricare i prezzi in window.prices
+document.getElementById('rwContent').innerHTML='<div style="padding:40px;text-align:center"><div class="spinner"></div><div style="margin-top:12px;color:var(--text2)">Carico '+missing.length+' prezzi storici...</div></div>';
+
+// Prima carica prezzi attuali per le coin
 await fetchPrices(allCoins);
-}
 var globalPricesRW=window.prices||{};
-// Usa prezzi dalla Dashboard per le coin mancanti
-for(var i=0;i<missing.length;i++){
-var m=missing[i];
-var coin=m.coin;
-var year=parseInt(m.date.split('-')[0]);
-if(year>=2024 && globalPricesRW[coin]){
+
+// Raggruppa per data
+var byDate={};
+missing.forEach(function(m){
+if(!byDate[m.date])byDate[m.date]=[];
+byDate[m.date].push(m.coin);
+});
+
+// Chiama Edge Function per ogni data
+var dates=Object.keys(byDate);
+for(var di=0;di<dates.length;di++){
+var date=dates[di];
+var coins=byDate[date];
+var year=parseInt(date.split('-')[0]);
+
+document.getElementById('rwContent').innerHTML='<div style="padding:40px;text-align:center"><div class="spinner"></div><div style="margin-top:12px;color:var(--text2)">Prezzi '+date+' ('+(di+1)+'/'+dates.length+')...</div></div>';
+
+// Per anno corrente/recente usa prezzi attuali
+if(year>=2024){
+coins.forEach(function(coin){
+if(globalPricesRW[coin]){
 var eur=globalPricesRW[coin].eur||0;
 var usd=globalPricesRW[coin].usd||0;
 if(eur>0){
-cached[m.coin+'_'+m.date]={price_eur:eur,price_usd:usd};
-try{await db.from('historical_prices').upsert({coin:m.coin,coin_id:COIN_MAP[m.coin]||m.coin.toLowerCase(),date:m.date,price_eur:eur,price_usd:usd},{onConflict:'coin,date'});}catch(e){}
-}}}
+cached[coin+'_'+date]={price_eur:eur,price_usd:usd};
+db.from('historical_prices').upsert({coin:coin,coin_id:COIN_MAP[coin]||coin.toLowerCase(),date:date,price_eur:eur,price_usd:usd},{onConflict:'coin,date'}).then(function(){});
+}}});
+}else{
+// Per anni passati chiama Edge Function
+try{
+var res=await fetch(SUPABASE_URL+'/functions/v1/historical-prices',{
+method:'POST',
+headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_ANON},
+body:JSON.stringify({coins:coins,date:date})
+});
+if(res.ok){
+var data=await res.json();
+if(data.prices){
+Object.entries(data.prices).forEach(function(e){
+var coin=e[0];var p=e[1];
+cached[coin+'_'+date]={price_eur:p.eur,price_usd:p.usd};
+db.from('historical_prices').upsert({coin:coin,coin_id:COIN_MAP[coin]||coin.toLowerCase(),date:date,price_eur:p.eur,price_usd:p.usd},{onConflict:'coin,date'}).then(function(){});
+});
+}}
+}catch(e){console.error('Historical prices error:',e);}
+}}}else{
+var globalPricesRW=window.prices||{};
+}
 
 // 5. GENERA HTML RISULTATO
 rwData=[];var html='';
