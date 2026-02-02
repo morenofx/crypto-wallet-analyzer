@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v8.05</title>
+<title>CryptoFolio v8.06</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -68,7 +68,7 @@
 <aside class="sidebar">
 <div class="logo"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
 <nav><div class="nav active" data-page="dashboard" onclick="showPage('dashboard')">📊 Dashboard</div><div class="nav" data-page="wallets" onclick="showPage('wallets')">👛 Wallets</div><div class="nav" data-page="exchange" onclick="showPage('exchange')">🏦 Exchange</div><div class="nav" data-page="tokens" onclick="showPage('tokens')">🪙 Token</div><div class="nav" data-page="settings" onclick="showPage('settings')">⚙️ Settings</div></nav>
-<div class="sidebar-footer"><span id="appVersion">v8.05</span><br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
+<div class="sidebar-footer"><span id="appVersion">v8.06</span><br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
 </aside>
 <main class="main">
 <div id="page-dashboard">
@@ -147,7 +147,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.05';
+const APP_VERSION='8.06';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -363,28 +363,37 @@ var isCurrentYear=year===currentYear;
 
 // === SALDI EXCHANGE (dalle TX) ===
 var exBalances={};
+var debugCounts={};
 exchangeTx.forEach(function(t){
 var txDate=new Date(t.tx_timestamp);
 if(txDate<=endDate){
 var op=(t.operation||'').toLowerCase().trim();
 
-// ESCLUDI SEMPRE basandomi sull'operation (più affidabile del tx_type)
-// Subscription = Spot → Earn/Staking (giroconto interno)
-if(op.includes('subscription'))return;
-// Redemption = Earn/Staking → Spot (giroconto interno)
-if(op.includes('redemption'))return;
-// Staking Purchase/Redemption
-if(op.includes('staking purchase')||op.includes('staking redemption'))return;
-// Transfer tra account interni
-if(op.includes('transfer between'))return;
-// Auto-subscription (reinvestimento automatico)
-if(op.includes('auto-subscribe'))return;
-
+// DEBUG: conta operazioni per coin
 var coin=t.coin;
+if(!debugCounts[coin])debugCounts[coin]={total:0,skipped:0,included:0};
+debugCounts[coin].total++;
+
+// ESCLUDI SEMPRE basandomi sull'operation (più affidabile del tx_type)
+if(op.includes('subscription')){debugCounts[coin].skipped++;return;}
+if(op.includes('redemption')){debugCounts[coin].skipped++;return;}
+if(op.includes('staking purchase')||op.includes('staking redemption')){debugCounts[coin].skipped++;return;}
+if(op.includes('transfer between')){debugCounts[coin].skipped++;return;}
+if(op.includes('auto-subscribe')){debugCounts[coin].skipped++;return;}
+
+debugCounts[coin].included++;
 var amt=parseFloat(t.amount)||0;
 if(!exBalances[coin])exBalances[coin]={amount:0,source:'exchange'};
 exBalances[coin].amount+=amt;
 }});
+
+// DEBUG: mostra saldi calcolati per le coin principali
+console.log('=== DEBUG RW Year',year,'===');
+['LUNC','NOT','PEPE','SHIB','WIN','BONK','DOGS'].forEach(function(c){
+var bal=exBalances[c]?exBalances[c].amount:0;
+var dbg=debugCounts[c]||{total:0,skipped:0,included:0};
+console.log(c+': saldo='+bal+' (TX tot:'+dbg.total+' skip:'+dbg.skipped+' incl:'+dbg.included+')');
+});
 
 // FILTRA SALDI: escludi negativi, FIAT, stablecoin, dust
 var filteredBalances={};
