@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v8.04</title>
+<title>CryptoFolio v8.05</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -68,7 +68,7 @@
 <aside class="sidebar">
 <div class="logo"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
 <nav><div class="nav active" data-page="dashboard" onclick="showPage('dashboard')">📊 Dashboard</div><div class="nav" data-page="wallets" onclick="showPage('wallets')">👛 Wallets</div><div class="nav" data-page="exchange" onclick="showPage('exchange')">🏦 Exchange</div><div class="nav" data-page="tokens" onclick="showPage('tokens')">🪙 Token</div><div class="nav" data-page="settings" onclick="showPage('settings')">⚙️ Settings</div></nav>
-<div class="sidebar-footer"><span id="appVersion">v8.04</span><br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
+<div class="sidebar-footer"><span id="appVersion">v8.05</span><br>🌐 17 chains<br><span id="apiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
 </aside>
 <main class="main">
 <div id="page-dashboard">
@@ -147,7 +147,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.04';
+const APP_VERSION='8.05';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -1109,10 +1109,20 @@ else{groups.push(currentGroup);currentGroup=[txs[i]];}}
 groups.push(currentGroup);
 return groups;}
 
+// ═══════════════════════════════════════════════════════════════════════════
+// PARSER BINANCE SEMPLIFICATO - Approccio Somma Algebrica (come Gemini)
+// Ogni riga CSV = 1 transazione, amount = Change
+// Le operazioni interne (subscription/redemption) NON vengono salvate
+// ═══════════════════════════════════════════════════════════════════════════
 function parseBinanceAdvanced(csvText,userId){
 var lines=csvText.split('\n').filter(function(l){return l.trim();});
 if(lines.length<2)return[];
-var rawTxs=[];
+var results=[];
+var skipped=0;
+
+// OPERAZIONI DA ESCLUDERE (trasferimenti interni, non cambiano patrimonio)
+var SKIP_OPS=['subscription','redemption','transfer between','staking purchase','staking redemption'];
+
 for(var i=1;i<lines.length;i++){
 var cols=parseCSVLine(lines[i]);
 if(cols.length<6)continue;
@@ -1122,88 +1132,44 @@ var operation=cols[3]?.replace(/"/g,'').trim();
 var coin=cols[4]?.replace(/"/g,'').trim();
 var change=parseFloat(cols[5]?.replace(/"/g,'')||0);
 var remark=cols[6]?.replace(/"/g,'').trim()||'';
-if(!utcTime||!coin||isNaN(change))continue;
-rawTxs.push({utcTime:utcTime,timestamp:new Date(utcTime.replace(' ','T')+'Z').getTime(),account:account,operation:operation,coin:coin,change:change,remark:remark});}
-console.log('Binance raw:',rawTxs.length);
-var groups=groupByTimestamp(rawTxs,1000);
-console.log('Binance groups:',groups.length);
-var results=[];
-for(var g=0;g<groups.length;g++){
-var group=groups[g];
-var year=new Date(group[0].timestamp).getFullYear();
+if(!utcTime||!coin||isNaN(change)||change===0)continue;
+
+var opLower=operation.toLowerCase();
+
+// SKIP operazioni interne
+var shouldSkip=false;
+for(var s=0;s<SKIP_OPS.length;s++){
+if(opLower.includes(SKIP_OPS[s])){shouldSkip=true;break;}
+}
+if(shouldSkip){skipped++;continue;}
+
+// Calcola anno e tipo
+var year=parseInt(utcTime.substring(0,4));
+var txType=classifyOp(operation,change);
+var isEur=coin==='EUR';
+var isStable=STABLECOINS.includes(coin);
 var eurUsdRate=EUR_USD_RATES[year]||0.92;
-var buys=group.filter(function(t){return t.operation==='Transaction Buy';});
-var spends=group.filter(function(t){return t.operation==='Transaction Spend';});
-var solds=group.filter(function(t){return t.operation==='Transaction Sold';});
-var revenues=group.filter(function(t){return t.operation==='Transaction Revenue';});
-var converts=group.filter(function(t){return t.operation==='Binance Convert';});
-var cardBuys=group.filter(function(t){return t.operation==='Buy Crypto With Card';});
-var fees=group.filter(function(t){return t.operation==='Transaction Fee'||t.operation==='Fee';});
-var others=group.filter(function(t){return!['Transaction Buy','Transaction Spend','Transaction Sold','Transaction Revenue','Binance Convert','Buy Crypto With Card','Transaction Fee','Fee'].includes(t.operation);});
 
-if(buys.length>0&&spends.length>0){
-for(var b=0;b<buys.length;b++){
-var buy=buys[b];
-var spend=spends.find(function(s){return STABLECOINS.includes(s.coin)||FIAT_COINS.includes(s.coin);});
-if(spend){
-var priceUnit=Math.abs(spend.change)/Math.abs(buy.change);
-var isEur=spend.coin==='EUR';
-var isUsd=STABLECOINS.includes(spend.coin);
-results.push({user_id:userId,exchange:'binance',tx_timestamp:formatTs(buy.utcTime),tax_year:year,operation:'Buy',account:buy.account,coin:buy.coin,amount:buy.change,tx_type:'trade_buy',pair:buy.coin+'/'+spend.coin,price_eur:isEur?priceUnit:(isUsd?priceUnit*eurUsdRate:null),price_usd:isUsd?priceUnit:(isEur?priceUnit/eurUsdRate:null),value_eur:isEur?Math.abs(spend.change):(isUsd?Math.abs(spend.change)*eurUsdRate:null),remark:buy.remark||buy.coin+'/'+spend.coin,needs_price:false});
-}else{results.push(createBaseTx(buy,userId,year,'trade_buy',true));}}}
-
-if(solds.length>0){
-for(var s=0;s<solds.length;s++){
-var sold=solds[s];
-var revenue=revenues.find(function(r){return STABLECOINS.includes(r.coin)||FIAT_COINS.includes(r.coin);});
-if(revenue){
-var priceUnit=Math.abs(revenue.change)/Math.abs(sold.change);
-var isEur=revenue.coin==='EUR';
-var isUsd=STABLECOINS.includes(revenue.coin);
-results.push({user_id:userId,exchange:'binance',tx_timestamp:formatTs(sold.utcTime),tax_year:year,operation:'Sell',account:sold.account,coin:sold.coin,amount:sold.change,tx_type:'trade_sell',pair:sold.coin+'/'+revenue.coin,price_eur:isEur?priceUnit:(isUsd?priceUnit*eurUsdRate:null),price_usd:isUsd?priceUnit:(isEur?priceUnit/eurUsdRate:null),value_eur:isEur?Math.abs(revenue.change):(isUsd?Math.abs(revenue.change)*eurUsdRate:null),remark:sold.remark||sold.coin+'/'+revenue.coin,needs_price:false});
-}else{results.push(createBaseTx(sold,userId,year,'trade_sell',true));}}}
-
-if(cardBuys.length>=2){
-var eurTx=cardBuys.find(function(t){return t.coin==='EUR'&&t.change<0;});
-var cryptoTx=cardBuys.find(function(t){return t.coin!=='EUR'&&t.change>0;});
-if(eurTx&&cryptoTx){
-var priceUnit=Math.abs(eurTx.change)/cryptoTx.change;
-results.push({user_id:userId,exchange:'binance',tx_timestamp:formatTs(cryptoTx.utcTime),tax_year:year,operation:'Buy With Card',account:cryptoTx.account,coin:cryptoTx.coin,amount:cryptoTx.change,tx_type:'trade_buy',pair:cryptoTx.coin+'/EUR',price_eur:priceUnit,price_usd:priceUnit/eurUsdRate,value_eur:Math.abs(eurTx.change),remark:cryptoTx.remark,needs_price:false});}}
-
-if(converts.length>=2){
-var fromTx=converts.find(function(t){return t.change<0;});
-var toTx=converts.find(function(t){return t.change>0;});
-if(fromTx&&toTx){
-var fromStable=STABLECOINS.includes(fromTx.coin);
-var toStable=STABLECOINS.includes(toTx.coin);
-if(fromStable){
-var priceUnit=Math.abs(fromTx.change)/toTx.change;
-results.push({user_id:userId,exchange:'binance',tx_timestamp:formatTs(toTx.utcTime),tax_year:year,operation:'Convert Buy',account:toTx.account,coin:toTx.coin,amount:toTx.change,tx_type:'trade_buy',pair:toTx.coin+'/'+fromTx.coin,price_eur:priceUnit*eurUsdRate,price_usd:priceUnit,value_eur:Math.abs(fromTx.change)*eurUsdRate,remark:'Convert '+fromTx.coin+' → '+toTx.coin,needs_price:false});
-}else if(toStable){
-var priceUnit=toTx.change/Math.abs(fromTx.change);
-results.push({user_id:userId,exchange:'binance',tx_timestamp:formatTs(fromTx.utcTime),tax_year:year,operation:'Convert Sell',account:fromTx.account,coin:fromTx.coin,amount:fromTx.change,tx_type:'trade_sell',pair:fromTx.coin+'/'+toTx.coin,price_eur:priceUnit*eurUsdRate,price_usd:priceUnit,value_eur:toTx.change*eurUsdRate,remark:'Convert '+fromTx.coin+' → '+toTx.coin,needs_price:false});
-}else{
-results.push({user_id:userId,exchange:'binance',tx_timestamp:formatTs(fromTx.utcTime),tax_year:year,operation:'Convert Sell',account:fromTx.account,coin:fromTx.coin,amount:fromTx.change,tx_type:'trade_sell',pair:fromTx.coin+'/'+toTx.coin,remark:'Convert '+fromTx.coin+' → '+toTx.coin,needs_price:true});
-results.push({user_id:userId,exchange:'binance',tx_timestamp:formatTs(toTx.utcTime),tax_year:year,operation:'Convert Buy',account:toTx.account,coin:toTx.coin,amount:toTx.change,tx_type:'trade_buy',pair:toTx.coin+'/'+fromTx.coin,remark:'Convert '+fromTx.coin+' → '+toTx.coin,needs_price:true});}}}
-
-for(var o=0;o<others.length;o++){
-var tx=others[o];
-var opLower=tx.operation.toLowerCase();
-// NON SALVARE operazioni interne (subscription/redemption/transfer between)
-if(opLower.includes('subscription'))continue;
-if(opLower.includes('redemption'))continue;
-if(opLower.includes('transfer between'))continue;
-if(opLower.includes('staking purchase'))continue;
-if(opLower.includes('staking redemption'))continue;
-var txType=classifyOp(tx.operation,tx.change);
-var isEur=tx.coin==='EUR';
-var isStable=STABLECOINS.includes(tx.coin);
-results.push({user_id:userId,exchange:'binance',tx_timestamp:formatTs(tx.utcTime),tax_year:year,operation:tx.operation,account:tx.account,coin:tx.coin,amount:tx.change,tx_type:txType,asset_type:classifyAsset(tx.coin),price_eur:isEur?1:(isStable?eurUsdRate:null),value_eur:isEur?Math.abs(tx.change):(isStable?Math.abs(tx.change)*eurUsdRate:null),remark:tx.remark,needs_price:!isEur&&!isStable});}}
-// Aggiungi asset_type a tutti i record
-results.forEach(function(r){if(!r.asset_type)r.asset_type=classifyAsset(r.coin);});
-console.log('Binance processed:',results.length);
+// CREA TRANSAZIONE - amount = change (positivo o negativo)
+results.push({
+user_id:userId,
+exchange:'binance',
+tx_timestamp:formatTs(utcTime),
+tax_year:year,
+operation:operation,
+account:account,
+coin:coin,
+amount:change, // IMPORTANTE: usa il change direttamente!
+tx_type:txType,
+asset_type:classifyAsset(coin),
+price_eur:isEur?1:(isStable?eurUsdRate:null),
+value_eur:isEur?Math.abs(change):(isStable?Math.abs(change)*eurUsdRate:null),
+remark:remark,
+needs_price:!isEur&&!isStable
+});
+}
+console.log('Binance parsed:',results.length,'skipped:',skipped);
 return results;}
-
 function createBaseTx(tx,userId,year,txType,needsPrice){
 return{user_id:userId,exchange:'binance',tx_timestamp:formatTs(tx.utcTime),tax_year:year,operation:tx.operation,account:tx.account,coin:tx.coin,amount:tx.change,tx_type:txType,remark:tx.remark,needs_price:needsPrice};}
 
