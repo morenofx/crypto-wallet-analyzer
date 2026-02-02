@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v8.14</title>
+<title>CryptoFolio v8.15</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -147,7 +147,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.14';
+const APP_VERSION='8.15';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -530,9 +530,9 @@ db.from('historical_prices').upsert({coin:coin,coin_id:COIN_MAP[coin]||coin.toLo
 }else{
 // Per anni passati chiama Edge Function
 try{
-var res=await fetch(SUPABASE_URL+'/functions/v1/historical-prices',{
+var res=await fetch(SB_URL+'/functions/v1/historical-prices',{
 method:'POST',
-headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_ANON},
+headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},
 body:JSON.stringify({coins:coins,date:date})
 });
 if(res.ok){
