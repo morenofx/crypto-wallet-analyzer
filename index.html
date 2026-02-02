@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v8.10</title>
+<title>CryptoFolio v8.11</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -147,7 +147,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.10';
+const APP_VERSION='8.11';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -492,30 +492,21 @@ var cachedRes=await db.from('historical_prices').select('*').in('coin',allCoins)
 var cached={};(cachedRes.data||[]).forEach(function(p){cached[p.coin+'_'+p.date]=p;});
 var missing=pricesToFetch.filter(function(p){return!cached[p.coin+'_'+p.date];});
 
+// USA PREZZI DALLA DASHBOARD (evita errori CORS con CoinGecko)
+var globalPricesRW=window.prices||{};
 if(missing.length>0){
-document.getElementById('rwContent').innerHTML='<div style="padding:40px;text-align:center"><div class="spinner"></div><div style="margin-top:12px;color:var(--text2)">Scarico '+missing.length+' prezzi da CoinGecko...</div></div>';
-var fetched=0;
+document.getElementById('rwContent').innerHTML='<div style="padding:40px;text-align:center"><div class="spinner"></div><div style="margin-top:12px;color:var(--text2)">Recupero prezzi...</div></div>';
 for(var i=0;i<missing.length;i++){
-var m=missing[i];var cgId=COIN_MAP[m.coin];
-if(!cgId)continue;
-try{
-var dateStr=m.date.split('-');
-var cgDate=dateStr[2]+'-'+dateStr[1]+'-'+dateStr[0];
-var url='https://api.coingecko.com/api/v3/coins/'+cgId+'/history?date='+cgDate+'&localization=false';
-var res=await fetch(url);
-if(res.ok){
-var data=await res.json();
-var eur=data.market_data?.current_price?.eur||0;
-var usd=data.market_data?.current_price?.usd||0;
+var m=missing[i];
+var coin=m.coin;
+var year=parseInt(m.date.split('-')[0]);
+if(year>=2024 && globalPricesRW[coin]){
+var eur=globalPricesRW[coin].eur||0;
+var usd=globalPricesRW[coin].usd||0;
 if(eur>0){
-await db.from('historical_prices').upsert({coin:m.coin,coin_id:cgId,date:m.date,price_eur:eur,price_usd:usd},{onConflict:'coin,date'});
 cached[m.coin+'_'+m.date]={price_eur:eur,price_usd:usd};
-}}
-fetched++;
-if(fetched%5===0)document.getElementById('rwContent').innerHTML='<div style="padding:40px;text-align:center"><div class="spinner"></div><div style="margin-top:12px;color:var(--text2)">Prezzi: '+fetched+'/'+missing.length+'</div></div>';
-await new Promise(function(r){setTimeout(r,1200);});
-}catch(e){console.log('Price error:',m.coin,e);}
-}}
+try{await db.from('historical_prices').upsert({coin:m.coin,coin_id:COIN_MAP[m.coin]||m.coin.toLowerCase(),date:m.date,price_eur:eur,price_usd:usd},{onConflict:'coin,date'});}catch(e){}
+}}}}
 
 // 5. GENERA HTML RISULTATO
 rwData=[];var html='';
