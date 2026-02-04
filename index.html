@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v8.22</title>
+<title>CryptoFolio v8.31</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -57,7 +57,7 @@
 <div id="authScreen" class="auth-box">
 <div class="auth-card">
 <div class="logo" style="justify-content:center;margin-bottom:20px"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
-<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v8.28 - 17 Chains</p>
+<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v8.31</p>
 <div class="form-group"><label class="form-label">Email</label><input id="authEmail" type="email" class="input"></div>
 <div class="form-group"><label class="form-label">Password</label><input id="authPassword" type="password" class="input"></div>
 <div id="authError" style="color:var(--red);font-size:12px;margin-bottom:12px"></div>
@@ -68,7 +68,7 @@
 <aside class="sidebar">
 <div class="logo"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
 <nav><div class="nav active" data-page="dashboard" onclick="showPage('dashboard')">📊 Dashboard</div><div class="nav" data-page="wallets" onclick="showPage('wallets')">👛 Wallets</div><div class="nav" data-page="exchange" onclick="showPage('exchange')">🏦 Exchange</div><div class="nav" data-page="tokens" onclick="showPage('tokens')">🪙 Token</div><div class="nav" data-page="settings" onclick="showPage('settings')">⚙️ Settings</div></nav>
-<div class="sidebar-footer"><span id="appVersion">v8.23</span><br>🌐 17 chains<br><span id="sidebarApiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
+<div class="sidebar-footer"><span id="appVersion">v8.31</span><br>🌐 17 chains<br><span id="sidebarApiStatus">🔑 4 keys</span><br><button onclick="handleLogout()" class="btn btn-secondary" style="width:100%;margin-top:10px;font-size:11px">🚪 Logout</button></div>
 </aside>
 <main class="main">
 <div id="page-dashboard">
@@ -1429,7 +1429,7 @@ return false;
 }
 
 var byYear={2021:{tx:0,types:{}},2022:{tx:0,types:{}},2023:{tx:0,types:{}},2024:{tx:0,types:{}},2025:{tx:0,types:{}},2026:{tx:0,types:{}}};var byExchange={};
-allTx.forEach(function(t){var y=t.tax_year||2021;var type=t.tx_type||'other';var coin=t.coin||'';
+allTx.forEach(function(t){var y=t.tax_year||2021;var type=t.tx_type||'other';var coin=t.coin||'';var amt=parseFloat(t.amount)||0;var isFiat=FIAT_COINS.includes(coin);
 
 if(byYear[y]){
 byYear[y].tx++;
@@ -1449,35 +1449,20 @@ byExchange[t.exchange].byYear[y].types[type]=(byExchange[t.exchange].byYear[y].t
 var typeLabels={deposit:'📥',withdraw:'📤',trade_buy:'🛒',trade_sell:'💰',fee:'💸',convert:'🔄',dust:'🧹',reward:'🎁',earn_sub:'⬇️',earn_red:'⬆️',earn_move:'↕️',fiat_buy:'💳',fiat_deposit:'💶',card_spend:'🏧',transfer:'↔️',liquidity:'🌊',payment:'🏪',send:'📨',other_in:'❓',other_out:'❓'};
 for(var y=2021;y<=2026;y++){var el=document.getElementById('exYear'+y);if(el){var d=byYear[y];
 var html='<div style="font-size:16px;font-weight:700;color:var(--cyan)">'+d.tx+' TX</div>';
-if(d.tx>0){html+='<div style="font-size:8px;margin-top:4px;line-height:1.5">';
-var sorted=Object.entries(d.types).sort(function(a,b){return b[1]-a[1];});
-sorted.slice(0,6).forEach(function(e){html+='<span style="margin-right:3px" title="'+e[0]+'">'+(typeLabels[e[0]]||'•')+e[1]+'</span>';});
-if(sorted.length>6)html+='<span style="color:var(--text2)">+'+sorted.slice(6).reduce(function(s,e){return s+e[1];},0)+'</span>';
-html+='</div>';}
 el.innerHTML=html;}}
 
 // Render tabella exchange
-var TYPE_ORDER=['deposit','fiat_deposit','withdraw','fiat_buy','trade_buy','trade_sell','convert','dust','reward','earn_sub','earn_red','earn_move','card_spend','transfer','liquidity','payment','send','fee'];
 var html='';if(Object.keys(byExchange).length===0){html='<div class="card" style="grid-column:1/-1;padding:40px;text-align:center;color:var(--text2)">Nessun exchange. Clicca "Import CSV" per importare dati.</div>';}else{Object.entries(byExchange).forEach(function(e){var ex=e[0];var data=e[1];var color=EX_COLORS[ex]||'#888';var logo=EX_LOGOS[ex]||EX_LOGOS.other;
 html+='<div class="card" style="grid-column:1/-1"><div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;cursor:pointer" onclick="openExchangeDetail(\''+ex+'\')"><div style="width:48px;height:48px;border-radius:12px;background:'+color+'20;display:flex;align-items:center;justify-content:center;overflow:hidden"><img src="'+logo+'" style="width:36px;height:36px;border-radius:8px" onerror="this.style.display=\'none\';var p=this.parentElement;if(p)p.innerHTML=\'🏦\';"></div><div style="flex:1"><div style="font-size:18px;font-weight:700">'+formatExName(ex)+'</div><div style="font-size:12px;color:var(--text2)">'+data.count+' TX totali • '+data.coins.size+' coin</div></div><button onclick="event.stopPropagation();openExchangeDetail(\''+ex+'\')" class="btn btn-sm btn-secondary">Dettagli →</button></div>';
 
-// Breakdown per tipo (chips)
-html+='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">';
-TYPE_ORDER.forEach(function(tp){if(data.types[tp]){
-var colors={deposit:'#00e676',fiat_deposit:'#00e676',withdraw:'#ff5252',fiat_buy:'#00e676',trade_buy:'#00e676',trade_sell:'#ff5252',convert:'#42a5f5',dust:'#78909c',reward:'#ffd740',earn_sub:'#26c6da',earn_red:'#26c6da',earn_move:'#26c6da',card_spend:'#ff5252',transfer:'#26c6da',liquidity:'#ab47bc',payment:'#ab47bc',send:'#ab47bc',fee:'#ff5252'};
-var c=colors[tp]||'#888';
-html+='<div style="background:'+c+'15;color:'+c+';padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer" onclick="event.stopPropagation();openExchangeDetail(\''+ex+'\');setTimeout(function(){document.getElementById(\'exDetailType\').value=\''+tp+'\';loadExchangeDetail();},100)" title="'+tp+'">'+(typeLabels[tp]||'')+' '+tp+' <strong>'+data.types[tp]+'</strong></div>';}});
-html+='</div>';
-
-// Tabella per anno (semplice: TX + top types)
-html+='<div style="overflow-x:auto"><table class="table" style="font-size:11px;margin:0"><thead><tr><th>Anno</th><th class="text-right">TX</th><th>Composizione</th></tr></thead><tbody>';
+html+='<div style="overflow-x:auto"><table class="table" style="font-size:12px;margin:0"><thead><tr><th>Anno</th><th class="text-right">TX</th><th class="text-right">📥 Dep</th><th class="text-right">📤 With</th><th class="text-right">🛒 Buy</th><th class="text-right">💰 Sell</th><th class="text-right">🔄 Conv</th><th class="text-right">🎁 Reward</th><th class="text-right">↕️ Earn</th><th class="text-right">💸 Fee</th></tr></thead><tbody>';
 var years=[2021,2022,2023,2024,2025,2026];
-years.forEach(function(y){if(data.byYear[y]&&data.byYear[y].tx>0){var yd=data.byYear[y];
-var comps=Object.entries(yd.types).sort(function(a,b){return b[1]-a[1];}).map(function(e){return'<span style="margin-right:4px" title="'+e[0]+'">'+(typeLabels[e[0]]||'•')+e[1]+'</span>';}).join('');
-html+='<tr style="cursor:pointer" onclick="openExchangeDetail(\''+ex+'\');setTimeout(function(){document.getElementById(\'exDetailYear\').value=\''+y+'\';loadExchangeDetail();},100)"><td><strong>'+y+'</strong></td><td class="text-right text-mono" style="color:var(--cyan)">'+yd.tx+'</td><td style="font-size:10px">'+comps+'</td></tr>';}});
-// Totale
-var totComps=Object.entries(data.types).sort(function(a,b){return b[1]-a[1];}).map(function(e){return'<span style="margin-right:4px" title="'+e[0]+'">'+(typeLabels[e[0]]||'•')+e[1]+'</span>';}).join('');
-html+='<tr style="background:var(--bg2);font-weight:700"><td>TOTALE</td><td class="text-right text-mono" style="color:var(--cyan)">'+data.count+'</td><td style="font-size:10px">'+totComps+'</td></tr>';
+function gT(types,keys){var s=0;keys.forEach(function(k){s+=(types[k]||0);});return s;}
+years.forEach(function(y){if(data.byYear[y]&&data.byYear[y].tx>0){var tp=data.byYear[y].types;
+var dep=gT(tp,['deposit','fiat_deposit']);var wit=gT(tp,['withdraw']);var buy=gT(tp,['trade_buy','fiat_buy']);var sell=gT(tp,['trade_sell']);var conv=gT(tp,['convert','dust']);var rew=gT(tp,['reward']);var earn=gT(tp,['earn_sub','earn_red','earn_move']);var fee=gT(tp,['fee']);
+html+='<tr style="cursor:pointer" onclick="openExchangeDetail(\''+ex+'\');setTimeout(function(){document.getElementById(\'exDetailYear\').value=\''+y+'\';loadExchangeDetail();},100)"><td><strong>'+y+'</strong></td><td class="text-right text-mono" style="color:var(--cyan)">'+data.byYear[y].tx+'</td><td class="text-right text-mono" style="color:var(--green)">'+(dep||'–')+'</td><td class="text-right text-mono" style="color:var(--red)">'+(wit||'–')+'</td><td class="text-right text-mono" style="color:var(--green)">'+(buy||'–')+'</td><td class="text-right text-mono" style="color:var(--red)">'+(sell||'–')+'</td><td class="text-right text-mono" style="color:var(--blue)">'+(conv||'–')+'</td><td class="text-right text-mono" style="color:var(--yellow)">'+(rew||'–')+'</td><td class="text-right text-mono" style="color:var(--cyan)">'+(earn||'–')+'</td><td class="text-right text-mono" style="color:var(--text2)">'+(fee||'–')+'</td></tr>';}});
+var tp=data.types;var dep=gT(tp,['deposit','fiat_deposit']);var wit=gT(tp,['withdraw']);var buy=gT(tp,['trade_buy','fiat_buy']);var sell=gT(tp,['trade_sell']);var conv=gT(tp,['convert','dust']);var rew=gT(tp,['reward']);var earn=gT(tp,['earn_sub','earn_red','earn_move']);var fee=gT(tp,['fee']);
+html+='<tr style="background:var(--bg2);font-weight:700"><td>TOTALE</td><td class="text-right text-mono" style="color:var(--cyan)">'+data.count+'</td><td class="text-right text-mono" style="color:var(--green)">'+dep+'</td><td class="text-right text-mono" style="color:var(--red)">'+wit+'</td><td class="text-right text-mono" style="color:var(--green)">'+buy+'</td><td class="text-right text-mono" style="color:var(--red)">'+sell+'</td><td class="text-right text-mono" style="color:var(--blue)">'+conv+'</td><td class="text-right text-mono" style="color:var(--yellow)">'+rew+'</td><td class="text-right text-mono" style="color:var(--cyan)">'+earn+'</td><td class="text-right text-mono" style="color:var(--text2)">'+fee+'</td></tr>';
 html+='</tbody></table></div></div>';});}document.getElementById('exExchangeGrid').innerHTML=html;}
 function openExchangeDetail(ex){currentExchange=ex;exDetailPage=1;exDetailTxs=[];var color=EX_COLORS[ex]||'#888';var logo=EX_LOGOS[ex]||EX_LOGOS.other;document.getElementById('exDetailName').innerHTML='<div class="flex items-center gap-12"><img src="'+logo+'" style="width:32px;height:32px;border-radius:8px" onerror="this.style.display=\'none\'"><span>'+formatExName(ex)+'</span></div>';document.getElementById('exDetailYear').value='';document.getElementById('exDetailType').value='';document.getElementById('exDetailSearch').value='';document.getElementById('page-exchange').style.display='none';document.getElementById('page-exchange-detail').style.display='block';loadExchangeDetail();}
 async function resetCurrentExchange(){if(!currentExchange)return;if(!confirm('Sicuro di cancellare tutti i dati di '+currentExchange+'?'))return;try{await db.from('exchange_transactions').delete().eq('user_id',user.id).eq('exchange',currentExchange);toast('✅ Dati '+currentExchange+' cancellati!');showPage('exchange');}catch(e){toast('❌ Errore: '+e.message,'error');}}
