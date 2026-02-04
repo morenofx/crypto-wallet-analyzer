@@ -1035,6 +1035,105 @@ showApiStatus('🧹 Dust...','info');pBtn.textContent='🔄 100%';
 try{allData.dustLog=toA(await binP('/sapi/v1/asset/dribblet',{}));}catch(x){allData.dustLog=[];}
 stepLog.push('🧹 Dust: '+allData.dustLog.length);
 
+// ═══ 14. ETH STAKING ═══
+showApiStatus('🔷 ETH Staking...','info');
+allData.ethStaking=[];
+try{allData.ethStaking=await fetchWP('/sapi/v1/eth-staking/eth/history/rewardsHistory',{},MS30,100,'🔷 ETH Staking',TS2021);
+}catch(x){console.log('ETH Staking: non disponibile');}
+if(allData.ethStaking.length>0)stepLog.push('🔷 ETH Staking: '+allData.ethStaking.length);
+
+// ═══ 15. UNIVERSAL TRANSFER (Spot↔Earn↔Funding) ═══
+showApiStatus('↔️ Transfers...','info');
+allData.transfers=[];
+var transferTypes=['MAIN_UMFUTURE','MAIN_CMFUTURE','MAIN_MARGIN','MAIN_MINING','MAIN_FUNDING','FUNDING_MAIN','FUNDING_UMFUTURE','MAIN_OPTION'];
+for(var ti=0;ti<transferTypes.length;ti++){try{
+var tf=await fetchWP('/sapi/v1/asset/transfer',{type:transferTypes[ti]},MS30,100,'↔️ '+transferTypes[ti],TS2021);
+tf.forEach(function(t){t.transferType=transferTypes[ti];});
+allData.transfers=allData.transfers.concat(tf);
+}catch(x){}}
+if(allData.transfers.length>0)stepLog.push('↔️ Transfers: '+allData.transfers.length);
+
+// ═══ 16. OLD LENDING PURCHASE/REDEEM ═══
+showApiStatus('📦 Old Lending...','info');
+allData.oldLendPurchase=[];allData.oldLendRedeem=[];
+try{allData.oldLendPurchase=await fetchW('/sapi/v1/lending/union/purchaseRecord',{},MS30,'📦 Old Purchase',TS2021);
+}catch(x){console.log('Old lending purchase: non disponibile');}
+try{allData.oldLendRedeem=await fetchW('/sapi/v1/lending/union/redemptionRecord',{},MS30,'📦 Old Redeem',TS2021);
+}catch(x){console.log('Old lending redeem: non disponibile');}
+if(allData.oldLendPurchase.length>0)stepLog.push('📦 Old Purchase: '+allData.oldLendPurchase.length);
+if(allData.oldLendRedeem.length>0)stepLog.push('📦 Old Redeem: '+allData.oldLendRedeem.length);
+
+// ═══ 17. BINANCE PAY ═══
+showApiStatus('💳 Binance Pay...','info');
+allData.payTx=[];
+try{var payRes=await binP('/sapi/v1/pay/transactions',{limit:100});
+allData.payTx=toA(payRes);}catch(x){console.log('Pay: non disponibile');}
+if(allData.payTx.length>0)stepLog.push('💳 Pay: '+allData.payTx.length);
+
+// ═══ 18. REBATE (Cashback/Commission) ═══
+showApiStatus('💸 Rebate...','info');
+allData.rebate=[];
+try{var rebRes=await binP('/sapi/v1/rebate/taxQuery',{});
+allData.rebate=toA(rebRes);}catch(x){console.log('Rebate: non disponibile');}
+if(allData.rebate.length>0)stepLog.push('💸 Rebate: '+allData.rebate.length);
+
+// ═══ 19. C2C / P2P ═══
+showApiStatus('🤝 P2P...','info');
+allData.c2c=[];
+try{var c2cBuy=toA(await binP('/sapi/v1/c2c/orderMatch/listUserOrderHistory',{tradeType:'BUY',rows:100}));
+var c2cSell=toA(await binP('/sapi/v1/c2c/orderMatch/listUserOrderHistory',{tradeType:'SELL',rows:100}));
+allData.c2c=c2cBuy.concat(c2cSell);}catch(x){console.log('C2C: non disponibile');}
+if(allData.c2c.length>0)stepLog.push('🤝 C2C/P2P: '+allData.c2c.length);
+
+// ═══ 20. MINING ═══
+showApiStatus('⛏️ Mining...','info');
+allData.mining=[];
+try{var mineRes=await binP('/sapi/v1/mining/payment/list',{algo:'sha256',userName:'_'});
+allData.mining=toA(mineRes);}catch(x){console.log('Mining: non disponibile');}
+if(allData.mining.length>0)stepLog.push('⛏️ Mining: '+allData.mining.length);
+
+// ═══ 21. LOAN INCOME ═══
+showApiStatus('🏦 Loans...','info');
+allData.loans=[];
+try{allData.loans=toA(await binP('/sapi/v1/loan/income',{limit:100}));
+}catch(x){console.log('Loans: non disponibile');}
+if(allData.loans.length>0)stepLog.push('🏦 Loans: '+allData.loans.length);
+
+// ═══ 22. NFT ═══
+allData.nft=[];
+try{var nftBuy=toA(await binP('/sapi/v1/nft/history/transactions',{orderType:0,limit:50}));
+var nftSell=toA(await binP('/sapi/v1/nft/history/transactions',{orderType:1,limit:50}));
+allData.nft=nftBuy.concat(nftSell);}catch(x){}
+if(allData.nft.length>0)stepLog.push('🖼️ NFT: '+allData.nft.length);
+
+// ═══ 23. BSWAP (Liquid Swap) ═══
+allData.bswap=[];
+try{allData.bswap=toA(await binP('/sapi/v1/bswap/liquidityOps',{limit:100}));
+}catch(x){console.log('BSwap: non disponibile');}
+if(allData.bswap.length>0)stepLog.push('🌊 BSwap: '+allData.bswap.length);
+
+// ═══ LOG DIAGNOSTICO NUOVI ENDPOINT ═══
+console.log('=== NUOVI ENDPOINT RISULTATI ===');
+console.log('ETH Staking:',allData.ethStaking.length);
+console.log('Universal Transfers:',allData.transfers.length);
+console.log('Old Lending Purchase:',allData.oldLendPurchase.length);
+console.log('Old Lending Redeem:',allData.oldLendRedeem.length);
+console.log('Pay:',allData.payTx.length);
+console.log('Rebate:',allData.rebate.length);
+console.log('C2C/P2P:',allData.c2c.length);
+console.log('Mining:',allData.mining.length);
+console.log('Loans:',allData.loans.length);
+console.log('NFT:',allData.nft.length);
+console.log('BSwap:',allData.bswap.length);
+if(allData.ethStaking.length>0)console.log('ETH Staking sample:',JSON.stringify(allData.ethStaking.slice(0,2)));
+if(allData.transfers.length>0)console.log('Transfer sample:',JSON.stringify(allData.transfers.slice(0,3)));
+if(allData.oldLendPurchase.length>0)console.log('Old Purchase sample:',JSON.stringify(allData.oldLendPurchase.slice(0,2)));
+if(allData.payTx.length>0)console.log('Pay sample:',JSON.stringify(allData.payTx.slice(0,2)));
+if(allData.rebate.length>0)console.log('Rebate sample:',JSON.stringify(allData.rebate.slice(0,2)));
+if(allData.c2c.length>0)console.log('C2C sample:',JSON.stringify(allData.c2c.slice(0,2)));
+if(allData.loans.length>0)console.log('Loans sample:',JSON.stringify(allData.loans.slice(0,2)));
+if(allData.bswap.length>0)console.log('BSwap sample:',JSON.stringify(allData.bswap.slice(0,2)));
+
 // SALVA CHIAVI API
 localStorage.setItem('binance_api_key',apiKey);
 localStorage.setItem('binance_api_secret',apiSecret);
@@ -1187,6 +1286,80 @@ allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_
 allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:new Date(parseInt(d.operateTime)+1).toISOString(),tax_year:ts.getFullYear(),operation:'Small Assets Exchange BNB',account:'Spot',coin:'BNB',amount:parseFloat(det.transferedAmount),tx_type:'trade_buy',asset_type:'CRYPTO',remark:'Dust to BNB'});
 });
 });
+
+// ETH STAKING REWARDS
+(allData.ethStaking||[]).forEach(function(s){
+var ts=new Date(parseInt(s.time||s.updateTime||Date.now()));
+var amt=parseFloat(s.reward||s.amount||s.holding||0);
+if(amt>0){
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'ETH Staking Reward',account:'Spot',coin:'ETH',amount:amt,tx_type:'reward',asset_type:'CRYPTO',remark:'ETH 2.0 Staking'});
+}});
+
+// OLD LENDING PURCHASE (Spot→Earn)
+(allData.oldLendPurchase||[]).forEach(function(p){
+var ts=new Date(parseInt(p.createTime||p.purchaseTime||Date.now()));
+var coin=p.asset||p.productName||'';
+var amt=parseFloat(p.amount||p.lot||0);
+if(coin&&amt>0){
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Savings Subscription',account:'Spot',coin:coin,amount:-amt,tx_type:'earn_sub',asset_type:classifyAsset(coin),remark:'Old Savings Purchase'});
+}});
+
+// OLD LENDING REDEEM (Earn→Spot)
+(allData.oldLendRedeem||[]).forEach(function(r){
+var ts=new Date(parseInt(r.createTime||r.redemptionTime||Date.now()));
+var coin=r.asset||r.projectName||'';
+var amt=parseFloat(r.amount||r.principal||0);
+if(coin&&amt>0){
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Savings Redemption',account:'Spot',coin:coin,amount:amt,tx_type:'earn_red',asset_type:classifyAsset(coin),remark:'Old Savings Redemption'});
+}});
+
+// BINANCE PAY
+(allData.payTx||[]).forEach(function(p){
+var ts=new Date(parseInt(p.transactionTime||p.createTime||Date.now()));
+var coin=p.currency||p.asset||'';
+var amt=parseFloat(p.amount||0);
+var typ=p.transactionType||'';
+if(coin&&amt!==0){
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Binance Pay '+typ,account:'Spot',coin:coin,amount:amt,tx_type:amt>0?'deposit':'withdraw',asset_type:classifyAsset(coin),remark:'Binance Pay'});
+}});
+
+// REBATE/CASHBACK
+(allData.rebate||[]).forEach(function(r){
+var ts=new Date(parseInt(r.time||r.updateTime||Date.now()));
+var coin=r.asset||'BNB';
+var amt=parseFloat(r.amount||r.income||0);
+if(amt>0){
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Commission Rebate',account:'Spot',coin:coin,amount:amt,tx_type:'reward',asset_type:classifyAsset(coin),remark:'Rebate'});
+}});
+
+// C2C/P2P
+(allData.c2c||[]).forEach(function(c){
+var ts=new Date(parseInt(c.createTime||Date.now()));
+var coin=c.asset||c.fiatUnit||'';
+var amt=parseFloat(c.amount||0);
+var isBuy=c.tradeType==='BUY';
+if(coin&&amt>0){
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'P2P '+(isBuy?'Buy':'Sell'),account:'Spot',coin:coin,amount:isBuy?amt:-amt,tx_type:isBuy?'trade_buy':'trade_sell',asset_type:classifyAsset(coin),remark:'C2C/P2P'});
+}});
+
+// LOANS
+(allData.loans||[]).forEach(function(l){
+var ts=new Date(parseInt(l.time||l.timestamp||Date.now()));
+var coin=l.asset||'';
+var amt=parseFloat(l.amount||l.income||0);
+if(coin&&amt!==0){
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Loan '+l.type,account:'Spot',coin:coin,amount:amt,tx_type:amt>0?'deposit':'withdraw',asset_type:classifyAsset(coin),remark:'Crypto Loan'});
+}});
+
+// BSWAP (Liquid Swap)
+(allData.bswap||[]).forEach(function(b){
+var ts=new Date(parseInt(b.operateTime||b.updateTime||Date.now()));
+var coin=b.poolName||'';
+var amt=parseFloat(b.shareAmount||b.amount||0);
+var op=b.operation||'';
+if(coin&&amt>0){
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Liquid Swap '+op,account:'Spot',coin:coin,amount:op==='REMOVE'?amt:-amt,tx_type:op==='ADD'?'earn_sub':'earn_red',asset_type:classifyAsset(coin),remark:'BSwap'});
+}});
 
 console.log('API TX totali:',allTx.length);
 
