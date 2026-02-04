@@ -57,7 +57,7 @@
 <div id="authScreen" class="auth-box">
 <div class="auth-card">
 <div class="logo" style="justify-content:center;margin-bottom:20px"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
-<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v8.24 - 17 Chains</p>
+<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v8.25 - 17 Chains</p>
 <div class="form-group"><label class="form-label">Email</label><input id="authEmail" type="email" class="input"></div>
 <div class="form-group"><label class="form-label">Password</label><input id="authPassword" type="password" class="input"></div>
 <div id="authError" style="color:var(--red);font-size:12px;margin-bottom:12px"></div>
@@ -147,7 +147,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.24';
+const APP_VERSION='8.25';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -892,11 +892,12 @@ var steps=[
 {action:'snapshots',label:'📊 Saldi annuali (Quadro RW)'},
 {action:'deposits',label:'📥 Depositi crypto'},
 {action:'withdraws',label:'📤 Prelievi crypto'},
-{action:'fiatPayments',label:'💳 Acquisti/Vendite crypto con EUR'},
-{action:'trades',label:'📈 Trade Spot (può richiedere tempo...)'},
+{action:'fiatPayments',label:'💳 Acquisti/Vendite con EUR'},
+{action:'trades',label:'📈 Trade Spot'},
 {action:'conversions',label:'🔄 Conversioni'},
-{action:'earn',label:'💰 Simple Earn'},
-{action:'dividends',label:'🎁 Distribuzioni'},
+{action:'earn',label:'💰 Earn (interessi giornalieri...)'},
+{action:'staking',label:'🥩 Staking Rewards'},
+{action:'dividends',label:'🎁 Distribuzioni/Airdrop'},
 {action:'fiat',label:'💶 Bonifici Fiat'},
 {action:'dust',label:'🧹 Dust → BNB'}
 ];
@@ -911,7 +912,18 @@ document.getElementById('apiSyncBtn').textContent='🔄 '+pct+'%';
 showApiStatus(step.label+' <span style="color:var(--text2)">['+pct+'%]</span>','info');
 
 try{
-var res=await fetch(edgeUrl,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},body:JSON.stringify({apiKey:apiKey,apiSecret:apiSecret,action:step.action})});
+// Per trades: passa la lista coin ricavate da deposits/withdraws
+var fetchBody={apiKey:apiKey,apiSecret:apiSecret,action:step.action};
+if(step.action==='trades'){
+var knownCoins={};
+(allData.deposits||[]).forEach(function(d){knownCoins[d.coin]=1;});
+(allData.withdraws||[]).forEach(function(w){knownCoins[w.coin]=1;});
+(allData.balances||[]).forEach(function(b){knownCoins[b.asset]=1;});
+var coinList=Object.keys(knownCoins).filter(function(c){return!['EUR','USD','USDT','USDC','BUSD','FDUSD','DAI'].includes(c);});
+fetchBody.coins=coinList;
+console.log('🔍 Trades: checking',coinList.length,'coins:',coinList.join(', '));
+}
+var res=await fetch(edgeUrl,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},body:JSON.stringify(fetchBody)});
 if(res.ok){
 var data=await res.json();
 // DIAGNOSTIC MODE
@@ -1060,6 +1072,15 @@ allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_
 var ts=new Date(parseInt(d.divTime));
 allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Distribution',account:'Spot',coin:d.asset,amount:parseFloat(d.amount),tx_type:'reward',asset_type:classifyAsset(d.asset),remark:d.enInfo||'Dividend'});
 });
+
+// STAKING REWARDS (old Binance Staking)
+(allData.stakingRewards||[]).forEach(function(s){
+var ts=new Date(parseInt(s.time||s.updateTime||s.datetime));
+var coin=s.asset||s.positionAsset||'';
+var amt=parseFloat(s.reward||s.amount||0);
+if(coin&&amt>0){
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Staking Reward',account:'Spot',coin:coin,amount:amt,tx_type:'reward',asset_type:classifyAsset(coin),remark:'Staking'});
+}});
 
 // FIAT DEPOSITS
 (allData.fiatDeposits||[]).forEach(function(f){
