@@ -112,9 +112,9 @@
 </div>
 <div id="page-exchange-detail" style="display:none">
 <div class="header"><button onclick="showPage('exchange')" class="btn btn-secondary btn-sm">← Indietro</button><h1 class="title" id="exDetailName" style="margin-left:12px">Exchange</h1><button onclick="resetCurrentExchange()" class="btn btn-sm" style="margin-left:auto;background:var(--red)20;color:var(--red)">🗑️ Reset</button></div>
-<div class="stats"><div class="stat"><div class="stat-label">Transazioni</div><div class="stat-value" id="exDetailTx">0</div></div><div class="stat"><div class="stat-label">Coin</div><div class="stat-value" id="exDetailCoins">0</div></div><div class="stat"><div class="stat-label">Depositi €</div><div class="stat-value" style="color:var(--green)" id="exDetailIn">€0</div></div><div class="stat"><div class="stat-label">Prelievi €</div><div class="stat-value" style="color:var(--red)" id="exDetailOut">€0</div></div></div>
+<div class="stats" id="exDetailStats"></div>
 <div class="card mb-16">
-<div class="flex gap-8 mb-12 flex-wrap"><select id="exDetailYear" class="input" style="width:100px" onchange="loadExchangeDetail()"><option value="">Tutti</option><option value="2025">2025</option><option value="2024">2024</option><option value="2023">2023</option><option value="2022">2022</option><option value="2021">2021</option></select><select id="exDetailType" class="input" style="width:120px" onchange="loadExchangeDetail()"><option value="">Tutti tipi</option><option value="deposit">📥 Depositi</option><option value="withdraw">📤 Prelievi</option><option value="trade_buy">🛒 Acquisti</option><option value="trade_sell">💰 Vendite</option><option value="reward">🎁 Rewards</option><option value="convert">🔄 Convert</option><option value="fee">💸 Fee</option><option value="payment">💳 Pagamenti</option><option value="transfer">↔️ Transfer</option></select><input type="text" id="exDetailSearch" class="input" placeholder="🔍 Cerca coin..." oninput="loadExchangeDetail()" style="flex:1;min-width:150px"></div>
+<div class="flex gap-8 mb-12 flex-wrap"><select id="exDetailYear" class="input" style="width:100px" onchange="loadExchangeDetail()"><option value="">Tutti</option><option value="2025">2025</option><option value="2024">2024</option><option value="2023">2023</option><option value="2022">2022</option><option value="2021">2021</option></select><select id="exDetailType" class="input" style="width:140px" onchange="loadExchangeDetail()"><option value="">Tutti tipi</option><option value="deposit">📥 Depositi</option><option value="withdraw">📤 Prelievi</option><option value="trade_buy">🛒 Acquisti</option><option value="trade_sell">💰 Vendite</option><option value="fee">💸 Fee</option><option value="convert">🔄 Convert</option><option value="dust">🧹 Dust</option><option value="reward">🎁 Rewards</option><option value="earn_sub">⬇️ Earn Sub</option><option value="earn_red">⬆️ Earn Red</option><option value="earn_move">↕️ Earn Move</option><option value="fiat_buy">💳 Fiat Buy</option><option value="fiat_deposit">💶 Fiat Deposit</option><option value="card_spend">💳 Card</option><option value="transfer">↔️ Transfer</option><option value="liquidity">🌊 Liquidity</option><option value="payment">🏪 Payment</option><option value="send">📨 Send</option><option value="other_in">❓ Other In</option><option value="other_out">❓ Other Out</option></select><input type="text" id="exDetailSearch" class="input" placeholder="🔍 Cerca coin..." oninput="loadExchangeDetail()" style="flex:1;min-width:150px"></div>
 <div id="exDetailList" style="max-height:500px;overflow-y:auto;padding-right:12px"></div>
 </div>
 </div>
@@ -1412,8 +1412,8 @@ var STABLES=['EUR','USD','USDT','USDC','BUSD','DAI','TUSD'];
 async function loadExchangeTx(){var allTx=[];var page=0;var pageSize=1000;var hasMore=true;while(hasMore){var res=await db.from('exchange_transactions').select('*').eq('user_id',user.id).range(page*pageSize,(page+1)*pageSize-1);var data=res.data||[];allTx=allTx.concat(data);hasMore=data.length===pageSize;page++;if(page>20)break;}console.log('Loaded TX:',allTx.length,'('+page+' pages)');
 
 // OPERAZIONI INTERNE DA ESCLUDERE DAI TOTALI €
-var INTERNAL_OPS=['earn_sub','earn_red','transfer','internal_transfer','staking'];
-var EARN_KEYWORDS=['subscription','redemption','savings','locked','flexible','launchpool','vault','staking purchase','staking redemption','pos savings','auto-invest','transfer between'];
+var INTERNAL_OPS=['earn_sub','earn_red','earn_move','transfer','internal_transfer','liquidity'];
+var EARN_KEYWORDS=['subscription','redemption','savings','locked','flexible','launchpool subscription','vault','staking purchase','staking redemption','pos savings','auto-invest','transfer between'];
 
 function isInternalOp(t){
 var type=t.tx_type||'';
@@ -1442,16 +1442,17 @@ if(byYear[y]){
 byYear[y].tx++;
 if(isInternal){byYear[y].internal++;}
 else{
-// EUR TOTALI = Tutti i movimenti in EUR (depositi, prelievi, buy/sell crypto)
-if(coin==='EUR'){if(amt>0)byYear[y].depEur+=amt;else byYear[y].withEur+=Math.abs(amt);}
-// Conta separato crypto vs fiat
-if(type==='deposit'){if(isFiat)byYear[y].depFiat++;else byYear[y].depCrypto++;}
+// FIAT reali: solo deposit/withdraw/fiat_deposit di EUR
+if((type==='deposit'||type==='fiat_deposit')&&isFiat&&amt>0)byYear[y].depEur+=Math.abs(amt);
+if(type==='withdraw'&&isFiat&&amt<0)byYear[y].withEur+=Math.abs(amt);
+// Conta solo VERI depositi/prelievi (non trade)
+if(type==='deposit'||type==='fiat_deposit'){if(isFiat)byYear[y].depFiat++;else byYear[y].depCrypto++;}
 if(type==='withdraw'){if(isFiat)byYear[y].withFiat++;else byYear[y].withCrypto++;}
 }
-// Contatori operazioni (tutti, non solo €)
-if(type==='reward'||op.includes('Interest')||op.includes('Reward')||op.includes('Learning'))byYear[y].rewards++;
-if(type==='trade_buy'||op.includes('Buy'))byYear[y].buys++;
-if(type==='trade_sell'||op.includes('Sell')||op.includes('Sold'))byYear[y].sells++;
+// Contatori operazioni (basati su tx_type)
+if(type==='reward')byYear[y].rewards++;
+if(type==='trade_buy'||type==='fiat_buy')byYear[y].buys++;
+if(type==='trade_sell')byYear[y].sells++;
 }
 
 if(!byExchange[t.exchange])byExchange[t.exchange]={count:0,coins:new Set(),years:new Set(),depEur:0,withEur:0,depCrypto:0,depFiat:0,withCrypto:0,withFiat:0,rewards:0,buys:0,sells:0,converts:0,internal:0,byYear:{}};
@@ -1459,27 +1460,29 @@ byExchange[t.exchange].count++;byExchange[t.exchange].coins.add(coin);byExchange
 
 if(isInternal){byExchange[t.exchange].internal++;}
 else{
-if(coin==='EUR'){if(amt>0){byExchange[t.exchange].depEur+=amt;}else{byExchange[t.exchange].withEur+=Math.abs(amt);}}
-if(type==='deposit'){if(isFiat)byExchange[t.exchange].depFiat++;else byExchange[t.exchange].depCrypto++;}
+if((type==='deposit'||type==='fiat_deposit')&&isFiat&&amt>0){byExchange[t.exchange].depEur+=Math.abs(amt);}
+if(type==='withdraw'&&isFiat&&amt<0){byExchange[t.exchange].withEur+=Math.abs(amt);}
+if(type==='deposit'||type==='fiat_deposit'){if(isFiat)byExchange[t.exchange].depFiat++;else byExchange[t.exchange].depCrypto++;}
 if(type==='withdraw'){if(isFiat)byExchange[t.exchange].withFiat++;else byExchange[t.exchange].withCrypto++;}
 }
-if(type==='reward'||op.includes('Interest')||op.includes('Reward')||op.includes('Learning'))byExchange[t.exchange].rewards++;
-if(type==='trade_buy'||op.includes('Buy'))byExchange[t.exchange].buys++;
-if(type==='trade_sell'||op.includes('Sell')||op.includes('Sold'))byExchange[t.exchange].sells++;
-if(type==='convert'||op.includes('Convert'))byExchange[t.exchange].converts++;
+if(type==='reward')byExchange[t.exchange].rewards++;
+if(type==='trade_buy'||type==='fiat_buy')byExchange[t.exchange].buys++;
+if(type==='trade_sell')byExchange[t.exchange].sells++;
+if(type==='convert'||type==='dust')byExchange[t.exchange].converts++;
 
 if(!byExchange[t.exchange].byYear[y])byExchange[t.exchange].byYear[y]={tx:0,depEur:0,withEur:0,depCrypto:0,depFiat:0,withCrypto:0,withFiat:0,rewards:0,buys:0,sells:0,converts:0,internal:0};
 byExchange[t.exchange].byYear[y].tx++;
 if(isInternal){byExchange[t.exchange].byYear[y].internal++;}
 else{
-if(coin==='EUR'){if(amt>0){byExchange[t.exchange].byYear[y].depEur+=amt;}else{byExchange[t.exchange].byYear[y].withEur+=Math.abs(amt);}}
-if(type==='deposit'){if(isFiat)byExchange[t.exchange].byYear[y].depFiat++;else byExchange[t.exchange].byYear[y].depCrypto++;}
+if((type==='deposit'||type==='fiat_deposit')&&isFiat&&amt>0){byExchange[t.exchange].byYear[y].depEur+=Math.abs(amt);}
+if(type==='withdraw'&&isFiat&&amt<0){byExchange[t.exchange].byYear[y].withEur+=Math.abs(amt);}
+if(type==='deposit'||type==='fiat_deposit'){if(isFiat)byExchange[t.exchange].byYear[y].depFiat++;else byExchange[t.exchange].byYear[y].depCrypto++;}
 if(type==='withdraw'){if(isFiat)byExchange[t.exchange].byYear[y].withFiat++;else byExchange[t.exchange].byYear[y].withCrypto++;}
 }
-if(type==='reward'||op.includes('Interest')||op.includes('Reward')||op.includes('Learning'))byExchange[t.exchange].byYear[y].rewards++;
-if(type==='trade_buy'||op.includes('Buy'))byExchange[t.exchange].byYear[y].buys++;
-if(type==='trade_sell'||op.includes('Sell')||op.includes('Sold'))byExchange[t.exchange].byYear[y].sells++;
-if(type==='convert'||op.includes('Convert'))byExchange[t.exchange].byYear[y].converts++;});
+if(type==='reward')byExchange[t.exchange].byYear[y].rewards++;
+if(type==='trade_buy'||type==='fiat_buy')byExchange[t.exchange].byYear[y].buys++;
+if(type==='trade_sell')byExchange[t.exchange].byYear[y].sells++;
+if(type==='convert'||type==='dust')byExchange[t.exchange].byYear[y].converts++;});
 for(var y=2021;y<=2026;y++){var el=document.getElementById('exYear'+y);if(el){var d=byYear[y];var html='<div style="font-size:16px;font-weight:700;color:var(--cyan)">'+d.tx+' TX</div>';if(d.depCrypto>0||d.withCrypto>0){html+='<div style="font-size:9px;margin-top:4px">';if(d.depCrypto>0)html+='<span style="color:var(--green)">📥'+d.depCrypto+' crypto</span> ';if(d.withCrypto>0)html+='<span style="color:var(--red)">📤'+d.withCrypto+' crypto</span>';html+='</div>';}if(d.depEur>0||d.withEur>0){html+='<div style="font-size:9px;margin-top:2px">';if(d.depEur>0)html+='<span style="color:var(--green)">📥'+fmtC(d.depEur)+' fiat</span> ';if(d.withEur>0)html+='<span style="color:var(--red)">📤'+fmtC(d.withEur)+' fiat</span>';html+='</div>';}if(d.rewards>0||d.buys>0||d.sells>0){html+='<div style="font-size:9px;margin-top:2px">';if(d.rewards>0)html+='<span style="color:var(--yellow)">🎁'+d.rewards+'</span> ';if(d.buys>0)html+='<span style="color:var(--green)">🛒'+d.buys+'</span> ';if(d.sells>0)html+='<span style="color:var(--red)">💰'+d.sells+'</span>';html+='</div>';}el.innerHTML=html;}}
 var html='';if(Object.keys(byExchange).length===0){html='<div class="card" style="grid-column:1/-1;padding:40px;text-align:center;color:var(--text2)">Nessun exchange. Clicca "Import CSV" per importare dati.</div>';}else{Object.entries(byExchange).forEach(function(e){var ex=e[0];var data=e[1];var color=EX_COLORS[ex]||'#888';var logo=EX_LOGOS[ex]||EX_LOGOS.other;
 html+='<div class="card" style="grid-column:1/-1"><div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;cursor:pointer" onclick="openExchangeDetail(\''+ex+'\')"><div style="width:48px;height:48px;border-radius:12px;background:'+color+'20;display:flex;align-items:center;justify-content:center;overflow:hidden"><img src="'+logo+'" style="width:36px;height:36px;border-radius:8px" onerror="this.style.display=\'none\';var p=this.parentElement;if(p)p.innerHTML=\'🏦\';"></div><div style="flex:1"><div style="font-size:18px;font-weight:700">'+formatExName(ex)+'</div><div style="font-size:12px;color:var(--text2)">'+data.count+' TX totali • '+data.coins.size+' coin</div></div><button onclick="event.stopPropagation();openExchangeDetail(\''+ex+'\')" class="btn btn-sm btn-secondary">Dettagli →</button></div>';
@@ -1496,12 +1499,19 @@ async function resetCurrentExchange(){if(!currentExchange)return;if(!confirm('Si
 async function loadExchangeDetail(){if(!currentExchange)return;exDetailPage=1;var yearFilter=document.getElementById('exDetailYear').value;var typeFilter=document.getElementById('exDetailType').value;var searchFilter=(document.getElementById('exDetailSearch').value||'').toLowerCase();
 var allTx=[];var page=0;var hasMore=true;while(hasMore){var query=db.from('exchange_transactions').select('*').eq('user_id',user.id).eq('exchange',currentExchange).order('tx_timestamp',{ascending:false}).range(page*1000,(page+1)*1000-1);if(yearFilter)query=query.eq('tax_year',parseInt(yearFilter));if(typeFilter)query=query.eq('tx_type',typeFilter);var res=await query;var data=res.data||[];allTx=allTx.concat(data);hasMore=data.length===1000;page++;if(page>10)break;}
 var txs=allTx;if(searchFilter)txs=txs.filter(function(t){return(t.coin||'').toLowerCase().includes(searchFilter)||(t.operation||'').toLowerCase().includes(searchFilter);});
-var totalIn=0,totalOut=0,coins=new Set();txs.forEach(function(t){coins.add(t.coin);var amt=parseFloat(t.amount)||0;if(t.coin==='EUR'){if(amt>0)totalIn+=amt;else totalOut+=Math.abs(amt);}});
-document.getElementById('exDetailTx').textContent=txs.length;document.getElementById('exDetailCoins').textContent=coins.size;document.getElementById('exDetailIn').textContent=fmtC(totalIn);document.getElementById('exDetailOut').textContent=fmtC(totalOut);
+var txs=allTx;if(searchFilter)txs=txs.filter(function(t){return(t.coin||'').toLowerCase().includes(searchFilter)||(t.operation||'').toLowerCase().includes(searchFilter)||(t.tx_type||'').toLowerCase().includes(searchFilter);});
+var coins=new Set();var byType={};
+txs.forEach(function(t){coins.add(t.coin);var tp=t.tx_type||'other';byType[tp]=(byType[tp]||0)+1;});
+var catIcons={deposit:'📥',withdraw:'📤',trade_buy:'🛒',trade_sell:'💰',fee:'💸',convert:'🔄',dust:'🧹',reward:'🎁',earn_sub:'⬇️',earn_red:'⬆️',earn_move:'↕️',fiat_buy:'💳',fiat_deposit:'💶',card_spend:'💳',transfer:'↔️',liquidity:'🌊',payment:'🏪',send:'📨',other_in:'❓',other_out:'❓'};
+var statsHtml='<div class="stat"><div class="stat-label">Totale TX</div><div class="stat-value" style="color:var(--cyan)">'+txs.length+'</div></div>';
+statsHtml+='<div class="stat"><div class="stat-label">Coin</div><div class="stat-value">'+coins.size+'</div></div>';
+var typOrder=['deposit','withdraw','trade_buy','trade_sell','fee','convert','dust','reward','earn_sub','earn_red','earn_move','fiat_buy','fiat_deposit','card_spend','transfer','liquidity','payment','send','other_in','other_out'];
+typOrder.forEach(function(tp){if(byType[tp]){statsHtml+='<div class="stat" style="cursor:pointer" onclick="document.getElementById(\'exDetailType\').value=\''+tp+'\';loadExchangeDetail()"><div class="stat-label">'+(catIcons[tp]||'')+' '+tp+'</div><div class="stat-value" style="font-size:14px">'+byType[tp]+'</div></div>';}});
+document.getElementById('exDetailStats').innerHTML=statsHtml;
 exDetailTxs=txs;renderExDetailPage();}
 function renderExDetailPage(){var txs=exDetailTxs;var pageSize=100;var totalPages=Math.ceil(txs.length/pageSize);if(exDetailPage>totalPages)exDetailPage=totalPages;if(exDetailPage<1)exDetailPage=1;var start=(exDetailPage-1)*pageSize;var end=start+pageSize;var pageTxs=txs.slice(start,end);
 if(txs.length===0){document.getElementById('exDetailList').innerHTML='<div style="padding:40px;text-align:center;color:var(--text2)">Nessuna transazione</div>';return;}
-var typeIcons={deposit:'📥',withdraw:'📤',trade_buy:'🛒',trade_sell:'💰',reward:'🎁',convert:'🔄',fee:'💸',transfer:'↔️',payment:'💳',other:'•'};var typeColors={deposit:'var(--green)',withdraw:'var(--red)',trade_buy:'var(--green)',trade_sell:'var(--red)',reward:'var(--yellow)',convert:'var(--blue)',fee:'var(--red)',transfer:'var(--cyan)',payment:'var(--purple)',other:'var(--text2)'};
+var typeIcons={deposit:'📥',withdraw:'📤',trade_buy:'🛒',trade_sell:'💰',fee:'💸',convert:'🔄',dust:'🧹',reward:'🎁',earn_sub:'⬇️',earn_red:'⬆️',earn_move:'↕️',fiat_buy:'💳',fiat_deposit:'💶',card_spend:'💳',transfer:'↔️',liquidity:'🌊',payment:'🏪',send:'📨',other_in:'❓',other_out:'❓',other:'•'};var typeColors={deposit:'var(--green)',withdraw:'var(--red)',trade_buy:'var(--green)',trade_sell:'var(--red)',fee:'var(--red)',convert:'var(--blue)',dust:'var(--text2)',reward:'var(--yellow)',earn_sub:'var(--cyan)',earn_red:'var(--cyan)',earn_move:'var(--cyan)',fiat_buy:'var(--green)',fiat_deposit:'var(--green)',card_spend:'var(--red)',transfer:'var(--cyan)',liquidity:'var(--purple)',payment:'var(--purple)',send:'var(--purple)',other_in:'var(--text2)',other_out:'var(--text2)',other:'var(--text2)'};
 var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">';
 html+='<div style="font-size:12px;color:var(--text2)">Totale: <strong>'+txs.length+'</strong> TX | Pagina '+exDetailPage+' di '+totalPages+'</div>';
 html+='<div style="display:flex;gap:4px;align-items:center">';
@@ -1512,13 +1522,14 @@ for(var p=startP;p<=endP;p++){html+='<button onclick="exDetailGoPage('+p+')" cla
 html+='<button onclick="exDetailGoPage(exDetailPage+1)" class="btn btn-sm btn-secondary" style="padding:4px 8px" '+(exDetailPage===totalPages?'disabled':'')+'>▶</button>';
 html+='<button onclick="exDetailGoPage('+totalPages+')" class="btn btn-sm btn-secondary" style="padding:4px 8px" '+(exDetailPage===totalPages?'disabled':'')+'>⏭</button>';
 html+='</div></div>';
-pageTxs.forEach(function(t){var d=new Date(t.tx_timestamp);var dateStr=d.toLocaleDateString('it-IT')+' '+d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});var amt=parseFloat(t.amount);var amtStr=formatAmount(amt,t.coin);var amtColor=amt>=0?'var(--green)':'var(--red)';var icon=typeIcons[t.tx_type]||'•';var opColor=typeColors[t.tx_type]||'var(--text2)';
+pageTxs.forEach(function(t){var d=new Date(t.tx_timestamp);var dateStr=d.toLocaleDateString('it-IT')+' '+d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit',second:'2-digit'});var amt=parseFloat(t.amount);var amtStr=formatAmount(amt,t.coin);var amtColor=amt>=0?'var(--green)':'var(--red)';var icon=typeIcons[t.tx_type]||'•';var opColor=typeColors[t.tx_type]||'var(--text2)';var typeName=t.tx_type||'other';
 html+='<div style="display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);gap:12px">';
 var coinLower=t.coin.toLowerCase();var iconUrl='https://assets.coincap.io/assets/icons/'+coinLower+'@2x.png';
 html+='<div style="position:relative;width:36px;height:36px;flex-shrink:0"><img src="'+iconUrl+'" style="width:36px;height:36px;border-radius:50%" onerror="this.style.display=\'none\';var n=this.nextElementSibling;if(n)n.style.display=\'flex\';"><div style="display:none;width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff">'+t.coin.slice(0,3)+'</div><div style="position:absolute;bottom:-2px;right:-2px;width:16px;height:16px;border-radius:50%;background:'+opColor+';display:flex;align-items:center;justify-content:center;font-size:9px;border:2px solid var(--bg)">'+icon+'</div></div>';
-html+='<div style="flex:1;min-width:0;overflow:hidden"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:600;white-space:nowrap">'+t.coin+(t.pair?' <span style="font-size:10px;color:var(--text2)">'+t.pair+'</span>':'')+'</div><div class="text-mono" style="color:'+amtColor+';font-weight:600;white-space:nowrap;font-size:13px">'+amtStr+'</div></div>';
-var priceStr=t.price_eur?'€'+fmtN(t.price_eur):'';var valueStr=t.value_eur?'<span style="color:var(--cyan);font-weight:600">€'+fmtN(t.value_eur)+'</span>':'';
-html+='<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-top:2px;gap:8px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'+t.operation+(priceStr?' @ '+priceStr:'')+'</div><div style="white-space:nowrap;flex-shrink:0">'+valueStr+(valueStr?' • ':'')+dateStr+'</div></div></div></div>';});
+html+='<div style="flex:1;min-width:0;overflow:hidden"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:600;white-space:nowrap">'+t.coin+' <span style="font-size:10px;padding:1px 5px;border-radius:4px;background:'+opColor+'20;color:'+opColor+'">'+typeName+'</span></div><div class="text-mono" style="color:'+amtColor+';font-weight:600;white-space:nowrap;font-size:13px">'+amtStr+'</div></div>';
+var priceStr=t.price_eur?'@€'+fmtN(t.price_eur):'';var valueStr=t.value_eur?'<span style="color:var(--cyan);font-weight:600">€'+fmtN(t.value_eur)+'</span>':'';
+var remarkStr=t.remark?'<span style="color:var(--text2)"> · '+t.remark.substring(0,30)+'</span>':'';
+html+='<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-top:2px;gap:8px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'+t.operation+(priceStr?' '+priceStr:'')+remarkStr+'</div><div style="white-space:nowrap;flex-shrink:0">'+valueStr+(valueStr?' · ':'')+dateStr+'</div></div></div></div>';});
 html+='<div style="display:flex;justify-content:center;margin-top:12px;gap:4px">';
 html+='<button onclick="exDetailGoPage(exDetailPage-1)" class="btn btn-secondary" style="padding:8px 16px" '+(exDetailPage===1?'disabled':'')+'>◀ Precedente</button>';
 html+='<button onclick="exDetailGoPage(exDetailPage+1)" class="btn btn-secondary" style="padding:8px 16px" '+(exDetailPage===totalPages?'disabled':'')+'>Successiva ▶</button>';
@@ -1862,31 +1873,75 @@ function createBaseTx(tx,userId,year,txType,needsPrice){
 return{user_id:userId,exchange:'binance',tx_timestamp:formatTs(tx.utcTime),tax_year:year,operation:tx.operation,account:tx.account,coin:tx.coin,amount:tx.change,tx_type:txType,remark:tx.remark,needs_price:needsPrice};}
 
 function classifyOp(op,change){
-var o=op.toLowerCase();
-// EARN/STAKING - SUBSCRIPTION (giroconto interno, non tassabile)
-if(o.includes('subscription')||o.includes('locked staking')||o.includes('pos savings purchase')||o.includes('savings purchase'))return'earn_sub';
-// EARN/STAKING - REDEMPTION (giroconto interno, non tassabile)
-if(o.includes('redemption')||o.includes('pos savings redemption')||o.includes('savings principal'))return'earn_red';
-// DEPOSIT/WITHDRAW esterni
-if(o.includes('fiat deposit')||o.includes('deposit')&&!o.includes('launchpool'))return'deposit';
+var o=(op||'').toLowerCase().trim();
+
+// ═══ EXACT MATCH MAP (priorità massima) ═══
+var exactMap={
+// DEPOSITI ESTERNI (crypto da wallet o fiat da banca)
+'deposit':'deposit','fiat deposit':'deposit','deposit fiat ocbs':'deposit',
+// PRELIEVI ESTERNI (crypto verso wallet o fiat verso banca)
+'withdraw':'withdraw','fiat withdraw':'withdraw','withdrawal - initiate freeze':'withdraw',
+// SPOT TRADING (Transaction Buy+Spend = acquisto, Sold+Revenue = vendita)
+'transaction buy':'trade_buy','transaction spend':'trade_sell',
+'transaction sold':'trade_sell','transaction revenue':'trade_buy',
+'transaction fee':'fee','transaction related':'convert',
+'buy':'trade_buy','sell':'trade_sell','fee':'fee',
+// FIAT TRADE (acquisto/vendita crypto con EUR/carta)
+'buy crypto with card':'fiat_buy','buy crypto with fiat':'fiat_buy',
+'fiat ocbs - add fiat and fees':'fiat_deposit',
+'convert fiat to crypto ocbs':'fiat_buy',
+// CONVERT
+'binance convert':'convert','cex swap - convert':'convert',
+'cex swap - withdraw success':'convert','auto-invest transaction':'convert',
+// EARN (movimenti interni, non tassabili)
+'simple earn flexible subscription':'earn_sub','simple earn flexible redemption':'earn_red',
+'simple earn locked subscription':'earn_sub','simple earn locked redemption':'earn_red',
+'staking purchase':'earn_sub','staking redemption':'earn_red',
+'launchpool subscription/redemption':'earn_move','launchpad subscribe':'earn_sub',
+'dual savings purchase':'earn_sub','dual savings settlement':'earn_red',
+// REWARDS (reddito tassabile)
+'simple earn flexible interest':'reward','simple earn locked rewards':'reward',
+'simple earn flexible airdrop':'reward',
+'bnb vault rewards':'reward','staking rewards':'reward',
+'swap farming rewards':'reward','commission rebate':'reward',
+'cashback voucher':'reward','cash voucher distribution':'reward','cash voucher':'reward',
+'binance card cashback':'reward','mission reward distribution':'reward',
+'distribution':'reward','megadrop rewards':'reward',
+'airdrop assets':'reward','nft - burn and win':'reward',
+'fund recovery':'reward','asset recovery':'reward',
+'launchpad token distribution':'reward',
+'launchpool airdrop - user claim distribution':'reward',
+'launchpool airdrop - system distribution':'reward',
+// DUST (conversione briciole in BNB)
+'small assets exchange bnb':'dust',
+// CARD (spesa con carta Binance)
+'binance card spending':'card_spend','pre auth - capture':'card_spend','tax payment':'card_spend',
+// TRANSFER (tra account interni Binance)
+'transfer between main and funding wallet':'transfer',
+// LIQUIDITY (pool di liquidità)
+'liquid swap add':'liquidity','liquid swap add/sell':'liquidity',
+'liquidity farming remove':'liquidity','swap farming transaction':'liquidity',
+// PAY/SEND
+'merchant acquiring':'payment','merchant payment':'payment',
+'send':'send','crypto box':'reward'
+};
+
+if(exactMap[o]!==undefined)return exactMap[o];
+
+// ═══ FALLBACK con keyword (per operazioni non mappate) ═══
+if(o.includes('subscription')||o.includes('staking purchase'))return'earn_sub';
+if(o.includes('redemption')||o.includes('staking redemption'))return'earn_red';
+if(o.includes('deposit')&&!o.includes('launchpool'))return'deposit';
 if(o.includes('withdraw'))return'withdraw';
-// TRADING
+if(o.includes('interest')||o.includes('reward')||o.includes('cashback')||o.includes('airdrop')||o.includes('distribution'))return'reward';
+if(o.includes('convert')||o.includes('swap'))return'convert';
+if(o.includes('fee'))return'fee';
+if(o.includes('transfer'))return'transfer';
 if(o.includes('buy')||o.includes('purchase'))return'trade_buy';
 if(o.includes('sell')||o.includes('sold'))return'trade_sell';
-// REWARDS (tassabili come reddito)
-if(o.includes('interest')||o.includes('reward')||o.includes('cashback')||o.includes('rebate')||o.includes('referral')||o.includes('commission')||o.includes('distribution'))return'reward';
-if(o.includes('launchpool')||o.includes('bnb vault')||o.includes('staking rewards')||o.includes('eth 2.0 staking rewards'))return'reward';
-if(o.includes('airdrop')||o.includes('token swap'))return'reward';
-// FEE
-if(o.includes('fee')&&!o.includes('referral'))return'fee';
-// CONVERT
-if(o.includes('convert')||o.includes('small assets'))return'convert';
-// TRANSFER INTERNI
-if(o.includes('transfer'))return'transfer';
-// CARD/PAYMENT
-if(o.includes('card')||o.includes('payment')||o.includes('top up'))return'payment';
-// DEFAULT basato sul segno
-return change>0?'deposit':'withdraw';}
+if(o.includes('card'))return'card_spend';
+if(o.includes('payment'))return'payment';
+return change>0?'other_in':'other_out';}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // PARSER REVOLUT AVANZATO - Estrae prezzi dal CSV
