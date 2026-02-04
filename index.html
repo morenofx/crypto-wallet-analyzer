@@ -57,7 +57,7 @@
 <div id="authScreen" class="auth-box">
 <div class="auth-card">
 <div class="logo" style="justify-content:center;margin-bottom:20px"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
-<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v8.26 - 17 Chains</p>
+<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v8.27 - 17 Chains</p>
 <div class="form-group"><label class="form-label">Email</label><input id="authEmail" type="email" class="input"></div>
 <div class="form-group"><label class="form-label">Password</label><input id="authPassword" type="password" class="input"></div>
 <div id="authError" style="color:var(--red);font-size:12px;margin-bottom:12px"></div>
@@ -147,7 +147,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.26';
+const APP_VERSION='8.27';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -887,78 +887,139 @@ document.getElementById('apiSyncBtn').disabled=true;
 console.log('🔑 API Key length:',apiKey.length,'Secret length:',apiSecret.length);
 
 var edgeUrl=SB_URL+'/functions/v1/binance-proxy';
-var steps=[
-{action:'balances',label:'🔗 Test connessione + saldi'},
-{action:'snapshots',label:'📊 Saldi annuali (Quadro RW)'},
-{action:'deposits',label:'📥 Depositi crypto'},
-{action:'withdraws',label:'📤 Prelievi crypto'},
-{action:'fiatPayments',label:'💳 Acquisti/Vendite con EUR'},
-{action:'trades',label:'📈 Trade Spot'},
-{action:'conversions',label:'🔄 Conversioni'},
-{action:'earn',label:'💰 Earn (2023+)'},
-{action:'oldEarn',label:'💰 Old Savings (2021-2022)'},
-{action:'staking',label:'🥩 Staking Rewards'},
-{action:'dividends',label:'🎁 Distribuzioni/Airdrop'},
-{action:'fiat',label:'💶 Bonifici Fiat'},
-{action:'dust',label:'🧹 Dust → BNB'}
-];
+var MS90=90*24*3600000;var MS30=30*24*3600000;var TS2021=1609459200000;
 
-var allData={};var allTotals={};var stepLog=[];
+// ── Proxy: 1 call = 1 signed Binance request ──
+async function binP(ep,p){
+var r=await fetch(edgeUrl,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},body:JSON.stringify({apiKey:apiKey,apiSecret:apiSecret,endpoint:ep,params:p||{}})});
+if(!r.ok){var t='';try{t=await r.text();}catch(x){}throw new Error(r.status+':'+t);}
+return r.json();}
+
+function toA(d){if(!d)return[];if(Array.isArray(d))return d;if(d.rows&&Array.isArray(d.rows))return d.rows;if(d.data&&Array.isArray(d.data))return d.data;if(d.list&&Array.isArray(d.list))return d.list;if(d.userAssetDribblets&&Array.isArray(d.userAssetDribblets))return d.userAssetDribblets;return[];}
+
+// ── Fetch con finestre temporali ──
+async function fetchW(ep,p,wMs,lbl,from){var a=[];var s=from||TS2021;var n=Date.now();var tot=Math.ceil((n-s)/wMs);var i=0;
+while(s<n){i++;showApiStatus(lbl+' ['+i+'/'+tot+']','info');var e=Math.min(s+wMs,n);
+try{a=a.concat(toA(await binP(ep,Object.assign({},p,{startTime:s,endTime:e}))));}catch(x){}s=e+1;}return a;}
+
+// ── Fetch con finestre + pagine ──
+async function fetchWP(ep,p,wMs,pSz,lbl,from){var a=[];var s=from||TS2021;var n=Date.now();var tot=Math.ceil((n-s)/wMs);var i=0;
+while(s<n){i++;showApiStatus(lbl+' ['+i+'/'+tot+']','info');var e=Math.min(s+wMs,n);
+var pg=1;while(pg<=20){try{var d=toA(await binP(ep,Object.assign({},p,{startTime:s,endTime:e,current:pg,size:pSz})));
+a=a.concat(d);if(d.length<pSz)break;pg++;}catch(x){break;}}s=e+1;}return a;}
+
+var allData={};var stepLog=[];
+var pBtn=document.getElementById('apiSyncBtn');
 
 try{
-for(var i=0;i<steps.length;i++){
-var step=steps[i];
-var pct=Math.round(((i+1)/steps.length)*100);
-document.getElementById('apiSyncBtn').textContent='🔄 '+pct+'%';
-showApiStatus(step.label+' <span style="color:var(--text2)">['+pct+'%]</span>','info');
+// ═══ 1. TEST CONNESSIONE ═══
+showApiStatus('🔗 Test connessione...','info');pBtn.textContent='🔄 5%';
+var acct=await binP('/api/v3/account',{});
+allData.balances=(acct.balances||[]).filter(function(b){return parseFloat(b.free)>0||parseFloat(b.locked)>0;});
+stepLog.push('✅ Connesso ('+allData.balances.length+' coin)');
+console.log('✅ Connesso,',allData.balances.length,'coin');
 
-try{
-// Per trades: passa la lista coin ricavate da deposits/withdraws
-var fetchBody={apiKey:apiKey,apiSecret:apiSecret,action:step.action};
-if(step.action==='trades'){
-var knownCoins={};
-(allData.deposits||[]).forEach(function(d){knownCoins[d.coin]=1;});
-(allData.withdraws||[]).forEach(function(w){knownCoins[w.coin]=1;});
-(allData.balances||[]).forEach(function(b){knownCoins[b.asset]=1;});
-var coinList=Object.keys(knownCoins).filter(function(c){return!['EUR','USD','USDT','USDC','BUSD','FDUSD','DAI'].includes(c);});
-fetchBody.coins=coinList;
-console.log('🔍 Trades: checking',coinList.length,'coins:',coinList.join(', '));
-}
-var res=await fetch(edgeUrl,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},body:JSON.stringify(fetchBody)});
-if(res.ok){
-var data=await res.json();
-// DIAGNOSTIC MODE
-if(data.diagnostic&&data.debug){
-console.log('🔍 DIAGNOSTIC RESULTS:');
-data.debug.forEach(function(d){console.log(d);});
-stepLog.push('🔍 DIAGNOSTICA - vedi Console per dettagli');
-showApiStatus('🔍 Diagnostica completata - apri Console (F12) per i risultati','info');
-}else{
-var tot=data.totals||{};
-var errs=data.errors||[];
-delete data.totals;delete data.errors;
-Object.assign(allData,data);
-Object.entries(tot).forEach(function(e){if(e[1]&&e[1]>0)allTotals[e[0]]=e[1];});
-if(errs.length>0){
-console.warn('⚠️ '+step.action+' ERRORS:',errs);
-stepLog.push('⚠️ '+step.label+': '+errs.join(', '));
-}else{
-stepLog.push('✅ '+step.label);
-}
-console.log(step.action+' OK:',JSON.stringify(tot),errs.length>0?'ERRORS: '+errs.join(', '):'');
-}}else{
-var errBody='';try{errBody=await res.text();}catch(x){}
-console.warn(step.action+' HTTP '+res.status+':',errBody);
-// Se è il primo step (balances) e fallisce, le chiavi sono sbagliate
-if(i===0){throw new Error('Chiavi API non valide o permessi insufficienti: '+(errBody||res.status));}
-stepLog.push('⚠️ '+step.label+' (skip)');
-}
-}catch(e){
-if(i===0)throw e; // Primo step: errore fatale
-console.warn(step.action+' failed:',e.message);
-stepLog.push('⚠️ '+step.label+' ('+e.message+')');
-}
-}
+// ═══ 2. SNAPSHOTS ═══
+showApiStatus('📊 Snapshots annuali...','info');pBtn.textContent='🔄 8%';
+allData.snapshots={};
+for(var yr=2021;yr<=2025;yr++){try{var sd=await binP('/sapi/v1/accountSnapshot',{type:'SPOT',startTime:new Date(yr+'-12-25').getTime(),endTime:new Date((yr+1)+'-01-02').getTime(),limit:7});
+if(sd.snapshotVos&&sd.snapshotVos.length>0){var sn=sd.snapshotVos[sd.snapshotVos.length-1];var sb=(sn.data.balances||[]).filter(function(b){return parseFloat(b.free)>0||parseFloat(b.locked)>0;});
+if(sb.length>0)allData.snapshots[yr]={date:new Date(sn.updateTime).toISOString(),balances:sb};}}catch(x){}}
+stepLog.push('📊 Snapshots: '+Object.keys(allData.snapshots).length+' anni');
+
+// ═══ 3. DEPOSITS ═══
+pBtn.textContent='🔄 15%';
+allData.deposits=await fetchW('/sapi/v1/capital/deposit/hisrec',{status:1},MS90,'📥 Depositi');
+stepLog.push('📥 Depositi: '+allData.deposits.length);console.log('Depositi:',allData.deposits.length);
+
+// ═══ 4. WITHDRAWS ═══
+pBtn.textContent='🔄 22%';
+allData.withdraws=await fetchW('/sapi/v1/capital/withdraw/history',{status:6},MS90,'📤 Prelievi');
+stepLog.push('📤 Prelievi: '+allData.withdraws.length);console.log('Prelievi:',allData.withdraws.length);
+
+// ═══ 5. FIAT PAYMENTS ═══
+showApiStatus('💳 Acquisti/Vendite EUR...','info');pBtn.textContent='🔄 28%';
+try{allData.fiatBuys=toA(await binP('/sapi/v1/fiat/payments',{transactionType:'0',rows:500})).filter(function(f){return f.status==='Completed'||f.status==='Successful';});}catch(x){allData.fiatBuys=[];}
+try{allData.fiatSells=toA(await binP('/sapi/v1/fiat/payments',{transactionType:'1',rows:500})).filter(function(f){return f.status==='Completed'||f.status==='Successful';});}catch(x){allData.fiatSells=[];}
+stepLog.push('💳 Fiat Pay: '+allData.fiatBuys.length+' buy / '+allData.fiatSells.length+' sell');
+
+// ═══ 6. TRADES ═══
+pBtn.textContent='🔄 32%';
+var tCoins={};
+allData.deposits.forEach(function(d){tCoins[d.coin]=1;});
+allData.withdraws.forEach(function(w){tCoins[w.coin]=1;});
+allData.balances.forEach(function(b){tCoins[b.asset]=1;});
+var cl=Object.keys(tCoins).filter(function(c){return['EUR','USD','USDT','USDC','BUSD','FDUSD','DAI'].indexOf(c)<0;});
+var tQs=['USDT','EUR','BUSD','BTC','BNB','FDUSD'];
+allData.trades=[];
+for(var ci=0;ci<cl.length;ci++){
+showApiStatus('📈 '+cl[ci]+' ['+(ci+1)+'/'+cl.length+']','info');
+pBtn.textContent='🔄 '+(32+Math.round(ci/cl.length*20))+'%';
+for(var qi=0;qi<tQs.length;qi++){
+if(cl[ci]===tQs[qi])continue;var sym=cl[ci]+tQs[qi];var st=TS2021;
+while(st<Date.now()){try{var tr=await binP('/api/v3/myTrades',{symbol:sym,startTime:st,limit:1000});
+if(!Array.isArray(tr)||tr.length===0)break;
+tr.forEach(function(t){t.baseAsset=cl[ci];t.quoteAsset=tQs[qi];});
+allData.trades=allData.trades.concat(tr);if(tr.length<1000)break;st=tr[tr.length-1].time+1;
+}catch(x){break;}}}}
+stepLog.push('📈 Trades: '+allData.trades.length);console.log('Trades:',allData.trades.length);
+
+// ═══ 7. CONVERSIONS ═══
+pBtn.textContent='🔄 55%';
+allData.conversions=await fetchW('/sapi/v1/convert/tradeFlow',{},MS30,'🔄 Conversioni');
+stepLog.push('🔄 Conversioni: '+allData.conversions.length);
+
+// ═══ 8. EARN REWARDS (Simple Earn, dal 2022-10) ═══
+pBtn.textContent='🔄 60%';
+allData.earnRewards=[];allData.earnSubscriptions=[];allData.earnRedemptions=[];
+var earn22=new Date('2022-10-01').getTime();
+var eEps=['/sapi/v1/simple-earn/flexible/history/rewardsRecord','/sapi/v1/simple-earn/locked/history/rewardsRecord'];
+var eTs=['REALTIME','BONUS','REWARDS'];
+for(var ei=0;ei<eEps.length;ei++){for(var et=0;et<eTs.length;et++){
+var el=(ei===0?'Flex':'Lock')+' '+eTs[et];
+try{var er=await fetchWP(eEps[ei],{type:eTs[et]},MS30,100,'💰 '+el,earn22);
+allData.earnRewards=allData.earnRewards.concat(er);console.log(el+':',er.length);}catch(x){}}}
+try{allData.earnSubscriptions=await fetchWP('/sapi/v1/simple-earn/flexible/history/subscriptionRecord',{},MS30,100,'💰 Flex Subs',earn22);}catch(x){}
+try{allData.earnRedemptions=await fetchWP('/sapi/v1/simple-earn/flexible/history/redemptionRecord',{},MS30,100,'💰 Flex Reds',earn22);}catch(x){}
+try{allData.earnSubscriptions=allData.earnSubscriptions.concat(await fetchWP('/sapi/v1/simple-earn/locked/history/subscriptionRecord',{},MS30,100,'💰 Lock Subs',earn22));}catch(x){}
+try{allData.earnRedemptions=allData.earnRedemptions.concat(await fetchWP('/sapi/v1/simple-earn/locked/history/redemptionRecord',{},MS30,100,'💰 Lock Reds',earn22));}catch(x){}
+stepLog.push('💰 Earn: '+allData.earnRewards.length+' rewards, '+allData.earnSubscriptions.length+' subs');
+
+// ═══ 9. OLD SAVINGS (Lending 2021-2022) ═══
+pBtn.textContent='🔄 78%';
+allData.oldEarnRewards=[];
+var lTs=['DAILY','ACTIVITY','CUSTOMIZED_FIXED'];
+for(var li=0;li<lTs.length;li++){try{
+var lr=await fetchW('/sapi/v1/lending/union/interestHistory',{lendingType:lTs[li],size:100},MS30,'💰 Old '+lTs[li]);
+allData.oldEarnRewards=allData.oldEarnRewards.concat(lr);console.log('Old '+lTs[li]+':',lr.length);}catch(x){}}
+stepLog.push('💰 Old Savings: '+allData.oldEarnRewards.length);
+
+// ═══ 10. STAKING ═══
+pBtn.textContent='🔄 85%';
+allData.stakingRewards=[];
+var sPs=['STAKING','F_DEFI','L_DEFI'];
+for(var si=0;si<sPs.length;si++){try{var sp=0;
+while(sp<100){showApiStatus('🥩 '+sPs[si]+' [page '+(sp+1)+']','info');
+var sr=toA(await binP('/sapi/v1/staking/stakingRecord',{product:sPs[si],txnType:'INTEREST',current:sp,size:100}));
+allData.stakingRewards=allData.stakingRewards.concat(sr);if(sr.length<100)break;sp++;}
+}catch(x){}}
+stepLog.push('🥩 Staking: '+allData.stakingRewards.length);
+
+// ═══ 11. DIVIDENDS ═══
+pBtn.textContent='🔄 90%';
+allData.dividends=await fetchW('/sapi/v1/asset/assetDividend',{limit:500},MS90,'🎁 Dividends');
+stepLog.push('🎁 Dividends: '+allData.dividends.length);
+
+// ═══ 12. FIAT ORDERS ═══
+showApiStatus('💶 Bonifici...','info');pBtn.textContent='🔄 95%';
+try{allData.fiatDeposits=toA(await binP('/sapi/v1/fiat/orders',{transactionType:'0',rows:500})).filter(function(f){return f.status==='Successful';});}catch(x){allData.fiatDeposits=[];}
+try{allData.fiatWithdraws=toA(await binP('/sapi/v1/fiat/orders',{transactionType:'1',rows:500})).filter(function(f){return f.status==='Successful';});}catch(x){allData.fiatWithdraws=[];}
+stepLog.push('💶 Fiat: '+allData.fiatDeposits.length+' dep / '+allData.fiatWithdraws.length+' with');
+
+// ═══ 13. DUST ═══
+showApiStatus('🧹 Dust...','info');pBtn.textContent='🔄 100%';
+try{allData.dustLog=toA(await binP('/sapi/v1/asset/dribblet',{}));}catch(x){allData.dustLog=[];}
+stepLog.push('🧹 Dust: '+allData.dustLog.length);
 
 // SALVA CHIAVI API
 localStorage.setItem('binance_api_key',apiKey);
