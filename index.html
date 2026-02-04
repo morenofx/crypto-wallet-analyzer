@@ -57,7 +57,7 @@
 <div id="authScreen" class="auth-box">
 <div class="auth-card">
 <div class="logo" style="justify-content:center;margin-bottom:20px"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
-<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v8.25 - 17 Chains</p>
+<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v8.26 - 17 Chains</p>
 <div class="form-group"><label class="form-label">Email</label><input id="authEmail" type="email" class="input"></div>
 <div class="form-group"><label class="form-label">Password</label><input id="authPassword" type="password" class="input"></div>
 <div id="authError" style="color:var(--red);font-size:12px;margin-bottom:12px"></div>
@@ -147,7 +147,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.25';
+const APP_VERSION='8.26';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -895,7 +895,8 @@ var steps=[
 {action:'fiatPayments',label:'💳 Acquisti/Vendite con EUR'},
 {action:'trades',label:'📈 Trade Spot'},
 {action:'conversions',label:'🔄 Conversioni'},
-{action:'earn',label:'💰 Earn (interessi giornalieri...)'},
+{action:'earn',label:'💰 Earn (2023+)'},
+{action:'oldEarn',label:'💰 Old Savings (2021-2022)'},
 {action:'staking',label:'🥩 Staking Rewards'},
 {action:'dividends',label:'🎁 Distribuzioni/Airdrop'},
 {action:'fiat',label:'💶 Bonifici Fiat'},
@@ -1061,11 +1062,20 @@ var ts=new Date(parseInt(e.time));
 allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Simple Earn Flexible Redemption',account:'Spot',coin:e.asset,amount:parseFloat(e.amount),tx_type:'earn_red',asset_type:classifyAsset(e.asset),remark:'Earn Redemption'});
 });
 
-// EARN REWARDS (interessi)
+// EARN REWARDS (interessi Simple Earn 2023+)
 (allData.earnRewards||[]).forEach(function(e){
 var ts=new Date(parseInt(e.time));
-allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Simple Earn Flexible Interest',account:'Spot',coin:e.asset,amount:parseFloat(e.rewards),tx_type:'reward',asset_type:classifyAsset(e.asset),remark:'Earn Interest'});
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Simple Earn Interest',account:'Spot',coin:e.asset,amount:parseFloat(e.rewards),tx_type:'reward',asset_type:classifyAsset(e.asset),remark:'Earn Interest'});
 });
+
+// OLD EARN REWARDS (Savings/Lending 2021-2022)
+(allData.oldEarnRewards||[]).forEach(function(e){
+var ts=new Date(e.time||e.createTime);
+var coin=e.asset||e.productName||'';
+var amt=parseFloat(e.interest||e.amount||e.reward||0);
+if(coin&&amt>0){
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Savings Interest',account:'Spot',coin:coin,amount:amt,tx_type:'reward',asset_type:classifyAsset(coin),remark:'Old Savings'});
+}});
 
 // DIVIDENDS
 (allData.dividends||[]).forEach(function(d){
