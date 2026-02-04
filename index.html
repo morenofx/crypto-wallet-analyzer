@@ -57,7 +57,7 @@
 <div id="authScreen" class="auth-box">
 <div class="auth-card">
 <div class="logo" style="justify-content:center;margin-bottom:20px"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
-<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v8.27 - 17 Chains</p>
+<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v8.28 - 17 Chains</p>
 <div class="form-group"><label class="form-label">Email</label><input id="authEmail" type="email" class="input"></div>
 <div class="form-group"><label class="form-label">Password</label><input id="authPassword" type="password" class="input"></div>
 <div id="authError" style="color:var(--red);font-size:12px;margin-bottom:12px"></div>
@@ -147,7 +147,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.27';
+const APP_VERSION='8.28';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -889,6 +889,9 @@ console.log('🔑 API Key length:',apiKey.length,'Secret length:',apiSecret.leng
 var edgeUrl=SB_URL+'/functions/v1/binance-proxy';
 var MS90=90*24*3600000;var MS30=30*24*3600000;var TS2021=1609459200000;
 
+// ── Lista coin comuni su Binance (incluse delistate ma con storico trade) ──
+var COMMON_COINS=['1INCH','AAVE','ACE','ACH','ADA','AEVO','AGLD','AI','AKRO','ALGO','ALPHA','AMB','ANKR','ANT','APE','API3','APT','AR','ARB','ARPA','ASTR','ATA','ATOM','AVAX','AXS','BAKE','BAL','BANANA','BAND','BAT','BCH','BICO','BLUR','BNB','BNX','BOND','BTC','BTT','CAKE','CATI','CELO','CELR','CFX','CHR','CHZ','CITY','CKB','CLV','COMP','COTI','CRV','CTK','CTXC','CYBER','DAR','DASH','DENT','DEXE','DGB','DOGE','DOT','DREP','DUSK','DYDX','EDU','EGLD','ELF','ENJ','ENS','EOS','ETC','ETH','ETHFI','EURI','EZ','FET','FIL','FIO','FLOKI','FLOW','FLM','FTM','FXS','GAL','GALA','GAS','GHST','GLM','GMT','GNO','GNS','GRT','GTC','HARD','HBAR','HFT','HIGH','HIVE','HMSTR','HOOK','HOT','ICP','ICX','ID','IDEX','ILV','IMX','INJ','IOST','IOTA','IOTX','JASMY','JOE','JUP','KAS','KAVA','KDA','KEY','KLAY','KNC','KSM','LAZIO','LDO','LEVER','LINA','LINK','LIT','LOOM','LPT','LQTY','LRC','LSK','LTC','LUNA','LUNC','MAGIC','MANA','MANTA','MASK','MATIC','MBOX','MC','MEME','METIS','MINA','MKR','MOVR','MTL','MULTI','NAS','NEAR','NEO','NFP','NKN','NMR','NOT','NTRN','OMG','OMNI','ONE','ONT','OP','ORDI','ORN','OXT','PEPE','PENDLE','PEOPLE','PERP','PHB','PIXEL','POLYX','POND','PORTAL','PYTH','QI','QKC','QNT','QTUM','QUICK','RAD','RDNT','REEF','REN','REQ','RLC','RONIN','ROSE','RSR','RUNE','RVN','SAND','SANTOS','SCRT','SCROLL','SEI','SFP','SHIB','SKL','SLP','SNX','SOL','SPELL','SSV','STEEM','STG','STMX','STO','STORJ','STRAX','STX','SUI','SUN','SUPER','SUSHI','SXP','SYS','THETA','TIA','TLM','TOKEN','TON','TRB','TRIBE','TRU','TRUMP','TRX','TVK','UMA','UNI','UNFI','USDC','UTK','VET','VITE','VOXEL','VTHO','W','WAXP','WIF','WIN','WLD','WOO','WRX','XAI','XEM','XLM','XMR','XNO','XRP','XTZ','XVG','XVS','YFI','YGG','ZEC','ZEN','ZIL','ZRX'];
+
 // ── Proxy: 1 call = 1 signed Binance request ──
 async function binP(ep,p){
 var r=await fetch(edgeUrl,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},body:JSON.stringify({apiKey:apiKey,apiSecret:apiSecret,endpoint:ep,params:p||{}})});
@@ -899,12 +902,12 @@ function toA(d){if(!d)return[];if(Array.isArray(d))return d;if(d.rows&&Array.isA
 
 // ── Fetch con finestre temporali ──
 async function fetchW(ep,p,wMs,lbl,from){var a=[];var s=from||TS2021;var n=Date.now();var tot=Math.ceil((n-s)/wMs);var i=0;
-while(s<n){i++;showApiStatus(lbl+' ['+i+'/'+tot+']','info');var e=Math.min(s+wMs,n);
+while(s<n){i++;if(i%5===1)showApiStatus(lbl+' ['+i+'/'+tot+']','info');var e=Math.min(s+wMs,n);
 try{a=a.concat(toA(await binP(ep,Object.assign({},p,{startTime:s,endTime:e}))));}catch(x){}s=e+1;}return a;}
 
 // ── Fetch con finestre + pagine ──
 async function fetchWP(ep,p,wMs,pSz,lbl,from){var a=[];var s=from||TS2021;var n=Date.now();var tot=Math.ceil((n-s)/wMs);var i=0;
-while(s<n){i++;showApiStatus(lbl+' ['+i+'/'+tot+']','info');var e=Math.min(s+wMs,n);
+while(s<n){i++;if(i%5===1)showApiStatus(lbl+' ['+i+'/'+tot+']','info');var e=Math.min(s+wMs,n);
 var pg=1;while(pg<=20){try{var d=toA(await binP(ep,Object.assign({},p,{startTime:s,endTime:e,current:pg,size:pSz})));
 a=a.concat(d);if(d.length<pSz)break;pg++;}catch(x){break;}}s=e+1;}return a;}
 
@@ -916,8 +919,7 @@ try{
 showApiStatus('🔗 Test connessione...','info');pBtn.textContent='🔄 5%';
 var acct=await binP('/api/v3/account',{});
 allData.balances=(acct.balances||[]).filter(function(b){return parseFloat(b.free)>0||parseFloat(b.locked)>0;});
-stepLog.push('✅ Connesso ('+allData.balances.length+' coin)');
-console.log('✅ Connesso,',allData.balances.length,'coin');
+stepLog.push('✅ Connesso ('+allData.balances.length+' coin con saldo)');
 
 // ═══ 2. SNAPSHOTS ═══
 showApiStatus('📊 Snapshots annuali...','info');pBtn.textContent='🔄 8%';
@@ -928,33 +930,42 @@ if(sb.length>0)allData.snapshots[yr]={date:new Date(sn.updateTime).toISOString()
 stepLog.push('📊 Snapshots: '+Object.keys(allData.snapshots).length+' anni');
 
 // ═══ 3. DEPOSITS ═══
-pBtn.textContent='🔄 15%';
+pBtn.textContent='🔄 12%';
 allData.deposits=await fetchW('/sapi/v1/capital/deposit/hisrec',{status:1},MS90,'📥 Depositi');
-stepLog.push('📥 Depositi: '+allData.deposits.length);console.log('Depositi:',allData.deposits.length);
+stepLog.push('📥 Depositi: '+allData.deposits.length);
 
 // ═══ 4. WITHDRAWS ═══
-pBtn.textContent='🔄 22%';
+pBtn.textContent='🔄 18%';
 allData.withdraws=await fetchW('/sapi/v1/capital/withdraw/history',{status:6},MS90,'📤 Prelievi');
-stepLog.push('📤 Prelievi: '+allData.withdraws.length);console.log('Prelievi:',allData.withdraws.length);
+stepLog.push('📤 Prelievi: '+allData.withdraws.length);
 
 // ═══ 5. FIAT PAYMENTS ═══
-showApiStatus('💳 Acquisti/Vendite EUR...','info');pBtn.textContent='🔄 28%';
+showApiStatus('💳 Acquisti/Vendite EUR...','info');pBtn.textContent='🔄 22%';
 try{allData.fiatBuys=toA(await binP('/sapi/v1/fiat/payments',{transactionType:'0',rows:500})).filter(function(f){return f.status==='Completed'||f.status==='Successful';});}catch(x){allData.fiatBuys=[];}
 try{allData.fiatSells=toA(await binP('/sapi/v1/fiat/payments',{transactionType:'1',rows:500})).filter(function(f){return f.status==='Completed'||f.status==='Successful';});}catch(x){allData.fiatSells=[];}
 stepLog.push('💳 Fiat Pay: '+allData.fiatBuys.length+' buy / '+allData.fiatSells.length+' sell');
 
 // ═══ 6. TRADES ═══
-pBtn.textContent='🔄 32%';
-var tCoins={};
-allData.deposits.forEach(function(d){tCoins[d.coin]=1;});
-allData.withdraws.forEach(function(w){tCoins[w.coin]=1;});
-allData.balances.forEach(function(b){tCoins[b.asset]=1;});
-var cl=Object.keys(tCoins).filter(function(c){return['EUR','USD','USDT','USDC','BUSD','FDUSD','DAI'].indexOf(c)<0;});
+pBtn.textContent='🔄 25%';
+// Costruisci lista COMPLETA di coin da controllare
+var coinSet={};
+allData.balances.forEach(function(b){coinSet[b.asset]=1;});
+allData.deposits.forEach(function(d){coinSet[d.coin]=1;});
+allData.withdraws.forEach(function(w){coinSet[w.coin]=1;});
+// Aggiungi coin dagli snapshot annuali
+Object.values(allData.snapshots).forEach(function(s){(s.balances||[]).forEach(function(b){coinSet[b.asset]=1;});});
+// Aggiungi TUTTE le coin comuni
+COMMON_COINS.forEach(function(c){coinSet[c]=1;});
+// Rimuovi stablecoin/fiat
+['EUR','USD','USDT','USDC','BUSD','FDUSD','DAI','TUSD','EURI'].forEach(function(c){delete coinSet[c];});
+var cl=Object.keys(coinSet);
+console.log('📈 Trades: checking '+cl.length+' coins');
+
 var tQs=['USDT','EUR','BUSD','BTC','BNB','FDUSD'];
-allData.trades=[];
+allData.trades=[];var trFound=0;
 for(var ci=0;ci<cl.length;ci++){
-showApiStatus('📈 '+cl[ci]+' ['+(ci+1)+'/'+cl.length+']','info');
-pBtn.textContent='🔄 '+(32+Math.round(ci/cl.length*20))+'%';
+if(ci%10===0){showApiStatus('📈 Trades: '+cl[ci]+' ['+(ci+1)+'/'+cl.length+'] (trovati: '+allData.trades.length+')','info');
+pBtn.textContent='🔄 '+(25+Math.round(ci/cl.length*30))+'%';}
 for(var qi=0;qi<tQs.length;qi++){
 if(cl[ci]===tQs[qi])continue;var sym=cl[ci]+tQs[qi];var st=TS2021;
 while(st<Date.now()){try{var tr=await binP('/api/v3/myTrades',{symbol:sym,startTime:st,limit:1000});
@@ -962,56 +973,59 @@ if(!Array.isArray(tr)||tr.length===0)break;
 tr.forEach(function(t){t.baseAsset=cl[ci];t.quoteAsset=tQs[qi];});
 allData.trades=allData.trades.concat(tr);if(tr.length<1000)break;st=tr[tr.length-1].time+1;
 }catch(x){break;}}}}
-stepLog.push('📈 Trades: '+allData.trades.length);console.log('Trades:',allData.trades.length);
+stepLog.push('📈 Trades: '+allData.trades.length+' (da '+cl.length+' coin)');
+console.log('📈 Trades totali:',allData.trades.length);
 
 // ═══ 7. CONVERSIONS ═══
-pBtn.textContent='🔄 55%';
+pBtn.textContent='🔄 58%';
 allData.conversions=await fetchW('/sapi/v1/convert/tradeFlow',{},MS30,'🔄 Conversioni');
 stepLog.push('🔄 Conversioni: '+allData.conversions.length);
 
-// ═══ 8. EARN REWARDS (Simple Earn, dal 2022-10) ═══
-pBtn.textContent='🔄 60%';
+// ═══ 8. EARN REWARDS (Simple Earn, DAL 2021!) ═══
+pBtn.textContent='🔄 62%';
 allData.earnRewards=[];allData.earnSubscriptions=[];allData.earnRedemptions=[];
-var earn22=new Date('2022-10-01').getTime();
+// Cerca DAL 2021 - Binance ha migrato i vecchi dati
 var eEps=['/sapi/v1/simple-earn/flexible/history/rewardsRecord','/sapi/v1/simple-earn/locked/history/rewardsRecord'];
 var eTs=['REALTIME','BONUS','REWARDS'];
 for(var ei=0;ei<eEps.length;ei++){for(var et=0;et<eTs.length;et++){
 var el=(ei===0?'Flex':'Lock')+' '+eTs[et];
-try{var er=await fetchWP(eEps[ei],{type:eTs[et]},MS30,100,'💰 '+el,earn22);
+try{var er=await fetchWP(eEps[ei],{type:eTs[et]},MS30,100,'💰 '+el,TS2021);
 allData.earnRewards=allData.earnRewards.concat(er);console.log(el+':',er.length);}catch(x){}}}
-try{allData.earnSubscriptions=await fetchWP('/sapi/v1/simple-earn/flexible/history/subscriptionRecord',{},MS30,100,'💰 Flex Subs',earn22);}catch(x){}
-try{allData.earnRedemptions=await fetchWP('/sapi/v1/simple-earn/flexible/history/redemptionRecord',{},MS30,100,'💰 Flex Reds',earn22);}catch(x){}
-try{allData.earnSubscriptions=allData.earnSubscriptions.concat(await fetchWP('/sapi/v1/simple-earn/locked/history/subscriptionRecord',{},MS30,100,'💰 Lock Subs',earn22));}catch(x){}
-try{allData.earnRedemptions=allData.earnRedemptions.concat(await fetchWP('/sapi/v1/simple-earn/locked/history/redemptionRecord',{},MS30,100,'💰 Lock Reds',earn22));}catch(x){}
-stepLog.push('💰 Earn: '+allData.earnRewards.length+' rewards, '+allData.earnSubscriptions.length+' subs');
+// Subscriptions/Redemptions
+try{allData.earnSubscriptions=await fetchWP('/sapi/v1/simple-earn/flexible/history/subscriptionRecord',{},MS30,100,'💰 Flex Subs',TS2021);}catch(x){}
+try{var fr=await fetchWP('/sapi/v1/simple-earn/flexible/history/redemptionRecord',{},MS30,100,'💰 Flex Reds',TS2021);allData.earnRedemptions=fr;}catch(x){}
+try{var ls=await fetchWP('/sapi/v1/simple-earn/locked/history/subscriptionRecord',{},MS30,100,'💰 Lock Subs',TS2021);allData.earnSubscriptions=allData.earnSubscriptions.concat(ls);}catch(x){}
+try{var lr=await fetchWP('/sapi/v1/simple-earn/locked/history/redemptionRecord',{},MS30,100,'💰 Lock Reds',TS2021);allData.earnRedemptions=allData.earnRedemptions.concat(lr);}catch(x){}
+stepLog.push('💰 Earn: '+allData.earnRewards.length+' rewards, '+allData.earnSubscriptions.length+' subs, '+allData.earnRedemptions.length+' reds');
 
 // ═══ 9. OLD SAVINGS (Lending 2021-2022) ═══
-pBtn.textContent='🔄 78%';
+pBtn.textContent='🔄 80%';
 allData.oldEarnRewards=[];
 var lTs=['DAILY','ACTIVITY','CUSTOMIZED_FIXED'];
 for(var li=0;li<lTs.length;li++){try{
 var lr=await fetchW('/sapi/v1/lending/union/interestHistory',{lendingType:lTs[li],size:100},MS30,'💰 Old '+lTs[li]);
-allData.oldEarnRewards=allData.oldEarnRewards.concat(lr);console.log('Old '+lTs[li]+':',lr.length);}catch(x){}}
+allData.oldEarnRewards=allData.oldEarnRewards.concat(lr);console.log('Old '+lTs[li]+':',lr.length);}catch(x){console.log('Old '+lTs[li]+': endpoint non disponibile');}}
 stepLog.push('💰 Old Savings: '+allData.oldEarnRewards.length);
 
 // ═══ 10. STAKING ═══
-pBtn.textContent='🔄 85%';
+pBtn.textContent='🔄 86%';
 allData.stakingRewards=[];
+// Prova endpoint staking (deprecato ma potrebbe funzionare)
 var sPs=['STAKING','F_DEFI','L_DEFI'];
 for(var si=0;si<sPs.length;si++){try{var sp=0;
 while(sp<100){showApiStatus('🥩 '+sPs[si]+' [page '+(sp+1)+']','info');
 var sr=toA(await binP('/sapi/v1/staking/stakingRecord',{product:sPs[si],txnType:'INTEREST',current:sp,size:100}));
 allData.stakingRewards=allData.stakingRewards.concat(sr);if(sr.length<100)break;sp++;}
-}catch(x){}}
+console.log('Staking '+sPs[si]+':',allData.stakingRewards.length);}catch(x){console.log('Staking '+sPs[si]+': non disponibile ('+x.message+')');}}
 stepLog.push('🥩 Staking: '+allData.stakingRewards.length);
 
 // ═══ 11. DIVIDENDS ═══
-pBtn.textContent='🔄 90%';
+pBtn.textContent='🔄 92%';
 allData.dividends=await fetchW('/sapi/v1/asset/assetDividend',{limit:500},MS90,'🎁 Dividends');
 stepLog.push('🎁 Dividends: '+allData.dividends.length);
 
 // ═══ 12. FIAT ORDERS ═══
-showApiStatus('💶 Bonifici...','info');pBtn.textContent='🔄 95%';
+showApiStatus('💶 Bonifici...','info');pBtn.textContent='🔄 96%';
 try{allData.fiatDeposits=toA(await binP('/sapi/v1/fiat/orders',{transactionType:'0',rows:500})).filter(function(f){return f.status==='Successful';});}catch(x){allData.fiatDeposits=[];}
 try{allData.fiatWithdraws=toA(await binP('/sapi/v1/fiat/orders',{transactionType:'1',rows:500})).filter(function(f){return f.status==='Successful';});}catch(x){allData.fiatWithdraws=[];}
 stepLog.push('💶 Fiat: '+allData.fiatDeposits.length+' dep / '+allData.fiatWithdraws.length+' with');
@@ -1242,7 +1256,7 @@ if(op.includes('transfer')&&(op.includes('spot')||op.includes('funding')||op.inc
 return false;
 }
 
-var byYear={2021:{tx:0,deposits:0,withdraws:0,rewards:0,buys:0,sells:0,internal:0},2022:{tx:0,deposits:0,withdraws:0,rewards:0,buys:0,sells:0,internal:0},2023:{tx:0,deposits:0,withdraws:0,rewards:0,buys:0,sells:0,internal:0},2024:{tx:0,deposits:0,withdraws:0,rewards:0,buys:0,sells:0,internal:0},2025:{tx:0,deposits:0,withdraws:0,rewards:0,buys:0,sells:0,internal:0},2026:{tx:0,deposits:0,withdraws:0,rewards:0,buys:0,sells:0,internal:0}};var byExchange={};
+var byYear={2021:{tx:0,deposits:0,withdraws:0,depositsCount:0,withdrawsCount:0,rewards:0,buys:0,sells:0,internal:0},2022:{tx:0,deposits:0,withdraws:0,depositsCount:0,withdrawsCount:0,rewards:0,buys:0,sells:0,internal:0},2023:{tx:0,deposits:0,withdraws:0,depositsCount:0,withdrawsCount:0,rewards:0,buys:0,sells:0,internal:0},2024:{tx:0,deposits:0,withdraws:0,depositsCount:0,withdrawsCount:0,rewards:0,buys:0,sells:0,internal:0},2025:{tx:0,deposits:0,withdraws:0,depositsCount:0,withdrawsCount:0,rewards:0,buys:0,sells:0,internal:0},2026:{tx:0,deposits:0,withdraws:0,depositsCount:0,withdrawsCount:0,rewards:0,buys:0,sells:0,internal:0}};var byExchange={};
 allTx.forEach(function(t){var y=t.tax_year||2021;var amt=parseFloat(t.amount)||0;var op=t.operation||'';var type=t.tx_type||'';var coin=t.coin||'';var isEur=coin==='EUR';var isUsdStable=STABLECOINS.includes(coin);var isFiat=FIAT_COINS.includes(coin);
 
 // Calcola valore EUR
@@ -1259,6 +1273,9 @@ else{
 // NON contare i trade - quelli sono movimenti interni all'exchange
 if(type==='deposit'&&coin==='EUR'&&amt>0)byYear[y].deposits+=Math.abs(amt);
 if(type==='withdraw'&&coin==='EUR'&&amt<0)byYear[y].withdraws+=Math.abs(amt);
+// Conta TUTTI i depositi/prelievi (crypto + fiat)
+if(type==='deposit')byYear[y].depositsCount++;
+if(type==='withdraw')byYear[y].withdrawsCount++;
 }
 // Contatori operazioni (tutti, non solo €)
 if(type==='reward'||op.includes('Interest')||op.includes('Reward')||op.includes('Learning'))byYear[y].rewards++;
@@ -1271,9 +1288,12 @@ byExchange[t.exchange].count++;byExchange[t.exchange].coins.add(coin);byExchange
 
 if(isInternal){byExchange[t.exchange].internal++;}
 else{
-// Solo EUR reali
-if(type==='deposit'&&coin==='EUR'&&amt>0){byExchange[t.exchange].depositsCount++;byExchange[t.exchange].deposits+=Math.abs(amt);}
-if(type==='withdraw'&&coin==='EUR'&&amt<0){byExchange[t.exchange].withdrawsCount++;byExchange[t.exchange].withdraws+=Math.abs(amt);}
+// Solo EUR reali per totale €
+if(type==='deposit'&&coin==='EUR'&&amt>0){byExchange[t.exchange].deposits+=Math.abs(amt);}
+if(type==='withdraw'&&coin==='EUR'&&amt<0){byExchange[t.exchange].withdraws+=Math.abs(amt);}
+// Conta TUTTI
+if(type==='deposit'){byExchange[t.exchange].depositsCount++;}
+if(type==='withdraw'){byExchange[t.exchange].withdrawsCount++;}
 }
 if(type==='reward'||op.includes('Interest')||op.includes('Reward')||op.includes('Learning'))byExchange[t.exchange].rewards++;
 if(type==='trade_buy'||op.includes('Buy'))byExchange[t.exchange].buys++;
@@ -1284,20 +1304,22 @@ if(!byExchange[t.exchange].byYear[y])byExchange[t.exchange].byYear[y]={tx:0,depo
 byExchange[t.exchange].byYear[y].tx++;
 if(isInternal){byExchange[t.exchange].byYear[y].internal++;}
 else{
-if(type==='deposit'&&coin==='EUR'&&amt>0){byExchange[t.exchange].byYear[y].depositsCount++;byExchange[t.exchange].byYear[y].deposits+=Math.abs(amt);}
-if(type==='withdraw'&&coin==='EUR'&&amt<0){byExchange[t.exchange].byYear[y].withdrawsCount++;byExchange[t.exchange].byYear[y].withdraws+=Math.abs(amt);}
+if(type==='deposit'&&coin==='EUR'&&amt>0){byExchange[t.exchange].byYear[y].deposits+=Math.abs(amt);}
+if(type==='withdraw'&&coin==='EUR'&&amt<0){byExchange[t.exchange].byYear[y].withdraws+=Math.abs(amt);}
+if(type==='deposit'){byExchange[t.exchange].byYear[y].depositsCount++;}
+if(type==='withdraw'){byExchange[t.exchange].byYear[y].withdrawsCount++;}
 }
 if(type==='reward'||op.includes('Interest')||op.includes('Reward')||op.includes('Learning'))byExchange[t.exchange].byYear[y].rewards++;
 if(type==='trade_buy'||op.includes('Buy'))byExchange[t.exchange].byYear[y].buys++;
 if(type==='trade_sell'||op.includes('Sell')||op.includes('Sold'))byExchange[t.exchange].byYear[y].sells++;
 if(type==='convert'||op.includes('Convert'))byExchange[t.exchange].byYear[y].converts++;});
-for(var y=2021;y<=2026;y++){var el=document.getElementById('exYear'+y);if(el){var d=byYear[y];var html='<div style="font-size:16px;font-weight:700;color:var(--cyan)">'+d.tx+' TX</div>';if(d.deposits>0||d.withdraws>0){html+='<div style="font-size:9px;margin-top:4px"><span style="color:var(--green)">📥'+fmtC(d.deposits).replace('€','')+'</span> <span style="color:var(--red)">📤'+fmtC(d.withdraws).replace('€','')+'</span></div>';}if(d.rewards>0||d.buys>0||d.sells>0){html+='<div style="font-size:9px;margin-top:2px">';if(d.rewards>0)html+='<span style="color:var(--yellow)">🎁'+d.rewards+'</span> ';if(d.buys>0)html+='<span style="color:var(--green)">🛒'+d.buys+'</span> ';if(d.sells>0)html+='<span style="color:var(--red)">💰'+d.sells+'</span>';html+='</div>';}el.innerHTML=html;}}
+for(var y=2021;y<=2026;y++){var el=document.getElementById('exYear'+y);if(el){var d=byYear[y];var html='<div style="font-size:16px;font-weight:700;color:var(--cyan)">'+d.tx+' TX</div>';if(d.depositsCount>0||d.withdrawsCount>0||d.deposits>0||d.withdraws>0){html+='<div style="font-size:9px;margin-top:4px">';if(d.deposits>0)html+='<span style="color:var(--green)">📥'+fmtC(d.deposits).replace('€','')+'</span> ';if(d.withdraws>0)html+='<span style="color:var(--red)">📤'+fmtC(d.withdraws).replace('€','')+'</span>';html+='</div>';html+='<div style="font-size:9px;margin-top:2px">';if(d.depositsCount>0)html+='<span style="color:var(--green)">📥'+d.depositsCount+'</span> ';if(d.withdrawsCount>0)html+='<span style="color:var(--red)">📤'+d.withdrawsCount+'</span>';html+='</div>';}if(d.rewards>0||d.buys>0||d.sells>0){html+='<div style="font-size:9px;margin-top:2px">';if(d.rewards>0)html+='<span style="color:var(--yellow)">🎁'+d.rewards+'</span> ';if(d.buys>0)html+='<span style="color:var(--green)">🛒'+d.buys+'</span> ';if(d.sells>0)html+='<span style="color:var(--red)">💰'+d.sells+'</span>';html+='</div>';}el.innerHTML=html;}}
 var html='';if(Object.keys(byExchange).length===0){html='<div class="card" style="grid-column:1/-1;padding:40px;text-align:center;color:var(--text2)">Nessun exchange. Clicca "Import CSV" per importare dati.</div>';}else{Object.entries(byExchange).forEach(function(e){var ex=e[0];var data=e[1];var color=EX_COLORS[ex]||'#888';var logo=EX_LOGOS[ex]||EX_LOGOS.other;
 html+='<div class="card" style="grid-column:1/-1"><div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;cursor:pointer" onclick="openExchangeDetail(\''+ex+'\')"><div style="width:48px;height:48px;border-radius:12px;background:'+color+'20;display:flex;align-items:center;justify-content:center;overflow:hidden"><img src="'+logo+'" style="width:36px;height:36px;border-radius:8px" onerror="this.style.display=\'none\';var p=this.parentElement;if(p)p.innerHTML=\'🏦\';"></div><div style="flex:1"><div style="font-size:18px;font-weight:700">'+formatExName(ex)+'</div><div style="font-size:12px;color:var(--text2)">'+data.count+' TX totali • '+data.coins.size+' coin</div></div><button onclick="event.stopPropagation();openExchangeDetail(\''+ex+'\')" class="btn btn-sm btn-secondary">Dettagli →</button></div>';
-html+='<div style="overflow-x:auto"><table class="table" style="font-size:12px;margin:0"><thead><tr><th>Anno</th><th class="text-right">TX</th><th class="text-right">💶 Depositati</th><th class="text-right">💶 Prelevati</th><th class="text-right">🔄 Interni</th><th class="text-right">🎁 Rewards</th></tr></thead><tbody>';
-var years=[2021,2022,2023,2024,2025,2026];years.forEach(function(y){if(data.byYear[y]&&data.byYear[y].tx>0){var yd=data.byYear[y];var depStr=yd.deposits>0?fmtC(yd.deposits):'-';var witStr=yd.withdraws>0?fmtC(yd.withdraws):'-';var intStr=yd.internal||0;
+html+='<div style="overflow-x:auto"><table class="table" style="font-size:12px;margin:0"><thead><tr><th>Anno</th><th class="text-right">TX</th><th class="text-right">📥 Depositati</th><th class="text-right">📤 Prelevati</th><th class="text-right">🔄 Interni</th><th class="text-right">🎁 Rewards</th></tr></thead><tbody>';
+var years=[2021,2022,2023,2024,2025,2026];years.forEach(function(y){if(data.byYear[y]&&data.byYear[y].tx>0){var yd=data.byYear[y];var depStr=yd.depositsCount>0?(yd.deposits>0?fmtC(yd.deposits)+' ('+yd.depositsCount+')':''+yd.depositsCount):'-';var witStr=yd.withdrawsCount>0?(yd.withdraws>0?fmtC(yd.withdraws)+' ('+yd.withdrawsCount+')':''+yd.withdrawsCount):'-';var intStr=yd.internal||0;
 html+='<tr style="cursor:pointer" onclick="openExchangeDetail(\''+ex+'\');setTimeout(function(){document.getElementById(\'exDetailYear\').value=\''+y+'\';loadExchangeDetail();},100)"><td><strong>'+y+'</strong></td><td class="text-right text-mono">'+yd.tx+'</td><td class="text-right text-mono" style="color:var(--green)">'+depStr+'</td><td class="text-right text-mono" style="color:var(--red)">'+witStr+'</td><td class="text-right text-mono" style="color:var(--text2)">'+intStr+'</td><td class="text-right text-mono" style="color:var(--yellow)">'+yd.rewards+'</td></tr>';}});
-var totDepStr=data.deposits>0?fmtC(data.deposits):'-';var totWitStr=data.withdraws>0?fmtC(data.withdraws):'-';var totIntStr=data.internal||0;
+var totDepStr=data.depositsCount>0?(data.deposits>0?fmtC(data.deposits)+' ('+data.depositsCount+')':''+data.depositsCount):'-';var totWitStr=data.withdrawsCount>0?(data.withdraws>0?fmtC(data.withdraws)+' ('+data.withdrawsCount+')':''+data.withdrawsCount):'-';var totIntStr=data.internal||0;
 html+='<tr style="background:var(--bg2);font-weight:700"><td>TOTALE</td><td class="text-right text-mono">'+data.count+'</td><td class="text-right text-mono" style="color:var(--green)">'+totDepStr+'</td><td class="text-right text-mono" style="color:var(--red)">'+totWitStr+'</td><td class="text-right text-mono" style="color:var(--text2)">'+totIntStr+'</td><td class="text-right text-mono" style="color:var(--yellow)">'+data.rewards+'</td></tr>';
 html+='</tbody></table></div></div>';});}document.getElementById('exExchangeGrid').innerHTML=html;}
 function openExchangeDetail(ex){currentExchange=ex;exDetailPage=1;exDetailTxs=[];var color=EX_COLORS[ex]||'#888';var logo=EX_LOGOS[ex]||EX_LOGOS.other;document.getElementById('exDetailName').innerHTML='<div class="flex items-center gap-12"><img src="'+logo+'" style="width:32px;height:32px;border-radius:8px" onerror="this.style.display=\'none\'"><span>'+formatExName(ex)+'</span></div>';document.getElementById('exDetailYear').value='';document.getElementById('exDetailType').value='';document.getElementById('exDetailSearch').value='';document.getElementById('page-exchange').style.display='none';document.getElementById('page-exchange-detail').style.display='block';loadExchangeDetail();}
