@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v8.20</title>
+<title>CryptoFolio v8.21</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -147,7 +147,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.20';
+const APP_VERSION='8.21';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -911,12 +911,18 @@ try{
 var res=await fetch(edgeUrl,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},body:JSON.stringify({apiKey:apiKey,apiSecret:apiSecret,action:step.action})});
 if(res.ok){
 var data=await res.json();
-var tot=data.totals||{};delete data.totals;
+var tot=data.totals||{};
+var errs=data.errors||[];
+delete data.totals;delete data.errors;
 Object.assign(allData,data);
-// Merge totali (solo valori > 0)
 Object.entries(tot).forEach(function(e){if(e[1]&&e[1]>0)allTotals[e[0]]=e[1];});
+if(errs.length>0){
+console.warn('⚠️ '+step.action+' ERRORS:',errs);
+stepLog.push('⚠️ '+step.label+': '+errs.join(', '));
+}else{
 stepLog.push('✅ '+step.label);
-console.log(step.action+' OK:',tot);
+}
+console.log(step.action+' OK:',JSON.stringify(tot),errs.length>0?'ERRORS: '+errs.join(', '):'');
 }else{
 var errBody='';try{errBody=await res.text();}catch(x){}
 console.warn(step.action+' HTTP '+res.status+':',errBody);
