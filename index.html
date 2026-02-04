@@ -57,7 +57,7 @@
 <div id="authScreen" class="auth-box">
 <div class="auth-card">
 <div class="logo" style="justify-content:center;margin-bottom:20px"><div class="logo-icon">💎</div><div class="logo-text">CryptoFolio</div></div>
-<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v8.23 - 17 Chains</p>
+<p style="color:var(--text2);text-align:center;margin-bottom:20px;font-size:12px">v8.24 - 17 Chains</p>
 <div class="form-group"><label class="form-label">Email</label><input id="authEmail" type="email" class="input"></div>
 <div class="form-group"><label class="form-label">Password</label><input id="authPassword" type="password" class="input"></div>
 <div id="authError" style="color:var(--red);font-size:12px;margin-bottom:12px"></div>
@@ -147,7 +147,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.23';
+const APP_VERSION='8.24';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -892,10 +892,12 @@ var steps=[
 {action:'snapshots',label:'📊 Saldi annuali (Quadro RW)'},
 {action:'deposits',label:'📥 Depositi crypto'},
 {action:'withdraws',label:'📤 Prelievi crypto'},
+{action:'fiatPayments',label:'💳 Acquisti/Vendite crypto con EUR'},
+{action:'trades',label:'📈 Trade Spot (può richiedere tempo...)'},
 {action:'conversions',label:'🔄 Conversioni'},
 {action:'earn',label:'💰 Simple Earn'},
 {action:'dividends',label:'🎁 Distribuzioni'},
-{action:'fiat',label:'💶 Operazioni Fiat'},
+{action:'fiat',label:'💶 Bonifici Fiat'},
 {action:'dust',label:'🧹 Dust → BNB'}
 ];
 
@@ -981,6 +983,52 @@ allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_
 var ts=new Date(w.completeTime||w.applyTime);
 allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Withdraw',account:'Spot',coin:w.coin,amount:-parseFloat(w.amount),tx_type:'withdraw',asset_type:classifyAsset(w.coin),remark:w.txId||''});
 });
+
+// FIAT PAYMENTS (Acquisti/Vendite crypto con EUR) - NUOVO!
+(allData.fiatBuys||[]).forEach(function(f){
+var ts=new Date(parseInt(f.createTime));
+var crypto=f.cryptoCurrency||f.asset||'';
+var fiat=f.fiatCurrency||'EUR';
+var cryptoAmt=parseFloat(f.obtainAmount||f.cryptoAmount||0);
+var fiatAmt=parseFloat(f.sourceAmount||f.fiatAmount||f.totalFee||0);
+if(cryptoAmt>0){
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Buy Crypto',account:'Spot',coin:crypto,amount:cryptoAmt,tx_type:'trade_buy',asset_type:classifyAsset(crypto),remark:'Buy with '+fiat+' ('+fiatAmt+')',price_eur:fiatAmt/cryptoAmt,value_eur:fiatAmt,needs_price:false});
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:new Date(parseInt(f.createTime)+1).toISOString(),tax_year:ts.getFullYear(),operation:'Buy Crypto',account:'Spot',coin:fiat,amount:-fiatAmt,tx_type:'trade_sell',asset_type:'FIAT',remark:'Buy '+crypto,needs_price:false});
+}});
+
+(allData.fiatSells||[]).forEach(function(f){
+var ts=new Date(parseInt(f.createTime));
+var crypto=f.cryptoCurrency||f.asset||'';
+var fiat=f.fiatCurrency||'EUR';
+var cryptoAmt=parseFloat(f.sourceAmount||f.cryptoAmount||0);
+var fiatAmt=parseFloat(f.obtainAmount||f.fiatAmount||0);
+if(cryptoAmt>0){
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Sell Crypto',account:'Spot',coin:crypto,amount:-cryptoAmt,tx_type:'trade_sell',asset_type:classifyAsset(crypto),remark:'Sell for '+fiat+' ('+fiatAmt+')',price_eur:fiatAmt/cryptoAmt,value_eur:fiatAmt,needs_price:false});
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:new Date(parseInt(f.createTime)+1).toISOString(),tax_year:ts.getFullYear(),operation:'Sell Crypto',account:'Spot',coin:fiat,amount:fiatAmt,tx_type:'trade_buy',asset_type:'FIAT',remark:'Sell '+crypto,needs_price:false});
+}});
+
+// SPOT TRADES (myTrades) - NUOVO!
+(allData.trades||[]).forEach(function(t){
+var ts=new Date(t.time);
+var isBuyer=t.isBuyer;
+var sym=t.symbol||'';
+// Determina base/quote dal symbol (es. BTCUSDT → BTC + USDT)
+var base=t.baseAsset||'';
+var quote=t.quoteAsset||'';
+var qty=parseFloat(t.qty||0);
+var quoteQty=parseFloat(t.quoteQty||0);
+var price=parseFloat(t.price||0);
+var commission=parseFloat(t.commission||0);
+var commAsset=t.commissionAsset||'';
+if(qty>0){
+// Operazione sulla base asset
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Spot Trade',account:'Spot',coin:base,amount:isBuyer?qty:-qty,tx_type:isBuyer?'trade_buy':'trade_sell',asset_type:classifyAsset(base),pair:sym,remark:'Trade '+sym+' @ '+price});
+// Operazione sulla quote asset (inversa)
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:new Date(t.time+1).toISOString(),tax_year:ts.getFullYear(),operation:'Spot Trade',account:'Spot',coin:quote,amount:isBuyer?-quoteQty:quoteQty,tx_type:isBuyer?'trade_sell':'trade_buy',asset_type:classifyAsset(quote),pair:sym,remark:'Trade '+sym+' @ '+price});
+// Fee
+if(commission>0){
+allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:new Date(t.time+2).toISOString(),tax_year:ts.getFullYear(),operation:'Trading Fee',account:'Spot',coin:commAsset,amount:-commission,tx_type:'fee',asset_type:classifyAsset(commAsset),remark:'Fee on '+sym});
+}}});
 
 // CONVERSIONS (Binance Convert)
 (allData.conversions||[]).forEach(function(c){
