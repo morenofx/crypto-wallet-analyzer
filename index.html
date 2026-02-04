@@ -1429,7 +1429,7 @@ if(op.includes('transfer')&&(op.includes('spot')||op.includes('funding')||op.inc
 return false;
 }
 
-var byYear={2021:{tx:0,deposits:0,withdraws:0,depositsCount:0,withdrawsCount:0,rewards:0,buys:0,sells:0,internal:0},2022:{tx:0,deposits:0,withdraws:0,depositsCount:0,withdrawsCount:0,rewards:0,buys:0,sells:0,internal:0},2023:{tx:0,deposits:0,withdraws:0,depositsCount:0,withdrawsCount:0,rewards:0,buys:0,sells:0,internal:0},2024:{tx:0,deposits:0,withdraws:0,depositsCount:0,withdrawsCount:0,rewards:0,buys:0,sells:0,internal:0},2025:{tx:0,deposits:0,withdraws:0,depositsCount:0,withdrawsCount:0,rewards:0,buys:0,sells:0,internal:0},2026:{tx:0,deposits:0,withdraws:0,depositsCount:0,withdrawsCount:0,rewards:0,buys:0,sells:0,internal:0}};var byExchange={};
+var byYear={2021:{tx:0,depEur:0,withEur:0,depCrypto:0,depFiat:0,withCrypto:0,withFiat:0,rewards:0,buys:0,sells:0,internal:0},2022:{tx:0,depEur:0,withEur:0,depCrypto:0,depFiat:0,withCrypto:0,withFiat:0,rewards:0,buys:0,sells:0,internal:0},2023:{tx:0,depEur:0,withEur:0,depCrypto:0,depFiat:0,withCrypto:0,withFiat:0,rewards:0,buys:0,sells:0,internal:0},2024:{tx:0,depEur:0,withEur:0,depCrypto:0,depFiat:0,withCrypto:0,withFiat:0,rewards:0,buys:0,sells:0,internal:0},2025:{tx:0,depEur:0,withEur:0,depCrypto:0,depFiat:0,withCrypto:0,withFiat:0,rewards:0,buys:0,sells:0,internal:0},2026:{tx:0,depEur:0,withEur:0,depCrypto:0,depFiat:0,withCrypto:0,withFiat:0,rewards:0,buys:0,sells:0,internal:0}};var byExchange={};
 allTx.forEach(function(t){var y=t.tax_year||2021;var amt=parseFloat(t.amount)||0;var op=t.operation||'';var type=t.tx_type||'';var coin=t.coin||'';var isEur=coin==='EUR';var isUsdStable=STABLECOINS.includes(coin);var isFiat=FIAT_COINS.includes(coin);
 
 // Calcola valore EUR
@@ -1443,12 +1443,11 @@ byYear[y].tx++;
 if(isInternal){byYear[y].internal++;}
 else{
 // CAPITALE REALE = Solo depositi/prelievi FIAT (EUR da/verso banca)
-// NON contare i trade - quelli sono movimenti interni all'exchange
-if(type==='deposit'&&coin==='EUR'&&amt>0)byYear[y].deposits+=Math.abs(amt);
-if(type==='withdraw'&&coin==='EUR'&&amt<0)byYear[y].withdraws+=Math.abs(amt);
-// Conta TUTTI i depositi/prelievi (crypto + fiat)
-if(type==='deposit')byYear[y].depositsCount++;
-if(type==='withdraw')byYear[y].withdrawsCount++;
+if(type==='deposit'&&isFiat&&amt>0)byYear[y].depEur+=Math.abs(amt);
+if(type==='withdraw'&&isFiat&&amt<0)byYear[y].withEur+=Math.abs(amt);
+// Conta separato crypto vs fiat
+if(type==='deposit'){if(isFiat)byYear[y].depFiat++;else byYear[y].depCrypto++;}
+if(type==='withdraw'){if(isFiat)byYear[y].withFiat++;else byYear[y].withCrypto++;}
 }
 // Contatori operazioni (tutti, non solo €)
 if(type==='reward'||op.includes('Interest')||op.includes('Reward')||op.includes('Learning'))byYear[y].rewards++;
@@ -1456,43 +1455,43 @@ if(type==='trade_buy'||op.includes('Buy'))byYear[y].buys++;
 if(type==='trade_sell'||op.includes('Sell')||op.includes('Sold'))byYear[y].sells++;
 }
 
-if(!byExchange[t.exchange])byExchange[t.exchange]={count:0,coins:new Set(),years:new Set(),deposits:0,withdraws:0,depositsCount:0,withdrawsCount:0,rewards:0,buys:0,sells:0,converts:0,internal:0,byYear:{}};
+if(!byExchange[t.exchange])byExchange[t.exchange]={count:0,coins:new Set(),years:new Set(),depEur:0,withEur:0,depCrypto:0,depFiat:0,withCrypto:0,withFiat:0,rewards:0,buys:0,sells:0,converts:0,internal:0,byYear:{}};
 byExchange[t.exchange].count++;byExchange[t.exchange].coins.add(coin);byExchange[t.exchange].years.add(y);
 
 if(isInternal){byExchange[t.exchange].internal++;}
 else{
-// Solo EUR reali per totale €
-if(type==='deposit'&&coin==='EUR'&&amt>0){byExchange[t.exchange].deposits+=Math.abs(amt);}
-if(type==='withdraw'&&coin==='EUR'&&amt<0){byExchange[t.exchange].withdraws+=Math.abs(amt);}
-// Conta TUTTI
-if(type==='deposit'){byExchange[t.exchange].depositsCount++;}
-if(type==='withdraw'){byExchange[t.exchange].withdrawsCount++;}
+if(type==='deposit'&&isFiat&&amt>0){byExchange[t.exchange].depEur+=Math.abs(amt);}
+if(type==='withdraw'&&isFiat&&amt<0){byExchange[t.exchange].withEur+=Math.abs(amt);}
+if(type==='deposit'){if(isFiat)byExchange[t.exchange].depFiat++;else byExchange[t.exchange].depCrypto++;}
+if(type==='withdraw'){if(isFiat)byExchange[t.exchange].withFiat++;else byExchange[t.exchange].withCrypto++;}
 }
 if(type==='reward'||op.includes('Interest')||op.includes('Reward')||op.includes('Learning'))byExchange[t.exchange].rewards++;
 if(type==='trade_buy'||op.includes('Buy'))byExchange[t.exchange].buys++;
 if(type==='trade_sell'||op.includes('Sell')||op.includes('Sold'))byExchange[t.exchange].sells++;
 if(type==='convert'||op.includes('Convert'))byExchange[t.exchange].converts++;
 
-if(!byExchange[t.exchange].byYear[y])byExchange[t.exchange].byYear[y]={tx:0,deposits:0,withdraws:0,depositsCount:0,withdrawsCount:0,rewards:0,buys:0,sells:0,converts:0,internal:0};
+if(!byExchange[t.exchange].byYear[y])byExchange[t.exchange].byYear[y]={tx:0,depEur:0,withEur:0,depCrypto:0,depFiat:0,withCrypto:0,withFiat:0,rewards:0,buys:0,sells:0,converts:0,internal:0};
 byExchange[t.exchange].byYear[y].tx++;
 if(isInternal){byExchange[t.exchange].byYear[y].internal++;}
 else{
-if(type==='deposit'&&coin==='EUR'&&amt>0){byExchange[t.exchange].byYear[y].deposits+=Math.abs(amt);}
-if(type==='withdraw'&&coin==='EUR'&&amt<0){byExchange[t.exchange].byYear[y].withdraws+=Math.abs(amt);}
-if(type==='deposit'){byExchange[t.exchange].byYear[y].depositsCount++;}
-if(type==='withdraw'){byExchange[t.exchange].byYear[y].withdrawsCount++;}
+if(type==='deposit'&&isFiat&&amt>0){byExchange[t.exchange].byYear[y].depEur+=Math.abs(amt);}
+if(type==='withdraw'&&isFiat&&amt<0){byExchange[t.exchange].byYear[y].withEur+=Math.abs(amt);}
+if(type==='deposit'){if(isFiat)byExchange[t.exchange].byYear[y].depFiat++;else byExchange[t.exchange].byYear[y].depCrypto++;}
+if(type==='withdraw'){if(isFiat)byExchange[t.exchange].byYear[y].withFiat++;else byExchange[t.exchange].byYear[y].withCrypto++;}
 }
 if(type==='reward'||op.includes('Interest')||op.includes('Reward')||op.includes('Learning'))byExchange[t.exchange].byYear[y].rewards++;
 if(type==='trade_buy'||op.includes('Buy'))byExchange[t.exchange].byYear[y].buys++;
 if(type==='trade_sell'||op.includes('Sell')||op.includes('Sold'))byExchange[t.exchange].byYear[y].sells++;
 if(type==='convert'||op.includes('Convert'))byExchange[t.exchange].byYear[y].converts++;});
-for(var y=2021;y<=2026;y++){var el=document.getElementById('exYear'+y);if(el){var d=byYear[y];var html='<div style="font-size:16px;font-weight:700;color:var(--cyan)">'+d.tx+' TX</div>';if(d.depositsCount>0||d.withdrawsCount>0||d.deposits>0||d.withdraws>0){html+='<div style="font-size:9px;margin-top:4px">';if(d.deposits>0)html+='<span style="color:var(--green)">📥'+fmtC(d.deposits).replace('€','')+'</span> ';if(d.withdraws>0)html+='<span style="color:var(--red)">📤'+fmtC(d.withdraws).replace('€','')+'</span>';html+='</div>';html+='<div style="font-size:9px;margin-top:2px">';if(d.depositsCount>0)html+='<span style="color:var(--green)">📥'+d.depositsCount+'</span> ';if(d.withdrawsCount>0)html+='<span style="color:var(--red)">📤'+d.withdrawsCount+'</span>';html+='</div>';}if(d.rewards>0||d.buys>0||d.sells>0){html+='<div style="font-size:9px;margin-top:2px">';if(d.rewards>0)html+='<span style="color:var(--yellow)">🎁'+d.rewards+'</span> ';if(d.buys>0)html+='<span style="color:var(--green)">🛒'+d.buys+'</span> ';if(d.sells>0)html+='<span style="color:var(--red)">💰'+d.sells+'</span>';html+='</div>';}el.innerHTML=html;}}
+for(var y=2021;y<=2026;y++){var el=document.getElementById('exYear'+y);if(el){var d=byYear[y];var html='<div style="font-size:16px;font-weight:700;color:var(--cyan)">'+d.tx+' TX</div>';var hasAny=d.depCrypto>0||d.depFiat>0||d.withCrypto>0||d.withFiat>0;if(hasAny){html+='<div style="font-size:9px;margin-top:4px">';if(d.depCrypto>0)html+='<span style="color:var(--green)">📥'+d.depCrypto+' crypto</span> ';if(d.withCrypto>0)html+='<span style="color:var(--red)">📤'+d.withCrypto+' crypto</span>';html+='</div>';if(d.depFiat>0||d.withFiat>0){html+='<div style="font-size:9px;margin-top:2px">';if(d.depEur>0)html+='<span style="color:var(--green)">📥'+fmtC(d.depEur)+' fiat</span> ';if(d.withEur>0)html+='<span style="color:var(--red)">📤'+fmtC(d.withEur)+' fiat</span>';html+='</div>';}}if(d.rewards>0||d.buys>0||d.sells>0){html+='<div style="font-size:9px;margin-top:2px">';if(d.rewards>0)html+='<span style="color:var(--yellow)">🎁'+d.rewards+'</span> ';if(d.buys>0)html+='<span style="color:var(--green)">🛒'+d.buys+'</span> ';if(d.sells>0)html+='<span style="color:var(--red)">💰'+d.sells+'</span>';html+='</div>';}el.innerHTML=html;}}
 var html='';if(Object.keys(byExchange).length===0){html='<div class="card" style="grid-column:1/-1;padding:40px;text-align:center;color:var(--text2)">Nessun exchange. Clicca "Import CSV" per importare dati.</div>';}else{Object.entries(byExchange).forEach(function(e){var ex=e[0];var data=e[1];var color=EX_COLORS[ex]||'#888';var logo=EX_LOGOS[ex]||EX_LOGOS.other;
 html+='<div class="card" style="grid-column:1/-1"><div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;cursor:pointer" onclick="openExchangeDetail(\''+ex+'\')"><div style="width:48px;height:48px;border-radius:12px;background:'+color+'20;display:flex;align-items:center;justify-content:center;overflow:hidden"><img src="'+logo+'" style="width:36px;height:36px;border-radius:8px" onerror="this.style.display=\'none\';var p=this.parentElement;if(p)p.innerHTML=\'🏦\';"></div><div style="flex:1"><div style="font-size:18px;font-weight:700">'+formatExName(ex)+'</div><div style="font-size:12px;color:var(--text2)">'+data.count+' TX totali • '+data.coins.size+' coin</div></div><button onclick="event.stopPropagation();openExchangeDetail(\''+ex+'\')" class="btn btn-sm btn-secondary">Dettagli →</button></div>';
 html+='<div style="overflow-x:auto"><table class="table" style="font-size:12px;margin:0"><thead><tr><th>Anno</th><th class="text-right">TX</th><th class="text-right">📥 Depositati</th><th class="text-right">📤 Prelevati</th><th class="text-right">🔄 Interni</th><th class="text-right">🎁 Rewards</th></tr></thead><tbody>';
-var years=[2021,2022,2023,2024,2025,2026];years.forEach(function(y){if(data.byYear[y]&&data.byYear[y].tx>0){var yd=data.byYear[y];var depStr=yd.depositsCount>0?(yd.deposits>0?fmtC(yd.deposits)+' ('+yd.depositsCount+')':''+yd.depositsCount):'-';var witStr=yd.withdrawsCount>0?(yd.withdraws>0?fmtC(yd.withdraws)+' ('+yd.withdrawsCount+')':''+yd.withdrawsCount):'-';var intStr=yd.internal||0;
+var years=[2021,2022,2023,2024,2025,2026];
+function fmtDepWith(crypto,fiat,eur){var parts=[];if(crypto>0)parts.push(crypto+' crypto');if(fiat>0)parts.push(fmtC(eur)+' fiat');return parts.length>0?parts.join('<br>'):'–';}
+years.forEach(function(y){if(data.byYear[y]&&data.byYear[y].tx>0){var yd=data.byYear[y];var depStr=fmtDepWith(yd.depCrypto,yd.depFiat,yd.depEur);var witStr=fmtDepWith(yd.withCrypto,yd.withFiat,yd.withEur);var intStr=yd.internal||0;
 html+='<tr style="cursor:pointer" onclick="openExchangeDetail(\''+ex+'\');setTimeout(function(){document.getElementById(\'exDetailYear\').value=\''+y+'\';loadExchangeDetail();},100)"><td><strong>'+y+'</strong></td><td class="text-right text-mono">'+yd.tx+'</td><td class="text-right text-mono" style="color:var(--green)">'+depStr+'</td><td class="text-right text-mono" style="color:var(--red)">'+witStr+'</td><td class="text-right text-mono" style="color:var(--text2)">'+intStr+'</td><td class="text-right text-mono" style="color:var(--yellow)">'+yd.rewards+'</td></tr>';}});
-var totDepStr=data.depositsCount>0?(data.deposits>0?fmtC(data.deposits)+' ('+data.depositsCount+')':''+data.depositsCount):'-';var totWitStr=data.withdrawsCount>0?(data.withdraws>0?fmtC(data.withdraws)+' ('+data.withdrawsCount+')':''+data.withdrawsCount):'-';var totIntStr=data.internal||0;
+var totDepStr=fmtDepWith(data.depCrypto,data.depFiat,data.depEur);var totWitStr=fmtDepWith(data.withCrypto,data.withFiat,data.withEur);var totIntStr=data.internal||0;
 html+='<tr style="background:var(--bg2);font-weight:700"><td>TOTALE</td><td class="text-right text-mono">'+data.count+'</td><td class="text-right text-mono" style="color:var(--green)">'+totDepStr+'</td><td class="text-right text-mono" style="color:var(--red)">'+totWitStr+'</td><td class="text-right text-mono" style="color:var(--text2)">'+totIntStr+'</td><td class="text-right text-mono" style="color:var(--yellow)">'+data.rewards+'</td></tr>';
 html+='</tbody></table></div></div>';});}document.getElementById('exExchangeGrid').innerHTML=html;}
 function openExchangeDetail(ex){currentExchange=ex;exDetailPage=1;exDetailTxs=[];var color=EX_COLORS[ex]||'#888';var logo=EX_LOGOS[ex]||EX_LOGOS.other;document.getElementById('exDetailName').innerHTML='<div class="flex items-center gap-12"><img src="'+logo+'" style="width:32px;height:32px;border-radius:8px" onerror="this.style.display=\'none\'"><span>'+formatExName(ex)+'</span></div>';document.getElementById('exDetailYear').value='';document.getElementById('exDetailType').value='';document.getElementById('exDetailSearch').value='';document.getElementById('page-exchange').style.display='none';document.getElementById('page-exchange-detail').style.display='block';loadExchangeDetail();}
