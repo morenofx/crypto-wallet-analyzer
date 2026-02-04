@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v8.21</title>
+<title>CryptoFolio v8.22</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -147,7 +147,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.21';
+const APP_VERSION='8.22';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -911,6 +911,13 @@ try{
 var res=await fetch(edgeUrl,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},body:JSON.stringify({apiKey:apiKey,apiSecret:apiSecret,action:step.action})});
 if(res.ok){
 var data=await res.json();
+// DIAGNOSTIC MODE
+if(data.diagnostic&&data.debug){
+console.log('🔍 DIAGNOSTIC RESULTS:');
+data.debug.forEach(function(d){console.log(d);});
+stepLog.push('🔍 DIAGNOSTICA - vedi Console per dettagli');
+showApiStatus('🔍 Diagnostica completata - apri Console (F12) per i risultati','info');
+}else{
 var tot=data.totals||{};
 var errs=data.errors||[];
 delete data.totals;delete data.errors;
@@ -923,7 +930,7 @@ stepLog.push('⚠️ '+step.label+': '+errs.join(', '));
 stepLog.push('✅ '+step.label);
 }
 console.log(step.action+' OK:',JSON.stringify(tot),errs.length>0?'ERRORS: '+errs.join(', '):'');
-}else{
+}}else{
 var errBody='';try{errBody=await res.text();}catch(x){}
 console.warn(step.action+' HTTP '+res.status+':',errBody);
 // Se è il primo step (balances) e fallisce, le chiavi sono sbagliate
