@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v8.19</title>
+<title>CryptoFolio v8.20</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -147,7 +147,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.19';
+const APP_VERSION='8.20';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -356,45 +356,55 @@ console.log('Wallet TX loaded:',walletTx.length);
 document.getElementById('rwContent').innerHTML='<div style="padding:40px;text-align:center"><div class="spinner"></div><div style="margin-top:12px;color:var(--text2)">Calcolo saldi per anno...</div></div>';
 var years=[2021,2022,2023,2024,2025];var results=[];
 var currentYear=new Date().getFullYear();
+// CARICA SNAPSHOTS API (saldi REALI Binance al 31/12)
+var binanceSnapshots=JSON.parse(localStorage.getItem('binance_snapshots')||'{}');
+var hasSnapshots=Object.keys(binanceSnapshots).length>0;
+console.log('Snapshots disponibili:',hasSnapshots?Object.keys(binanceSnapshots).join(', '):'nessuno');
 
 for(var yi=0;yi<years.length;yi++){
 var year=years[yi];
 var endDate=new Date(year,11,31,23,59,59);
 var isCurrentYear=year===currentYear;
 
-// === SALDI EXCHANGE (dalle TX) ===
-// LOGICA CORRETTA: Somma TUTTE le TX (subscription/redemption si annullano)
-// Il risultato è il saldo totale (Spot + Earn + Staking)
+// === SALDI EXCHANGE ===
 var exBalances={};
+var usedSnapshot=false;
+
+// PRIORITÀ 1: Usa snapshot API (saldo REALE dal conto Binance)
+if(binanceSnapshots[year]&&binanceSnapshots[year].balances&&binanceSnapshots[year].balances.length>0){
+console.log('📊 Year',year,': usando SNAPSHOT API (',binanceSnapshots[year].balances.length,'asset, data:',binanceSnapshots[year].date,')');
+binanceSnapshots[year].balances.forEach(function(b){
+var coin=b.asset;
+var amt=parseFloat(b.total)||0;
+if(amt>0){
+exBalances[coin]={amount:amt,source:'snapshot'};
+}
+});
+usedSnapshot=true;
+}else{
+// PRIORITÀ 2: Calcola dalle TX (fallback)
+console.log('📝 Year',year,': calcolo da TX (no snapshot)');
 var debugCounts={};
 exchangeTx.forEach(function(t){
 var txDate=new Date(t.tx_timestamp);
 if(txDate<=endDate){
 var op=(t.operation||'').toLowerCase().trim();
 var coin=t.coin;
-
-// DEBUG
 if(!debugCounts[coin])debugCounts[coin]={total:0,sum:0};
 debugCounts[coin].total++;
-
-// ESCLUDI SOLO i trasferimenti tra wallet (non cambiano il totale su Binance)
-// MA INCLUDI subscription/redemption (le coin restano tue, solo in Earn!)
 if(op.includes('transfer between main and funding'))return;
 if(op.includes('transfer between spot and margin'))return;
-
 var amt=parseFloat(t.amount)||0;
 debugCounts[coin].sum+=amt;
 if(!exBalances[coin])exBalances[coin]={amount:0,source:'exchange'};
 exBalances[coin].amount+=amt;
 }});
-
-// DEBUG: mostra saldi calcolati per le coin principali
-console.log('=== DEBUG RW Year',year,'===');
+console.log('=== DEBUG RW Year',year,'(from TX) ===');
 ['LUNC','NOT','PEPE','SHIB','WIN','BONK','DOGS'].forEach(function(c){
 var bal=exBalances[c]?exBalances[c].amount:0;
-var dbg=debugCounts[c]||{total:0,sum:0};
-console.log(c+': saldo='+bal.toFixed(2)+' (TX:'+dbg.total+')');
+console.log(c+': saldo='+bal.toFixed(2));
 });
+}
 
 // FILTRA SALDI: escludi negativi, dust, FIAT e stablecoin
 var filteredBalances={};
@@ -571,8 +581,11 @@ var globalPricesRW=window.prices||{};
 // 5. GENERA HTML RISULTATO
 rwData=[];var html='';
 html+='<div class="card mb-12" style="background:linear-gradient(135deg,rgba(102,126,234,0.1),rgba(118,75,162,0.1))"><div style="font-size:12px;margin-bottom:8px"><strong>📊 Fonti dati Quadro RW</strong></div>';
-html+='<div style="display:flex;gap:16px;font-size:11px"><div><span style="color:var(--cyan)">🏦 Exchange:</span> '+exchangeTx.length+' TX</div>';
-html+='<div><span style="color:var(--purple)">👛 Wallet:</span> '+wallets.length+' wallet, '+walletBalances.length+' saldi</div></div>';
+html+='<div style="display:flex;gap:16px;font-size:11px;flex-wrap:wrap"><div><span style="color:var(--cyan)">🏦 Exchange:</span> '+exchangeTx.length+' TX</div>';
+html+='<div><span style="color:var(--purple)">👛 Wallet:</span> '+wallets.length+' wallet, '+walletBalances.length+' saldi</div>';
+if(hasSnapshots)html+='<div><span style="color:var(--green)">📊 Snapshots API:</span> '+Object.keys(binanceSnapshots).join(', ')+'</div>';
+html+='</div>';
+if(!hasSnapshots)html+='<div style="color:var(--yellow);font-size:10px;margin-top:8px">💡 Consiglio: Connetti API Binance (chiavi normali) per avere i saldi REALI al 31/12 ogni anno!</div>';
 if(walletTx.length===0&&wallets.length>0)html+='<div style="color:var(--yellow);font-size:10px;margin-top:8px">⚠️ TX wallet non sincronizzate - per anni passati usa "Sync TX" nei wallet</div>';
 html+='</div>';
 
@@ -602,7 +615,7 @@ rows.push({coin:coin,balance:bal,exBalance:exBal,wBalance:wBal,price:price,value
 rows.sort(function(a,b){return Math.abs(b.value)-Math.abs(a.value);});
 rwData.push({year:year,total:totalEur,rows:rows});
 
-html+='<div class="card mb-12"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div style="font-size:14px;font-weight:700">📅 '+year+' - Valore al 31/12'+(r.isCurrentYear?' <span style="font-size:10px;color:var(--yellow)">(saldi attuali wallet)</span>':'')+'</div><div style="font-size:16px;font-weight:700;color:var(--green)">'+fmtC(totalEur)+'</div></div>';
+html+='<div class="card mb-12"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><div style="font-size:14px;font-weight:700">📅 '+year+' - Valore al 31/12'+(r.isCurrentYear?' <span style="font-size:10px;color:var(--yellow)">(saldi attuali wallet)</span>':'')+(binanceSnapshots[year]?' <span style="font-size:10px;color:var(--green)">📊 Snapshot API</span>':'')+'</div><div style="font-size:16px;font-weight:700;color:var(--green)">'+fmtC(totalEur)+'</div></div>';
 if(rows.length===0){html+='<div style="color:var(--text2);font-size:12px">Nessun saldo crypto</div>';}
 else{
 if(totalUnpriced>0)html+='<div style="color:var(--yellow);font-size:11px;margin-bottom:8px">⚠️ '+totalUnpriced+' coin senza prezzo - <strong>Vai prima in Dashboard per caricare i prezzi!</strong></div>';
@@ -871,118 +884,177 @@ var apiSecret=document.getElementById('apiSecret').value.trim();
 var exchange=document.getElementById('apiExchange').value;
 if(!apiKey||!apiSecret){showApiStatus('❌ Inserisci API Key e Secret','error');return;}
 document.getElementById('apiSyncBtn').disabled=true;
-document.getElementById('apiSyncBtn').textContent='🔄 Connessione...';
-showApiStatus('🔄 Connessione a Binance via Edge Function...','info');
+
+var edgeUrl=SB_URL+'/functions/v1/binance-proxy';
+var steps=[
+{action:'balances',label:'🔗 Test connessione + saldi'},
+{action:'snapshots',label:'📊 Saldi annuali (Quadro RW)'},
+{action:'deposits',label:'📥 Depositi crypto'},
+{action:'withdraws',label:'📤 Prelievi crypto'},
+{action:'conversions',label:'🔄 Conversioni'},
+{action:'earn',label:'💰 Simple Earn'},
+{action:'dividends',label:'🎁 Distribuzioni'},
+{action:'fiat',label:'💶 Operazioni Fiat'},
+{action:'dust',label:'🧹 Dust → BNB'}
+];
+
+var allData={};var allTotals={};var stepLog=[];
 
 try{
-var edgeUrl=SB_URL+'/functions/v1/binance-proxy';
-var res=await fetch(edgeUrl,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},body:JSON.stringify({apiKey:apiKey,apiSecret:apiSecret,action:'all'})});
-if(!res.ok){var err=await res.json();throw new Error(err.error||'Errore API');}
-var data=await res.json();
+for(var i=0;i<steps.length;i++){
+var step=steps[i];
+var pct=Math.round(((i+1)/steps.length)*100);
+document.getElementById('apiSyncBtn').textContent='🔄 '+pct+'%';
+showApiStatus(step.label+' <span style="color:var(--text2)">['+pct+'%]</span>','info');
 
+try{
+var res=await fetch(edgeUrl,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SB_KEY},body:JSON.stringify({apiKey:apiKey,apiSecret:apiSecret,action:step.action})});
+if(res.ok){
+var data=await res.json();
+var tot=data.totals||{};delete data.totals;
+Object.assign(allData,data);
+// Merge totali (solo valori > 0)
+Object.entries(tot).forEach(function(e){if(e[1]&&e[1]>0)allTotals[e[0]]=e[1];});
+stepLog.push('✅ '+step.label);
+console.log(step.action+' OK:',tot);
+}else{
+var errBody='';try{errBody=await res.text();}catch(x){}
+console.warn(step.action+' HTTP '+res.status+':',errBody);
+// Se è il primo step (balances) e fallisce, le chiavi sono sbagliate
+if(i===0){throw new Error('Chiavi API non valide o permessi insufficienti: '+(errBody||res.status));}
+stepLog.push('⚠️ '+step.label+' (skip)');
+}
+}catch(e){
+if(i===0)throw e; // Primo step: errore fatale
+console.warn(step.action+' failed:',e.message);
+stepLog.push('⚠️ '+step.label+' ('+e.message+')');
+}
+}
+
+// SALVA CHIAVI API
 localStorage.setItem('binance_api_key',apiKey);
 localStorage.setItem('binance_api_secret',apiSecret);
 
-var tot=data.totals||{};
-showApiStatus('✅ Connesso! Dep:'+tot.deposits+' With:'+tot.withdraws+' Conv:'+tot.conversions+' Earn:'+(tot.earnSubscriptions+tot.earnRedemptions+tot.earnRewards),'success');
+// SALVA SNAPSHOTS per Quadro RW
+if(allData.snapshots&&Object.keys(allData.snapshots).length>0){
+localStorage.setItem('binance_snapshots',JSON.stringify(allData.snapshots));
+console.log('📊 Snapshots salvati:',Object.keys(allData.snapshots));
+var snapYears=Object.keys(allData.snapshots);
+var snapInfo=snapYears.map(function(y){return y+': '+allData.snapshots[y].balances.length+' asset';}).join(', ');
+stepLog.push('📊 Snapshots: '+snapInfo);
+}
 
+// LOG BILANCI ATTUALI
+if(allData.balances&&allData.balances.length>0){
+console.log('💰 Saldi attuali Binance:');
+allData.balances.forEach(function(b){
+console.log('  '+b.asset+': free='+b.free+' locked='+b.locked);
+});
+}
+
+// PROCESSA TRANSAZIONI
 var allTx=[];
 
 // DEPOSITS
-(data.deposits||[]).forEach(function(d){
+(allData.deposits||[]).forEach(function(d){
 var ts=new Date(d.insertTime);
 allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Deposit',account:'Spot',coin:d.coin,amount:parseFloat(d.amount),tx_type:'deposit',asset_type:classifyAsset(d.coin),remark:d.txId||''});
 });
 
 // WITHDRAWS
-(data.withdraws||[]).forEach(function(w){
+(allData.withdraws||[]).forEach(function(w){
 var ts=new Date(w.completeTime||w.applyTime);
 allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Withdraw',account:'Spot',coin:w.coin,amount:-parseFloat(w.amount),tx_type:'withdraw',asset_type:classifyAsset(w.coin),remark:w.txId||''});
 });
 
 // CONVERSIONS (Binance Convert)
-(data.conversions||[]).forEach(function(c){
+(allData.conversions||[]).forEach(function(c){
 var ts=new Date(parseInt(c.createTime));
-// From coin (vendita)
 allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Binance Convert',account:'Spot',coin:c.fromAsset,amount:-parseFloat(c.fromAmount),tx_type:'trade_sell',asset_type:classifyAsset(c.fromAsset),remark:'Convert '+c.fromAsset+' → '+c.toAsset});
-// To coin (acquisto)
 allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:new Date(parseInt(c.createTime)+1).toISOString(),tax_year:ts.getFullYear(),operation:'Binance Convert',account:'Spot',coin:c.toAsset,amount:parseFloat(c.toAmount),tx_type:'trade_buy',asset_type:classifyAsset(c.toAsset),remark:'Convert '+c.fromAsset+' → '+c.toAsset});
 });
 
-// EARN SUBSCRIPTIONS (Spot → Earn, giroconto interno)
-(data.earnSubscriptions||[]).forEach(function(e){
+// EARN SUBSCRIPTIONS
+(allData.earnSubscriptions||[]).forEach(function(e){
 var ts=new Date(parseInt(e.time));
 allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Simple Earn Flexible Subscription',account:'Spot',coin:e.asset,amount:-parseFloat(e.amount),tx_type:'earn_sub',asset_type:classifyAsset(e.asset),remark:'Earn Subscription'});
 });
 
-// EARN REDEMPTIONS (Earn → Spot, giroconto interno)
-(data.earnRedemptions||[]).forEach(function(e){
+// EARN REDEMPTIONS
+(allData.earnRedemptions||[]).forEach(function(e){
 var ts=new Date(parseInt(e.time));
 allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Simple Earn Flexible Redemption',account:'Spot',coin:e.asset,amount:parseFloat(e.amount),tx_type:'earn_red',asset_type:classifyAsset(e.asset),remark:'Earn Redemption'});
 });
 
-// EARN REWARDS (interessi, tassabili)
-(data.earnRewards||[]).forEach(function(e){
+// EARN REWARDS (interessi)
+(allData.earnRewards||[]).forEach(function(e){
 var ts=new Date(parseInt(e.time));
 allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Simple Earn Flexible Interest',account:'Spot',coin:e.asset,amount:parseFloat(e.rewards),tx_type:'reward',asset_type:classifyAsset(e.asset),remark:'Earn Interest'});
 });
 
-// DIVIDENDS (distribuzioni, airdrop, ecc.)
-(data.dividends||[]).forEach(function(d){
+// DIVIDENDS
+(allData.dividends||[]).forEach(function(d){
 var ts=new Date(parseInt(d.divTime));
 allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Distribution',account:'Spot',coin:d.asset,amount:parseFloat(d.amount),tx_type:'reward',asset_type:classifyAsset(d.asset),remark:d.enInfo||'Dividend'});
 });
 
 // FIAT DEPOSITS
-(data.fiatDeposits||[]).forEach(function(f){
+(allData.fiatDeposits||[]).forEach(function(f){
 var ts=new Date(parseInt(f.createTime));
 allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Fiat Deposit',account:'Spot',coin:f.fiatCurrency,amount:parseFloat(f.amount),tx_type:'deposit',asset_type:'FIAT',remark:'Fiat deposit'});
 });
 
 // FIAT WITHDRAWS
-(data.fiatWithdraws||[]).forEach(function(f){
+(allData.fiatWithdraws||[]).forEach(function(f){
 var ts=new Date(parseInt(f.createTime));
 allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Fiat Withdraw',account:'Spot',coin:f.fiatCurrency,amount:-parseFloat(f.amount),tx_type:'withdraw',asset_type:'FIAT',remark:'Fiat withdraw'});
 });
 
-// DUST LOG (Small Assets → BNB)
-(data.dustLog||[]).forEach(function(d){
+// DUST LOG
+(allData.dustLog||[]).forEach(function(d){
 var ts=new Date(parseInt(d.operateTime));
 (d.userAssetDribbletDetails||[]).forEach(function(det){
-// Asset venduto
 allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:ts.toISOString(),tax_year:ts.getFullYear(),operation:'Small Assets Exchange BNB',account:'Spot',coin:det.fromAsset,amount:-parseFloat(det.amount),tx_type:'trade_sell',asset_type:classifyAsset(det.fromAsset),remark:'Dust to BNB'});
-// BNB ricevuto
 allTx.push({user_id:user.id,exchange:exchange,tx_timestamp:new Date(parseInt(d.operateTime)+1).toISOString(),tax_year:ts.getFullYear(),operation:'Small Assets Exchange BNB',account:'Spot',coin:'BNB',amount:parseFloat(det.transferedAmount),tx_type:'trade_buy',asset_type:'CRYPTO',remark:'Dust to BNB'});
 });
 });
 
 console.log('API TX totali:',allTx.length);
 
+// SOMMARIO
+var summaryHtml='<div style="font-size:11px;line-height:1.8">'+stepLog.join('<br>')+'</div>';
+summaryHtml+='<div style="margin-top:8px;font-weight:600">📦 Totale: '+allTx.length+' transazioni</div>';
+
 if(allTx.length>0){
-showApiStatus('🔄 Salvataggio '+allTx.length+' transazioni...','info');
+summaryHtml+='<div style="color:var(--text2);margin-top:4px">🔄 Salvataggio in corso...</div>';
+showApiStatus(summaryHtml,'success');
 var inserted=0;
 for(var i=0;i<allTx.length;i+=100){
 var batch=allTx.slice(i,i+100);
 try{
-var res=await db.from('exchange_transactions').upsert(batch,{onConflict:'user_id,exchange,tx_timestamp,coin,amount,operation',ignoreDuplicates:true});
-if(!res.error)inserted+=batch.length;
+var res2=await db.from('exchange_transactions').upsert(batch,{onConflict:'user_id,exchange,tx_timestamp,coin,amount,operation',ignoreDuplicates:true});
+if(!res2.error)inserted+=batch.length;
 }catch(e){console.error('Batch error:',e);}
-document.getElementById('importBar').style.width=Math.round((i/allTx.length)*100)+'%';
 }
-showApiStatus('✅ Sincronizzati '+inserted+' record!','success');
-toast('✅ '+inserted+' TX sincronizzate via API!');
+showApiStatus(summaryHtml.replace('Salvataggio in corso...','✅ '+inserted+' TX salvate!'),'success');
+toast('✅ API Binance: '+inserted+' TX + '+Object.keys(allData.snapshots||{}).length+' snapshots!');
 }else{
-showApiStatus('✅ Connesso ma nessuna nuova TX trovata','success');
+showApiStatus(summaryHtml,'success');
+if(allData.snapshots&&Object.keys(allData.snapshots).length>0){
+toast('📊 Snapshots salvati! Apri Quadro RW per i saldi reali.');
+}else{
+toast('Connesso ma nessuna TX trovata.');
+}
 }
 
-setTimeout(function(){closeModal('apiModal');loadExchangeTx();},2000);
+setTimeout(function(){closeModal('apiModal');loadExchangeTx();},3000);
 
 }catch(e){
 console.error('API Error:',e);
 if(e.message.includes('FunctionNotFound')||e.message.includes('404')||e.message.includes('TypeError')){
-showApiStatus('⚠️ Edge Function non deployata.<br><a href="#" onclick="showEdgeFunctionHelp();return false;" style="color:var(--primary)">→ Come deployare</a><br><br>Oppure usa <strong>Import CSV/Tatax</strong>','warning');
+showApiStatus('⚠️ Edge Function non deployata. Devi deployare binance-proxy v3!<br><a href="#" onclick="showEdgeFunctionHelp();return false;" style="color:var(--primary)">→ Come deployare</a>','warning');
 }else{
-showApiStatus('❌ Errore: '+e.message,'error');
+showApiStatus('❌ '+e.message,'error');
 }}
 document.getElementById('apiSyncBtn').disabled=false;
 document.getElementById('apiSyncBtn').textContent='🚀 Connetti e Sincronizza';
