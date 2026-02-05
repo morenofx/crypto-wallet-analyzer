@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v8.47</title>
+<title>CryptoFolio v8.49</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -147,7 +147,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.47';
+const APP_VERSION='8.49';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -1554,7 +1554,12 @@ document.getElementById('exDetailList').innerHTML=html;}
 function exDetailGoPage(p){var totalPages=Math.ceil(exDetailTxs.length/100);if(p<1)p=1;if(p>totalPages)p=totalPages;exDetailPage=p;renderExDetailPage();document.getElementById('exDetailList').scrollTop=0;}
 function toggleYearDetail(year){var el=document.getElementById('yearDetail'+year);el.style.display=el.style.display==='none'?'block':'none';}
 async function importCSV(){var files=document.getElementById('importFile').files;if(!files.length){toast('Seleziona file CSV o ZIP','error');return;}var exchange=document.getElementById('importExchange').value;document.getElementById('importProgress').style.display='block';document.getElementById('importBtn').disabled=true;var totalImported=0;var totalParsed=0;var totalErrors=0;var csvTexts=[];
-for(var f=0;f<files.length;f++){var file=files[f];document.getElementById('importStatus').textContent='📄 Lettura '+file.name+'...';if(file.name.endsWith('.zip')){try{var zip=await JSZip.loadAsync(file);var csvFiles=Object.keys(zip.files).filter(function(n){return (n.endsWith('.csv')||n.endsWith('.xlsx')||n.endsWith('.xls'))&&!n.startsWith('__MACOSX')&&!n.includes('/.DS_')&&!n.includes('SUMMARY.csv')&&!n.includes('Trade Details')&&!n.includes('Order-Splitting')&&!n.includes('Asset Snapshots')&&!n.includes('Positions')&&!n.includes('for-cointrack');});console.log('File trovati nel ZIP:',csvFiles);for(var c=0;c<csvFiles.length;c++){if(csvFiles[c].endsWith('.xlsx')||csvFiles[c].endsWith('.xls')){var xlsxData=await zip.files[csvFiles[c]].async('arraybuffer');var wb=XLSX.read(xlsxData,{type:'array'});var ws=wb.Sheets[wb.SheetNames[0]];var csvContent=XLSX.utils.sheet_to_csv(ws);csvTexts.push({name:csvFiles[c],text:csvContent});console.log('Letto XLSX:',csvFiles[c]);}else{var csvContent=await zip.files[csvFiles[c]].async('string');csvTexts.push({name:csvFiles[c],text:csvContent});console.log('Letto:',csvFiles[c],'righe:',csvContent.split('\n').length);}}}catch(e){console.error('ZIP error:',e);toast('Errore ZIP: '+e.message,'error');}}else if(file.name.endsWith('.xlsx')||file.name.endsWith('.xls')){var data=await file.arrayBuffer();var wb=XLSX.read(data,{type:'array'});var ws=wb.Sheets[wb.SheetNames[0]];var text=XLSX.utils.sheet_to_csv(ws);csvTexts.push({name:file.name,text:text});console.log('Letto XLSX:',file.name);}else{var text=await file.text();csvTexts.push({name:file.name,text:text});}}
+for(var f=0;f<files.length;f++){var file=files[f];document.getElementById('importStatus').textContent='📄 Lettura '+file.name+'...';if(file.name.endsWith('.zip')){try{var zip=await JSZip.loadAsync(file);var csvFiles=Object.keys(zip.files).filter(function(n){return (n.endsWith('.csv')||n.endsWith('.xlsx')||n.endsWith('.xls'))&&!n.startsWith('__MACOSX')&&!n.includes('/.DS_')&&!n.includes('SUMMARY.csv')&&!n.includes('Trade Details')&&!n.includes('Order-Splitting')&&!n.includes('Asset Snapshots')&&!n.includes('Positions')&&!n.includes('for-cointrack');});console.log('File trovati nel ZIP:',csvFiles);for(var c=0;c<csvFiles.length;c++){if(csvFiles[c].endsWith('.xlsx')||csvFiles[c].endsWith('.xls')){var xlsxData=await zip.files[csvFiles[c]].async('arraybuffer');var wb=XLSX.read(xlsxData,{type:'array'});var ws=wb.Sheets[wb.SheetNames[0]];
+if(ws['!ref']&&ws['A1']){var ref=ws['!ref'];var match=ref.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);if(match&&parseInt(match[2])>1){ws['!ref']=match[1]+'1:'+match[3]+match[4];console.log('Fixed ZIP XLSX range:',ref,'->',ws['!ref']);}}
+var csvContent=XLSX.utils.sheet_to_csv(ws);csvTexts.push({name:csvFiles[c],text:csvContent});console.log('Letto XLSX:',csvFiles[c],'righe:',csvContent.split('\n').length);}else{var csvContent=await zip.files[csvFiles[c]].async('string');csvTexts.push({name:csvFiles[c],text:csvContent});console.log('Letto:',csvFiles[c],'righe:',csvContent.split('\n').length);}}}catch(e){console.error('ZIP error:',e);toast('Errore ZIP: '+e.message,'error');}}else if(file.name.endsWith('.xlsx')||file.name.endsWith('.xls')){var data=await file.arrayBuffer();var wb=XLSX.read(data,{type:'array'});var ws=wb.Sheets[wb.SheetNames[0]];
+// Fix per MEXC: il range potrebbe non includere la riga 1 (header)
+if(ws['!ref']&&ws['A1']){var ref=ws['!ref'];var match=ref.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);if(match&&parseInt(match[2])>1){ws['!ref']=match[1]+'1:'+match[3]+match[4];console.log('Fixed XLSX range:',ref,'->',ws['!ref']);}}
+var text=XLSX.utils.sheet_to_csv(ws);csvTexts.push({name:file.name,text:text});console.log('Letto XLSX:',file.name,'righe:',text.split('\n').length);}else{var text=await file.text();csvTexts.push({name:file.name,text:text});}}
 console.log('Totale file CSV:',csvTexts.length);document.getElementById('importStatus').textContent='📊 Elaborazione '+csvTexts.length+' file...';
 for(var i=0;i<csvTexts.length;i++){var csv=csvTexts[i];var cleanText=csv.text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');var lines=cleanText.split('\n');var toInsert=[];
 var headerLine='';var dataStartLine=1;
@@ -1964,6 +1969,7 @@ continue;}}
 // === MEXC PARSER DEDICATO ===
 if(isMexc){
 var mexcTxs=[];
+console.log('MEXC parser: lines=',lines.length,'dataStart=',dataStartLine);
 for(var mx=dataStartLine;mx<lines.length;mx++){
 var mLine=lines[mx].trim();if(!mLine)continue;
 var mCols=parseCSVLine(mLine);
