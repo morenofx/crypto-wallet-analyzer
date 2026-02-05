@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v8.38</title>
+<title>CryptoFolio v8.39</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -146,7 +146,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.38';
+const APP_VERSION='8.39';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -1583,7 +1583,81 @@ var isTerra=headerLine.includes('timestamp')&&headerLine.includes('tx_type')&&he
 var isYoungLedger=headerLine.includes('credit')&&headerLine.includes('debit')&&headerLine.includes('currency')&&headerLine.includes('tx_type');
 var isYoungTrades=headerLine.includes('base')&&headerLine.includes('quote')&&headerLine.includes('brokerage')&&headerLine.includes('side');
 var isYoung=isYoungLedger||isYoungTrades;
-console.log('Format - Binance:',isBinance,'Tatax:',isTatax,'Coinbase:',isCoinbase,'Bybit:',isBybit,'Bitget:',isBitget,'Bitpanda:',isBitpanda,'CryptoCom:',isCryptoCom,'CryptoComEx:',isCryptoComExDeposit||isCryptoComExJournal,'OKX:',isOkipo||isOkxOfficial,'KuCoin:',isKucoinSpot||isKucoinDeposit||isKucoinAccount,'YouHodler:',isYouHodler,'Pionex:',isPionexTrading||isPionexDeposit,'Revolut:',isRevolut,'Gate:',isGate,'Terra:',isTerra,'Young:',isYoung,'dataStart:',dataStartLine);
+var isNexo=headerLine.includes('Transaction')&&headerLine.includes('Input Currency')&&headerLine.includes('Output Currency')&&headerLine.includes('USD Equivalent');
+console.log('Format - Binance:',isBinance,'Tatax:',isTatax,'Coinbase:',isCoinbase,'Bybit:',isBybit,'Bitget:',isBitget,'Bitpanda:',isBitpanda,'CryptoCom:',isCryptoCom,'CryptoComEx:',isCryptoComExDeposit||isCryptoComExJournal,'OKX:',isOkipo||isOkxOfficial,'KuCoin:',isKucoinSpot||isKucoinDeposit||isKucoinAccount,'YouHodler:',isYouHodler,'Pionex:',isPionexTrading||isPionexDeposit,'Revolut:',isRevolut,'Gate:',isGate,'Terra:',isTerra,'Young:',isYoung,'Nexo:',isNexo,'dataStart:',dataStartLine);
+
+// === NEXO: Parser dedicato ===
+if(isNexo){
+var nexoTxs=[];
+for(var nx=dataStartLine;nx<lines.length;nx++){
+var nLine=lines[nx].trim();if(!nLine)continue;
+var nCols=parseCSVLine(nLine);
+// Transaction,Type,Input Currency,Input Amount,Output Currency,Output Amount,USD Equivalent,Fee,Fee Currency,Details,Date / Time (UTC)
+if(nCols.length<11)continue;
+var nTxId=(nCols[0]||'').trim();
+var nType=(nCols[1]||'').trim();
+var nInCoin=(nCols[2]||'').trim().toUpperCase();
+var nInAmt=parseFloat(nCols[3]||0);
+var nOutCoin=(nCols[4]||'').trim().toUpperCase();
+var nOutAmt=parseFloat(nCols[5]||0);
+var nFee=parseFloat(nCols[7]||0);
+var nFeeCoin=(nCols[8]||'').trim().toUpperCase();
+var nDetails=(nCols[9]||'').replace(/"/g,'').trim();
+var nTime=(nCols[10]||'').trim();
+if(!nTime)continue;
+var nTimestamp=nTime.replace(' ','T')+'Z';
+var nYear=parseInt(nTime.slice(0,4));
+if(isNaN(nYear)||nYear<2010||nYear>2030)continue;
+var nTypeLower=nType.toLowerCase();
+var txType='other';var coin='';var amount=0;
+// Classifica per tipo
+if(nTypeLower.includes('interest')||nTypeLower.includes('cashback')){
+txType='reward';coin=nOutCoin||nInCoin;amount=nOutAmt||Math.abs(nInAmt);
+}else if(nTypeLower.includes('withdrawal')||nTypeLower==='transfer out'||nTypeLower==='withdraw exchanged'){
+txType='withdraw';coin=nInCoin;amount=nInAmt<0?nInAmt:-Math.abs(nInAmt);
+}else if(nTypeLower.includes('deposit')||nTypeLower==='top up crypto'||nTypeLower==='transfer in'){
+txType='deposit';coin=nInCoin||nOutCoin;amount=Math.abs(nInAmt)||nOutAmt;
+}else if(nTypeLower.includes('exchange')||nTypeLower.includes('sell order')){
+// Exchange: input esce, output entra
+if(nInAmt!==0&&nInCoin){
+nexoTxs.push({user_id:user.id,exchange:exchange,tx_timestamp:nTimestamp,tax_year:nYear,operation:nType,account:'Nexo',coin:nInCoin,amount:nInAmt<0?nInAmt:-Math.abs(nInAmt),remark:nDetails,tx_type:'trade_sell',asset_type:classifyAsset(nInCoin)});
+}
+if(nOutAmt>0&&nOutCoin){
+nexoTxs.push({user_id:user.id,exchange:exchange,tx_timestamp:nTimestamp+'1',tax_year:nYear,operation:nType,account:'Nexo',coin:nOutCoin,amount:nOutAmt,remark:nDetails,tx_type:'trade_buy',asset_type:classifyAsset(nOutCoin)});
+}
+continue;
+}else if(nTypeLower.includes('card purchase')||nTypeLower.includes('card transaction fee')){
+txType='payment';coin=nInCoin;amount=nInAmt<0?nInAmt:-Math.abs(nInAmt);
+}else if(nTypeLower.includes('repayment')||nTypeLower.includes('liquidation')){
+txType='other_out';coin=nInCoin||nOutCoin;amount=nInAmt!==0?nInAmt:nOutAmt;
+}else if(nTypeLower.includes('assimilation')||nTypeLower.includes('credit')){
+txType='other_in';coin=nOutCoin||nInCoin;amount=nOutAmt||nInAmt;
+}else{
+coin=nOutCoin||nInCoin;amount=nOutAmt||nInAmt;
+txType=amount>=0?'other_in':'other_out';
+}
+if(!coin||coin==='-')continue;
+nexoTxs.push({user_id:user.id,exchange:exchange,tx_timestamp:nTimestamp,tax_year:nYear,operation:nType,account:'Nexo',coin:coin,amount:amount,remark:nDetails,tx_type:txType,asset_type:classifyAsset(coin)});
+// Fee separata
+if(nFee>0&&nFeeCoin&&nFeeCoin!=='-'){
+nexoTxs.push({user_id:user.id,exchange:exchange,tx_timestamp:nTimestamp+'2',tax_year:nYear,operation:'Fee',account:'Nexo',coin:nFeeCoin,amount:-nFee,remark:'Transaction fee',tx_type:'fee',asset_type:classifyAsset(nFeeCoin)});
+}
+}
+console.log('Nexo: '+nexoTxs.length+' TX parsed');
+if(nexoTxs.length>0){
+document.getElementById('importStatus').textContent='💾 Salvataggio '+csv.name+' ('+nexoTxs.length+' TX Nexo)...';
+var inserted=0;var errors=0;
+for(var b=0;b<nexoTxs.length;b+=100){
+var batch=nexoTxs.slice(b,b+100);
+try{var res=await db.from('exchange_transactions').upsert(batch,{onConflict:'user_id,exchange,tx_timestamp,coin,amount,operation'});
+if(res.error){console.error('Nexo upsert error:',res.error);errors+=batch.length;}else{inserted+=batch.length;}}
+catch(e){console.error('Nexo exception:',e);errors+=batch.length;}}
+totalImported+=inserted;totalParsed+=nexoTxs.length;
+console.log('Nexo inserted:',inserted,'errors:',errors);
+}
+document.getElementById('importBar').style.width=Math.round(((i+1)/csvTexts.length)*100)+'%';
+continue;}
+// === FINE NEXO ===
 
 // === YOUNG PLATFORM: Parser dedicato ===
 if(isYoung){
