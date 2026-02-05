@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v8.37</title>
+<title>CryptoFolio v8.38</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -146,7 +146,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.37';
+const APP_VERSION='8.38';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -1580,7 +1580,87 @@ var isTatax=headerLine.includes('Symbol')&&headerLine.includes('MovementType')&&
 var isBybit=isBybitDeposit||isBybitFund||isBybitUta||isBybitSpot;
 var isGate=headerLine.includes('action_desc')&&headerLine.includes('action_data')&&headerLine.includes('change_amount');
 var isTerra=headerLine.includes('timestamp')&&headerLine.includes('tx_type')&&headerLine.includes('received_amount')&&headerLine.includes('sent_amount')&&headerLine.includes('received_currency');
-console.log('Format - Binance:',isBinance,'Tatax:',isTatax,'Coinbase:',isCoinbase,'Bybit:',isBybit,'Bitget:',isBitget,'Bitpanda:',isBitpanda,'CryptoCom:',isCryptoCom,'CryptoComEx:',isCryptoComExDeposit||isCryptoComExJournal,'OKX:',isOkipo||isOkxOfficial,'KuCoin:',isKucoinSpot||isKucoinDeposit||isKucoinAccount,'YouHodler:',isYouHodler,'Pionex:',isPionexTrading||isPionexDeposit,'Revolut:',isRevolut,'Gate:',isGate,'Terra:',isTerra,'dataStart:',dataStartLine);
+var isYoungLedger=headerLine.includes('credit')&&headerLine.includes('debit')&&headerLine.includes('currency')&&headerLine.includes('tx_type');
+var isYoungTrades=headerLine.includes('base')&&headerLine.includes('quote')&&headerLine.includes('brokerage')&&headerLine.includes('side');
+var isYoung=isYoungLedger||isYoungTrades;
+console.log('Format - Binance:',isBinance,'Tatax:',isTatax,'Coinbase:',isCoinbase,'Bybit:',isBybit,'Bitget:',isBitget,'Bitpanda:',isBitpanda,'CryptoCom:',isCryptoCom,'CryptoComEx:',isCryptoComExDeposit||isCryptoComExJournal,'OKX:',isOkipo||isOkxOfficial,'KuCoin:',isKucoinSpot||isKucoinDeposit||isKucoinAccount,'YouHodler:',isYouHodler,'Pionex:',isPionexTrading||isPionexDeposit,'Revolut:',isRevolut,'Gate:',isGate,'Terra:',isTerra,'Young:',isYoung,'dataStart:',dataStartLine);
+
+// === YOUNG PLATFORM: Parser dedicato ===
+if(isYoung){
+var youngTxs=[];
+for(var yy=dataStartLine;yy<lines.length;yy++){
+var yLine=lines[yy].trim();if(!yLine)continue;
+var yCols=parseCSVLine(yLine);
+if(isYoungLedger&&yCols.length>=6){
+// Ledger: id,credit,debit,currency,date,tx_type
+var yCredit=parseFloat(yCols[1]||0);
+var yDebit=parseFloat(yCols[2]||0);
+var yCoin=(yCols[3]||'').trim().toUpperCase();
+var yTime=(yCols[4]||'').trim();
+var yType=(yCols[5]||'').trim();
+if(!yTime||!yCoin)continue;
+var yTimestamp=yTime;
+var yYear=parseInt(yTime.slice(0,4));
+if(isNaN(yYear)||yYear<2010||yYear>2030)continue;
+var yAmt=yCredit>0?yCredit:-yDebit;
+if(yAmt===0)continue;
+var txType='other';var yTypeLower=yType.toLowerCase();
+if(yTypeLower==='deposit')txType='deposit';
+else if(yTypeLower==='withdrawal')txType='withdraw';
+else if(yTypeLower==='insta_trade'||yTypeLower==='order_matched')txType=yAmt>0?'trade_buy':'trade_sell';
+else if(yTypeLower==='order_placement')txType=yAmt>0?'other_in':'other_out';
+else if(yTypeLower==='locked_term')txType=yAmt>0?'earn_red':'earn_sub';
+else if(yTypeLower==='fee')txType='fee';
+else if(yTypeLower==='dust_conversion')txType='dust';
+else if(yTypeLower==='admin')txType=yAmt>0?'reward':'fee';
+else txType=yAmt>0?'other_in':'other_out';
+youngTxs.push({user_id:user.id,exchange:exchange,tx_timestamp:yTimestamp,tax_year:yYear,operation:yType,account:'Young Platform',coin:yCoin,amount:yAmt,remark:'',tx_type:txType,asset_type:classifyAsset(yCoin)});
+}
+else if(isYoungTrades&&yCols.length>=10){
+// Trades: id,base,quote,amount,volume,rate,brokerage,brokerage_currency,side,date,order_id
+var yBase=(yCols[1]||'').trim().toUpperCase();
+var yQuote=(yCols[2]||'').trim().toUpperCase();
+var yAmount=parseFloat(yCols[3]||0);
+var yVolume=parseFloat(yCols[4]||0);
+var yBrokerage=parseFloat(yCols[6]||0);
+var yBrokerageCoin=(yCols[7]||'').trim().toUpperCase();
+var ySide=(yCols[8]||'').trim().toUpperCase();
+var yTime=(yCols[9]||'').trim();
+var yOrderId=(yCols[10]||'').trim();
+if(!yTime||!yBase)continue;
+var yTimestamp=yTime;
+var yYear=parseInt(yTime.slice(0,4));
+if(isNaN(yYear)||yYear<2010||yYear>2030)continue;
+// BUY: ricevo base, pago quote
+// SELL: pago base, ricevo quote
+if(ySide==='BUY'){
+youngTxs.push({user_id:user.id,exchange:exchange,tx_timestamp:yTimestamp,tax_year:yYear,operation:'Trade Buy',account:'Young Platform',coin:yBase,amount:yVolume,remark:yOrderId,tx_type:'trade_buy',asset_type:classifyAsset(yBase)});
+youngTxs.push({user_id:user.id,exchange:exchange,tx_timestamp:yTimestamp+'1',tax_year:yYear,operation:'Trade Buy',account:'Young Platform',coin:yQuote,amount:-yAmount,remark:yOrderId,tx_type:'trade_sell',asset_type:classifyAsset(yQuote)});
+}else{
+youngTxs.push({user_id:user.id,exchange:exchange,tx_timestamp:yTimestamp,tax_year:yYear,operation:'Trade Sell',account:'Young Platform',coin:yBase,amount:-yVolume,remark:yOrderId,tx_type:'trade_sell',asset_type:classifyAsset(yBase)});
+youngTxs.push({user_id:user.id,exchange:exchange,tx_timestamp:yTimestamp+'1',tax_year:yYear,operation:'Trade Sell',account:'Young Platform',coin:yQuote,amount:yAmount,remark:yOrderId,tx_type:'trade_buy',asset_type:classifyAsset(yQuote)});
+}
+// Fee
+if(yBrokerage>0&&yBrokerageCoin){
+youngTxs.push({user_id:user.id,exchange:exchange,tx_timestamp:yTimestamp+'2',tax_year:yYear,operation:'Fee',account:'Young Platform',coin:yBrokerageCoin,amount:-yBrokerage,remark:'Trading fee',tx_type:'fee',asset_type:classifyAsset(yBrokerageCoin)});
+}
+}
+}
+console.log('Young Platform: '+youngTxs.length+' TX parsed');
+if(youngTxs.length>0){
+document.getElementById('importStatus').textContent='💾 Salvataggio '+csv.name+' ('+youngTxs.length+' TX Young)...';
+var inserted=0;var errors=0;
+for(var b=0;b<youngTxs.length;b+=100){
+var batch=youngTxs.slice(b,b+100);
+try{var res=await db.from('exchange_transactions').upsert(batch,{onConflict:'user_id,exchange,tx_timestamp,coin,amount,operation'});
+if(res.error){console.error('Young upsert error:',res.error);errors+=batch.length;}else{inserted+=batch.length;}}
+catch(e){console.error('Young exception:',e);errors+=batch.length;}}
+totalImported+=inserted;totalParsed+=youngTxs.length;
+console.log('Young inserted:',inserted,'errors:',errors);
+}
+document.getElementById('importBar').style.width=Math.round(((i+1)/csvTexts.length)*100)+'%';
+continue;}
+// === FINE YOUNG PLATFORM ===
 
 // === TERRA/LUNC: Parser dedicato ===
 if(isTerra){
