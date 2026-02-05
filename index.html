@@ -1576,7 +1576,67 @@ var isPionexDeposit=headerLine.includes('date(UTC')&&headerLine.includes('tx_typ
 var isRevolut=headerLine.includes('Symbol')&&headerLine.includes('Type')&&headerLine.includes('Quantity')&&headerLine.includes('Price')&&headerLine.includes('Value');
 var isTatax=headerLine.includes('Symbol')&&headerLine.includes('MovementType')&&headerLine.includes('Quantity')&&headerLine.includes('Countervalue');
 var isBybit=isBybitDeposit||isBybitFund||isBybitUta||isBybitSpot;
-console.log('Format - Binance:',isBinance,'Tatax:',isTatax,'Coinbase:',isCoinbase,'Bybit:',isBybit,'Bitget:',isBitget,'Bitpanda:',isBitpanda,'CryptoCom:',isCryptoCom,'CryptoComEx:',isCryptoComExDeposit||isCryptoComExJournal,'OKX:',isOkipo||isOkxOfficial,'KuCoin:',isKucoinSpot||isKucoinDeposit||isKucoinAccount,'YouHodler:',isYouHodler,'Pionex:',isPionexTrading||isPionexDeposit,'Revolut:',isRevolut,'dataStart:',dataStartLine);
+var isGate=headerLine.includes('action_desc')&&headerLine.includes('action_data')&&headerLine.includes('change_amount');
+console.log('Format - Binance:',isBinance,'Tatax:',isTatax,'Coinbase:',isCoinbase,'Bybit:',isBybit,'Bitget:',isBitget,'Bitpanda:',isBitpanda,'CryptoCom:',isCryptoCom,'CryptoComEx:',isCryptoComExDeposit||isCryptoComExJournal,'OKX:',isOkipo||isOkxOfficial,'KuCoin:',isKucoinSpot||isKucoinDeposit||isKucoinAccount,'YouHodler:',isYouHodler,'Pionex:',isPionexTrading||isPionexDeposit,'Revolut:',isRevolut,'Gate:',isGate,'dataStart:',dataStartLine);
+
+// === GATE.IO: Parser dedicato ===
+if(isGate){
+var gateTxs=[];
+for(var g=dataStartLine;g<lines.length;g++){
+var gLine=lines[g].trim();if(!gLine)continue;
+// Gate.io usa mix comma+tab: pulisci i tab
+var cleanLine=gLine.replace(/\t/g,'');
+var gCols=parseCSVLine(cleanLine);
+// Formato: no, time, action_desc, action_data, change_amount, amount, additional_info
+if(gCols.length<5)continue;
+var gTime=(gCols[1]||'').trim();
+var gAction=(gCols[2]||'').trim();
+var gActionData=(gCols[3]||'').trim();
+var gChangeRaw=(gCols[4]||'').trim();
+// Parsa change_amount: "-16.130533000000 BNB" → amount=-16.13, coin=BNB
+var gMatch=gChangeRaw.match(/^([+-]?\d+\.?\d*)\s+(.+)$/);
+if(!gMatch)continue;
+var gAmt=parseFloat(gMatch[1]);
+var gCoin=gMatch[2].trim().toUpperCase();
+if(!gCoin||gCoin.length<1||gCoin.length>20)continue;
+if(isNaN(gAmt))continue;
+// Skip POINT (punti promo Gate.io)
+if(gCoin==='POINT')continue;
+var gTimestamp=gTime.includes('T')?gTime:gTime.replace(' ','T');
+if(!gTimestamp.includes('Z')&&!gTimestamp.includes('+'))gTimestamp+='Z';
+var gYear=parseInt(gTime.slice(0,4));
+if(isNaN(gYear)||gYear<2010||gYear>2030)continue;
+// Classifica tipo TX
+var gType='other';var gActionLower=gAction.toLowerCase();
+if(gActionLower==='buy')gType='trade_buy';
+else if(gActionLower==='sell')gType='trade_sell';
+else if(gActionLower.includes('trading fee'))gType='fee';
+else if(gActionLower.includes('deposit'))gType='deposit';
+else if(gActionLower.includes('withdrawal'))gType='withdraw';
+else if(gActionLower.includes('dust swap')&&gActionLower.includes('added'))gType='convert';
+else if(gActionLower.includes('dust swap')&&gActionLower.includes('deducted'))gType='dust';
+else if(gActionLower.includes('startup sale'))gType='reward';
+else if(gActionLower.includes('new operation'))gType='other_in';
+else if(gActionLower.includes('reward')||gActionLower.includes('interest')||gActionLower.includes('airdrop'))gType='reward';
+else if(gAmt>=0)gType='other_in';
+else gType='other_out';
+gateTxs.push({user_id:user.id,exchange:exchange,tx_timestamp:gTimestamp,tax_year:gYear,operation:gAction,account:'Gate.io',coin:gCoin,amount:gAmt,remark:'Order: '+gActionData,tx_type:gType,asset_type:classifyAsset(gCoin)});
+}
+console.log('Gate.io: '+gateTxs.length+' TX parsed');
+if(gateTxs.length>0){
+document.getElementById('importStatus').textContent='💾 Salvataggio '+csv.name+' ('+gateTxs.length+' TX Gate.io)...';
+var inserted=0;var errors=0;
+for(var b=0;b<gateTxs.length;b+=100){
+var batch=gateTxs.slice(b,b+100);
+try{var res=await db.from('exchange_transactions').upsert(batch,{onConflict:'user_id,exchange,tx_timestamp,coin,amount,operation'});
+if(res.error){console.error('Gate upsert error:',res.error);errors+=batch.length;}else{inserted+=batch.length;}}
+catch(e){console.error('Gate exception:',e);errors+=batch.length;}}
+totalImported+=inserted;totalParsed+=gateTxs.length;
+console.log('Gate.io inserted:',inserted,'errors:',errors);
+}
+document.getElementById('importBar').style.width=Math.round(((i+1)/csvTexts.length)*100)+'%';
+continue;}
+// === FINE GATE.IO ===
 
 // === TATAX: Formato esportato da Tatax via API Binance ===
 if(isTatax){
