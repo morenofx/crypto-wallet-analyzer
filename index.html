@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v8.34</title>
+<title>CryptoFolio v8.36</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -113,7 +113,7 @@
 <div class="header"><button onclick="showPage('exchange')" class="btn btn-secondary btn-sm">← Indietro</button><h1 class="title" id="exDetailName" style="margin-left:12px">Exchange</h1><button onclick="resetCurrentExchange()" class="btn btn-sm" style="margin-left:auto;background:var(--red)20;color:var(--red)">🗑️ Reset</button></div>
 <div class="stats" id="exDetailStats"></div>
 <div class="card mb-16">
-<div class="flex gap-8 mb-12 flex-wrap"><select id="exDetailYear" class="input" style="width:100px" onchange="loadExchangeDetail()"><option value="">Tutti</option><option value="2025">2025</option><option value="2024">2024</option><option value="2023">2023</option><option value="2022">2022</option><option value="2021">2021</option></select><select id="exDetailType" class="input" style="width:140px" onchange="loadExchangeDetail()"><option value="">Tutti tipi</option><option value="deposit">📥 Depositi</option><option value="withdraw">📤 Prelievi</option><option value="trade_buy">🛒 Acquisti</option><option value="trade_sell">💰 Vendite</option><option value="fee">💸 Fee</option><option value="convert">🔄 Convert</option><option value="dust">🧹 Dust</option><option value="reward">🎁 Rewards</option><option value="earn_sub">⬇️ Earn Sub</option><option value="earn_red">⬆️ Earn Red</option><option value="earn_move">↕️ Earn Move</option><option value="fiat_buy">💳 Fiat Buy</option><option value="fiat_deposit">💶 Fiat Deposit</option><option value="card_spend">💳 Card</option><option value="transfer">↔️ Transfer</option><option value="liquidity">🌊 Liquidity</option><option value="payment">🏪 Payment</option><option value="send">📨 Send</option><option value="other_in">❓ Other In</option><option value="other_out">❓ Other Out</option></select><input type="text" id="exDetailSearch" class="input" placeholder="🔍 Cerca coin..." oninput="loadExchangeDetail()" style="flex:1;min-width:150px"></div>
+<div class="flex gap-8 mb-12 flex-wrap"><select id="exDetailYear" class="input" style="width:100px" onchange="loadExchangeDetail()"><option value="">Tutti</option><option value="2025">2025</option><option value="2024">2024</option><option value="2023">2023</option><option value="2022">2022</option><option value="2021">2021</option></select><select id="exDetailType" class="input" style="width:140px" onchange="loadExchangeDetail()"><option value="">Tutti tipi</option><option value="deposit">📥 Depositi</option><option value="withdraw">📤 Prelievi</option><option value="trade_buy">🛒 Acquisti</option><option value="trade_sell">💰 Vendite</option><option value="fee">💸 Fee</option><option value="convert">🔄 Convert</option><option value="dust">🧹 Dust</option><option value="reward">🎁 Rewards</option><option value="earn_sub">⬇️ Earn Sub</option><option value="earn_red">⬆️ Earn Red</option><option value="earn_move">↕️ Earn Move</option><option value="fiat_buy">💳 Fiat Buy</option><option value="fiat_deposit">💶 Fiat Deposit</option><option value="card_spend">💳 Card</option><option value="transfer">↔️ Transfer</option><option value="liquidity">🌊 Liquidity</option><option value="payment">🏪 Payment</option><option value="send">📨 Send</option><option value="internal_transfer">🔗 Trasf. Interno</option><option value="earn">🏦 Earn</option><option value="other_in">❓ Other In</option><option value="other_out">❓ Other Out</option></select><input type="text" id="exDetailSearch" class="input" placeholder="🔍 Cerca coin..." oninput="loadExchangeDetail()" style="flex:1;min-width:150px"></div>
 <div id="exDetailList" style="max-height:500px;overflow-y:auto;padding-right:12px"></div>
 </div>
 </div>
@@ -146,7 +146,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.35';
+const APP_VERSION='8.36';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -772,6 +772,46 @@ usedWithdraws.add(w.id);
 });
 console.log('Total pairs after E→W:',pairs.length);
 
+// 7b. CERCA COPPIE WALLET→EXCHANGE (Wallet → Exchange Deposit)
+var usedWalletTx=new Set();
+deposits.forEach(function(d){
+if(usedDeposits.has(d.id))return;
+var dTime=new Date(d.tx_timestamp).getTime();
+var dAmt=Math.abs(parseFloat(d.amount)||0);
+var dCoin=d.coin;
+
+var match=walletTx.find(function(t){
+if(usedWalletTx.has(t.id))return false;
+if(t.tx_type!=='transfer_out')return false;
+var sym=t.token_out_symbol||'';
+if(sym.toUpperCase()!==dCoin.toUpperCase())return false;
+var tTime=new Date(t.tx_timestamp).getTime();
+var timeDiff=dTime-tTime;
+if(timeDiff<-5*60*1000||timeDiff>TIME_TOLERANCE)return false;
+var tAmt=Math.abs(parseFloat(t.token_out_amount)||0);
+var amtDiff=Math.abs(dAmt-tAmt)/Math.max(dAmt,0.0001);
+if(amtDiff>AMOUNT_TOLERANCE)return false;
+return true;
+});
+
+if(match){
+var wallet=wallets.find(function(ww){return ww.id===match.wallet_id;});
+pairs.push({
+type:'wallet_to_exchange',
+deposit:d,
+walletTx:match,
+coin:dCoin,
+amount:dAmt,
+fee:Math.abs(parseFloat(match.token_out_amount)||0)-dAmt,
+from:wallet?wallet.name:'Wallet',
+to:d.exchange
+});
+usedDeposits.add(d.id);
+usedWalletTx.add(match.id);
+}
+});
+console.log('Total pairs after W→E:',pairs.length);
+
 // 8. GENERA STATISTICHE
 var stats={
 totalTx:exchangeTx.length,
@@ -782,7 +822,8 @@ pairsFound:pairs.length,
 unmatchedWithdraws:withdraws.length-pairs.filter(function(p){return p.withdraw;}).length,
 byType:{
 exchange_to_exchange:pairs.filter(function(p){return p.type==='exchange_to_exchange';}).length,
-exchange_to_wallet:pairs.filter(function(p){return p.type==='exchange_to_wallet';}).length
+exchange_to_wallet:pairs.filter(function(p){return p.type==='exchange_to_wallet';}).length,
+wallet_to_exchange:pairs.filter(function(p){return p.type==='wallet_to_exchange';}).length
 }
 };
 
@@ -800,10 +841,11 @@ html+='</div></div>';
 // Dettaglio trasferimenti trovati
 if(pairs.length>0){
 html+='<div class="card mb-12"><div style="font-size:13px;font-weight:600;margin-bottom:12px">🔗 Trasferimenti Interni Identificati</div>';
-html+='<div style="font-size:11px;color:var(--text2);margin-bottom:8px">Exchange→Exchange: '+stats.byType.exchange_to_exchange+' | Exchange→Wallet: '+stats.byType.exchange_to_wallet+'</div>';
+html+='<div style="font-size:11px;color:var(--text2);margin-bottom:8px">Exchange→Exchange: '+stats.byType.exchange_to_exchange+' | Exchange→Wallet: '+stats.byType.exchange_to_wallet+' | Wallet→Exchange: '+(stats.byType.wallet_to_exchange||0)+'</div>';
 html+='<table class="table" style="font-size:11px"><thead><tr><th>Data</th><th>Coin</th><th>Quantità</th><th>Da</th><th>A</th><th>Fee</th></tr></thead><tbody>';
 pairs.slice(0,50).forEach(function(p){
-var dt=new Date(p.withdraw.tx_timestamp).toLocaleDateString('it-IT');
+var srcTx=p.withdraw||p.deposit;
+var dt=new Date(srcTx.tx_timestamp).toLocaleDateString('it-IT');
 html+='<tr><td>'+dt+'</td><td><strong>'+p.coin+'</strong></td><td class="text-mono">'+fmtN(p.amount)+'</td>';
 html+='<td style="color:var(--cyan)">'+formatExName(p.from)+'</td>';
 html+='<td style="color:var(--green)">'+formatExName(p.to)+'</td>';
@@ -855,7 +897,7 @@ var updates=[];
 
 // Mark trasferimenti interni
 reconcileData.pairs.forEach(function(p){
-updates.push({id:p.withdraw.id,tx_type:'internal_transfer',remark:(p.withdraw.remark||'')+' [RECONCILED→'+p.to+']'});
+if(p.withdraw)updates.push({id:p.withdraw.id,tx_type:'internal_transfer',remark:(p.withdraw.remark||'')+' [RECONCILED→'+p.to+']'});
 if(p.deposit)updates.push({id:p.deposit.id,tx_type:'internal_transfer',remark:(p.deposit.remark||'')+' [RECONCILED←'+p.from+']'});
 });
 
@@ -1472,16 +1514,16 @@ var txs=allTx;if(searchFilter)txs=txs.filter(function(t){return(t.coin||'').toLo
 var txs=allTx;if(searchFilter)txs=txs.filter(function(t){return(t.coin||'').toLowerCase().includes(searchFilter)||(t.operation||'').toLowerCase().includes(searchFilter)||(t.tx_type||'').toLowerCase().includes(searchFilter);});
 var coins=new Set();var byType={};
 txs.forEach(function(t){coins.add(t.coin);var tp=t.tx_type||'other';byType[tp]=(byType[tp]||0)+1;});
-var catIcons={deposit:'📥',withdraw:'📤',trade_buy:'🛒',trade_sell:'💰',fee:'💸',convert:'🔄',dust:'🧹',reward:'🎁',earn_sub:'⬇️',earn_red:'⬆️',earn_move:'↕️',fiat_buy:'💳',fiat_deposit:'💶',card_spend:'💳',transfer:'↔️',liquidity:'🌊',payment:'🏪',send:'📨',other_in:'❓',other_out:'❓'};
+var catIcons={deposit:'📥',withdraw:'📤',trade_buy:'🛒',trade_sell:'💰',fee:'💸',convert:'🔄',dust:'🧹',reward:'🎁',earn_sub:'⬇️',earn_red:'⬆️',earn_move:'↕️',fiat_buy:'💳',fiat_deposit:'💶',card_spend:'💳',transfer:'↔️',liquidity:'🌊',payment:'🏪',send:'📨',internal_transfer:'🔗',earn:'🏦',other_in:'❓',other_out:'❓'};
 var statsHtml='<div class="stat"><div class="stat-label">Totale TX</div><div class="stat-value" style="color:var(--cyan)">'+txs.length+'</div></div>';
 statsHtml+='<div class="stat"><div class="stat-label">Coin</div><div class="stat-value">'+coins.size+'</div></div>';
-var typOrder=['deposit','withdraw','trade_buy','trade_sell','fee','convert','dust','reward','earn_sub','earn_red','earn_move','fiat_buy','fiat_deposit','card_spend','transfer','liquidity','payment','send','other_in','other_out'];
+var typOrder=['deposit','withdraw','trade_buy','trade_sell','fee','convert','dust','reward','earn_sub','earn_red','earn_move','fiat_buy','fiat_deposit','card_spend','transfer','liquidity','payment','send','internal_transfer','earn','other_in','other_out'];
 typOrder.forEach(function(tp){if(byType[tp]){statsHtml+='<div class="stat" style="cursor:pointer" onclick="document.getElementById(\'exDetailType\').value=\''+tp+'\';loadExchangeDetail()"><div class="stat-label">'+(catIcons[tp]||'')+' '+tp+'</div><div class="stat-value" style="font-size:14px">'+byType[tp]+'</div></div>';}});
 document.getElementById('exDetailStats').innerHTML=statsHtml;
 exDetailTxs=txs;renderExDetailPage();}
 function renderExDetailPage(){var txs=exDetailTxs;var pageSize=100;var totalPages=Math.ceil(txs.length/pageSize);if(exDetailPage>totalPages)exDetailPage=totalPages;if(exDetailPage<1)exDetailPage=1;var start=(exDetailPage-1)*pageSize;var end=start+pageSize;var pageTxs=txs.slice(start,end);
 if(txs.length===0){document.getElementById('exDetailList').innerHTML='<div style="padding:40px;text-align:center;color:var(--text2)">Nessuna transazione</div>';return;}
-var typeIcons={deposit:'📥',withdraw:'📤',trade_buy:'🛒',trade_sell:'💰',fee:'💸',convert:'🔄',dust:'🧹',reward:'🎁',earn_sub:'⬇️',earn_red:'⬆️',earn_move:'↕️',fiat_buy:'💳',fiat_deposit:'💶',card_spend:'💳',transfer:'↔️',liquidity:'🌊',payment:'🏪',send:'📨',other_in:'❓',other_out:'❓',other:'•'};var typeColors={deposit:'var(--green)',withdraw:'var(--red)',trade_buy:'var(--green)',trade_sell:'var(--red)',fee:'var(--red)',convert:'var(--blue)',dust:'var(--text2)',reward:'var(--yellow)',earn_sub:'var(--cyan)',earn_red:'var(--cyan)',earn_move:'var(--cyan)',fiat_buy:'var(--green)',fiat_deposit:'var(--green)',card_spend:'var(--red)',transfer:'var(--cyan)',liquidity:'var(--purple)',payment:'var(--purple)',send:'var(--purple)',other_in:'var(--text2)',other_out:'var(--text2)',other:'var(--text2)'};
+var typeIcons={deposit:'📥',withdraw:'📤',trade_buy:'🛒',trade_sell:'💰',fee:'💸',convert:'🔄',dust:'🧹',reward:'🎁',earn_sub:'⬇️',earn_red:'⬆️',earn_move:'↕️',fiat_buy:'💳',fiat_deposit:'💶',card_spend:'💳',transfer:'↔️',liquidity:'🌊',payment:'🏪',send:'📨',internal_transfer:'🔗',earn:'🏦',other_in:'❓',other_out:'❓',other:'•'};var typeColors={deposit:'var(--green)',withdraw:'var(--red)',trade_buy:'var(--green)',trade_sell:'var(--red)',fee:'var(--red)',convert:'var(--blue)',dust:'var(--text2)',reward:'var(--yellow)',earn_sub:'var(--cyan)',earn_red:'var(--cyan)',earn_move:'var(--cyan)',fiat_buy:'var(--green)',fiat_deposit:'var(--green)',card_spend:'var(--red)',transfer:'var(--cyan)',liquidity:'var(--purple)',payment:'var(--purple)',send:'var(--purple)',internal_transfer:'#00b4d8',earn:'#f7971e',other_in:'var(--text2)',other_out:'var(--text2)',other:'var(--text2)'};
 var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">';
 html+='<div style="font-size:12px;color:var(--text2)">Totale: <strong>'+txs.length+'</strong> TX | Pagina '+exDetailPage+' di '+totalPages+'</div>';
 html+='<div style="display:flex;gap:4px;align-items:center">';
@@ -1496,9 +1538,10 @@ pageTxs.forEach(function(t){var d=new Date(t.tx_timestamp);var dateStr=d.toLocal
 html+='<div style="display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);gap:12px">';
 var coinLower=t.coin.toLowerCase();var iconUrl='https://assets.coincap.io/assets/icons/'+coinLower+'@2x.png';
 html+='<div style="position:relative;width:36px;height:36px;flex-shrink:0"><img src="'+iconUrl+'" style="width:36px;height:36px;border-radius:50%" onerror="this.style.display=\'none\';var n=this.nextElementSibling;if(n)n.style.display=\'flex\';"><div style="display:none;width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff">'+t.coin.slice(0,3)+'</div><div style="position:absolute;bottom:-2px;right:-2px;width:16px;height:16px;border-radius:50%;background:'+opColor+';display:flex;align-items:center;justify-content:center;font-size:9px;border:2px solid var(--bg)">'+icon+'</div></div>';
-html+='<div style="flex:1;min-width:0;overflow:hidden"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:600;white-space:nowrap">'+t.coin+' <span style="font-size:10px;padding:1px 5px;border-radius:4px;background:'+opColor+'20;color:'+opColor+'">'+typeName+'</span></div><div class="text-mono" style="color:'+amtColor+';font-weight:600;white-space:nowrap;font-size:13px">'+amtStr+'</div></div>';
+var reconBadge='';if(typeName==='internal_transfer')reconBadge=' <span style="font-size:9px;padding:1px 4px;border-radius:3px;background:#00b4d820;color:#00b4d8;font-weight:700">RICONCILIATO</span>';else if(typeName==='earn'&&(t.remark||'').includes('[RECONCILED'))reconBadge=' <span style="font-size:9px;padding:1px 4px;border-radius:3px;background:#f7971e20;color:#f7971e;font-weight:700">EARN</span>';
+html+='<div style="flex:1;min-width:0;overflow:hidden"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:600;white-space:nowrap">'+t.coin+' <span style="font-size:10px;padding:1px 5px;border-radius:4px;background:'+opColor+'20;color:'+opColor+'">'+typeName+'</span>'+reconBadge+'</div><div class="text-mono" style="color:'+amtColor+';font-weight:600;white-space:nowrap;font-size:13px">'+amtStr+'</div></div>';
 var priceStr=t.price_eur?'@€'+fmtN(t.price_eur):'';var valueStr=t.value_eur?'<span style="color:var(--cyan);font-weight:600">€'+fmtN(t.value_eur)+'</span>':'';
-var remarkStr=t.remark?'<span style="color:var(--text2)"> · '+t.remark.substring(0,30)+'</span>':'';
+var remarkStr=t.remark?'<span style="color:var(--text2)"> · '+t.remark.substring(0,60)+'</span>':'';
 html+='<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text2);margin-top:2px;gap:8px"><div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">'+t.operation+(priceStr?' '+priceStr:'')+remarkStr+'</div><div style="white-space:nowrap;flex-shrink:0">'+valueStr+(valueStr?' · ':'')+dateStr+'</div></div></div></div>';});
 html+='<div style="display:flex;justify-content:center;margin-top:12px;gap:4px">';
 html+='<button onclick="exDetailGoPage(exDetailPage-1)" class="btn btn-secondary" style="padding:8px 16px" '+(exDetailPage===1?'disabled':'')+'>◀ Precedente</button>';
