@@ -250,7 +250,7 @@ var data=await fetchMoralis(wallet.address,ck);
 if(data){var nativeBal=0;if(data.isRpc||data.isCosmos||data.isTon){nativeBal=data.nativeBalance||0;}else{try{nativeBal=Number(BigInt(data.nativeBalance||'0'))/1e18;}catch(e){}}
 if(nativeBal>0.00001){var nLogo=NATIVE_ICONS[ch.t]||null;if(!isBlacklisted(ch.t,null)){results.push({user_id:user.id,wallet_id:wallet.id,symbol:ch.t,name:ch.n+' Native',chain:ck,contract_address:null,amount:safeAmount(nativeBal),logo_url:nLogo,is_hidden:false});log('  ✅ '+ch.t+': '+fmtN(nativeBal),'log-ok');}else{blSkipped++;log('  🚫 '+ch.t+' (BL)','log-warn');}}
 if(data.tokens&&data.tokens.length>0){if(!data.isRpc&&!data.isCosmos&&!data.isTon)log('  📦 '+data.tokens.length+' token');var added=0,skipped=0;
-for(var j=0;j<data.tokens.length;j++){var token=data.tokens[j];var sym=token.symbol||'?';var contract=(data.isRpc||data.isCosmos)?(token.contractAddress||''):(token.token_address||'');contract=(contract||'').toLowerCase();
+for(var j=0;j<data.tokens.length;j++){var token=data.tokens[j];var sym=token.symbol||'?';var contract=(data.isRpc||data.isCosmos||data.isTon)?(token.contractAddress||''):(token.token_address||'');contract=(contract||'').toLowerCase();
 if(isBlacklisted(sym,contract)){blSkipped++;continue;}
 if(isSpam(token.name,sym)&&!whitelist.has(sym.toUpperCase())){skipped++;continue;}
 var bal=0;if(data.isRpc||data.isCosmos||data.isTon){bal=token.balance||0;}else{try{bal=Number(BigInt(token.balance||'0'))/Math.pow(10,token.decimals||18);}catch(e){try{bal=parseFloat(token.balance||'0')/Math.pow(10,token.decimals||18);}catch(e2){}}}if(bal<=0)continue;
