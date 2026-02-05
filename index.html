@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v8.46</title>
+<title>CryptoFolio v8.47</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -147,7 +147,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.46';
+const APP_VERSION='8.47';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -1448,7 +1448,7 @@ document.getElementById('apiSyncBtn').textContent='🚀 Connetti e Sincronizza';
 function showEdgeFunctionHelp(){alert('COME DEPLOYARE LA EDGE FUNCTION:\\n\\n1. Installa Supabase CLI:\\n   npm install -g supabase\\n\\n2. Login:\\n   supabase login\\n\\n3. Link al progetto:\\n   supabase link --project-ref TUO_PROJECT_REF\\n\\n4. Crea la funzione:\\n   supabase functions new binance-proxy\\n\\n5. Copia il file supabase_edge_function_binance.ts\\n\\n6. Deploy:\\n   supabase functions deploy binance-proxy\\n\\nScarica il file dalla chat!');}
 function updateApiHelp(){var ex=document.getElementById('apiExchange').value;var helps={binance:'<strong>📋 Come ottenere le API Binance:</strong><ol style="margin:8px 0 0 16px;padding:0"><li>Vai su <a href="https://www.binance.com/it/my/settings/api-management" target="_blank" style="color:var(--primary)">Binance API Management</a></li><li>Crea una nuova API Key</li><li>Abilita solo "Read" (nessun permesso di trading!)</li><li>Copia API Key e Secret qui sotto</li></ol>',kucoin:'<strong>📋 Come ottenere le API KuCoin:</strong><ol style="margin:8px 0 0 16px;padding:0"><li>Vai su <a href="https://www.kucoin.com/account/api" target="_blank" style="color:var(--primary)">KuCoin API Management</a></li><li>Crea una nuova API</li><li>Imposta permessi "General" e "Trade" in sola lettura</li></ol>',bybit:'<strong>📋 Come ottenere le API Bybit:</strong><ol style="margin:8px 0 0 16px;padding:0"><li>Vai su <a href="https://www.bybit.com/app/user/api-management" target="_blank" style="color:var(--primary)">Bybit API Management</a></li><li>Crea una nuova API Key</li><li>Abilita solo permessi di lettura</li></ol>'};document.getElementById('apiHelp').innerHTML=helps[ex]||helps.binance;}
 var currentExchange='';var exDetailPage=1;var exDetailTxs=[];
-var EX_LOGOS={binance:'https://assets.coingecko.com/markets/images/52/small/binance.jpg',bitget:'https://assets.coingecko.com/markets/images/540/small/bitget.png',bitpanda:'https://cdn.bitpanda.com/media/redesign/favicon/favicon-32x32.png',bybit:'https://assets.coingecko.com/markets/images/698/small/bybit_spot.png',bybit_eu:'https://assets.coingecko.com/markets/images/698/small/bybit_spot.png',coinbase:'https://assets.coingecko.com/markets/images/23/small/Coinbase_Coin_Primary.png',crypto_com:'https://assets.coingecko.com/markets/images/589/small/crypto_com.jpg',crypto_com_ex:'https://assets.coingecko.com/markets/images/589/small/crypto_com.jpg',gate:'https://assets.coingecko.com/markets/images/60/small/gate_io_logo1.jpg',kraken:'https://assets.coingecko.com/markets/images/29/small/kraken.jpg',kucoin:'https://assets.coingecko.com/markets/images/61/small/kucoin.png',mexc:'https://assets.coingecko.com/markets/images/409/small/MEXC.png',nexo:'https://assets.coingecko.com/coins/images/3695/small/nexo.png',okx:'https://assets.coingecko.com/markets/images/96/small/WeChat_Image_20220117220452.png',pionex:'https://assets.coingecko.com/markets/images/737/small/pionex.png',revolut:'https://assets.coingecko.com/markets/images/1285/small/Revolut.jpeg',whitebit:'https://assets.coingecko.com/markets/images/418/small/whitebit.png',youhodler:'https://assets.coingecko.com/markets/images/1136/small/youhodler.jpeg',youngplatform:'https://assets.coingecko.com/markets/images/672/small/yp.png',cosmos:'https://assets.coingecko.com/coins/images/1481/small/cosmos_hub.png',osmosis:'https://assets.coingecko.com/coins/images/16724/small/osmo.png',terra:'https://assets.coingecko.com/coins/images/8284/small/01_LussQPt.png',other:'https://assets.coingecko.com/coins/images/1/small/bitcoin.png'};
+var EX_LOGOS={binance:'https://assets.coingecko.com/markets/images/52/small/binance.jpg',bitget:'https://s2.coinmarketcap.com/static/img/exchanges/64x64/513.png',bitpanda:'https://cdn.bitpanda.com/media/redesign/favicon/favicon-32x32.png',bybit:'https://assets.coingecko.com/markets/images/698/small/bybit_spot.png',bybit_eu:'https://assets.coingecko.com/markets/images/698/small/bybit_spot.png',coinbase:'https://assets.coingecko.com/markets/images/23/small/Coinbase_Coin_Primary.png',crypto_com:'https://assets.coingecko.com/markets/images/589/small/crypto_com.jpg',crypto_com_ex:'https://assets.coingecko.com/markets/images/589/small/crypto_com.jpg',gate:'https://assets.coingecko.com/markets/images/60/small/gate_io_logo1.jpg',kraken:'https://assets.coingecko.com/markets/images/29/small/kraken.jpg',kucoin:'https://assets.coingecko.com/markets/images/61/small/kucoin.png',mexc:'https://assets.coingecko.com/markets/images/409/small/MEXC.png',nexo:'https://assets.coingecko.com/coins/images/3695/small/nexo.png',okx:'https://assets.coingecko.com/markets/images/96/small/WeChat_Image_20220117220452.png',pionex:'https://s2.coinmarketcap.com/static/img/exchanges/64x64/542.png',revolut:'https://assets.coingecko.com/markets/images/1285/small/Revolut.jpeg',whitebit:'https://assets.coingecko.com/markets/images/418/small/whitebit.png',youhodler:'https://assets.coingecko.com/markets/images/1136/small/youhodler.jpeg',youngplatform:'https://s2.coinmarketcap.com/static/img/exchanges/64x64/607.png',cosmos:'https://assets.coingecko.com/coins/images/1481/small/cosmos_hub.png',osmosis:'https://assets.coingecko.com/coins/images/16724/small/osmo.png',terra:'https://s2.coinmarketcap.com/static/img/coins/64x64/4172.png',other:'https://assets.coingecko.com/coins/images/1/small/bitcoin.png'};
 var EX_COLORS={binance:'#f3ba2f',bitget:'#00f0ff',bitpanda:'#3d9970',bybit:'#f7a600',bybit_eu:'#f7a600',coinbase:'#0052ff',crypto_com:'#002d74',crypto_com_ex:'#002d74',gate:'#17e5c1',kraken:'#5741d9',kucoin:'#23af91',mexc:'#1972f5',nexo:'#4f97f7',okx:'#000',pionex:'#0093d5',revolut:'#0075eb',whitebit:'#02c076',youhodler:'#4361ee',youngplatform:'#00d09c',cosmos:'#2e3148',osmosis:'#5e12a0',terra:'#ffd83d',other:'#888'};
 var EX_NAMES={binance:'Binance',bitget:'Bitget',bitpanda:'Bitpanda',bybit:'Bybit',bybit_eu:'Bybit EU',coinbase:'Coinbase',crypto_com:'Crypto.com App',crypto_com_ex:'Crypto.com Exchange',gate:'Gate.io',kraken:'Kraken',kucoin:'KuCoin',mexc:'MEXC',nexo:'Nexo',okx:'OKX',pionex:'Pionex',revolut:'Revolut',whitebit:'WhiteBIT',youhodler:'YouHodler',youngplatform:'Young Platform',cosmos:'Cosmos',osmosis:'Osmosis',terra:'Terra LUNC',other:'Altro'};
 function formatExName(ex){return EX_NAMES[ex]||ex.replace(/_/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();});}
@@ -1961,6 +1961,45 @@ document.getElementById('importBar').style.width=Math.round(((i+1)/csvTexts.leng
 continue;}}
 // === FINE BYBIT PARSER ===
 
+// === MEXC PARSER DEDICATO ===
+if(isMexc){
+var mexcTxs=[];
+for(var mx=dataStartLine;mx<lines.length;mx++){
+var mLine=lines[mx].trim();if(!mLine)continue;
+var mCols=parseCSVLine(mLine);
+if(mCols.length<8)continue;
+var mPair=mCols[1]?.replace(/"/g,'').trim()||'';
+var mTime=mCols[2]?.replace(/"/g,'').trim()||'';
+var mDir=mCols[4]?.replace(/"/g,'').trim()||'';
+var mQty=parseFloat(mCols[7]?.replace(/"/g,'')||0);
+var mStatus=(mCols[10]||'').toString().replace(/"/g,'').trim().toLowerCase();
+if(mStatus!=='eseguito'&&mStatus!=='filled'&&mStatus!=='executed')continue;
+if(!mTime||!mPair||mQty===0)continue;
+var mCoin=mPair.split('_')[0];
+var mTimestamp=mTime.includes('T')?mTime:mTime.replace(' ','T');
+if(!mTimestamp.includes('Z')&&!mTimestamp.includes('+'))mTimestamp+='Z';
+var mYear=parseInt(mTime.slice(0,4));
+if(isNaN(mYear)||mYear<2010||mYear>2030)continue;
+var mOp=mDir;
+var mAmt=mQty;
+if(mDir.toLowerCase().includes('vendi')||mDir.toLowerCase()==='sell'){mAmt=-Math.abs(mQty);mOp='Sell';}else{mOp='Buy';}
+var mType=mDir.toLowerCase().includes('vendi')||mDir.toLowerCase()==='sell'?'trade_sell':'trade_buy';
+mexcTxs.push({user_id:user.id,exchange:exchange,tx_timestamp:mTimestamp,tax_year:mYear,operation:mOp+' '+mCoin,account:'MEXC',coin:mCoin,amount:mAmt,remark:'MEXC '+mPair,tx_type:mType,asset_type:classifyAsset(mCoin)});
+}
+console.log('MEXC parsed:',mexcTxs.length,'records');
+if(mexcTxs.length>0){
+var inserted=0;var errors=0;
+for(var b=0;b<mexcTxs.length;b+=100){
+var batch=mexcTxs.slice(b,b+100);
+try{var res=await db.from('exchange_transactions').upsert(batch,{onConflict:'user_id,exchange,tx_timestamp,coin,amount,operation'});
+if(res.error){console.error('MEXC upsert error:',res.error);errors+=batch.length;}else{inserted+=batch.length;}}
+catch(e){console.error('MEXC exception:',e);errors+=batch.length;}}
+totalImported+=inserted;totalParsed+=mexcTxs.length;totalErrors+=errors;
+console.log('MEXC inserted:',inserted,'errors:',errors);
+document.getElementById('importBar').style.width=Math.round(((i+1)/csvTexts.length)*100)+'%';
+continue;}}
+// === FINE MEXC PARSER ===
+
 for(var j=dataStartLine;j<lines.length;j++){var line=lines[j].trim();if(!line)continue;var cols=parseCSVLine(line);
 var utcTime,operation,coin,change,remark='',account='Spot';
 if(isBinance&&cols.length>=6){utcTime=cols[1]?.replace(/"/g,'');operation=cols[3]?.replace(/"/g,'');coin=cols[4]?.replace(/"/g,'');change=parseFloat(cols[5]?.replace(/"/g,'')||0);remark=cols[6]?.replace(/"/g,'')||'';account=cols[2]?.replace(/"/g,'')||'Spot';}
@@ -1972,7 +2011,6 @@ else if(isBybitUta&&cols.length>=14){utcTime=cols[14]?.replace(/"/g,'');coin=col
 else if(isBybitSpot&&cols.length>=10){utcTime=cols[10]?.replace(/"/g,'');var pair=cols[1]?.replace(/"/g,'')||'';coin=pair.replace(/USDT|USDC|EUR|USD/g,'');operation=cols[3]?.replace(/"/g,'')||'';change=parseFloat(cols[6]?.replace(/"/g,'')||0);if(operation==='SELL')change=-Math.abs(change);remark='Spot Trade '+pair;account='Bybit Spot';}
 else if(isBitget&&cols.length>=5){utcTime=cols[1]?.replace(/"/g,'').trim();coin=cols[2]?.replace(/"/g,'').trim();operation=cols[3]?.replace(/"/g,'').trim();change=parseFloat(cols[4]?.replace(/"/g,'')||0);remark=operation;account='Bitget';}
 else if(isBitpanda&&cols.length>=8){utcTime=cols[1]?.replace(/"/g,'').trim();operation=cols[2]?.replace(/"/g,'').trim();var inOut=cols[3]?.replace(/"/g,'').trim()||'';change=parseFloat(cols[6]?.replace(/"/g,'')||0);coin=cols[7]?.replace(/"/g,'').trim();if(inOut==='outgoing')change=-Math.abs(change);remark=operation+' '+inOut;account='Bitpanda';}
-else if(isMexc&&cols.length>=8){var pair=cols[1]?.replace(/"/g,'').trim()||'';utcTime=cols[2]?.replace(/"/g,'').trim();var direction=cols[4]?.replace(/"/g,'').trim()||'';change=parseFloat(cols[7]?.replace(/"/g,'')||0);var status=cols[10]?.replace(/"/g,'').trim()||'';if(status!=='Eseguito'&&status!=='Filled'&&status!=='Executed')continue;coin=pair.split('_')[0];operation=direction;if(direction.toLowerCase().includes('vendi')||direction.toLowerCase()==='sell')change=-Math.abs(change);remark='MEXC '+pair+' '+direction;account='MEXC';}
 else if(isCryptoCom&&cols.length>=10){utcTime=cols[0]?.replace(/"/g,'').trim();var desc=cols[1]?.replace(/"/g,'').trim()||'';coin=cols[2]?.replace(/"/g,'').trim();change=parseFloat(cols[3]?.replace(/"/g,'')||0);var toCoin=cols[4]?.replace(/"/g,'').trim()||'';var toAmt=parseFloat(cols[5]?.replace(/"/g,'')||0);var kind=cols[9]?.replace(/"/g,'').trim()||'';operation=desc;remark=kind;account='Crypto.com';
 var timestamp=utcTime.includes('T')?utcTime:utcTime.replace(' ','T');if(!timestamp.includes('Z'))timestamp+='Z';var taxYear=parseInt(utcTime.slice(0,4));
 if((kind.includes('purchase')||desc.includes('Bought')||desc.includes('Defi Purchase'))&&toCoin&&toAmt){
