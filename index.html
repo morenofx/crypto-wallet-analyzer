@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v8.40</title>
+<title>CryptoFolio v8.41</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -146,7 +146,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.40';
+const APP_VERSION='8.41';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -1552,7 +1552,7 @@ html+='</div>';
 document.getElementById('exDetailList').innerHTML=html;}
 function exDetailGoPage(p){var totalPages=Math.ceil(exDetailTxs.length/100);if(p<1)p=1;if(p>totalPages)p=totalPages;exDetailPage=p;renderExDetailPage();document.getElementById('exDetailList').scrollTop=0;}
 function toggleYearDetail(year){var el=document.getElementById('yearDetail'+year);el.style.display=el.style.display==='none'?'block':'none';}
-async function importCSV(){var files=document.getElementById('importFile').files;if(!files.length){toast('Seleziona file CSV o ZIP','error');return;}var exchange=document.getElementById('importExchange').value;document.getElementById('importProgress').style.display='block';document.getElementById('importBtn').disabled=true;var totalImported=0;var totalParsed=0;var csvTexts=[];
+async function importCSV(){var files=document.getElementById('importFile').files;if(!files.length){toast('Seleziona file CSV o ZIP','error');return;}var exchange=document.getElementById('importExchange').value;document.getElementById('importProgress').style.display='block';document.getElementById('importBtn').disabled=true;var totalImported=0;var totalParsed=0;var totalErrors=0;var csvTexts=[];
 for(var f=0;f<files.length;f++){var file=files[f];document.getElementById('importStatus').textContent='📄 Lettura '+file.name+'...';if(file.name.endsWith('.zip')){try{var zip=await JSZip.loadAsync(file);var csvFiles=Object.keys(zip.files).filter(function(n){return n.endsWith('.csv')&&!n.startsWith('__MACOSX')&&!n.includes('/.DS_')&&!n.includes('SUMMARY.csv')&&!n.includes('Trade Details')&&!n.includes('Order-Splitting')&&!n.includes('Asset Snapshots')&&!n.includes('Positions')&&!n.includes('for-cointrack');});console.log('CSV trovati nel ZIP:',csvFiles);for(var c=0;c<csvFiles.length;c++){var csvContent=await zip.files[csvFiles[c]].async('string');csvTexts.push({name:csvFiles[c],text:csvContent});console.log('Letto:',csvFiles[c],'righe:',csvContent.split('\n').length);}}catch(e){console.error('ZIP error:',e);toast('Errore ZIP: '+e.message,'error');}}else{var text=await file.text();csvTexts.push({name:file.name,text:text});}}
 console.log('Totale file CSV:',csvTexts.length);document.getElementById('importStatus').textContent='📊 Elaborazione '+csvTexts.length+' file...';
 for(var i=0;i<csvTexts.length;i++){var csv=csvTexts[i];var cleanText=csv.text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');var lines=cleanText.split('\n');var toInsert=[];
@@ -2006,9 +2006,9 @@ toInsert.push({user_id:user.id,exchange:exchange,tx_timestamp:timestamp,tax_year
 totalParsed+=toInsert.length;console.log('File',csv.name,'parsed:',toInsert.length,'records');if(toInsert.length===0){console.warn('⚠️ File',csv.name,'- 0 records! Header:',headerLine.slice(0,100),'Format: CryptoCom=',isCryptoCom,'CryptoComExDep=',isCryptoComExDeposit,'CryptoComExJournal=',isCryptoComExJournal,'dataStart=',dataStartLine,'totalLines=',lines.length);}
 var seen={};var uniqueInsert=[];toInsert.forEach(function(r){var key=r.tx_timestamp+'|'+r.coin+'|'+r.amount+'|'+r.operation;if(!seen[key]){seen[key]=true;uniqueInsert.push(r);}});if(uniqueInsert.length<toInsert.length)console.log('Dedup:',toInsert.length,'->',uniqueInsert.length);toInsert=uniqueInsert;
 document.getElementById('importStatus').textContent='💾 Salvataggio '+csv.name+' ('+toInsert.length+' TX)...';document.getElementById('importBar').style.width=Math.round(((i+0.5)/csvTexts.length)*100)+'%';
-if(toInsert.length>0){var inserted=0;var errors=0;for(var b=0;b<toInsert.length;b+=100){var batch=toInsert.slice(b,b+100);try{var res=await db.from('exchange_transactions').upsert(batch,{onConflict:'user_id,exchange,tx_timestamp,coin,amount,operation'});if(res.error){console.error('Upsert error batch',b,':',res.error.message,res.error.details);errors+=batch.length;}else{inserted+=batch.length;}}catch(e){console.error('Exception batch',b,':',e);errors+=batch.length;}}totalImported+=inserted;console.log('File',csv.name,'inserted:',inserted,'errors:',errors);}
+if(toInsert.length>0){var inserted=0;var errors=0;for(var b=0;b<toInsert.length;b+=100){var batch=toInsert.slice(b,b+100);try{var res=await db.from('exchange_transactions').upsert(batch,{onConflict:'user_id,exchange,tx_timestamp,coin,amount,operation'});if(res.error){console.error('❌ Upsert error batch',b,':',res.error.message,res.error.details,res.error.code);console.log('First record of failed batch:',JSON.stringify(batch[0]));errors+=batch.length;}else{inserted+=batch.length;}}catch(e){console.error('❌ Exception batch',b,':',e);errors+=batch.length;}}totalImported+=inserted;totalErrors+=errors;console.log('File',csv.name,'inserted:',inserted,'errors:',errors);if(errors>0)console.warn('⚠️ '+errors+' records falliti per '+csv.name);}
 document.getElementById('importBar').style.width=Math.round(((i+1)/csvTexts.length)*100)+'%';}
-console.log('TOTALE - Parsed:',totalParsed,'Imported:',totalImported);document.getElementById('importBar').style.width='100%';document.getElementById('importStatus').textContent='✅ '+totalImported+' TX importate ('+totalParsed+' parsate)';document.getElementById('importBtn').disabled=false;toast('✅ '+totalImported+' TX importate!');setTimeout(function(){closeModal('importModal');loadExchangeTx();},2000);}
+console.log('TOTALE - Parsed:',totalParsed,'Imported:',totalImported,'Errors:',totalErrors);document.getElementById('importBar').style.width='100%';var statusMsg='✅ '+totalImported+' TX importate ('+totalParsed+' parsate)';if(totalErrors>0)statusMsg+=' ⚠️ '+totalErrors+' errori';document.getElementById('importStatus').textContent=statusMsg;document.getElementById('importBtn').disabled=false;if(totalErrors>0){toast('⚠️ '+totalImported+' TX importate, '+totalErrors+' errori - controlla Console','warning');}else{toast('✅ '+totalImported+' TX importate!');}setTimeout(function(){closeModal('importModal');loadExchangeTx();},2000);}
 function parseCSVLine(line){var result=[];var inQuotes=false;var current='';for(var i=0;i<line.length;i++){var c=line[i];if(c==='"'){inQuotes=!inQuotes;}else if(c===','&&!inQuotes){result.push(current);current='';}else{current+=c;}}result.push(current);return result;}
 
 // ═══════════════════════════════════════════════════════════════════════════
