@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>CryptoFolio v8.36</title>
+<title>CryptoFolio v8.37</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -146,7 +146,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // CRYPTOFOLIO v7.93 - Portfolio Tracker con Fiscalità Italiana
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION='8.36';
+const APP_VERSION='8.37';
 
 // CLASSIFICAZIONE ASSET (Fondamentale per calcolo fiscale)
 const FIAT_COINS=['EUR','USD','GBP','CHF'];
@@ -1579,7 +1579,75 @@ var isRevolut=headerLine.includes('Symbol')&&headerLine.includes('Type')&&header
 var isTatax=headerLine.includes('Symbol')&&headerLine.includes('MovementType')&&headerLine.includes('Quantity')&&headerLine.includes('Countervalue');
 var isBybit=isBybitDeposit||isBybitFund||isBybitUta||isBybitSpot;
 var isGate=headerLine.includes('action_desc')&&headerLine.includes('action_data')&&headerLine.includes('change_amount');
-console.log('Format - Binance:',isBinance,'Tatax:',isTatax,'Coinbase:',isCoinbase,'Bybit:',isBybit,'Bitget:',isBitget,'Bitpanda:',isBitpanda,'CryptoCom:',isCryptoCom,'CryptoComEx:',isCryptoComExDeposit||isCryptoComExJournal,'OKX:',isOkipo||isOkxOfficial,'KuCoin:',isKucoinSpot||isKucoinDeposit||isKucoinAccount,'YouHodler:',isYouHodler,'Pionex:',isPionexTrading||isPionexDeposit,'Revolut:',isRevolut,'Gate:',isGate,'dataStart:',dataStartLine);
+var isTerra=headerLine.includes('timestamp')&&headerLine.includes('tx_type')&&headerLine.includes('received_amount')&&headerLine.includes('sent_amount')&&headerLine.includes('received_currency');
+console.log('Format - Binance:',isBinance,'Tatax:',isTatax,'Coinbase:',isCoinbase,'Bybit:',isBybit,'Bitget:',isBitget,'Bitpanda:',isBitpanda,'CryptoCom:',isCryptoCom,'CryptoComEx:',isCryptoComExDeposit||isCryptoComExJournal,'OKX:',isOkipo||isOkxOfficial,'KuCoin:',isKucoinSpot||isKucoinDeposit||isKucoinAccount,'YouHodler:',isYouHodler,'Pionex:',isPionexTrading||isPionexDeposit,'Revolut:',isRevolut,'Gate:',isGate,'Terra:',isTerra,'dataStart:',dataStartLine);
+
+// === TERRA/LUNC: Parser dedicato ===
+if(isTerra){
+var terraTxs=[];
+for(var tt=dataStartLine;tt<lines.length;tt++){
+var tLine=lines[tt].trim();if(!tLine)continue;
+var tCols=parseCSVLine(tLine);
+// timestamp,tx_type,received_amount,received_currency,sent_amount,sent_currency,fee,fee_currency,comment,txid
+if(tCols.length<8)continue;
+var tTime=(tCols[0]||'').trim();
+var tType=(tCols[1]||'').trim();
+var recvAmt=parseFloat(tCols[2]||0);
+var recvCoin=(tCols[3]||'').trim().toUpperCase();
+var sentAmt=parseFloat(tCols[4]||0);
+var sentCoin=(tCols[5]||'').trim().toUpperCase();
+var feeAmt=parseFloat(tCols[6]||0);
+var feeCoin=(tCols[7]||'').trim().toUpperCase();
+var comment=(tCols[8]||'').trim();
+var txid=(tCols[9]||'').trim();
+if(!tTime)continue;
+var tTimestamp=tTime.includes('T')?tTime:tTime.replace(' ','T');
+if(!tTimestamp.includes('Z')&&!tTimestamp.includes('+'))tTimestamp+='Z';
+var tYear=parseInt(tTime.slice(0,4));
+if(isNaN(tYear)||tYear<2010||tYear>2030)continue;
+// Determina tipo e coin
+var txType='other';var coin='';var amount=0;
+var tTypeLower=tType.toLowerCase();
+if(recvAmt>0&&recvCoin){
+coin=recvCoin;amount=recvAmt;
+if(tTypeLower==='transfer')txType='deposit';
+else if(tTypeLower.includes('stake')||tTypeLower.includes('reward'))txType='reward';
+else if(tTypeLower.includes('swap'))txType='trade_buy';
+else txType='other_in';
+}
+if(sentAmt>0&&sentCoin){
+coin=sentCoin;amount=-sentAmt;
+if(tTypeLower==='transfer')txType='withdraw';
+else if(tTypeLower.includes('swap'))txType='trade_sell';
+else if(tTypeLower.includes('stake'))txType='earn_sub';
+else txType='other_out';
+}
+// Solo fee (gas)
+if(!recvAmt&&!sentAmt&&feeAmt>0){
+coin=feeCoin;amount=-feeAmt;txType='fee';
+}
+if(!coin||coin.length<1)continue;
+terraTxs.push({user_id:user.id,exchange:exchange,tx_timestamp:tTimestamp,tax_year:tYear,operation:tType||'Unknown',account:'Terra',coin:coin,amount:amount,remark:comment||('TX: '+txid.slice(0,16)+'...'),tx_type:txType,asset_type:classifyAsset(coin)});
+// Se c'è anche fee separata, aggiungi record fee
+if(feeAmt>0&&feeCoin&&(recvAmt>0||sentAmt>0)){
+terraTxs.push({user_id:user.id,exchange:exchange,tx_timestamp:tTimestamp+'1',tax_year:tYear,operation:'Fee',account:'Terra',coin:feeCoin,amount:-feeAmt,remark:'Gas fee',tx_type:'fee',asset_type:classifyAsset(feeCoin)});
+}
+}
+console.log('Terra/LUNC: '+terraTxs.length+' TX parsed');
+if(terraTxs.length>0){
+document.getElementById('importStatus').textContent='💾 Salvataggio '+csv.name+' ('+terraTxs.length+' TX Terra)...';
+var inserted=0;var errors=0;
+for(var b=0;b<terraTxs.length;b+=100){
+var batch=terraTxs.slice(b,b+100);
+try{var res=await db.from('exchange_transactions').upsert(batch,{onConflict:'user_id,exchange,tx_timestamp,coin,amount,operation'});
+if(res.error){console.error('Terra upsert error:',res.error);errors+=batch.length;}else{inserted+=batch.length;}}
+catch(e){console.error('Terra exception:',e);errors+=batch.length;}}
+totalImported+=inserted;totalParsed+=terraTxs.length;
+console.log('Terra inserted:',inserted,'errors:',errors);
+}
+document.getElementById('importBar').style.width=Math.round(((i+1)/csvTexts.length)*100)+'%';
+continue;}
+// === FINE TERRA/LUNC ===
 
 // === GATE.IO: Parser dedicato ===
 if(isGate){
