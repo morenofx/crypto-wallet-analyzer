@@ -675,19 +675,19 @@ return EARN_OPERATIONS.some(function(e){return op.includes(e.toLowerCase());});
 });
 console.log('Earn/Staking ops:',earnOps.length);
 
-// 4. IDENTIFICA WITHDRAW DAGLI EXCHANGE
+// 4. IDENTIFICA WITHDRAW DAGLI EXCHANGE (anche già riconciliati)
 var withdraws=exchangeTx.filter(function(t){
 var op=(t.operation||'').toLowerCase();
 var type=t.tx_type||'';
-return type==='withdraw'||op.includes('withdraw');
+return type==='withdraw'||op.includes('withdraw')||(type==='internal_transfer'&&op.includes('withdraw'));
 });
 console.log('Withdraws found:',withdraws.length);
 
-// 5. IDENTIFICA DEPOSIT SUGLI EXCHANGE
+// 5. IDENTIFICA DEPOSIT SUGLI EXCHANGE (anche già riconciliati)
 var deposits=exchangeTx.filter(function(t){
 var op=(t.operation||'').toLowerCase();
 var type=t.tx_type||'';
-return type==='deposit'&&!op.includes('card')&&!op.includes('buy');
+return (type==='deposit'||( type==='internal_transfer'&&op.includes('deposit')))&&!op.includes('card')&&!op.includes('buy');
 });
 console.log('Deposits found:',deposits.length);
 
@@ -898,8 +898,9 @@ var updates=[];
 
 // Mark trasferimenti interni
 reconcileData.pairs.forEach(function(p){
-if(p.withdraw)updates.push({id:p.withdraw.id,tx_type:'internal_transfer',remark:(p.withdraw.remark||'')+' [RECONCILED→'+p.to+']'});
-if(p.deposit)updates.push({id:p.deposit.id,tx_type:'internal_transfer',remark:(p.deposit.remark||'')+' [RECONCILED←'+p.from+']'});
+var cleanRemark=function(r){return(r||'').replace(/\s*\[RECONCILED[^\]]*\]/g,'').trim();};
+if(p.withdraw)updates.push({id:p.withdraw.id,tx_type:'internal_transfer',remark:cleanRemark(p.withdraw.remark)+' [RECONCILED→'+p.to+']'});
+if(p.deposit)updates.push({id:p.deposit.id,tx_type:'internal_transfer',remark:cleanRemark(p.deposit.remark)+' [RECONCILED←'+p.from+']'});
 });
 
 // Mark operazioni Earn
